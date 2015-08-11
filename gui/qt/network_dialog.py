@@ -17,13 +17,13 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import sys, time, datetime, re, threading
-from electrum.i18n import _
-from electrum.util import print_error, print_msg
+from electrum_dash.i18n import _
+from electrum_dash.util import print_error, print_msg
 import os.path, json, ast, traceback
 
 from PyQt4.QtGui import *
 from PyQt4.QtCore import *
-from electrum import DEFAULT_PORTS
+from electrum_dash import DEFAULT_PORTS
 
 from util import *
 

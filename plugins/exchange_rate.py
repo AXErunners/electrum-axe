@@ -11,11 +11,11 @@ import re
 from ssl import SSLError
 from decimal import Decimal
 
-from electrum.bitcoin import COIN
-from electrum.plugins import BasePlugin, hook
-from electrum.i18n import _
-from electrum_gui.qt.util import *
-from electrum_gui.qt.amountedit import AmountEdit
+from electrum_dash.bitcoin import COIN
+from electrum_dash.plugins import BasePlugin, hook
+from electrum_dash.i18n import _
+from electrum_dash_gui.qt.util import *
+from electrum_dash_gui.qt.amountedit import AmountEdit
 
 
 EXCHANGES = ["BitcoinAverage",

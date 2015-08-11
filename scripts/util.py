@@ -1,13 +1,13 @@
 import time, electrum, Queue
-from electrum import Interface, SimpleConfig
-from electrum.network import filter_protocol, parse_servers
+from electrum_dash import Interface, SimpleConfig
+from electrum_dash.network import filter_protocol, parse_servers
 
-# electrum.util.set_verbosity(1)
+# electrum_dash.util.set_verbosity(1)
 
 def get_peers():
     # 1. start interface and wait for connection
     q = Queue.Queue()
-    interface = electrum.Interface('ecdsa.net:110:s', q)
+    interface = electrum_dash.Interface('ecdsa.net:110:s', q)
     interface.start()
     i, r = q.get()
     if not interface.is_connected():

@@ -313,9 +313,9 @@ class Commands:
 
     @command('')
     def version(self):
-        """Return the version of electrum."""
-        import electrum  # Needs to stay here to prevent ciruclar imports
-        return electrum.ELECTRUM_VERSION
+        """Return the version of electrum-dash."""
+        import electrum_dash  # Needs to stay here to prevent ciruclar imports
+        return electrum_dash.ELECTRUM_VERSION
 
     @command('w')
     def getmpk(self):
