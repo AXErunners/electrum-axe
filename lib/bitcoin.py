@@ -28,6 +28,8 @@ from util import print_error, InvalidPassword
 import ecdsa
 import aes
 
+import coinhash
+
 ################################## transactions
 
 DUST_THRESHOLD = 546
@@ -139,6 +141,10 @@ def sha256(x):
 def Hash(x):
     if type(x) is unicode: x=x.encode('utf-8')
     return sha256(sha256(x))
+
+def PoWHash(x):
+    if type(x) is unicode: x=x.encode('utf-8')
+    return coinhash.X11Hash(x)
 
 
 hash_encode = lambda x: x[::-1].encode('hex')

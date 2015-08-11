@@ -127,7 +127,7 @@ class ElectrumWindow(QMainWindow):
         self.create_status_bar()
         self.need_update = threading.Event()
 
-        self.decimal_point = config.get('decimal_point', 5)
+        self.decimal_point = config.get('decimal_point', 8)
         self.num_zeros     = int(config.get('num_zeros',0))
 
         self.completions = QStringListModel()
@@ -509,11 +509,11 @@ class ElectrumWindow(QMainWindow):
     def base_unit(self):
         assert self.decimal_point in [2, 5, 8]
         if self.decimal_point == 2:
-            return 'bits'
+            return 'uDASH'
         if self.decimal_point == 5:
-            return 'mBTC'
+            return 'mDASH'
         if self.decimal_point == 8:
-            return 'BTC'
+            return 'DASH'
         raise Exception('Unknown base unit')
 
     def update_status(self):
@@ -2620,9 +2620,9 @@ class ElectrumWindow(QMainWindow):
         SSL_key_e.editingFinished.connect(lambda: self.config.set_key('ssl_key', str(SSL_key_e.text())))
         id_widgets.append((SSL_key_label, SSL_key_e))
 
-        units = ['BTC', 'mBTC', 'bits']
+        units = ['DASH', 'mDASH', 'uDASH']
         msg = _('Base unit of your wallet.')\
-              + '\n1BTC=1000mBTC.\n' \
+              + '\n1DASH=1000mDASH.\n' \
               + _(' These settings affects the fields in the Send tab')+' '
         unit_label = HelpLabel(_('Base unit') + ':', msg)
         unit_combo = QComboBox()
@@ -2632,11 +2632,11 @@ class ElectrumWindow(QMainWindow):
             unit_result = units[unit_combo.currentIndex()]
             if self.base_unit() == unit_result:
                 return
-            if unit_result == 'BTC':
+            if unit_result == 'DASH':
                 self.decimal_point = 8
-            elif unit_result == 'mBTC':
+            elif unit_result == 'mDASH':
                 self.decimal_point = 5
-            elif unit_result == 'bits':
+            elif unit_result == 'uDASH':
                 self.decimal_point = 2
             else:
                 raise Exception('Unknown base unit')
