@@ -4,7 +4,7 @@ Inside your directory create a file called name.cfg with the name of that theme.
 
 Create another file called style.css - this will be your CSS for the theme (see other themes for reference).
 
-Documentation on Qt's stylesheets (used by Electrum):
+Documentation on Qt's stylesheets (used by Electrum-DASH):
 
 Overview: http://qt-project.org/doc/qt-4.8/stylesheet.html
 Examples: http://qt-project.org/doc/qt-4.8/stylesheet-examples.html

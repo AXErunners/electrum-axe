@@ -73,7 +73,7 @@ class InstallWizard(QDialog):
         self.storage = storage
         self.setMinimumSize(575, 400)
         self.setMaximumSize(575, 400)
-        self.setWindowTitle('Electrum' + '  -  ' + _('Install Wizard'))
+        self.setWindowTitle('Electrum-DASH' + '  -  ' + _('Install Wizard'))
         self.connect(self, QtCore.SIGNAL('accept'), self.accept)
         self.stack = QStackedLayout()
         self.setLayout(self.stack)
@@ -87,7 +87,7 @@ class InstallWizard(QDialog):
 
     def restore_or_create(self):
         vbox = QVBoxLayout()
-        main_label = QLabel(_("Electrum could not find an existing wallet."))
+        main_label = QLabel(_("Electrum-DASH could not find an existing wallet."))
         vbox.addWidget(main_label)
         grid = QGridLayout()
         grid.setSpacing(5)
@@ -244,7 +244,7 @@ class InstallWizard(QDialog):
         return map(lambda e: self.get_seed_text(e), entries)
 
 
-    def waiting_dialog(self, task, msg= _("Electrum is generating your addresses, please wait.")):
+    def waiting_dialog(self, task, msg= _("Electrum-DASH is generating your addresses, please wait.")):
         def target():
             task()
             self.emit(QtCore.SIGNAL('accept'))
@@ -268,7 +268,7 @@ class InstallWizard(QDialog):
         grid = QGridLayout()
         grid.setSpacing(5)
 
-        label = QLabel(_("Electrum communicates with remote servers to get information about your transactions and addresses. The servers all fulfil the same purpose only differing in hardware. In most cases you simply want to let Electrum pick one at random if you have a preference though feel free to select a server manually.") + "\n\n" \
+        label = QLabel(_("Electrum-DASH communicates with remote servers to get information about your transactions and addresses. The servers all fulfil the same purpose only differing in hardware. In most cases you simply want to let Electrum-DASH pick one at random if you have a preference though feel free to select a server manually.") + "\n\n" \
                       + _("How do you want to connect to a server:")+" ")
         label.setWordWrap(True)
         grid.addWidget(label, 0, 0)
