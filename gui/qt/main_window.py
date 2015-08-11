@@ -2204,8 +2204,8 @@ class ElectrumWindow(QMainWindow):
             return
         if not data:
             return
-        # if the user scanned a bitcoin URI
-        if data.startswith("bitcoin:"):
+        # if the user scanned a dash URI
+        if data.startswith("dash:"):
             self.pay_to_URI(data)
             return
         # else if the user scanned an offline signed tx

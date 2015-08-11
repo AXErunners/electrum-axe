@@ -76,7 +76,7 @@ ws.onmessage = function (evt) {
 
 
 // See http://stackoverflow.com/questions/29186154/chrome-clicking-mailto-links-closes-websocket-connection
-$(document).on('click', 'a[href^="bitcoin:"]', function (e) {
+$(document).on('click', 'a[href^="dash:"]', function (e) {
     e.preventDefault();
     var btcWindow = window.open($(e.currentTarget).attr('href'));
     btcWindow.close();
