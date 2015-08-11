@@ -20,7 +20,7 @@ from amountedit import AmountEdit
 from electrum_dash.plugins import always_hook, run_hook
 from electrum_dash.mnemonic import prepare_seed
 
-MSG_ENTER_ANYTHING    = _("Please enter a seed phrase, a master key, a list of Bitcoin addresses, or a list of private keys")
+MSG_ENTER_ANYTHING    = _("Please enter a seed phrase, a master key, a list of Dash addresses, or a list of private keys")
 MSG_SHOW_MPK          = _("Here is your master public key")
 MSG_ENTER_MPK         = _("Please enter your master public key")
 MSG_ENTER_SEED_OR_MPK = _("Please enter a seed phrase or a master key (xpub or xprv)")
