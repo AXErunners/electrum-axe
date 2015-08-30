@@ -1,10 +1,10 @@
 from decimal import Decimal
 _ = lambda x:x
 #from i18n import _
-from electrum.wallet import WalletStorage, Wallet
-from electrum.util import format_satoshis, set_verbosity, StoreDict
-from electrum.bitcoin import is_valid, COIN
-from electrum.network import filter_protocol
+from electrum_dash.wallet import WalletStorage, Wallet
+from electrum_dash.util import format_satoshis, set_verbosity, StoreDict
+from electrum_dash.bitcoin import is_valid, COIN
+from electrum_dash.network import filter_protocol
 import sys, getpass, datetime
 
 # minimal fdisk like gui for console usage
@@ -175,7 +175,7 @@ class ElectrumGui:
 
     def do_send(self):
         if not is_valid(self.str_recipient):
-            print(_('Invalid Bitcoin address'))
+            print(_('Invalid Dash address'))
             return
         try:
             amount = int(Decimal(self.str_amount) * COIN)

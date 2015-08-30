@@ -1,8 +1,8 @@
-# Configuration file for the electrum client
+# Configuration file for the electrum-dash client
 # Settings defined here are shared across wallets
 #
-# copy this file to /etc/electrum.conf if you want read-only settings
-# copy it into your ~/.electrum/ directory if you want global settings
+# copy this file to /etc/electrum-dash.conf if you want read-only settings
+# copy it into your ~/.electrum-dash/ directory if you want global settings
 # that can be rewritten by the client
 
 [client]

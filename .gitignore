@@ -6,9 +6,9 @@ lib/icons_rc.py
 build/
 dist/
 *.egg/
-/electrum.py
+/electrum-dash.py
 contrib/pyinstaller/
-Electrum.egg-info/
+Electrum*.egg-info/
 gui/qt/icons_rc.py
 locale/
 .devlocaltmp/

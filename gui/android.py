@@ -22,9 +22,9 @@
 from __future__ import absolute_import
 import android
 
-from electrum import SimpleConfig, Wallet, WalletStorage, format_satoshis
-from electrum.bitcoin import is_address, COIN
-from electrum import util
+from electrum_dash import SimpleConfig, Wallet, WalletStorage, format_satoshis
+from electrum_dash.bitcoin import is_address, COIN
+from electrum_dash import util
 from decimal import Decimal
 import datetime, re
 
@@ -474,7 +474,7 @@ def make_new_contact():
     if r:
         data = str(r['extras']['SCAN_RESULT']).strip()
         if data:
-            if re.match('^bitcoin:', data):
+            if re.match('^dash:', data):
                 out = util.parse_URI(data)
                 address = out.get('address')
             elif is_address(data):
@@ -582,7 +582,7 @@ def payto_loop():
                 amount = droid.fullQueryDetail('amount').result.get('text')
 
                 if not is_address(recipient):
-                    modal_dialog('Error','Invalid Bitcoin address')
+                    modal_dialog('Error','Invalid Dash address')
                     continue
 
                 try:
@@ -606,7 +606,7 @@ def payto_loop():
                     data = str(r['extras']['SCAN_RESULT']).strip()
                     if data:
                         print "data", data
-                        if re.match('^bitcoin:', data):
+                        if re.match('^dash:', data):
                             payto, amount, label, message, _ = util.parse_URI(data)
                             if amount:
                                 amount = str(amount / COIN)
@@ -661,7 +661,7 @@ def receive_loop():
             modal_dialog('URI copied to clipboard', receive_URI)
 
         elif event["name"]=="amount":
-            amount = modal_input('Amount', 'Amount you want to receive (in BTC). ', format_satoshis(receive_amount) if receive_amount else None, "numberDecimal")
+            amount = modal_input('Amount', 'Amount you want to receive (in DASH). ', format_satoshis(receive_amount) if receive_amount else None, "numberDecimal")
             if amount is not None:
                 receive_amount = int(COIN * Decimal(amount)) if amount else None
                 out = 'receive'
@@ -880,7 +880,7 @@ def make_bitmap(data):
     droid.dialogShow()
     try:
         import qrcode
-        from electrum import bmp
+        from electrum_dash import bmp
         qr = qrcode.QRCode()
         qr.add_data(data)
         bmp.save_qrcode(qr,"/sdcard/sl4a/qrcode.bmp")

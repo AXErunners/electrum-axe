@@ -1,11 +1,12 @@
 from PyQt4.QtGui import *
-from electrum.plugins import BasePlugin, hook
-from electrum.i18n import _
+from electrum_dash.plugins import BasePlugin, hook
+from electrum_dash.i18n import _
 
 
 import datetime
-from electrum.util import format_satoshis
-from electrum.bitcoin import COIN
+from electrum_dash.util import format_satoshis
+from electrum_dash.bitcoin import COIN
+
 
 try:
     import matplotlib.pyplot as plt
@@ -104,7 +105,7 @@ class Plugin(BasePlugin):
         ax.add_artist(anchored_box)
 
 
-        plt.ylabel('mBTC')
+        plt.ylabel('mDASH')
         plt.xlabel('Dates')
         xfmt = md.DateFormatter('%Y-%m-%d')
         ax.xaxis.set_major_formatter(xfmt)

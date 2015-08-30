@@ -8,28 +8,28 @@ try:
     import PyQt4.QtCore as QtCore
 
 except ImportError:
-    print "You need to have PyQT installed to run Electrum in graphical mode."
+    print "You need to have PyQT installed to run Electrum-DASH in graphical mode."
     print "If you have pip installed try 'sudo pip install pyqt' if you are on Debian/Ubuntu try 'sudo apt-get install python-qt4'."
     sys.exit(0)
 
 from decimal import Decimal as D
-from electrum.bitcoin import is_valid
-from electrum.i18n import _
+from electrum_dash.bitcoin import is_valid
+from electrum_dash.i18n import _
 import decimal
 import json
 import os.path
 import random
 import re
 import time
-from electrum.wallet import Wallet, WalletStorage
+from electrum_dash.wallet import Wallet, WalletStorage
 import webbrowser
 import history_widget_lite
 import receiving_widget
-from electrum import util
+from electrum_dash import util
 import datetime
 
-from electrum.version import ELECTRUM_VERSION as electrum_version
-from electrum.util import format_satoshis, age
+from electrum_dash.version import ELECTRUM_VERSION as electrum_version
+from electrum_dash.util import format_satoshis, age
 
 from main_window import ElectrumWindow
 import shutil
@@ -138,9 +138,9 @@ class MiniWindow(QDialog):
         self.balance_label.setObjectName("balance_label")
 
 
-        # Bitcoin address code
+        # Dash address code
         self.address_input = QLineEdit()
-        self.address_input.setPlaceholderText(_("Enter a Bitcoin address or contact"))
+        self.address_input.setPlaceholderText(_("Enter a Dash address or contact"))
         self.address_input.setObjectName("address_input")
 
         self.address_input.setFocusPolicy(Qt.ClickFocus)
@@ -251,8 +251,8 @@ class MiniWindow(QDialog):
         show_hist = self.config.get("gui_show_receiving",False)
         self.toggle_receiving_layout(show_hist)
 
-        self.setWindowIcon(QIcon(":icons/electrum.png"))
-        self.setWindowTitle("Electrum")
+        self.setWindowIcon(QIcon(":icons/electrum_dash.png"))
+        self.setWindowTitle("Electrum-DASH")
         self.setWindowFlags(Qt.Window|Qt.MSWindowsFixedSizeDialogHint)
         self.layout().setSizeConstraint(QLayout.SetFixedSize)
         self.setObjectName("main_window")
@@ -368,10 +368,10 @@ class MiniWindow(QDialog):
         unit = self.actuator.g.base_unit()
 
         self.balance_label.set_balance_text(amount, unit, quote_text)
-        self.setWindowTitle("Electrum %s - %s %s" % (electrum_version, amount, unit))
+        self.setWindowTitle("Electrum-DASH %s - %s %s" % (electrum_version, amount, unit))
 
     def amount_input_changed(self, amount_text):
-        """Update the number of bitcoins displayed."""
+        """Update the number of Dash displayed."""
         self.check_button_status()
 
         try:
@@ -388,8 +388,8 @@ class MiniWindow(QDialog):
 
     def create_quote_text(self, btc_balance):
         """Return a string copy of the amount fiat currency the
-        user has in bitcoins."""
-        from electrum.plugins import run_hook
+        user has in Dash."""
+        from electrum_dash.plugins import run_hook
         r = {}
         run_hook('get_fiat_balance_text', btc_balance, r)
         return r.get(0,'')
@@ -505,7 +505,7 @@ class BalanceLabel(QLabel):
 
 
     def set_balance_text(self, amount, unit, quote_text):
-        """Set the amount of bitcoins in the gui."""
+        """Set the amount of Dash in the gui."""
         if self.state == self.SHOW_CONNECTING:
             self.state = self.SHOW_BALANCE
 
@@ -576,7 +576,7 @@ class ReceivePopup(QDialog):
         self.close()
 
     def setup(self, address):
-        label = QLabel(_("Copied your Bitcoin address to the clipboard!"))
+        label = QLabel(_("Copied your Dash address to the clipboard!"))
         address_display = QLineEdit(address)
         address_display.setReadOnly(True)
         resize_line_edit_width(address_display, address)
@@ -586,7 +586,7 @@ class ReceivePopup(QDialog):
         main_layout.addWidget(address_display)
 
         self.setMouseTracking(True)
-        self.setWindowTitle("Electrum - " + _("Receive Bitcoin payment"))
+        self.setWindowTitle("Electrum-DASH - " + _("Receive Dash payment"))
         self.setWindowFlags(Qt.Window|Qt.FramelessWindowHint|
                             Qt.MSWindowsFixedSizeDialogHint)
         self.layout().setSizeConstraint(QLayout.SetFixedSize)
@@ -603,7 +603,7 @@ class ReceivePopup(QDialog):
 
 class MiniActuator:
     """Initialize the definitions relating to themes and
-    sending/receiving bitcoins."""
+    sending/receiving Dash."""
 
 
     def __init__(self, main_window):
@@ -647,7 +647,7 @@ class MiniActuator:
         """Set the inital fiat currency conversion country (USD/EUR/GBP) in
         the GUI to what it was set to in the wallet."""
         currency = self.g.config.get('currency')
-        # currency can be none when Electrum is used for the first
+        # currency can be none when Electrum-DASH is used for the first
         # time and no setting has been created yet.
         if currency is not None:
             set_quote_currency(currency)
@@ -677,7 +677,7 @@ class MiniActuator:
         s.start()
         w = QDialog()
         w.resize(200, 70)
-        w.setWindowTitle('Electrum')
+        w.setWindowTitle('Electrum-DASH')
         l = QLabel(_('Sending transaction, please wait.'))
         vbox = QVBoxLayout()
         vbox.addWidget(l)
@@ -693,12 +693,12 @@ class MiniActuator:
 
 
     def send(self, address, amount, parent_window):
-        """Send bitcoins to the target address."""
+        """Send Dash to the target address."""
         dest_address = self.fetch_destination(address)
 
         if dest_address is None or not is_valid(dest_address):
             QMessageBox.warning(parent_window, _('Error'),
-                _('Invalid Bitcoin Address') + ':\n' + address, _('OK'))
+                _('Invalid Dash Address') + ':\n' + address, _('OK'))
             return False
 
         amount = D(unicode(amount)) * (10*self.g.decimal_point)

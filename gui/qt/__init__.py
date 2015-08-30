@@ -34,11 +34,11 @@ from PyQt4.QtGui import *
 from PyQt4.QtCore import *
 import PyQt4.QtCore as QtCore
 
-from electrum.i18n import _, set_language
-from electrum.util import print_error, print_msg
-from electrum.plugins import run_hook, always_hook
-from electrum import WalletStorage, Wallet
-from electrum.bitcoin import MIN_RELAY_TX_FEE
+from electrum_dash.i18n import _, set_language
+from electrum_dash.util import print_error, print_msg
+from electrum_dash.plugins import run_hook, always_hook
+from electrum_dash import WalletStorage, Wallet
+from electrum_dash.bitcoin import MIN_RELAY_TX_FEE
 
 try:
     import icons_rc
@@ -79,7 +79,7 @@ class ElectrumGui:
         m.addAction(_("Show/Hide"), self.show_or_hide)
         m.addAction(_("Dark/Light"), self.toggle_tray_icon)
         m.addSeparator()
-        m.addAction(_("Exit Electrum"), self.close)
+        m.addAction(_("Exit Electrum-DASH"), self.close)
         self.tray.setContextMenu(m)
 
     def toggle_tray_icon(self):
@@ -121,7 +121,7 @@ class ElectrumGui:
         import lite_window
         if not self.check_qt_version():
             if self.config.get('lite_mode') is True:
-                msg = "Electrum was unable to load the 'Lite GUI' because it needs Qt version >= 4.7.\nChanging your config to use the 'Classic' GUI"
+                msg = "Electrum-DASH was unable to load the 'Lite GUI' because it needs Qt version >= 4.7.\nChanging your config to use the 'Classic' GUI"
                 QMessageBox.warning(None, "Could not start Lite GUI.", msg)
                 self.config.set_key('lite_mode', False, True)
                 sys.exit(0)
@@ -201,7 +201,7 @@ class ElectrumGui:
         self.dark_icon = self.config.get("dark_icon", False)
         icon = QIcon(":icons/electrum_dark_icon.png") if self.dark_icon else QIcon(':icons/electrum_light_icon.png')
         self.tray = QSystemTrayIcon(icon, None)
-        self.tray.setToolTip('Electrum')
+        self.tray.setToolTip('Electrum-DASH')
         self.tray.activated.connect(self.tray_activated)
         self.build_tray_menu()
         self.tray.show()

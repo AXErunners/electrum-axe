@@ -41,8 +41,8 @@ import x509
 import rsakey
 
 
-REQUEST_HEADERS = {'Accept': 'application/bitcoin-paymentrequest', 'User-Agent': 'Electrum'}
-ACK_HEADERS = {'Content-Type':'application/bitcoin-payment','Accept':'application/bitcoin-paymentack','User-Agent':'Electrum'}
+REQUEST_HEADERS = {'Accept': 'application/dash-paymentrequest', 'User-Agent': 'Electrum'}
+ACK_HEADERS = {'Content-Type':'application/dash-payment','Accept':'application/dash-paymentack','User-Agent':'Electrum'}
 
 ca_path = requests.certs.where()
 ca_list, ca_keyID = x509.load_certificates(ca_path)

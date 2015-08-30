@@ -100,13 +100,13 @@ def profiler(func):
 
 def user_dir():
     if "HOME" in os.environ:
-        return os.path.join(os.environ["HOME"], ".electrum")
+        return os.path.join(os.environ["HOME"], ".electrum-dash")
     elif "APPDATA" in os.environ:
-        return os.path.join(os.environ["APPDATA"], "Electrum")
+        return os.path.join(os.environ["APPDATA"], "Electrum-DASH")
     elif "LOCALAPPDATA" in os.environ:
-        return os.path.join(os.environ["LOCALAPPDATA"], "Electrum")
+        return os.path.join(os.environ["LOCALAPPDATA"], "Electrum-DASH")
     elif 'ANDROID_DATA' in os.environ:
-        return "/sdcard/electrum/"
+        return "/sdcard/electrum-dash/"
     else:
         #raise Exception("No home directory found in environment variables.")
         return
@@ -249,7 +249,7 @@ def parse_URI(uri):
         return {'address': uri}
 
     u = urlparse.urlparse(uri)
-    assert u.scheme == 'bitcoin'
+    assert u.scheme == 'dash'
 
     address = u.path
 
@@ -301,7 +301,7 @@ def create_URI(addr, amount, message):
         if type(message) == unicode:
             message = message.encode('utf8')
         query.append('message=%s'%urllib.quote(message))
-    p = urlparse.ParseResult(scheme='bitcoin', netloc='', path=addr, params='', query='&'.join(query), fragment='')
+    p = urlparse.ParseResult(scheme='dash', netloc='', path=addr, params='', query='&'.join(query), fragment='')
     return urlparse.urlunparse(p)
 
 

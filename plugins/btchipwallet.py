@@ -6,16 +6,16 @@ from struct import pack,unpack
 from sys import stderr
 from time import sleep
 
-import electrum
-from electrum_gui.qt.password_dialog import make_password_dialog, run_password_dialog
-from electrum.account import BIP32_Account
-from electrum.bitcoin import EncodeBase58Check, DecodeBase58Check, public_key_to_bc_address, bc_address_to_hash_160
-from electrum.i18n import _
-from electrum.plugins import BasePlugin, hook
-from electrum.transaction import deserialize
-from electrum.wallet import BIP32_HD_Wallet, BIP32_Wallet
+import electrum_dash
+from electrum_dash_gui.qt.password_dialog import make_password_dialog, run_password_dialog
+from electrum_dash.account import BIP32_Account
+from electrum_dash.bitcoin import EncodeBase58Check, DecodeBase58Check, public_key_to_bc_address, bc_address_to_hash_160
+from electrum_dash.i18n import _
+from electrum_dash.plugins import BasePlugin, hook
+from electrum_dash.transaction import deserialize
+from electrum_dash.wallet import BIP32_HD_Wallet, BIP32_Wallet
 
-from electrum.util import format_satoshis_plain, print_error, print_msg
+from electrum_dash.util import format_satoshis_plain, print_error, print_msg
 import hashlib
 import threading
 

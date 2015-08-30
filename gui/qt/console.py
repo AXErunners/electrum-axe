@@ -4,7 +4,7 @@ import sys, os, re
 import traceback, platform
 from PyQt4 import QtCore
 from PyQt4 import QtGui
-from electrum import util
+from electrum_dash import util
 
 
 if platform.system() == 'Windows':
