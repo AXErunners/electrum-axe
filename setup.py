@@ -36,10 +36,14 @@ setup(
         'qrcode',
         'protobuf',
         'dnspython',
+        'x11_hash==1.4'
+    ],
+    dependency_links=[
+        'git+https://github.com/mazaclub/x11_hash@1.4#egg=x11_hash-1.4'
     ],
     package_dir={
         'electrum_dash': 'lib',
-        'electrum_dash__gui': 'gui',
+        'electrum_dash_gui': 'gui',
         'electrum_dash_plugins': 'plugins',
     },
     packages=['electrum_dash','electrum_dash_gui','electrum_dash_gui.qt','electrum_dash_plugins'],

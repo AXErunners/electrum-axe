@@ -28,7 +28,7 @@ from util import print_error, InvalidPassword
 import ecdsa
 import aes
 
-import coinhash
+import x11_hash
 
 ################################## transactions
 
@@ -144,7 +144,7 @@ def Hash(x):
 
 def PoWHash(x):
     if type(x) is unicode: x=x.encode('utf-8')
-    return coinhash.X11Hash(x)
+    return x11_hash.getPoWHash(x)
 
 
 hash_encode = lambda x: x[::-1].encode('hex')
