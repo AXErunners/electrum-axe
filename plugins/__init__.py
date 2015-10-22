@@ -23,6 +23,29 @@ except ImportError:
     from lib.i18n import _
 
 descriptions = [
+    # Disabled plugins.
+
+    #{
+    #    'name': 'email_requests',
+    #    'fullname': 'Email',
+    #    'description': _("Send and receive payment request with an email account"),
+    #    'available_for': ['qt'],
+    #},
+    #{
+    #    'name': 'greenaddress_instant',
+    #    'fullname': 'GreenAddress instant',
+    #    'description': _("Allows validating if your transactions have instant confirmations by GreenAddress"),
+    #    'available_for': ['qt'],
+    #},
+    #{
+    #    'name': 'labels',
+    #    'fullname': _('LabelSync'),
+    #    'description': '\n'.join([
+    #        _("The new and improved LabelSync plugin. This can sync your labels across multiple Electrum installs by using a remote database to save your data. Labels, transactions ids and addresses are encrypted before they are sent to the remote server."),
+    #        _("The label sync's server software is open-source as well and can be found on github.com/maran/electrum-sync-server")
+    #    ]),
+    #    'available_for': ['qt']
+    #},
     {
         'name': 'audio_modem',
         'fullname': _('Audio MODEM'),
@@ -51,31 +74,10 @@ descriptions = [
         'available_for': ['qt'],
     },
     {
-        'name': 'email_requests',
-        'fullname': 'Email',
-        'description': _("Send and receive payment request with an email account"),
-        'available_for': ['qt'],
-    },
-    {
         'name': 'exchange_rate',
         'fullname': _("Exchange rates"),
         'description': _("Exchange rates and currency conversion tools."),
         'available_for': ['qt'],
-    },
-    {
-        'name': 'greenaddress_instant',
-        'fullname': 'GreenAddress instant',
-        'description': _("Allows validating if your transactions have instant confirmations by GreenAddress"),
-        'available_for': ['qt'],
-    },
-    {
-        'name': 'labels',
-        'fullname': _('LabelSync'),
-        'description': '\n'.join([
-            _("The new and improved LabelSync plugin. This can sync your labels across multiple Electrum installs by using a remote database to save your data. Labels, transactions ids and addresses are encrypted before they are sent to the remote server."),
-            _("The label sync's server software is open-source as well and can be found on github.com/maran/electrum-sync-server")
-        ]),
-        'available_for': ['qt']
     },
     {
         'name': 'plot',
