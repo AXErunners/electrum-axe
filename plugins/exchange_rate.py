@@ -18,20 +18,8 @@ from electrum_dash_gui.qt.util import *
 from electrum_dash_gui.qt.amountedit import AmountEdit
 
 
-EXCHANGES = ["BitcoinAverage",
-             "BitcoinVenezuela",
-             "BTCParalelo",
-             "Bitcurex",
-             "Bitmarket",
-             "BitPay",
-             "Blockchain",
-             "BTCChina",
-             "CaVirtEx",
-             "Coinbase",
-             "CoinDesk",
-             "itBit",
-             "LocalBitcoins",
-             "Winkdex"]
+EXCHANGES = ["Bittrex",
+             "Poloniex"]
 
 EXCH_SUPPORT_HIST = [("CoinDesk", "USD"),
                      ("Winkdex", "USD"),
@@ -47,7 +35,7 @@ class Exchanger(threading.Thread):
         self.quote_currencies = None
         self.lock = threading.Lock()
         self.query_rates = threading.Event()
-        self.use_exchange = self.parent.config.get('use_exchange', "Blockchain")
+        self.use_exchange = self.parent.config.get('use_exchange', "Bittrex")
         self.parent.exchanges = EXCHANGES
         #self.parent.win.emit(SIGNAL("refresh_exchanges_combo()"))
         #self.parent.win.emit(SIGNAL("refresh_currencies_combo()"))
@@ -70,31 +58,27 @@ class Exchanger(threading.Thread):
         self.is_running = False
 
     def update_rate(self):
-        self.use_exchange = self.parent.config.get('use_exchange', "Blockchain")
+        self.use_exchange = self.parent.config.get('use_exchange', "Bittrex")
         update_rates = {
-            "BitcoinAverage": self.update_ba,
-            "BitcoinVenezuela": self.update_bv,
-            "BTCParalelo": self.update_bpl,
-            "Bitcurex": self.update_bx,
-            "Bitmarket": self.update_bm,
-            "BitPay": self.update_bp,
-            "Blockchain": self.update_bc,
-            "BTCChina": self.update_CNY,
-            "CaVirtEx": self.update_cv,
-            "CoinDesk": self.update_cd,
-            "Coinbase": self.update_cb,
-            "itBit": self.update_ib,
-            "LocalBitcoins": self.update_lb,
-            "Winkdex": self.update_wd,
+#            "BitPay": self.update_bp,
+#            "Blockchain": self.update_bc,
+            "Bittrex": self.update_bittrex,
+            "Poloniex": self.update_polo
         }
         try:
             rates = update_rates[self.use_exchange]()
+            self.update_fiat_from_btc(rates)
         except Exception as e:
             self.parent.print_error(e)
             rates = {}
         with self.lock:
             self.quote_currencies = rates
             self.parent.set_currencies(rates)
+
+    def update_fiat_from_btc(self, quote_currencies):
+        blockchain_tickers = self.update_bc()
+        for currency, btc_rate in blockchain_tickers.items():
+            quote_currencies[currency] = quote_currencies['BTC'] * btc_rate
 
     def run(self):
         self.is_running = True
@@ -103,80 +87,36 @@ class Exchanger(threading.Thread):
             self.update_rate()
             self.query_rates.wait(150)
 
+    # # DASH - BTC rates # #
 
-    def update_cd(self):
-        resp_currencies = self.get_json('api.coindesk.com', "/v1/bpi/supported-currencies.json")
+    def update_bittrex(self):
+        ticker = self.get_json('bittrex.com', '/api/v1.1/public/getticker?market=BTC-DASH')
         quote_currencies = {}
-        for cur in resp_currencies:
-            quote_currencies[str(cur["currency"])] = 0.0
-        current_cur = self.parent.config.get("currency", "EUR")
-        if current_cur in quote_currencies:
-            resp_rate = self.get_json('api.coindesk.com', "/v1/bpi/currentprice/" + str(current_cur) + ".json")
-            quote_currencies[str(current_cur)] = Decimal(str(resp_rate["bpi"][str(current_cur)]["rate_float"]))
+        if not ticker.get('success', False):
+            return quote_currencies
+        last = Decimal(ticker['result']['Last'])
+        quote_currencies['BTC'] = last
         return quote_currencies
 
-    def update_ib(self):
-        available_currencies = ["USD", "EUR", "SGD"]
+    def update_polo(self):
         quote_currencies = {}
-        for cur in available_currencies:
-            quote_currencies[cur] = 0.0
-        current_cur = self.parent.config.get("currency", "EUR")
-        if current_cur in available_currencies:
-            resp_rate = self.get_json('api.itbit.com', "/v1/markets/XBT" + str(current_cur) + "/ticker")
-            quote_currencies[str(current_cur)] = Decimal(str(resp_rate["lastPrice"]))
+        tickers = self.get_json('poloniex.com', '/public?command=returnTicker')
+        dash_ticker = tickers.get('BTC_DASH')
+        quote_currencies['BTC'] = Decimal(dash_ticker['last'])
         return quote_currencies
 
-    def update_wd(self):
-        winkresp = self.get_json('winkdex.com', "/api/v0/price")
-        return {"USD": Decimal(str(winkresp["price"]))/Decimal("100.0")}
 
-    def update_cv(self):
-        jsonresp = self.get_json('www.cavirtex.com', "/api/CAD/ticker.json")
-        cadprice = jsonresp["last"]
-        return {"CAD": Decimal(str(cadprice))}
+    # # BTC - USD rates # #
 
-    def update_bm(self):
-        jsonresp = self.get_json('www.bitmarket.pl', "/json/BTCPLN/ticker.json")
-        pln_price = jsonresp["last"]
-        return {"PLN": Decimal(str(pln_price))}
-
-    def update_bx(self):
-        jsonresp = self.get_json('pln.bitcurex.com', "/data/ticker.json")
-        pln_price = jsonresp["last"]
-        return {"PLN": Decimal(str(pln_price))}
-
-    def update_CNY(self):
-        jsonresp = self.get_json('data.btcchina.com', "/data/ticker")
-        cnyprice = jsonresp["ticker"]["last"]
-        return {"CNY": Decimal(str(cnyprice))}
-
+    # Currently unused.
     def update_bp(self):
         jsonresp = self.get_json('bitpay.com', "/api/rates")
         return dict([(str(r["code"]), Decimal(r["rate"])) for r in jsonresp])
-
-    def update_cb(self):
-        jsonresp = self.get_json('coinbase.com', "/api/v1/currencies/exchange_rates")
-        return dict([(r[7:].upper(), Decimal(str(jsonresp[r]))) for r in jsonresp if r.startswith("btc_to_")])
 
     def update_bc(self):
         jsonresp = self.get_json('blockchain.info', "/ticker")
         return dict([(r, Decimal(str(jsonresp[r]["15m"]))) for r in jsonresp])
 
-    def update_lb(self):
-        jsonresp = self.get_json('localbitcoins.com', "/bitcoinaverage/ticker-all-currencies/")
-        return dict([(r, Decimal(jsonresp[r]["rates"]["last"])) for r in jsonresp])
-
-    def update_bv(self):
-        jsonresp = self.get_json('api.bitcoinvenezuela.com', "/")
-        return dict([(r, Decimal(jsonresp["BTC"][r])) for r in jsonresp["BTC"]])
-
-    def update_bpl(self):
-        jsonresp = self.get_json('btcparalelo.com', "/api/price")
-        return {"VEF": Decimal(jsonresp["price"])}
-
-    def update_ba(self):
-        jsonresp = self.get_json('api.bitcoinaverage.com', "/ticker/global/all")
-        return dict([(r, Decimal(jsonresp[r]["last"])) for r in jsonresp if not r == "timestamp"])
 
 
 class Plugin(BasePlugin):
@@ -184,7 +124,7 @@ class Plugin(BasePlugin):
     def __init__(self,a,b):
         BasePlugin.__init__(self,a,b)
         self.currencies = [self.fiat_unit()]
-        self.exchanges = [self.config.get('use_exchange', "Blockchain")]
+        self.exchanges = [self.config.get('use_exchange', "Bittrex")]
         # Do price discovery
         self.exchanger = Exchanger(self)
         self.exchanger.start()
@@ -238,17 +178,20 @@ class Plugin(BasePlugin):
         self.get_fiat_price_text(r)
         quote = r.get(0)
         if quote:
-            price_text = "1 BTC~%s"%quote
+            price_text = "1 DASH~%s"%quote
             fiat_currency = quote[-3:]
             btc_price = self.btc_rate
             fiat_balance = Decimal(btc_price) * Decimal(btc_balance) / COIN
             balance_text = "(%.2f %s)" % (fiat_balance,fiat_currency)
+            # If BTC is the chosen currency, use 8 digit precision.
+            if fiat_currency == 'BTC':
+                balance_text = "(%.8f %s)" % (fiat_balance,fiat_currency)
             text = "  " + balance_text + "     " + price_text + " "
         r2[0] = text
 
     def create_fiat_balance_text(self, btc_balance):
         quote_currency = self.fiat_unit()
-        self.exchanger.use_exchange = self.config.get("use_exchange", "Blockchain")
+        self.exchanger.use_exchange = self.config.get("use_exchange", "Bittrex")
         cur_rate = self.exchanger.exchange(Decimal("1.0"), quote_currency)
         if cur_rate is None:
             quote_text = ""
@@ -256,6 +199,8 @@ class Plugin(BasePlugin):
             quote_balance = btc_balance * Decimal(cur_rate)
             self.btc_rate = cur_rate
             quote_text = "%.2f %s" % (quote_balance, quote_currency)
+            if quote_currency == 'BTC':
+                quote_text = "%.8f %s" % (quote_balance, quote_currency)
         return quote_text
 
     @hook
@@ -266,7 +211,7 @@ class Plugin(BasePlugin):
             tx_list[tx_hash] = {'value': value, 'timestamp': timestamp }
 
         self.tx_list = tx_list
-        self.cur_exchange = self.config.get('use_exchange', "Blockchain")
+        self.cur_exchange = self.config.get('use_exchange', "Bittrex")
         t = threading.Thread(target=self.request_history_rates, args=())
         t.setDaemon(True)
         t.start()
@@ -277,6 +222,9 @@ class Plugin(BasePlugin):
 
 
     def request_history_rates(self):
+        # Disabled.
+        return
+
         if self.config.get('history_rates') != "checked":
             return
         if not self.tx_list:
@@ -317,6 +265,9 @@ class Plugin(BasePlugin):
 
     @hook
     def history_tab_update(self):
+        # Disabled.
+        return
+
         if self.config.get('history_rates') != "checked":
             return
         if not self.resp_hist:
@@ -382,7 +333,8 @@ class Plugin(BasePlugin):
         layout = QGridLayout(d)
         layout.addWidget(QLabel(_('Exchange rate API: ')), 0, 0)
         layout.addWidget(QLabel(_('Currency: ')), 1, 0)
-        layout.addWidget(QLabel(_('History Rates: ')), 2, 0)
+        # Disabled.
+        # layout.addWidget(QLabel(_('History Rates: ')), 2, 0)
         combo = QComboBox()
         combo_ex = QComboBox()
         hist_checkbox = QCheckBox()
@@ -397,7 +349,7 @@ class Plugin(BasePlugin):
                 return
             if cur_request != self.fiat_unit():
                 self.config.set_key('currency', cur_request, True)
-                cur_exchange = self.config.get('use_exchange', "Blockchain")
+                cur_exchange = self.config.get('use_exchange', "Bittrex")
                 if (cur_exchange, cur_request) in EXCH_SUPPORT_HIST:
                     hist_checkbox.setEnabled(True)
                 else:
@@ -416,7 +368,7 @@ class Plugin(BasePlugin):
 
         def on_change_ex(x):
             cur_request = str(self.exchanges[x])
-            if cur_request != self.config.get('use_exchange', "Blockchain"):
+            if cur_request != self.config.get('use_exchange', "Bittrex"):
                 self.config.set_key('use_exchange', cur_request, True)
                 self.currencies = []
                 combo.clear()
@@ -439,7 +391,7 @@ class Plugin(BasePlugin):
                 self.win.history_list.setColumnCount(5)
 
         def set_hist_check(hist_checkbox):
-            cur_exchange = self.config.get('use_exchange', "Blockchain")
+            cur_exchange = self.config.get('use_exchange', "Bittrex")
             hist_checkbox.setEnabled(cur_exchange in ["CoinDesk", "Winkdex", "BitcoinVenezuela"])
 
         def set_currencies(combo):
@@ -464,13 +416,13 @@ class Plugin(BasePlugin):
                 return
             combo_ex.addItems(self.exchanges)
             try:
-                index = self.exchanges.index(self.config.get('use_exchange', "Blockchain"))
+                index = self.exchanges.index(self.config.get('use_exchange', "Bittrex"))
             except Exception:
                 index = 0
             combo_ex.setCurrentIndex(index)
 
         def ok_clicked():
-            if self.config.get('use_exchange', "Blockchain") in ["CoinDesk", "itBit"]:
+            if self.config.get('use_exchange', "Bittrex") in ["CoinDesk", "itBit"]:
                 self.exchanger.query_rates.set()
             d.accept();
 
@@ -485,7 +437,8 @@ class Plugin(BasePlugin):
         ok_button.clicked.connect(lambda: ok_clicked())
         layout.addWidget(combo,1,1)
         layout.addWidget(combo_ex,0,1)
-        layout.addWidget(hist_checkbox,2,1)
+        # Disabled.
+        # layout.addWidget(hist_checkbox,2,1)
         layout.addWidget(ok_button,3,1)
 
         if d.exec_():
@@ -494,7 +447,7 @@ class Plugin(BasePlugin):
             return False
 
     def fiat_unit(self):
-        return self.config.get("currency", "EUR")
+        return self.config.get("currency", "BTC")
 
     def add_send_edit(self):
         self.send_fiat_e = AmountEdit(self.fiat_unit)
