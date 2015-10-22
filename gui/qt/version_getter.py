@@ -35,6 +35,8 @@ class VersionGetter(threading.Thread):
         self.daemon = True
 
     def run(self):
+        # Currently no place to get version info.
+        return
         try:
             res = requests.request("GET", "https://electrum.org/version")
         except:
