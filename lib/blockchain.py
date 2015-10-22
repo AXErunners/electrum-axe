@@ -30,6 +30,7 @@ max_target = 0x00000ffff0000000000000000000000000000000000000000000000000000000
 
 #START_CALC_HEIGHT = 68589
 START_CALC_HEIGHT = 70560
+USE_DIFF_CALC = False
 
 def bits_to_target(bits):
     """Convert a compact representation to a hex target."""
@@ -91,18 +92,17 @@ class Blockchain():
                                  % (prev_hash, header.get('prev_block_hash')))
                 return False
 
-            # TODO PoW difficulty calculation #
-
-            bits, target = self.get_target(height, chain)
-            if bits != header.get('bits') and height > START_CALC_HEIGHT:
-                self.print_error("bits mismatch: %s vs %s"
-                                 % (bits, header.get('bits')))
-                return False
-            _hash = self.hash_header(header)
-            if int('0x'+_hash, 16) > target:
-                self.print_error("insufficient proof of work: %s vs target %s"
-                                 % (int('0x'+_hash, 16), target))
-                return False
+            if USE_DIFF_CALC:
+                bits, target = self.get_target(height, chain)
+                if bits != header.get('bits') and height > START_CALC_HEIGHT:
+                    self.print_error("bits mismatch: %s vs %s"
+                                     % (bits, header.get('bits')))
+                    return False
+                _hash = self.hash_header(header)
+                if int('0x'+_hash, 16) > target:
+                    self.print_error("insufficient proof of work: %s vs target %s"
+                                     % (int('0x'+_hash, 16), target))
+                    return False
 
             prev_header = header
 
@@ -132,10 +132,11 @@ class Blockchain():
             chain.append(header)
             _hash = self.hash_header(header)
             assert previous_hash == header.get('prev_block_hash')
-            if height > START_CALC_HEIGHT:
-                bits, target = self.get_target(height, chain)
-                assert bits == header.get('bits'), '{}:: Ours: {} - theirs: {}'.format(height, hex(bits), hex(header.get('bits')))
-                assert int('0x'+_hash,16) < target
+            if USE_DIFF_CALC:
+                if height > START_CALC_HEIGHT:
+                    bits, target = self.get_target(height, chain)
+                    assert bits == header.get('bits'), '{}:: Ours: {} - theirs: {}'.format(height, hex(bits), hex(header.get('bits')))
+                    assert int('0x'+_hash,16) < target
 
             previous_header = header
             previous_hash = _hash
