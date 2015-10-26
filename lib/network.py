@@ -171,7 +171,7 @@ class Network(util.DaemonThread):
         # to or have an ongoing connection with
         self.interface = None
         self.interfaces = {}
-        self.auto_connect = self.config.get('auto_connect', False)
+        self.auto_connect = self.config.get('auto_connect', True)
         self.start_network(deserialize_server(self.default_server)[2],
                            deserialize_proxy(self.config.get('proxy')))
 
