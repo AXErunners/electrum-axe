@@ -46,22 +46,34 @@ descriptions = [
     #    ]),
     #    'available_for': ['qt']
     #},
-    {
-        'name': 'audio_modem',
-        'fullname': _('Audio MODEM'),
-        'description': _('Provides support for air-gapped transaction signing.'),
-        'requires': [('amodem', 'http://github.com/romanz/amodem/')],
-        'available_for': ['qt'],
-    },
-    {
-        'name': 'btchipwallet',
-        'fullname': _('BTChip Wallet'),
-        'description': _('Provides support for BTChip hardware wallet'),
-        'requires': [('btchip', 'github.com/btchip/btchip-python')],
-        'requires_wallet_type': ['btchip'],
-        'registers_wallet_type': ('hardware', 'btchip', _("BTChip wallet")),
-        'available_for': ['qt', 'cmdline'],
-    },
+    #{
+    #    'name': 'audio_modem',
+    #    'fullname': _('Audio MODEM'),
+    #    'description': _('Provides support for air-gapped transaction signing.'),
+    #    'requires': [('amodem', 'http://github.com/romanz/amodem/')],
+    #    'available_for': ['qt'],
+    #},
+    #{
+    #    'name': 'btchipwallet',
+    #    'fullname': _('BTChip Wallet'),
+    #    'description': _('Provides support for BTChip hardware wallet'),
+    #    'requires': [('btchip', 'github.com/btchip/btchip-python')],
+    #    'requires_wallet_type': ['btchip'],
+    #    'registers_wallet_type': ('hardware', 'btchip', _("BTChip wallet")),
+    #    'available_for': ['qt', 'cmdline'],
+    #},
+    #{
+    #    'name': 'trustedcoin',
+    #    'fullname': _('Two Factor Authentication'),
+    #    'description': ''.join([
+    #        _("This plugin adds two-factor authentication to your wallet."), '<br/>',
+    #        _("For more information, visit"),
+    #        " <a href=\"https://api.trustedcoin.com/#/electrum-help\">https://api.trustedcoin.com/#/electrum-help</a>"
+    #    ]),
+    #    'requires_wallet_type': ['2fa'],
+    #    'registers_wallet_type': ('twofactor', '2fa', _("Wallet with two-factor authentication")),
+    #    'available_for': ['qt', 'cmdline'],
+    #},
     {
         'name': 'cosigner_pool',
         'fullname': _('Cosigner Pool'),
@@ -94,18 +106,6 @@ descriptions = [
         'requires': [('trezorlib','github.com/trezor/python-trezor')],
         'requires_wallet_type': ['trezor'],
         'registers_wallet_type': ('hardware', 'trezor', _("Trezor wallet")),
-        'available_for': ['qt', 'cmdline'],
-    },
-    {
-        'name': 'trustedcoin',
-        'fullname': _('Two Factor Authentication'),
-        'description': ''.join([
-            _("This plugin adds two-factor authentication to your wallet."), '<br/>',
-            _("For more information, visit"),
-            " <a href=\"https://api.trustedcoin.com/#/electrum-help\">https://api.trustedcoin.com/#/electrum-help</a>"
-        ]),
-        'requires_wallet_type': ['2fa'],
-        'registers_wallet_type': ('twofactor', '2fa', _("Wallet with two-factor authentication")),
         'available_for': ['qt', 'cmdline'],
     },
     {
