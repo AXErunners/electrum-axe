@@ -6,3 +6,4 @@ qrcode
 protobuf
 dnspython
 x11_hash>=1.4
+trezor>=0.6.3
