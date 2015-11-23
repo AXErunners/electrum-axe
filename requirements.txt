@@ -6,4 +6,4 @@ qrcode
 protobuf
 dnspython
 trezor>=0.6.3
-git+https://github.com/mazaclub/x11_hash@1.4#egg=x11_hash-1.4
+x11_hash>=1.4
