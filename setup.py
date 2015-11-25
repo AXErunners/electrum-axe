@@ -24,16 +24,23 @@ if platform.system() in [ 'Linux', 'FreeBSD', 'DragonFly']:
         (os.path.join(usr_share, 'pixmaps/'), ['icons/electrum_dash.png'])
     ]
 
-with open('requirements.txt') as f:
-    requirements = f.readlines()
-requirements = [i.replace('\n', '') for i in requirements]
-
 setup(
     name="Electrum-DASH",
     version=version.ELECTRUM_VERSION,
-    install_requires=requirements,
+    install_requires=[
+        'slowaes>=0.1a1'
+        'ecdsa>=0.9'
+        'pbkdf2'
+        'requests'
+        'qrcode'
+        'protobuf'
+        'dnspython'
+        'trezor>=0.6.3'
+        'x11_hash>=1.4'
+    ],
     dependency_links=[
-        'git+https://github.com/mazaclub/x11_hash@1.4#egg=x11_hash-1.4'
+        'git+https://github.com/mazaclub/x11_hash@1.4#egg=x11_hash-1.4',
+        'git+https://github.com/mazaclub/python-trezor@rev#egg=trezor'
     ],
     package_dir={
         'electrum_dash': 'lib',
