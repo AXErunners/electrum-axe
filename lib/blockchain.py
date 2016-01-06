@@ -22,6 +22,43 @@ import util
 from bitcoin import *
 
 
+target_timespan = 24 * 60 * 60 # Dash: 1 day
+target_spacing = 2.5 * 60 # Dash: 2.5 minutes
+interval = target_timespan / target_spacing # 576
+#max_target = 0x00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+max_target = 0x00000ffff0000000000000000000000000000000000000000000000000000000
+
+#START_CALC_HEIGHT = 68589
+START_CALC_HEIGHT = 70560
+USE_DIFF_CALC = False
+
+def bits_to_target(bits):
+    """Convert a compact representation to a hex target."""
+    MM = 256*256*256
+    a = bits%MM
+    if a < 0x8000:
+        a *= 256
+    target = (a) * pow(2, 8 * (bits/MM - 3))
+    return target
+
+def target_to_bits(target):
+    """Convert a target to compact representation."""
+    MM = 256*256*256
+    c = ("%064X"%target)[2:]
+    i = 31
+    while c[0:2]=="00":
+        c = c[2:]
+        i -= 1
+
+    c = int('0x'+c[0:6],16)
+    if c >= 0x800000:
+        c /= 256
+        i += 1
+
+    new_bits = c + MM * i
+    return new_bits
+
+
 class Blockchain():
     '''Manages blockchain headers and their verification'''
     def __init__(self, config, network):
@@ -55,18 +92,17 @@ class Blockchain():
                                  % (prev_hash, header.get('prev_block_hash')))
                 return False
 
-            # TODO PoW difficulty calculation #
-
-#            bits, target = self.get_target(height/2016, chain)
-#            if bits != header.get('bits'):
-#                self.print_error("bits mismatch: %s vs %s"
-#                                 % (bits, header.get('bits')))
-#                return False
-#            _hash = self.hash_header(header)
-#            if int('0x'+_hash, 16) > target:
-#                self.print_error("insufficient proof of work: %s vs target %s"
-#                                 % (int('0x'+_hash, 16), target))
-#                return False
+            if USE_DIFF_CALC:
+                bits, target = self.get_target(height, chain)
+                if bits != header.get('bits') and height > START_CALC_HEIGHT:
+                    self.print_error("bits mismatch: %s vs %s"
+                                     % (bits, header.get('bits')))
+                    return False
+                _hash = self.hash_header(header)
+                if int('0x'+_hash, 16) > target:
+                    self.print_error("insufficient proof of work: %s vs target %s"
+                                     % (int('0x'+_hash, 16), target))
+                    return False
 
             prev_header = header
 
@@ -78,6 +114,7 @@ class Blockchain():
         data = hexdata.decode('hex')
         height = index*2016
         num = len(data)/80
+        chain = []
 
         if index == 0:
             previous_hash = ("0"*64)
@@ -86,16 +123,20 @@ class Blockchain():
             if prev_header is None: raise
             previous_hash = self.hash_header(prev_header)
 
-        #bits, target = self.get_target(index)
 
         for i in range(num):
             height = index*2016 + i
             raw_header = data[i*80:(i+1)*80]
             header = self.header_from_string(raw_header)
+            header['block_height'] = height
+            chain.append(header)
             _hash = self.hash_header(header)
             assert previous_hash == header.get('prev_block_hash')
-            #assert bits == header.get('bits')
-            #assert int('0x'+_hash,16) < target
+            if USE_DIFF_CALC:
+                if height > START_CALC_HEIGHT:
+                    bits, target = self.get_target(height, chain)
+                    assert bits == header.get('bits'), '{}:: Ours: {} - theirs: {}'.format(height, hex(bits), hex(header.get('bits')))
+                    assert int('0x'+_hash,16) < target
 
             previous_header = header
             previous_hash = _hash
@@ -183,50 +224,79 @@ class Blockchain():
                 h = self.header_from_string(h)
                 return h
 
-    def get_target(self, index, chain=None):
+    def get_target_dgw(self, block_height, chain=None):
+        if chain is None:
+            chain = []
+
+        last = self.read_header(block_height-1)
+        if last is None:
+            for h in chain:
+                if h.get('block_height') == block_height-1:
+                    last = h
+
+        # params
+        BlockLastSolved = last
+        BlockReading = last
+#        BlockCreating = block_height
+        nActualTimespan = 0
+        LastBlockTime = 0
+        PastBlocksMin = 24
+        PastBlocksMax = 24
+        CountBlocks = 0
+        PastDifficultyAverage = 0
+        PastDifficultyAveragePrev = 0
+        bnNum = 0
+
+        if BlockLastSolved is None or block_height-1 < PastBlocksMin:
+            return target_to_bits(max_target), max_target
+        for i in range(1, PastBlocksMax + 1):
+            CountBlocks += 1
+
+            if CountBlocks <= PastBlocksMin:
+                if CountBlocks == 1:
+                    PastDifficultyAverage = bits_to_target(BlockReading.get('bits'))
+                else:
+                    bnNum = bits_to_target(BlockReading.get('bits'))
+                    PastDifficultyAverage = ((PastDifficultyAveragePrev * CountBlocks)+(bnNum)) / (CountBlocks + 1)
+                PastDifficultyAveragePrev = PastDifficultyAverage
+
+            if LastBlockTime > 0:
+                Diff = (LastBlockTime - BlockReading.get('timestamp'))
+                nActualTimespan += Diff
+            LastBlockTime = BlockReading.get('timestamp')
+
+            BlockReading = self.read_header((block_height-1) - CountBlocks)
+            if BlockReading is None:
+                for br in chain:
+                    if br.get('block_height') == (block_height-1) - CountBlocks:
+                        BlockReading = br
+
+        bnNew = PastDifficultyAverage
+        nTargetTimespan = CountBlocks * target_spacing
+
+        nActualTimespan = max(nActualTimespan, nTargetTimespan/3)
+        nActualTimespan = min(nActualTimespan, nTargetTimespan*3)
+
+        # retarget
+        bnNew *= nActualTimespan
+        bnNew /= nTargetTimespan
+
+        bnNew = min(bnNew, max_target)
+
+        new_bits = target_to_bits(bnNew)
+        return new_bits, bnNew
+
+
+
+    def get_target(self, height, chain=None):
         if chain is None:
             chain = []  # Do not use mutables as default values!
 
-        max_target = 0x00000000FFFF0000000000000000000000000000000000000000000000000000
-        if index == 0: return 0x1d00ffff, max_target
+        if height == 0: return target_to_bits(max_target), max_target
 
-        first = self.read_header((index-1)*2016)
-        last = self.read_header(index*2016-1)
-        if last is None:
-            for h in chain:
-                if h.get('block_height') == index*2016-1:
-                    last = h
+        if height > START_CALC_HEIGHT:
+            return self.get_target_dgw(height, chain)
 
-        nActualTimespan = last.get('timestamp') - first.get('timestamp')
-        nTargetTimespan = 14*24*60*60
-        nActualTimespan = max(nActualTimespan, nTargetTimespan/4)
-        nActualTimespan = min(nActualTimespan, nTargetTimespan*4)
-
-        bits = last.get('bits')
-        # convert to bignum
-        MM = 256*256*256
-        a = bits%MM
-        if a < 0x8000:
-            a *= 256
-        target = (a) * pow(2, 8 * (bits/MM - 3))
-
-        # new target
-        new_target = min( max_target, (target * nActualTimespan)/nTargetTimespan )
-
-        # convert it to bits
-        c = ("%064X"%new_target)[2:]
-        i = 31
-        while c[0:2]=="00":
-            c = c[2:]
-            i -= 1
-
-        c = int('0x'+c[0:6],16)
-        if c >= 0x800000:
-            c /= 256
-            i += 1
-
-        new_bits = c + MM * i
-        return new_bits, new_target
 
     def connect_header(self, chain, header):
         '''Builds a header chain until it connects.  Returns True if it has
@@ -260,6 +330,6 @@ class Blockchain():
         try:
             self.verify_chunk(idx, chunk)
             return idx + 1
-        except Exception:
-            self.print_error('verify_chunk failed')
+        except Exception as e:
+            self.print_error('verify_chunk failed: {}'.format(str(e)))
             return idx - 1

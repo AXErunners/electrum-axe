@@ -22,7 +22,7 @@ from electrum_dash.util import print_error, print_msg
 from electrum_dash.wallet import pw_decode, bip32_private_derivation, bip32_root
 
 from electrum_dash_gui.qt.util import *
-from electrum_dash_gui.qt.main_window import StatusBarButton
+from electrum_dash_gui.qt.main_window import StatusBarButton, ElectrumWindow
 
 try:
     from trezorlib.client import types
@@ -130,7 +130,8 @@ class Plugin(BasePlugin):
         self.window = window
         self.wallet.plugin = self
         self.trezor_button = StatusBarButton(QIcon(":icons/trezor.png"), _("Trezor"), self.settings_dialog)
-        self.window.statusBar().addPermanentWidget(self.trezor_button)
+        if type(self.window) is ElectrumWindow:
+            self.window.statusBar().addPermanentWidget(self.trezor_button)
         if self.handler is None:
             self.handler = TrezorQtHandler(self.window.app)
         try:
@@ -186,7 +187,7 @@ class Plugin(BasePlugin):
         except Exception, e:
             give_error(e)
         try:
-            self.get_client().get_address('Bitcoin', address_n, True)
+            self.get_client().get_address('Dash', address_n, True)
         except Exception, e:
             give_error(e)
         finally:
@@ -233,7 +234,7 @@ class Plugin(BasePlugin):
         inputs = self.tx_inputs(tx, True)
         outputs = self.tx_outputs(tx)
         #try:
-        signed_tx = client.sign_tx('Bitcoin', inputs, outputs)[1]
+        signed_tx = client.sign_tx('Dash', inputs, outputs)[1]
         #except Exception, e:
         #    give_error(e)
         #finally:
@@ -319,9 +320,9 @@ class Plugin(BasePlugin):
                 txoutputtype.address = address
             txoutputtype.amount = amount
             addrtype, hash_160 = bc_address_to_hash_160(address)
-            if addrtype == 0:
+            if addrtype == 76:
                 txoutputtype.script_type = types.PAYTOADDRESS
-            elif addrtype == 5:
+            elif addrtype == 16:
                 txoutputtype.script_type = types.PAYTOSCRIPTHASH
             else:
                 raise BaseException('addrtype')
@@ -352,7 +353,7 @@ class Plugin(BasePlugin):
 
 class TrezorWallet(BIP32_HD_Wallet):
     wallet_type = 'trezor'
-    root_derivation = "m/44'/0'"
+    root_derivation = "m/44'/5'"
 
     def __init__(self, storage):
         BIP32_HD_Wallet.__init__(self, storage)
@@ -389,7 +390,7 @@ class TrezorWallet(BIP32_HD_Wallet):
 
     def address_id(self, address):
         account_id, (change, address_index) = self.get_address_index(address)
-        return "44'/0'/%s'/%d/%d" % (account_id, change, address_index)
+        return "44'/5'/%s'/%d/%d" % (account_id, change, address_index)
 
     def create_main_account(self, password):
         self.create_account('Main account', None) #name, empty password
@@ -409,7 +410,7 @@ class TrezorWallet(BIP32_HD_Wallet):
             xprv, xpub = bip32_private_derivation(root_xprv, root, derivation)
             return xpub, xprv
         else:
-            derivation = derivation.replace(self.root_name,"44'/0'/")
+            derivation = derivation.replace(self.root_name,"44'/5'/")
             xpub = self.get_public_key(derivation)
             return xpub, None
 
@@ -421,7 +422,7 @@ class TrezorWallet(BIP32_HD_Wallet):
 
     def get_master_public_key(self):
         if not self.mpk:
-            self.mpk = self.get_public_key("44'/0'")
+            self.mpk = self.get_public_key("44'/5'")
         return self.mpk
 
     def i4b(self, x):
@@ -453,7 +454,7 @@ class TrezorWallet(BIP32_HD_Wallet):
         except Exception, e:
             give_error(e)
         try:
-            msg_sig = self.plugin.get_client().sign_message('Bitcoin', address_n, message)
+            msg_sig = self.plugin.get_client().sign_message('Dash', address_n, message)
         except Exception, e:
             give_error(e)
         finally:
@@ -485,7 +486,7 @@ class TrezorWallet(BIP32_HD_Wallet):
                 for k, v in self.master_public_keys.items():
                     if v == xpub:
                         account_id = re.match("x/(\d+)'", k).group(1)
-                        account_derivation = "44'/0'/%s'"%account_id
+                        account_derivation = "44'/5'/%s'"%account_id
                 xpub_path[xpub] = account_derivation
 
         self.plugin.sign_transaction(tx, prev_tx, xpub_path)
@@ -496,7 +497,7 @@ class TrezorWallet(BIP32_HD_Wallet):
             address = self.addresses(False)[0]
             address_id = self.address_id(address)
             n = self.get_client().expand_path(address_id)
-            device_address = self.get_client().get_address('Bitcoin', n)
+            device_address = self.get_client().get_address('Dash', n)
             self.device_checked = True
 
             if device_address != address:

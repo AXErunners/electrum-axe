@@ -54,11 +54,11 @@ def init_plugins(config, is_local, gui_name):
     global plugins, descriptions, loader
     if is_local:
         fp, pathname, description = imp.find_module('plugins')
-        electrum_plugins = imp.load_module('electrum_plugins', fp, pathname, description)
-        loader = lambda name: imp.load_source('electrum_plugins.' + name, os.path.join(pathname, name + '.py'))
+        electrum_plugins = imp.load_module('electrum_dash_plugins', fp, pathname, description)
+        loader = lambda name: imp.load_source('electrum_dash_plugins.' + name, os.path.join(pathname, name + '.py'))
     else:
-        electrum_plugins = __import__('electrum_plugins')
-        loader = lambda name: __import__('electrum_plugins.' + name, fromlist=['electrum_plugins'])
+        electrum_plugins = __import__('electrum_dash_plugins')
+        loader = lambda name: __import__('electrum_dash_plugins.' + name, fromlist=['electrum_dash_plugins'])
 
     def constructor(name, storage):
         if plugins.get(name) is None:

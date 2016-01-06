@@ -5,8 +5,8 @@ from ecdsa.util import number_to_string
 from lib.bitcoin import (
     generator_secp256k1, point_to_ser, public_key_to_bc_address, EC_KEY,
     bip32_root, bip32_public_derivation, bip32_private_derivation, pw_encode,
-    pw_decode, Hash, public_key_from_private_key, address_from_private_key,
-    is_valid, is_private_key, xpub_from_xprv)
+    pw_decode, Hash, PoWHash, public_key_from_private_key, address_from_private_key,
+    is_valid, is_private_key, xpub_from_xprv, rev_hex)
 
 try:
     import ecdsa
@@ -140,9 +140,9 @@ class Test_keyImport(unittest.TestCase):
     """ The keys used in this class are TEST keys from
         https://en.bitcoin.it/wiki/BIP_0032_TestVectors"""
 
-    private_key = "L52XzL2cMkHxqxBXRyEpnPQZGUs3uKiL3R11XbAdHigRzDozKZeW"
+    private_key = "XK6TSbQyfRvQuHBuTjEhHcbaBW8dM8KaQzLv47Vpc5xXPNqesKTt"
     public_key_hex = "0339a36013301597daef41fbe593a02cc513d0b55527ec2df1050e2e8ff49c85c2"
-    main_address = "15mKKb2eos1hWa6tisdPwwDC1a5J1y9nma"
+    main_address = "XfTA9qgYmaEHfWhUakwcoTtyquez8SowY1"
 
     def test_public_key_from_private_key(self):
         result = public_key_from_private_key(self.private_key)
@@ -160,4 +160,12 @@ class Test_keyImport(unittest.TestCase):
         self.assertTrue(is_private_key(self.private_key))
         self.assertFalse(is_private_key(self.public_key_hex))
 
+class Test_hash(unittest.TestCase):
+    """ The block used here was arbitrarily chosen.
+        Block height: 339142."""
+
+    def test_hash_block(self):
+        raw_header = '030000001a12ed8fe3b2abe61161c3171f20a4dff83e721298934943ff86170000000000972b51909e1911b9d4462a448cfb14b6d3d2e25151eb75b3e0f252f39a84d22ac4d2fd55e85b1d1b116e56de'
+        header_hash = rev_hex(PoWHash(raw_header.decode('hex')).encode('hex'))
+        self.assertEqual('000000000008aba1c6b076ba5f147b39007cb1f9c34398960edc7c9d1edf8ad7', header_hash)
 

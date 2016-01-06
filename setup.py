@@ -24,7 +24,6 @@ if platform.system() in [ 'Linux', 'FreeBSD', 'DragonFly']:
         (os.path.join(usr_share, 'pixmaps/'), ['icons/electrum_dash.png'])
     ]
 
-
 setup(
     name="Electrum-DASH",
     version=version.ELECTRUM_VERSION,
@@ -36,10 +35,16 @@ setup(
         'qrcode',
         'protobuf',
         'dnspython',
+        'trezor>=0.6.3',
+        'x11_hash>=1.4',
+    ],
+    dependency_links=[
+        'git+https://github.com/mazaclub/x11_hash@1.4#egg=x11_hash-1.4',
+        'git+https://github.com/mazaclub/python-trezor@rev#egg=trezor',
     ],
     package_dir={
         'electrum_dash': 'lib',
-        'electrum_dash__gui': 'gui',
+        'electrum_dash_gui': 'gui',
         'electrum_dash_plugins': 'plugins',
     },
     packages=['electrum_dash','electrum_dash_gui','electrum_dash_gui.qt','electrum_dash_plugins'],

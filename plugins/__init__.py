@@ -16,26 +16,64 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-import electrum_dash
-from electrum_dash.i18n import _
+try:
+    import electrum_dash
+    from electrum_dash.i18n import _
+except ImportError:
+    from lib.i18n import _
 
 descriptions = [
-    {
-        'name': 'audio_modem',
-        'fullname': _('Audio MODEM'),
-        'description': _('Provides support for air-gapped transaction signing.'),
-        'requires': [('amodem', 'http://github.com/romanz/amodem/')],
-        'available_for': ['qt'],
-    },
-    {
-        'name': 'btchipwallet',
-        'fullname': _('BTChip Wallet'),
-        'description': _('Provides support for BTChip hardware wallet'),
-        'requires': [('btchip', 'github.com/btchip/btchip-python')],
-        'requires_wallet_type': ['btchip'],
-        'registers_wallet_type': ('hardware', 'btchip', _("BTChip wallet")),
-        'available_for': ['qt', 'cmdline'],
-    },
+    # Disabled plugins.
+
+    #{
+    #    'name': 'email_requests',
+    #    'fullname': 'Email',
+    #    'description': _("Send and receive payment request with an email account"),
+    #    'available_for': ['qt'],
+    #},
+    #{
+    #    'name': 'greenaddress_instant',
+    #    'fullname': 'GreenAddress instant',
+    #    'description': _("Allows validating if your transactions have instant confirmations by GreenAddress"),
+    #    'available_for': ['qt'],
+    #},
+    #{
+    #    'name': 'labels',
+    #    'fullname': _('LabelSync'),
+    #    'description': '\n'.join([
+    #        _("The new and improved LabelSync plugin. This can sync your labels across multiple Electrum installs by using a remote database to save your data. Labels, transactions ids and addresses are encrypted before they are sent to the remote server."),
+    #        _("The label sync's server software is open-source as well and can be found on github.com/maran/electrum-sync-server")
+    #    ]),
+    #    'available_for': ['qt']
+    #},
+    #{
+    #    'name': 'audio_modem',
+    #    'fullname': _('Audio MODEM'),
+    #    'description': _('Provides support for air-gapped transaction signing.'),
+    #    'requires': [('amodem', 'http://github.com/romanz/amodem/')],
+    #    'available_for': ['qt'],
+    #},
+    #{
+    #    'name': 'btchipwallet',
+    #    'fullname': _('BTChip Wallet'),
+    #    'description': _('Provides support for BTChip hardware wallet'),
+    #    'requires': [('btchip', 'github.com/btchip/btchip-python')],
+    #    'requires_wallet_type': ['btchip'],
+    #    'registers_wallet_type': ('hardware', 'btchip', _("BTChip wallet")),
+    #    'available_for': ['qt', 'cmdline'],
+    #},
+    #{
+    #    'name': 'trustedcoin',
+    #    'fullname': _('Two Factor Authentication'),
+    #    'description': ''.join([
+    #        _("This plugin adds two-factor authentication to your wallet."), '<br/>',
+    #        _("For more information, visit"),
+    #        " <a href=\"https://api.trustedcoin.com/#/electrum-help\">https://api.trustedcoin.com/#/electrum-help</a>"
+    #    ]),
+    #    'requires_wallet_type': ['2fa'],
+    #    'registers_wallet_type': ('twofactor', '2fa', _("Wallet with two-factor authentication")),
+    #    'available_for': ['qt', 'cmdline'],
+    #},
     {
         'name': 'cosigner_pool',
         'fullname': _('Cosigner Pool'),
@@ -48,31 +86,10 @@ descriptions = [
         'available_for': ['qt'],
     },
     {
-        'name': 'email_requests',
-        'fullname': 'Email',
-        'description': _("Send and receive payment request with an email account"),
-        'available_for': ['qt'],
-    },
-    {
         'name': 'exchange_rate',
         'fullname': _("Exchange rates"),
         'description': _("Exchange rates and currency conversion tools."),
         'available_for': ['qt'],
-    },
-    {
-        'name': 'greenaddress_instant',
-        'fullname': 'GreenAddress instant',
-        'description': _("Allows validating if your transactions have instant confirmations by GreenAddress"),
-        'available_for': ['qt'],
-    },
-    {
-        'name': 'labels',
-        'fullname': _('LabelSync'),
-        'description': '\n'.join([
-            _("The new and improved LabelSync plugin. This can sync your labels across multiple Electrum installs by using a remote database to save your data. Labels, transactions ids and addresses are encrypted before they are sent to the remote server."),
-            _("The label sync's server software is open-source as well and can be found on github.com/maran/electrum-sync-server")
-        ]),
-        'available_for': ['qt']
     },
     {
         'name': 'plot',
@@ -89,18 +106,6 @@ descriptions = [
         'requires': [('trezorlib','github.com/trezor/python-trezor')],
         'requires_wallet_type': ['trezor'],
         'registers_wallet_type': ('hardware', 'trezor', _("Trezor wallet")),
-        'available_for': ['qt', 'cmdline'],
-    },
-    {
-        'name': 'trustedcoin',
-        'fullname': _('Two Factor Authentication'),
-        'description': ''.join([
-            _("This plugin adds two-factor authentication to your wallet."), '<br/>',
-            _("For more information, visit"),
-            " <a href=\"https://api.trustedcoin.com/#/electrum-help\">https://api.trustedcoin.com/#/electrum-help</a>"
-        ]),
-        'requires_wallet_type': ['2fa'],
-        'registers_wallet_type': ('twofactor', '2fa', _("Wallet with two-factor authentication")),
         'available_for': ['qt', 'cmdline'],
     },
     {
