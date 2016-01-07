@@ -202,14 +202,14 @@ def time_difference(distance_in_time, include_seconds):
         return "over %d years" % (round(distance_in_minutes / 525600))
 
 block_explorer_info = {
-    'Dashpay.io': ('http://explorer.dashpay.io',
+    'Dash.org': ('http://explorer.dash.org',
                         {'tx': 'tx', 'addr': 'address'}),
     'Bchain.info': ('https://bchain.info/DASH',
                         {'tx': 'tx', 'addr': 'addr'}),
 }
 
 def block_explorer(config):
-    return config.get('block_explorer', 'Dashpay.io')
+    return config.get('block_explorer', 'Dash.org')
 
 def block_explorer_tuple(config):
     return block_explorer_info.get(block_explorer(config))
