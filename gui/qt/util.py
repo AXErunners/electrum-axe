@@ -293,6 +293,7 @@ class MyTreeWidget(QTreeWidget):
         self.setColumnCount(len(headers))
         self.setHeaderLabels(headers)
         self.header().setStretchLastSection(False)
+        self.header().setDefaultAlignment(Qt.AlignCenter)
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.itemActivated.connect(self.on_activated)
         self.customContextMenuRequested.connect(create_menu)

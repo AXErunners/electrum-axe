@@ -111,6 +111,7 @@ class ElectrumWindow(QMainWindow):
     def __init__(self, config, network, gui_object):
         QMainWindow.__init__(self)
 
+        self.setObjectName("main_window_container")
         self.config = config
         self.network = network
         self.wallet = None
@@ -139,8 +140,9 @@ class ElectrumWindow(QMainWindow):
         tabs.addTab(self.create_addresses_tab(), _('Addresses') )
         tabs.addTab(self.create_contacts_tab(), _('Contacts') )
         tabs.addTab(self.create_console_tab(), _('Console') )
-        tabs.setMinimumSize(600, 400)
+        tabs.setMinimumSize(833, 500)
         tabs.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        tabs.setObjectName("main_window_nav_bar")
         self.setCentralWidget(tabs)
 
         try:
@@ -603,6 +605,7 @@ class ElectrumWindow(QMainWindow):
     def create_history_tab(self):
         from history_widget import HistoryWidget
         self.history_list = l = HistoryWidget(self)
+        l.setObjectName("history_container")
         return l
 
     def show_address(self, addr):
@@ -696,6 +699,7 @@ class ElectrumWindow(QMainWindow):
         hbox.addWidget(self.receive_qr)
 
         w = QWidget()
+        w.setObjectName("receive_container")
         vbox = QVBoxLayout(w)
         vbox.addLayout(hbox)
         vbox.addStretch(1)
@@ -1057,6 +1061,7 @@ class ElectrumWindow(QMainWindow):
         hbox.addLayout(vbox0)
         hbox.addStretch(1)
         w = QWidget()
+        w.setObjectName("send_container")
         vbox = QVBoxLayout(w)
         vbox.addLayout(hbox)
         vbox.addStretch()
@@ -1443,6 +1448,7 @@ class ElectrumWindow(QMainWindow):
 
     def create_addresses_tab(self):
         l = MyTreeWidget(self, self.create_receive_menu, [ _('Address'), _('Label'), _('Balance'), _('Tx')], 1)
+        l.setObjectName("addresses_container")
         l.setSelectionMode(QAbstractItemView.ExtendedSelection)
         l.setSortingEnabled(False)
         self.address_list = l
@@ -1450,6 +1456,7 @@ class ElectrumWindow(QMainWindow):
 
     def create_contacts_tab(self):
         l = MyTreeWidget(self, self.create_contact_menu, [_('Key'), _('Value'), _('Type')], 1)
+        l.setObjectName("contacts_container")
         self.contacts_list = l
         return self.create_list_tab(l)
 
@@ -1751,6 +1758,7 @@ class ElectrumWindow(QMainWindow):
     def create_console_tab(self):
         from console import Console
         self.console = console = Console()
+        console.setObjectName("console_container")
         return console
 
 
@@ -1793,6 +1801,7 @@ class ElectrumWindow(QMainWindow):
         qtVersion = qVersion()
 
         self.balance_label = QLabel("")
+        self.balance_label.setObjectName("main_window_balance")
         sb.addWidget(self.balance_label)
 
         from version_getter import UpdateLabel
