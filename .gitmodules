@@ -1,0 +1,3 @@
+[submodule "contrib/mazaclub-release"]
+    path = contrib/mazaclub-release
+    url = git://github.com/dashdot/electrum-dash-release.git
