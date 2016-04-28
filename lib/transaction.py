@@ -99,6 +99,8 @@ class BCDataStream(object):
         return ''
 
     def read_boolean(self): return self.read_bytes(1)[0] != chr(0)
+    def read_char(self): return self._read_num('<b')
+    def read_uchar(self): return self._read_num('<B')
     def read_int16(self): return self._read_num('<h')
     def read_uint16(self): return self._read_num('<H')
     def read_int32(self): return self._read_num('<i')
@@ -107,6 +109,8 @@ class BCDataStream(object):
     def read_uint64(self): return self._read_num('<Q')
 
     def write_boolean(self, val): return self.write(chr(1) if val else chr(0))
+    def write_char(self, val): return self._write_num('<b', val)
+    def write_uchar(self, val): return self._write_num('<B', val)
     def write_int16(self, val): return self._write_num('<h', val)
     def write_uint16(self, val): return self._write_num('<H', val)
     def write_int32(self, val): return self._write_num('<i', val)
@@ -392,7 +396,7 @@ def parse_scriptSig(d, bytes):
     d['x_pubkeys'] = x_pubkeys
     d['pubkeys'] = pubkeys
     d['redeemScript'] = redeemScript
-    d['address'] = hash_160_to_bc_address(hash_160(redeemScript.decode('hex')), 16)
+    d['address'] = hash_160_to_bc_address(hash_160(redeemScript.decode('hex')), bitcoin.SCRIPT_ADDR)
 
 
 
@@ -415,7 +419,7 @@ def get_address_from_output_script(bytes):
     # p2sh
     match = [ opcodes.OP_HASH160, opcodes.OP_PUSHDATA4, opcodes.OP_EQUAL ]
     if match_decoded(decoded, match):
-        return 'address', hash_160_to_bc_address(decoded[1][1],16)
+        return 'address', hash_160_to_bc_address(decoded[1][1], bitcoin.SCRIPT_ADDR)
 
     return 'script', bytes
 
@@ -583,11 +587,11 @@ class Transaction:
             return addr.encode('hex')
         elif output_type == 'address':
             addrtype, hash_160 = bc_address_to_hash_160(addr)
-            if addrtype == 76:
+            if addrtype == bitcoin.PUBKEY_ADDR:
                 script = '76a9'                                      # op_dup, op_hash_160
                 script += push_script(hash_160.encode('hex'))
                 script += '88ac'                                     # op_equalverify, op_checksig
-            elif addrtype == 16:
+            elif addrtype == bitcoin.SCRIPT_ADDR:
                 script = 'a9'                                        # op_hash_160
                 script += push_script(hash_160.encode('hex'))
                 script += '87'                                       # op_equal

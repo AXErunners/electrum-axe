@@ -36,6 +36,8 @@ except ImportError:
 
 import trezorlib.ckd_public as ckd_public
 
+COIN_NAME = 'TDash' if bitcoin.TESTNET else 'Dash'
+
 def log(msg):
     stderr.write("%s\n" % msg)
     stderr.flush()
@@ -187,7 +189,7 @@ class Plugin(BasePlugin):
         except Exception, e:
             give_error(e)
         try:
-            self.get_client().get_address('Dash', address_n, True)
+            self.get_client().get_address(COIN_NAME, address_n, True)
         except Exception, e:
             give_error(e)
         finally:
@@ -234,7 +236,7 @@ class Plugin(BasePlugin):
         inputs = self.tx_inputs(tx, True)
         outputs = self.tx_outputs(tx)
         #try:
-        signed_tx = client.sign_tx('Dash', inputs, outputs)[1]
+        signed_tx = client.sign_tx(COIN_NAME, inputs, outputs)[1]
         #except Exception, e:
         #    give_error(e)
         #finally:
@@ -320,9 +322,9 @@ class Plugin(BasePlugin):
                 txoutputtype.address = address
             txoutputtype.amount = amount
             addrtype, hash_160 = bc_address_to_hash_160(address)
-            if addrtype == 76:
+            if addrtype == bitcoin.PUBKEY_ADDR:
                 txoutputtype.script_type = types.PAYTOADDRESS
-            elif addrtype == 16:
+            elif addrtype == bitcoin.SCRIPT_ADDR:
                 txoutputtype.script_type = types.PAYTOSCRIPTHASH
             else:
                 raise BaseException('addrtype')
@@ -454,7 +456,7 @@ class TrezorWallet(BIP32_HD_Wallet):
         except Exception, e:
             give_error(e)
         try:
-            msg_sig = self.plugin.get_client().sign_message('Dash', address_n, message)
+            msg_sig = self.plugin.get_client().sign_message(COIN_NAME, address_n, message)
         except Exception, e:
             give_error(e)
         finally:
@@ -497,7 +499,7 @@ class TrezorWallet(BIP32_HD_Wallet):
             address = self.addresses(False)[0]
             address_id = self.address_id(address)
             n = self.get_client().expand_path(address_id)
-            device_address = self.get_client().get_address('Dash', n)
+            device_address = self.get_client().get_address(COIN_NAME, n)
             self.device_checked = True
 
             if device_address != address:

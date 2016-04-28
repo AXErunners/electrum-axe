@@ -422,6 +422,46 @@ class ButtonsTextEdit(QPlainTextEdit, ButtonsWidget):
         return o
 
 
+# http://stackoverflow.com/questions/11472284/how-to-set-a-read-only-checkbox-in-pyside-pyqt
+class ReadOnlyCheckBox(QCheckBox):
+    def __init__( self, *args ):
+        super(ReadOnlyCheckBox, self).__init__(*args) # will fail if passing **kwargs
+        self._readOnly = True
+
+    def isReadOnly( self ):
+        return self._readOnly
+
+    def mousePressEvent( self, event ):
+        if ( self.isReadOnly() ):
+            event.accept()
+        else:
+            super(ReadOnlyCheckBox, self).mousePressEvent(event)
+
+    def mouseMoveEvent( self, event ):
+        if ( self.isReadOnly() ):
+            event.accept()
+        else:
+            super(ReadOnlyCheckBox, self).mouseMoveEvent(event)
+
+    def mouseReleaseEvent( self, event ):
+        if ( self.isReadOnly() ):
+            event.accept()
+        else:
+            super(ReadOnlyCheckBox, self).mouseReleaseEvent(event)
+
+    def keyPressEvent( self, event ):
+        if ( self.isReadOnly() ):
+            event.accept()
+        else:
+            super(ReadOnlyCheckBox, self).keyPressEvent(event)
+
+    @pyqtSlot(bool)
+    def setReadOnly( self, state ):
+        self._readOnly = state
+
+    readOnly = pyqtProperty(bool, isReadOnly, setReadOnly)
+
+
 if __name__ == "__main__":
     app = QApplication([])
     t = WaitingDialog(None, 'testing ...', lambda: [time.sleep(1)], lambda x: QMessageBox.information(None, 'done', "done", _('OK')))

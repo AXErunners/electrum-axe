@@ -28,7 +28,7 @@ import json
 import copy
 from operator import itemgetter
 
-from util import print_msg, print_error, NotEnoughFunds
+from util import print_msg, print_error, AlreadyHaveAddress, NotEnoughFunds
 from util import profiler
 
 from bitcoin import *
@@ -161,6 +161,9 @@ class Abstract_Wallet(object):
 
         # imported_keys is deprecated. The GUI should call convert_imported_keys
         self.imported_keys = self.storage.get('imported_keys',{})
+
+        # Delegate keys for signing Masternode Pings.
+        self.masternode_delegates = self.storage.get('masternode_delegates', {})
 
         self.load_accounts()
         self.load_transactions()
@@ -320,6 +323,26 @@ class Abstract_Wallet(object):
         account = self.accounts.get(IMPORTED_ACCOUNT)
         return account is not None
 
+    def import_masternode_delegate(self, sec, password):
+        """Import the private key for a masternode."""
+        try:
+            pubkey = public_key_from_private_key(sec)
+            address = public_key_to_bc_address(pubkey.decode('hex'))
+        except Exception:
+            raise Exception('Invalid private key')
+
+        if self.masternode_delegates.get(address):
+            raise AlreadyHaveAddress('Masternode key already in wallet', address)
+
+        self.masternode_delegates[address] = (pubkey, pw_encode(sec, password))
+        self.storage.put('masternode_delegates', self.masternode_delegates, True)
+        return address
+
+    def delete_masternode_delegate(self, address, save = True):
+        if self.masternode_delegates.get(address):
+            del self.masternode_delegates[address]
+        self.storage.put('masternode_delegates', self.masternode_delegates, True)
+
     def import_key(self, sec, password):
         assert self.can_import(), 'This wallet cannot import private keys'
         try:
@@ -329,7 +352,7 @@ class Abstract_Wallet(object):
             raise Exception('Invalid private key')
 
         if self.is_mine(address):
-            raise Exception('Address already in wallet')
+            raise AlreadyHaveAddress('Address already in wallet', address)
 
         if self.accounts.get(IMPORTED_ACCOUNT) is None:
             self.accounts[IMPORTED_ACCOUNT] = ImportedAccount({'imported':{}})
@@ -398,6 +421,23 @@ class Abstract_Wallet(object):
     def get_public_keys(self, address):
         account_id, sequence = self.get_address_index(address)
         return self.accounts[account_id].get_pubkeys(*sequence)
+
+    def sign_masternode_ping(self, ping, address, password):
+        """Sign a Masternode Ping for address."""
+        t = self.masternode_delegates.get(address)
+        if not t:
+            raise Exception('Private key not known for address %s' % address)
+        sec = pw_decode(t[1], password)
+        ping.sign(sec)
+        return True
+
+    def sign_budget_vote(self, vote, address, password):
+        """Sign a Budget Vote for address."""
+        t = self.masternode_delegates.get(address)
+        if not t:
+            raise Exception('Private key not known for address %s' % address)
+        sec = pw_decode(t[1], password)
+        return vote.sign(sec)
 
     def sign_message(self, address, message, password):
         keys = self.get_private_key(address, password)
@@ -1054,6 +1094,13 @@ class Abstract_Wallet(object):
                 c = pw_encode(b, new_password)
                 self.master_private_keys[k] = c
             self.storage.put('master_private_keys', self.master_private_keys, True)
+
+        if hasattr(self, 'masternode_delegates'):
+            for k, (pub, v) in self.masternode_delegates.items():
+                b = pw_decode(v, old_password)
+                c = pw_encode(b, new_password)
+                self.masternode_delegates[k] = (pub, c)
+            self.storage.put('masternode_delegates', self.masternode_delegates, True)
 
         self.use_encryption = (new_password != None)
         self.storage.put('use_encryption', self.use_encryption,True)
@@ -1757,6 +1804,9 @@ class NewWallet(BIP32_Wallet, Mnemonic):
         xpub = self.master_public_keys.get("x/")
         account = BIP32_Account({'xpub':xpub})
         self.add_account('0', account)
+
+    def can_import(self):
+        return not self.is_watching_only()
 
 
 class Multisig_Wallet(BIP32_Wallet, Mnemonic):
