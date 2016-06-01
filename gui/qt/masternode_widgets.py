@@ -10,6 +10,24 @@ from electrum_dash.masternode import NetworkAddress, MasternodeAnnounce
 
 import util
 
+def masternode_status(status):
+    """Get a human-friendly representation of status.
+
+    Returns a 3-tuple of (enabled, one_word_description, description).
+    """
+    statuses = {
+        'PRE_ENABLED': (True, _('Enabling'), _('Waiting for masternode to enable itself.')),
+        'ENABLED': (True, _('Enabled'), _('Masternode is enabled.')),
+        'EXPIRED': (False, _('Disabled'), _('Masternode failed to ping the network and was disabled.')),
+        'VIN_SPENT': (False, _('Disabled'), _('Collateral payment has been spent.')),
+        'REMOVE': (False, _('Disabled'), _('Masternode failed to ping the network and was disabled.')),
+    }
+    if statuses.get(status):
+        return statuses[status]
+    elif status is False:
+        return (False, _('N/A'), _('Masternode has not been seen on the network.'))
+    return (False, _('Unknown'), _('Unknown masternode status.'))
+
 class NetworkAddressWidget(QWidget):
     """Widget that represents a network address."""
     def __init__(self, parent=None):
@@ -166,11 +184,13 @@ class MasternodeEditor(QWidget):
         self.protocol_version_edit = QLineEdit()
         self.protocol_version_edit.setText('70103')
 
-        self.announced_checkbox = util.ReadOnlyCheckBox(_('Activated'))
+        self.status_edit = QLineEdit()
+        self.status_edit.setPlaceholderText(_('Masternode status'))
+        self.status_edit.setReadOnly(True)
 
         form = QFormLayout()
         form.addRow(_('Alias:'), self.alias_edit)
-        form.addRow(self.announced_checkbox)
+        form.addRow(_('Status:'), self.status_edit)
         form.addRow(_('Collateral DASH Output:'), self.vin_edit)
         form.addRow(_('Masternode DASH Address:'), self.delegate_key_edit)
         form.addRow(_('Address:'), self.addr_edit)
@@ -187,8 +207,6 @@ class MasternodeEditor(QWidget):
         protocol_version = str(self.protocol_version_edit.text())
         if protocol_version:
             kwargs['protocol_version'] = int(protocol_version)
-        # Don't pass whether announced_checkbox is checked, because a new
-        # masternode can't be announced already.
         return kwargs
 
 class MasternodeOutputsWidget(QListWidget):
@@ -298,20 +316,22 @@ class SignAnnounceWidget(QWidget):
         self.status_edit.setStyleSheet(util.BLACK_FG)
         self.mapper.setCurrentIndex(row)
         mn = self.dialog.masternodes_widget.masternode_for_row(row)
-        can_scan, can_sign = True, True
-        # Disable both buttons if the masternode has already been activated.
-        if mn.announced:
-            can_scan, can_sign = False, False
-            self.valid_outputs_list.add_output(mn.vin)
-            self.status_edit.setText(mn.alias + _(' has been activated.'))
+        can_scan = not mn.announced
         # Disable the scan_outputs button if the masternode already has an assigned output.
-        elif mn.vin.get('value', 0) == COIN * 1000:
+        if mn.vin.get('value', 0) == COIN * 1000:
             can_scan = False
             self.valid_outputs_list.add_output(mn.vin)
-            self.status_edit.setText(mn.alias + _(' can be activated.'))
-        else:
-            self.status_edit.setText(mn.alias + _(' requires a collateral 1000 DASH output.'))
+
+        # Disable the sign button if the masternode can't be signed (for whatever reason).
+        status_text = '%s can be activated' % mn.alias
+        can_sign = True
+        try:
+            self.manager.check_can_sign_masternode(mn.alias)
+        except Exception as e:
+            status_text = str(e)
             can_sign = False
+
+        self.status_edit.setText(_(status_text))
 
         self.scan_outputs_button.setEnabled(can_scan)
         self.sign_button.setEnabled(can_sign)

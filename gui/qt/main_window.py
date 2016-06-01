@@ -142,6 +142,7 @@ class ElectrumWindow(QMainWindow):
         tabs.addTab(self.create_receive_tab(), _('Receive') )
         tabs.addTab(self.create_addresses_tab(), _('Addresses') )
         tabs.addTab(self.create_contacts_tab(), _('Contacts') )
+        tabs.addTab(self.create_proposals_tab(), _('Budget Proposals'))
         tabs.addTab(self.create_console_tab(), _('Console') )
         tabs.setMinimumSize(833, 500)
         tabs.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -175,6 +176,7 @@ class ElectrumWindow(QMainWindow):
         self.connect(self, QtCore.SIGNAL('transaction_signal'), lambda: self.notify_transactions() )
         self.connect(self, QtCore.SIGNAL('payment_request_ok'), self.payment_request_ok)
         self.connect(self, QtCore.SIGNAL('payment_request_error'), self.payment_request_error)
+        self.connect(self, QtCore.SIGNAL('proposals_changed'), self.proposals_changed)
         self.labelsChanged.connect(self.update_tabs)
 
         self.history_list.setFocus(True)
@@ -185,6 +187,7 @@ class ElectrumWindow(QMainWindow):
             self.network.register_callback('banner', lambda: self.emit(QtCore.SIGNAL('banner_signal')))
             self.network.register_callback('status', lambda: self.emit(QtCore.SIGNAL('update_status')))
             self.network.register_callback('new_transaction', lambda: self.emit(QtCore.SIGNAL('transaction_signal')))
+            self.network.register_callback('proposals', lambda: self.emit(QtCore.SIGNAL('proposals_changed')))
             self.network.register_callback('stop', lambda: self.emit(QtCore.SIGNAL('stop')))
 
             # set initial message
@@ -235,6 +238,7 @@ class ElectrumWindow(QMainWindow):
         self.dummy_address = a[0] if a else None
         self.accounts_expanded = self.wallet.storage.get('accounts_expanded',{})
         self.current_account = self.wallet.storage.get("current_account", None)
+        self.masternode_manager.send_subscriptions()
         title = 'Electrum-DASH %s  -  %s' % (self.wallet.electrum_version, self.wallet.basename())
         if self.wallet.is_watching_only():
             title += ' [%s]' % (_('watching only'))
@@ -607,6 +611,7 @@ class ElectrumWindow(QMainWindow):
         self.update_receive_tab()
         self.update_address_tab()
         self.update_contacts_tab()
+        self.update_proposals_tab()
         self.update_completions()
         self.update_invoices_list()
 
@@ -1762,6 +1767,15 @@ class ElectrumWindow(QMainWindow):
                 l.setCurrentItem(item)
         run_hook('update_contacts_tab', l)
 
+    def create_proposals_tab(self):
+        from masternode_budget_widgets import ProposalsTab
+        self.proposals_list = ProposalsTab(self)
+        return self.proposals_list
+
+    def update_proposals_tab(self):
+        if not self.masternode_manager:
+            return
+        self.proposals_list.update(list(self.masternode_manager.all_proposals))
 
     def create_console_tab(self):
         from console import Console
@@ -2949,3 +2963,9 @@ class ElectrumWindow(QMainWindow):
     def show_masternode_dialog(self):
         d = MasternodeDialog(self.masternode_manager, self)
         d.exec_()
+
+    def proposals_changed(self):
+        """Callback for when proposals change."""
+        if not self.masternode_manager:
+            return
+        self.update_proposals_tab()

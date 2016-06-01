@@ -240,6 +240,12 @@ class MasternodeAnnounce(object):
         s += str(self.protocol_version)
         return s
 
+    def get_collateral_str(self):
+        """Get the collateral as a string used to identify this masternode."""
+        if not self.vin:
+            return
+        return '%s-%d' % (self.vin['prevout_hash'], self.vin['prevout_n'])
+
     @classmethod
     def from_dict(cls, d):
         kwargs = {}

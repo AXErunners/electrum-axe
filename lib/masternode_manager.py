@@ -1,12 +1,14 @@
 from collections import namedtuple, OrderedDict
 import base64
 import threading
+from decimal import Decimal
 
 import bitcoin
 from blockchain import Blockchain
 from masternode import MasternodeAnnounce, NetworkAddress
 from masternode_budget import BudgetProposal, BudgetVote
 from util import AlreadyHaveAddress, print_error
+from util import format_satoshis_plain
 
 BUDGET_FEE_CONFIRMATIONS = 6
 BUDGET_FEE_TX = 5 * bitcoin.COIN
@@ -63,6 +65,11 @@ class MasternodeManager(object):
         self.network_event = threading.Event()
         self.wallet = wallet
         self.config = config
+        # List of all proposals on the network.
+        self.all_proposals = []
+        # Subscribed masternode statuses.
+        self.masternode_statuses = {}
+
         self.load()
 
     def load(self):
@@ -72,6 +79,26 @@ class MasternodeManager(object):
         proposals = self.wallet.storage.get('budget_proposals', {})
         self.proposals = [BudgetProposal.from_dict(d) for d in proposals.values()]
         self.budget_votes = [BudgetVote.from_dict(d) for d in self.wallet.storage.get('budget_votes', [])]
+
+    def send_subscriptions(self):
+        if not self.wallet.network:
+            return
+        self.subscribe_to_masternodes()
+        self.subscribe_to_proposals()
+
+    def subscribe_to_masternodes(self):
+        for mn in self.masternodes:
+            if not mn.announced:
+                continue
+            collateral = mn.get_collateral_str()
+            if self.masternode_statuses.get(collateral) is None:
+                req = ('masternode.subscribe', [collateral])
+                self.wallet.network.send([req], self.masternode_subscription_response)
+                self.masternode_statuses[collateral] = ''
+
+    def subscribe_to_proposals(self):
+        req = ('masternode.proposals.subscribe', [])
+        self.wallet.network.send([req], self.proposals_subscription_response)
 
     def get_masternode(self, alias):
         """Get the masternode labelled as alias."""
@@ -86,6 +113,8 @@ class MasternodeManager(object):
 
     def add_masternode(self, mn, save = True):
         """Add a new masternode."""
+        if any(i.alias == mn.alias for i in self.masternodes):
+            raise Exception('A masternode with alias "%s" already exists' % mn.alias)
         self.masternodes.append(mn)
         if save:
             self.save()
@@ -93,6 +122,8 @@ class MasternodeManager(object):
     def remove_masternode(self, alias, save = True):
         """Remove the masternode labelled as alias."""
         mn = self.get_masternode(alias)
+        if not mn:
+            raise Exception('Nonexistent masternode')
         # Don't delete the delegate key if another masternode uses it too.
         if not any(i.alias != mn.alias and i.delegate_key == mn.delegate_key for i in self.masternodes):
             address = bitcoin.public_key_to_bc_address(mn.delegate_key.decode('hex'))
@@ -106,6 +137,8 @@ class MasternodeManager(object):
         """Attempt to populate the masternode's data using its output."""
         mn = self.get_masternode(alias)
         if not mn:
+            return
+        if mn.announced:
             return
         txid = mn.vin.get('prevout_hash')
         prevout_n = mn.vin.get('prevout_n')
@@ -153,6 +186,32 @@ class MasternodeManager(object):
             return t[0]
         raise Exception('Delegate key not known: %s' % address)
 
+    def check_can_sign_masternode(self, alias):
+        """Raise an exception if alias can't be signed and announced to the network."""
+        mn = self.get_masternode(alias)
+        if not mn:
+            raise Exception('Nonexistent masternode')
+        if not mn.collateral_key:
+            raise Exception('Collateral key is not specified')
+        if not mn.delegate_key:
+            raise Exception('Masternode delegate key is not specified')
+        if not mn.addr.ip:
+            raise Exception('Masternode has no IP address')
+
+        # Ensure that the collateral payment has >= MASTERNODE_MIN_CONFIRMATIONS.
+        confirmations, _ = self.wallet.get_confirmations(mn.vin['prevout_hash'])
+        if confirmations < MASTERNODE_MIN_CONFIRMATIONS:
+            raise Exception('Collateral payment must have at least %d confirmations (current: %d)' % (MASTERNODE_MIN_CONFIRMATIONS, confirmations))
+        # Ensure that the masternode's vin is valid.
+        if mn.vin.get('value', 0) != bitcoin.COIN * 1000:
+            raise Exception('Masternode requires a collateral 1000 DASH output.')
+
+        # If the masternode has been announced, it can be announced again if it has been disabled.
+        if mn.announced:
+            status = self.masternode_statuses.get(mn.get_collateral_str())
+            if status in ['PRE_ENABLED', 'ENABLED']:
+                raise Exception('Masternode has already been activated')
+
     def save(self):
         """Save masternodes."""
         masternodes = {}
@@ -167,21 +226,8 @@ class MasternodeManager(object):
 
     def sign_announce(self, alias, password):
         """Sign a Masternode Announce message for alias."""
+        self.check_can_sign_masternode(alias)
         mn = self.get_masternode(alias)
-        if not mn:
-            raise Exception('Nonexistent masternode')
-        if mn.announced:
-            raise Exception('Masternode has already been activated')
-        if not mn.collateral_key:
-            raise Exception('Collateral key is not specified')
-        if not mn.delegate_key:
-            raise Exception('Masternode delegate key is not specified')
-        if not mn.addr.ip:
-            raise Exception('Masternode has no IP address')
-        # Ensure that the collateral payment has >= MASTERNODE_MIN_CONFIRMATIONS.
-        confirmations, _ = self.wallet.get_confirmations(mn.vin['prevout_hash'])
-        if confirmations < MASTERNODE_MIN_CONFIRMATIONS:
-            raise Exception('Collateral payment must have at least %d confirmations (current: %d)' % (MASTERNODE_MIN_CONFIRMATIONS, confirmations))
         # Ensure that the masternode's vin is valid.
         if mn.vin.get('scriptSig') is None:
             mn.vin['scriptSig'] = ''
@@ -219,6 +265,7 @@ class MasternodeManager(object):
         self.network_event.clear()
         self.wallet.network.send([('masternode.announce.broadcast', [serialized])], callback)
         self.network_event.wait()
+        self.subscribe_to_masternodes()
         if errmsg:
             errmsg = errmsg[0]
         return (errmsg, mn.announced)
@@ -300,24 +347,39 @@ class MasternodeManager(object):
             raise Exception('Nonexistent masternode')
         return filter(lambda v: v.vin == mn.vin, self.budget_votes)
 
-    def vote(self, alias, proposal_name, vote_choice, password):
-        """Vote on a budget proposal."""
+    def check_can_vote(self, alias, proposal_name):
+        """Raise an exception if alias can't vote for proposal name."""
         if not self.wallet.network:
             raise Exception('Not connected')
+        # Get the proposal that proposal_name identifies.
+        proposal = None
+        for p in self.all_proposals:
+            if p.proposal_name == proposal_name:
+                proposal = p
+                break
+        else:
+            raise Exception('Unknown proposal')
+
+        # Make sure the masternode hasn't already voted.
+        proposal_hash = proposal.get_hash()
+        previous_votes = self.get_votes(alias)
+        if any(v.proposal_hash == proposal_hash for v in previous_votes):
+            raise Exception('Masternode has already voted on this proposal')
+
+        mn = self.get_masternode(alias)
+        if not mn.announced:
+            raise Exception('Masternode has not been activated')
+        else:
+            status = self.masternode_statuses.get(mn.get_collateral_str())
+            if status not in ['PRE_ENABLED', 'ENABLED']:
+                raise Exception('Masternode is not currently enabled')
+
+    def vote(self, alias, proposal_name, vote_choice, password):
+        """Vote on a budget proposal."""
+        self.check_can_vote(alias, proposal_name)
         # Validate vote choice.
         if vote_choice.upper() not in ('YES', 'NO'):
             raise ValueError('Invalid vote choice: "%s"' % vote_choice)
-
-        # Retrieve the proposal hash from the network if we don't have it.
-        proposal = self.get_proposal(proposal_name)
-        if not proposal:
-            proposal_hash = self.retrieve_proposal_hash(proposal_name)
-        else:
-            proposal_hash = proposal.get_hash()
-        # Make sure we haven't already voted.
-        votes = self.get_votes(alias)
-        if any(v.proposal_hash == proposal_hash for v in votes):
-            raise Exception('Alias "%s" has already voted for proposal "%s"' % (alias, proposal_name))
 
         # Create the vote.
         mn = self.get_masternode(alias)
@@ -364,6 +426,8 @@ class MasternodeManager(object):
 
     def add_proposal(self, proposal, save = True):
         """Add a new proposal."""
+        if proposal in self.proposals:
+            raise Exception('Proposal already exists')
         self.proposals.append(proposal)
         if save:
             self.save()
@@ -381,11 +445,12 @@ class MasternodeManager(object):
         """Create a fee transaction for proposal_name."""
         proposal = self.get_proposal(proposal_name)
         if proposal.fee_txid:
-            raise Exception('Proposal already has a fee tx: %s' % proposal.fee_txid)
+            print_error('Warning: Proposal "%s" already has a fee tx: %s' % (proposal_name, proposal.fee_txid))
         if proposal.submitted:
             raise Exception('Proposal has already been submitted')
 
-        script = '6a20' + proposal.get_hash() # OP_RETURN hash
+        h = bitcoin.hash_decode(proposal.get_hash()).encode('hex')
+        script = '6a20' + h # OP_RETURN hash
         outputs = [('script', script.decode('hex'), BUDGET_FEE_TX)]
         tx = self.wallet.mktx(outputs, password, self.config)
         proposal.fee_txid = tx.hash()
@@ -393,8 +458,9 @@ class MasternodeManager(object):
             self.save()
         return tx
 
-    def submit_proposal(self, proposal_name):
+    def submit_proposal(self, proposal_name, save = True):
         """Submit the proposal for proposal_name."""
+        proposal = self.get_proposal(proposal_name)
         if not proposal.fee_txid:
             raise Exception('Proposal has no fee transaction')
         if proposal.submitted:
@@ -408,10 +474,11 @@ class MasternodeManager(object):
             raise Exception('Collateral requires at least %d confirmations' % BUDGET_FEE_CONFIRMATIONS)
 
         payments_count = proposal.get_payments_count()
-        params = [proposal.proposal_name, proposal.proposal_url, payments_count, proposal.start_block, proposal.address, proposal.payment_amount]
+        payment_amount = format_satoshis_plain(proposal.payment_amount)
+        params = [proposal.proposal_name, proposal.proposal_url, payments_count, proposal.start_block, proposal.address, payment_amount, proposal.fee_txid]
 
         errmsg = []
-        callback = lambda r: self.submit_proposal_callback(proposal.proposal_name, errmsg, r)
+        callback = lambda r: self.submit_proposal_callback(proposal.proposal_name, errmsg, r, save)
         self.network_event.clear()
         self.wallet.network.send([('masternode.budget.submit', params)], callback)
         self.network_event.wait()
@@ -419,24 +486,26 @@ class MasternodeManager(object):
             errmsg = errmsg[0]
         return (errmsg, proposal.submitted)
 
-    def submit_proposal_callback(self, proposal_name, errmsg, r):
+    def submit_proposal_callback(self, proposal_name, errmsg, r, save = True):
         """Callback for when a proposal has been submitted."""
         try:
             self.on_proposal_submitted(proposal_name, r)
         except Exception as e:
             errmsg.append(str(e))
         finally:
-            self.save()
+            if save:
+                self.save()
             self.network_event.set()
 
     def on_proposal_submitted(self, proposal_name, r):
         """Validate the server response."""
+        proposal = self.get_proposal(proposal_name)
         err = r.get('error')
         if err:
+            proposal.rejected = True
             raise Exception('Error response: %s' % str(err))
 
         result = r.get('result')
-        proposal = self.get_proposal(proposal_name)
 
         if proposal.get_hash() != result:
             raise Exception('Invalid proposal hash from server: %s' % result)
@@ -466,7 +535,7 @@ class MasternodeManager(object):
                 'start_block': int(result['BlockStart']), 'end_block': int(result['BlockEnd']),
                 'payment_amount': int(result['MonthlyPayment']), 'address': result['PaymentAddress'],
                 'fee_txid': result['FeeTXHash']}
-        return BudgetProposal(**kwargs)
+        return BudgetProposal.from_dict(kwargs)
 
     def retrieve_proposals(self):
         """Retrieve proposals from the network."""
@@ -479,7 +548,7 @@ class MasternodeManager(object):
                             'start_block': int(result['BlockStart']), 'end_block': int(result['BlockEnd']),
                             'payment_amount': int(result['MonthlyPayment']), 'address': result['PaymentAddress'],
                             'fee_txid': result['FeeTXHash']}
-                    proposals.append(BudgetProposal(**kwargs))
+                    proposals.append(BudgetProposal.from_dict(kwargs))
             finally:
                 self.network_event.set()
 
@@ -488,3 +557,40 @@ class MasternodeManager(object):
         self.wallet.network.send([('masternode.budget.list', [])], callback)
         self.network_event.wait()
         return proposals
+
+    def proposals_subscription_response(self, response):
+        """Callback for when proposals on the network change."""
+        proposals = []
+        r = response['result']
+
+        for k, result in r.items():
+            kwargs = {'proposal_name': result['Name'], 'proposal_url': result['URL'],
+                    'start_block': int(result['BlockStart']), 'end_block': int(result['BlockEnd']),
+                    'payment_amount': result['MonthlyPayment'], 'address': result['PaymentAddress'],
+                    'fee_txid': result['FeeTXHash'],
+                    'yes_count': result['YesCount'], 'no_count': result['NoCount']}
+            payment_amount = Decimal(str(kwargs['payment_amount']))
+            kwargs['payment_amount'] = pow(10, 8) * payment_amount
+            proposals.append(BudgetProposal.from_dict(kwargs))
+
+        print_error('Received updated budget proposal information (%d proposals)' % len(proposals))
+        self.all_proposals = proposals
+        self.wallet.network.trigger_callback('proposals')
+
+    def masternode_subscription_response(self, response):
+        """Callback for when a masternode's status changes."""
+        collateral = response['params'][0]
+        mn = None
+        for masternode in self.masternodes:
+            if masternode.get_collateral_str() == collateral:
+                mn = masternode
+                break
+
+        if not mn:
+            return
+
+        status = response['result']
+        if status is None:
+            status = False
+        print_error('Received updated status for masternode %s: "%s"' % (mn.alias, status))
+        self.masternode_statuses[collateral] = status

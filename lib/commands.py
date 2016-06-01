@@ -36,6 +36,9 @@ from transaction import Transaction
 import paymentrequest
 from paymentrequest import PR_PAID, PR_UNPAID, PR_UNKNOWN, PR_EXPIRED
 import contacts
+from masternode import MasternodeAnnounce
+from masternode_budget import BudgetProposal
+from masternode_manager import MasternodeManager, parse_masternode_conf, BUDGET_FEE_CONFIRMATIONS
 
 known_commands = {}
 
@@ -78,6 +81,9 @@ class Commands:
         self.config = config
         self.wallet = wallet
         self.network = network
+        self.masternode_manager = None
+        if self.wallet:
+            self.masternode_manager = MasternodeManager(self.wallet, self.config)
         self._callback = callback
         self.password = None
         self.contacts = contacts.Contacts(self.config)
@@ -600,6 +606,184 @@ class Commands:
         for k in self.wallet.receive_requests.keys():
             self.wallet.remove_payment_request(k, self.config)
 
+    # Masternode commands.
+
+    @command('wnp')
+    def importmasternodeconf(self, conf_file):
+        """Import a masternode.conf file."""
+        if not os.path.exists(conf_file):
+            return 'File does not exist.'
+        with open(conf_file, 'r') as f:
+            lines = f.readlines()
+
+        try:
+            conf_lines = parse_masternode_conf(lines)
+        except Exception as e:
+            return 'Error parsing: ' + str(e)
+
+        num = self.masternode_manager.import_masternode_conf_lines(conf_file, self.password)
+        if not num:
+            return 'Could not import any configurations. Please ensure that they are not already imported.'
+        return '%d configuration%s imported.' % (num, 's' if num == 1 else '')
+
+    @command('w')
+    def newmasternode(self, alias):
+        """Create a new masternode."""
+        try:
+            self.masternode_manager.add_masternode(MasternodeAnnounce(alias=alias))
+            return 'Added new masternode "%s".' % alias
+        except Exception as e:
+            return 'Error: %s' % str(e)
+
+    @command('w')
+    def rmmasternode(self, alias):
+        """Remove an existing masternode."""
+        try:
+            self.masternode_manager.remove_masternode(alias)
+            return 'Removed masternode "%s".' % alias
+        except Exception as e:
+            return 'Error: %s' % str(e)
+
+    @command('w')
+    def listmasternodes(self):
+        """List wallet masternodes."""
+        return sorted([i.alias for i in self.masternode_manager.masternodes])
+
+    @command('w')
+    def showmasternode(self, alias):
+        """Show details about a masternode."""
+        mn = self.masternode_manager.get_masternode(alias)
+        if not mn:
+            return 'No masternode exists for alias "%s".' % alias
+        return mn.dump()
+
+    @command('w')
+    def listmasternodepayments(self):
+        """List unused masternode-compatible payments."""
+        return self.masternode_manager.get_masternode_outputs(exclude_frozen = False)
+
+    @command('wnp')
+    def activatemasternode(self, alias):
+        """Activate a masternode."""
+        self.masternode_manager.populate_masternode_output(alias)
+        try:
+            self.masternode_manager.sign_announce(alias)
+        except Exception as e:
+            return 'Error signing: ' + str(e)
+
+        try:
+            self.masternode_manager.send_announce(alias)
+        except Exception as e:
+            return 'Error sending: ' + str(e)
+
+        return 'Masternode "%s" activated successfully.' % alias
+
+    # Budget-related commands.
+
+    @command('wp')
+    def prepareproposal(self, proposal_name, proposal_url, payments_count, block_start, address, amount, deserialized=False, broadcast=False):
+        """Create a budget proposal transaction."""
+        proposal = self.masternode_manager.get_proposal(proposal_name)
+        amount = int(amount*COIN)
+        if not proposal:
+            proposal = BudgetProposal(proposal_name=proposal_name, proposal_url=proposal_url, start_block=block_start,
+                        payment_amount=amount, address=address)
+            proposal.set_payments_count(payments_count)
+            self.masternode_manager.add_proposal(proposal)
+
+        tx = self.masternode_manager.create_proposal_tx(proposal_name, self.password)
+
+        if broadcast:
+            r, h = self.wallet.sendtx(tx)
+            return h
+        return tx.deserialize() if deserialized else str(tx)
+
+    @command('wn')
+    def sendproposal(self, proposal_name):
+        """Send a budget proposal."""
+        try:
+            errmsg, submitted = self.masternode_manager.submit_proposal(proposal_name)
+        except Exception as e:
+            return 'Error: %s' % str(e)
+
+        if errmsg:
+            return 'Error: %s' % errmsg
+        return submitted
+
+    @command('wn')
+    def sendreadyproposals(self):
+        """Send all budget proposals that are ready to be sent."""
+        results = {}
+        proposals = filter(lambda p: p.fee_txid and not p.submitted and not p.rejected, self.masternode_manager.proposals)
+        for p in proposals:
+            confirmations, timestamp = self.wallet.get_confirmations(p.fee_txid)
+            if confirmations < BUDGET_FEE_CONFIRMATIONS:
+                continue
+
+            errmsg, success = self.masternode_manager.submit_proposal(p.proposal_name)
+            if not success:
+                results[p.proposal_name] = errmsg
+            else:
+                results[p.proposal_name] = 'Successfully submitted'
+
+        return results
+
+    @command('w')
+    def listproposals(self):
+        """List proposals created with this wallet."""
+        return {p.proposal_name: p.dump() for p in self.masternode_manager.proposals}
+
+    @command('w')
+    def listreadyproposals(self):
+        """List the proposals created with this wallet that are ready to be submitted."""
+        results = {}
+        proposals = filter(lambda p: p.fee_txid and not p.submitted and not p.rejected, self.masternode_manager.proposals)
+        for p in proposals:
+            confirmations, timestamp = self.wallet.get_confirmations(p.fee_txid)
+            if confirmations < BUDGET_FEE_CONFIRMATIONS:
+                continue
+            results[p.proposal_name] = p.dump()
+
+        return results
+
+    @command('n')
+    def mnbudget(self, budget_command):
+        """Get information on masternode budget proposals."""
+        valid_commands = ('list', 'nextblock', 'nextsuperblocksize', 'projection')
+        if budget_command not in valid_commands:
+            return 'Budget command must be one of %s' % valid_commands
+        method = 'masternode.budget.%s' % budget_command
+        return self.network.synchronous_get([(method, [])])[0]
+
+    @command('n')
+    def getvotes(self, proposal_hash):
+        """Get the votes for a budget proposal."""
+        req = ('masternode.budget.getvotes', [proposal_hash])
+        return self.network.synchronous_get([req])[0]
+
+    @command('n')
+    def getproposalhash(self, proposal_name):
+        """Get the hash of a budget proposal by its name."""
+        req = ('masternode.budget.getproposalhash', [proposal_name])
+        return self.network.synchronous_get([req])[0]
+
+    @command('n')
+    def getproposal(self, proposal_hash):
+        """Get information on a budget proposal."""
+        req = ('masternode.budget.getproposal', [proposal_hash])
+        return self.network.synchronous_get([req])[0]
+
+    @command('wnp')
+    def vote(self, alias, proposal_name, vote_choice):
+        """Vote on a proposal."""
+        valid_choices = ('yes', 'no')
+        if vote_choice.lower() not in valid_choices:
+            return 'Invalid vote choice: "%s"' % vote_choice
+
+        errmsg, success = self.masternode_manager.vote(alias, proposal_name, vote_choice, self.password)
+        if errmsg:
+            return 'Error: %s' % errmsg
+        return success
 
 param_descriptions = {
     'privkey': 'Private key. Type \'?\' to get a prompt.',
@@ -617,6 +801,8 @@ param_descriptions = {
     'amount': 'Amount to be sent (in DASH). Type \'!\' to send the maximum available.',
     'requested_amount': 'Requested amount (in DASH).',
     'csv_file': 'CSV file of recipient, amount',
+    'conf_file': 'Masternode.conf file from Dash.',
+    'alias': 'Masternode alias.',
 }
 
 command_options = {
@@ -654,8 +840,10 @@ command_options = {
 
 
 arg_types = {
+    'block_start':int,
     'num':int,
     'nbits':int,
+    'payments_count':int,
     'entropy':long,
     'pubkeys': json.loads,
     'inputs': json.loads,
