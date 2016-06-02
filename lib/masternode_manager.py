@@ -566,9 +566,15 @@ class MasternodeManager(object):
         for k, result in r.items():
             kwargs = {'proposal_name': result['Name'], 'proposal_url': result['URL'],
                     'start_block': int(result['BlockStart']), 'end_block': int(result['BlockEnd']),
-                    'payment_amount': result['MonthlyPayment'], 'address': result['PaymentAddress'],
-                    'fee_txid': result['FeeTXHash'],
-                    'yes_count': result['YesCount'], 'no_count': result['NoCount']}
+                    'payment_amount': result['MonthlyPayment'], 'address': result['PaymentAddress']}
+
+            fee_txid_key = 'FeeTXHash' if result.get('FeeTXHash') else 'FeeHash'
+            kwargs['fee_txid'] = result[fee_txid_key]
+            yes_count_key = 'YesCount' if result.get('YesCount') else 'Yeas'
+            kwargs['yes_count'] = result[yes_count_key]
+            no_count_key = 'NoCount' if result.get('NoCount') else 'Nays'
+            kwargs['no_count'] = result[no_count_key]
+
             payment_amount = Decimal(str(kwargs['payment_amount']))
             kwargs['payment_amount'] = pow(10, 8) * payment_amount
             proposals.append(BudgetProposal.from_dict(kwargs))
