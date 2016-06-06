@@ -148,7 +148,8 @@ class Plugin(BasePlugin):
 
     @hook
     def close_wallet(self):
-        self.window.statusBar().removeWidget(self.trezor_button)
+        if type(self.window) is ElectrumWindow:
+            self.window.statusBar().removeWidget(self.trezor_button)
 
     @hook
     def installwizard_load_wallet(self, wallet, window):
