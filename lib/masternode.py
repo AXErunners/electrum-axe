@@ -233,9 +233,14 @@ class MasternodeAnnounce(object):
         s = str(self.addr)
         s += str(self.sig_time)
 
-        # Decode the hex-encoded bytes for our keys.
-        s += self.collateral_key.decode('hex')
-        s += self.delegate_key.decode('hex')
+        if self.protocol_version < 70201:
+            # Decode the hex-encoded bytes for our keys.
+            s += self.collateral_key.decode('hex')
+            s += self.delegate_key.decode('hex')
+        else:
+            # Use the RIPEMD-160 hashes of our keys.
+            s += bitcoin.hash_160(self.collateral_key.decode('hex')).encode('hex')
+            s += bitcoin.hash_160(self.delegate_key.decode('hex')).encode('hex')
 
         s += str(self.protocol_version)
         return s

@@ -66,6 +66,21 @@ class TestMasternode(unittest.TestCase):
         pk = bitcoin.public_key_to_bc_address(announce.collateral_key.decode('hex'), 139)
         self.assertTrue(announce.verify(pk))
 
+    def test_serialize_protocol_version_70201(self):
+        raw = '08108933d948aed6a107cd01e7862ed61ef9bf14e87da0a14e8d17791e9f9c570100000000ffffffff00000000000000000000ffff7f0000014e1f210269e1abb1ffe231ea045068272a06f0fae231d11b11a54225867d89267faa4e23210269e1abb1ffe231ea045068272a06f0fae231d11b11a54225867d89267faa4e234120b8bc547ce2471125eddfdfd5af30ea1e892e750acfe2896b241097b7f21442a61da073d47c885535769bf215eb3e97eca692d868db1bfb9dee469a1ece5acb92a1945457000000003912010008108933d948aed6a107cd01e7862ed61ef9bf14e87da0a14e8d17791e9f9c570100000000ffffffffefc894d8431c1774a19aeb732ea7fc56925b740ed80486f30424109a05000000a1945457000000004120818f17742e6644359c8b9a91e56b595615bd2c593de713304435dcfd07ceb6a815559fd3b2f05f531d9b9918b22b8748491c3f36cb25e8397ff950f74030444f0000000000000000'
+        announce = MasternodeAnnounce.deserialize(raw)
+        announce.sig_time = 1465161129
+        msg = announce.serialize_for_sig()
+        expected = ''.join([
+            '127.0.0.1:19999',
+            '1465161129',
+            bitcoin.hash_160('0269e1abb1ffe231ea045068272a06f0fae231d11b11a54225867d89267faa4e23'.decode('hex')).encode('hex'),
+            bitcoin.hash_160('0269e1abb1ffe231ea045068272a06f0fae231d11b11a54225867d89267faa4e23'.decode('hex')).encode('hex'),
+            '70201',
+        ])
+
+        self.assertEqual(expected, msg)
+
     def test_create_and_sign(self):
         collateral_pub = '038ae57bd0fa5b45640e771614ec571c7326a2266c78bb444f1971c85188411ba1' # XahPxwmCuKjPq69hzVxP18V1eASwDWbUrn
         delegate_pub = '02526201c87c1b4630aabbd04572eec3e2545e442503e57e60880fafcc1f684dbc' # Xx2nSdhaT7c9SREKBPAgzpkhu518XFgkgh
