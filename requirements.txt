@@ -7,3 +7,4 @@ protobuf==2.5.0
 dnspython==1.12.0
 git+https://github.com/mazaclub/x11_hash@1.4#egg=x11_hash
 git+https://github.com/mazaclub/python-trezor@rev#egg=trezor
+git+https://github.com/keepkey/python-keepkey@v0.7.2#egg=keepkey
