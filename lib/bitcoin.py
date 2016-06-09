@@ -35,7 +35,7 @@ import x11_hash
 # You may also need to remove the 'server' option from your config file.
 # Otherwise, you may end up getting headers for the wrong chain!
 TESTNET = False
-PUBKEY_ADDR = 139 if TESTNET else 76
+PUBKEY_ADDR = 140 if TESTNET else 76
 SCRIPT_ADDR = 19 if TESTNET else 16
 WIF = 239 if TESTNET else 204
 
