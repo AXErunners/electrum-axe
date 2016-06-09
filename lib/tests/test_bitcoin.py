@@ -5,13 +5,23 @@ from ecdsa.util import number_to_string
 from lib.bitcoin import (
     generator_secp256k1, point_to_ser, public_key_to_bc_address, EC_KEY,
     bip32_root, bip32_public_derivation, bip32_private_derivation, pw_encode,
-    pw_decode, Hash, PoWHash, public_key_from_private_key, address_from_private_key,
-    is_valid, is_private_key, xpub_from_xprv, rev_hex)
+    pw_decode, Hash, PoWHash, rev_hex, public_key_from_private_key, address_from_private_key,
+    is_valid, is_private_key, xpub_from_xprv)
 
 try:
     import ecdsa
 except ImportError:
     sys.exit("Error: python-ecdsa does not seem to be installed. Try 'sudo pip install ecdsa'")
+
+
+class Test_hash(unittest.TestCase):
+    """ The block used here was arbitrarily chosen.
+        Block height: 339142."""
+
+    def test_hash_block(self):
+        raw_header = '030000001a12ed8fe3b2abe61161c3171f20a4dff83e721298934943ff86170000000000972b51909e1911b9d4462a448cfb14b6d3d2e25151eb75b3e0f252f39a84d22ac4d2fd55e85b1d1b116e56de'
+        header_hash = rev_hex(PoWHash(raw_header.decode('hex')).encode('hex'))
+        self.assertEqual('000000000008aba1c6b076ba5f147b39007cb1f9c34398960edc7c9d1edf8ad7', header_hash)
 
 
 class Test_bitcoin(unittest.TestCase):
@@ -160,12 +170,4 @@ class Test_keyImport(unittest.TestCase):
         self.assertTrue(is_private_key(self.private_key))
         self.assertFalse(is_private_key(self.public_key_hex))
 
-class Test_hash(unittest.TestCase):
-    """ The block used here was arbitrarily chosen.
-        Block height: 339142."""
-
-    def test_hash_block(self):
-        raw_header = '030000001a12ed8fe3b2abe61161c3171f20a4dff83e721298934943ff86170000000000972b51909e1911b9d4462a448cfb14b6d3d2e25151eb75b3e0f252f39a84d22ac4d2fd55e85b1d1b116e56de'
-        header_hash = rev_hex(PoWHash(raw_header.decode('hex')).encode('hex'))
-        self.assertEqual('000000000008aba1c6b076ba5f147b39007cb1f9c34398960edc7c9d1edf8ad7', header_hash)
 

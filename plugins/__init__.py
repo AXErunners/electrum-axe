@@ -23,14 +23,45 @@ except ImportError:
     from lib.i18n import _
 
 descriptions = [
-    # Disabled plugins.
-
+    #{
+    #    'name': 'audio_modem',
+    #    'fullname': _('Audio MODEM'),
+    #    'description': _('Provides support for air-gapped transaction signing.'),
+    #    'requires': [('amodem', 'http://github.com/romanz/amodem/')],
+    #    'available_for': ['qt'],
+    #},
+    {
+        'name': 'btchipwallet',
+        'fullname': _('BTChip Wallet'),
+        'description': _('Provides support for BTChip hardware wallet'),
+        'requires': [('btchip', 'github.com/btchip/btchip-python')],
+        'requires_wallet_type': ['btchip'],
+        'registers_wallet_type': ('hardware', 'btchip', _("BTChip wallet")),
+        'available_for': ['qt', 'cmdline'],
+    },
+    {
+        'name': 'cosigner_pool',
+        'fullname': _('Cosigner Pool'),
+        'description': ' '.join([
+            _("This plugin facilitates the use of multi-signatures wallets."),
+            _("It sends and receives partially signed transactions from/to your cosigner wallet."),
+            _("Transactions are encrypted and stored on a remote server.")
+        ]),
+        'requires_wallet_type': ['2of2', '2of3'],
+        'available_for': ['qt'],
+    },
     #{
     #    'name': 'email_requests',
     #    'fullname': 'Email',
     #    'description': _("Send and receive payment request with an email account"),
     #    'available_for': ['qt'],
     #},
+    {
+        'name': 'exchange_rate',
+        'fullname': _("Exchange rates"),
+        'description': _("Exchange rates and currency conversion tools."),
+        'available_for': ['qt'],
+    },
     #{
     #    'name': 'greenaddress_instant',
     #    'fullname': 'GreenAddress instant',
@@ -46,51 +77,6 @@ descriptions = [
     #    ]),
     #    'available_for': ['qt']
     #},
-    #{
-    #    'name': 'audio_modem',
-    #    'fullname': _('Audio MODEM'),
-    #    'description': _('Provides support for air-gapped transaction signing.'),
-    #    'requires': [('amodem', 'http://github.com/romanz/amodem/')],
-    #    'available_for': ['qt'],
-    #},
-    #{
-    #    'name': 'btchipwallet',
-    #    'fullname': _('BTChip Wallet'),
-    #    'description': _('Provides support for BTChip hardware wallet'),
-    #    'requires': [('btchip', 'github.com/btchip/btchip-python')],
-    #    'requires_wallet_type': ['btchip'],
-    #    'registers_wallet_type': ('hardware', 'btchip', _("BTChip wallet")),
-    #    'available_for': ['qt', 'cmdline'],
-    #},
-    #{
-    #    'name': 'trustedcoin',
-    #    'fullname': _('Two Factor Authentication'),
-    #    'description': ''.join([
-    #        _("This plugin adds two-factor authentication to your wallet."), '<br/>',
-    #        _("For more information, visit"),
-    #        " <a href=\"https://api.trustedcoin.com/#/electrum-help\">https://api.trustedcoin.com/#/electrum-help</a>"
-    #    ]),
-    #    'requires_wallet_type': ['2fa'],
-    #    'registers_wallet_type': ('twofactor', '2fa', _("Wallet with two-factor authentication")),
-    #    'available_for': ['qt', 'cmdline'],
-    #},
-    {
-        'name': 'cosigner_pool',
-        'fullname': _('Cosigner Pool'),
-        'description': ' '.join([
-            _("This plugin facilitates the use of multi-signatures wallets."),
-            _("It sends and receives partially signed transactions from/to your cosigner wallet."),
-            _("Transactions are encrypted and stored on a remote server.")
-        ]),
-        'requires_wallet_type': ['2of2', '2of3'],
-        'available_for': ['qt'],
-    },
-    {
-        'name': 'exchange_rate',
-        'fullname': _("Exchange rates"),
-        'description': _("Exchange rates and currency conversion tools."),
-        'available_for': ['qt'],
-    },
     {
         'name': 'plot',
         'fullname': 'Plot History',
@@ -118,6 +104,18 @@ descriptions = [
         'registers_wallet_type': ('hardware', 'trezor', _("Trezor wallet")),
         'available_for': ['qt', 'cmdline'],
     },
+    #{
+    #    'name': 'trustedcoin',
+    #    'fullname': _('Two Factor Authentication'),
+    #    'description': ''.join([
+    #        _("This plugin adds two-factor authentication to your wallet."), '<br/>',
+    #        _("For more information, visit"),
+    #        " <a href=\"https://api.trustedcoin.com/#/electrum-help\">https://api.trustedcoin.com/#/electrum-help</a>"
+    #    ]),
+    #    'requires_wallet_type': ['2fa'],
+    #    'registers_wallet_type': ('twofactor', '2fa', _("Wallet with two-factor authentication")),
+    #    'available_for': ['qt', 'cmdline'],
+    #},
     {
         'name': 'virtualkeyboard',
         'fullname': 'Virtual Keyboard',
