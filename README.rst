@@ -1,16 +1,17 @@
-Electrum - lightweight Bitcoin client
-=====================================
+Electrum-DASH - lightweight Dash client
+==========================================
 
 ::
 
   Licence: GNU GPL v3
-  Author: Thomas Voegtlin
+  Original Author: Thomas Voegtlin
+  Port Maintainer: Tyler Willis, Holger Schinzel
   Language: Python
-  Homepage: https://electrum.org/
+  Homepage: https://electrum-dash.org/
 
 
-.. image:: https://travis-ci.org/spesmilo/electrum.svg?branch=master
-    :target: https://travis-ci.org/spesmilo/electrum
+.. image:: https://travis-ci.org/dashpay/electrum-dash.svg?branch=master
+    :target: https://travis-ci.org/dashpay/electrum-dash
     :alt: Build Status
 
 
@@ -19,7 +20,7 @@ Electrum - lightweight Bitcoin client
 
 To run Electrum from this directory, just do::
 
-    ./electrum
+    ./electrum-dash
 
 If you install Electrum on your system, you can run it from any
 directory.
@@ -27,7 +28,7 @@ directory.
 If you have pip, you can do::
 
     python setup.py sdist
-    sudo pip install --pre dist/Electrum-2.0.tar.gz
+    sudo pip install --pre dist/Electrum-DASH-2.0.tar.gz
 
 
 If you don't have pip, install with::
@@ -38,7 +39,7 @@ If you don't have pip, install with::
 
 
 To start Electrum from your web browser, see
-http://electrum.org/bitcoin_URIs.html
+https://electrum-dash.org/dash_URIs.html
 
 
 
@@ -58,4 +59,4 @@ On Mac OS X::
     # On brew installs
     ARCHFLAGS="-arch i386 -arch x86_64" sudo python setup-release.py py2app --includes sip
 
-    sudo hdiutil create -fs HFS+ -volname "Electrum" -srcfolder dist/Electrum.app dist/electrum-VERSION-macosx.dmg
+    sudo hdiutil create -fs HFS+ -volname "Electrum-DASH" -srcfolder dist/Electrum-DASH.app dist/electrum-dash-VERSION-macosx.dmg
