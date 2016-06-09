@@ -116,7 +116,7 @@ class Plugin(BasePlugin):
 
 class BTChipWallet(BIP32_HD_Wallet):
     wallet_type = 'btchip'
-    root_derivation = "m/44'/0'"
+    root_derivation = "m/44'/5'"
 
     def __init__(self, storage):
         BIP32_HD_Wallet.__init__(self, storage)
@@ -234,13 +234,13 @@ class BTChipWallet(BIP32_HD_Wallet):
 
     def address_id(self, address):
         account_id, (change, address_index) = self.get_address_index(address)
-        return "44'/0'/%s'/%d/%d" % (account_id, change, address_index)
+        return "44'/5'/%s'/%d/%d" % (account_id, change, address_index)
 
     def create_main_account(self, password):
         self.create_account('Main account', None) #name, empty password
 
     def derive_xkeys(self, root, derivation, password):
-        derivation = derivation.replace(self.root_name,"44'/0'/")
+        derivation = derivation.replace(self.root_name,"44'/5'/")
         xpub = self.get_public_key(derivation)
         return xpub, None
 
@@ -281,7 +281,7 @@ class BTChipWallet(BIP32_HD_Wallet):
     def get_master_public_key(self):
         try:
             if not self.mpk:
-                self.mpk = self.get_public_key("44'/0'")
+                self.mpk = self.get_public_key("44'/5'")
             return self.mpk
         except Exception, e:
             self.give_error(e, True)
@@ -477,7 +477,7 @@ class BTChipWallet(BIP32_HD_Wallet):
         if not self.device_checked:
             self.plugin.handler.show_message("Checking device")
             try:
-                nodeData = self.get_client().getWalletPublicKey("44'/0'/0'")
+                nodeData = self.get_client().getWalletPublicKey("44'/5'/0'")
             except Exception, e:
                 self.give_error(e, True)
             finally:
