@@ -545,6 +545,7 @@ class Transaction:
     @classmethod
     def sweep(klass, privkeys, network, to_address, fee):
         inputs = []
+        keypairs = {}
         for privkey in privkeys:
             pubkey = public_key_from_private_key(privkey)
             address = address_from_private_key(privkey)
@@ -561,6 +562,7 @@ class Transaction:
                 item['signatures'] = [None]
                 item['num_sig'] = 1
             inputs += u
+            keypairs[pubkey] = privkey
 
         if not inputs:
             return
@@ -568,7 +570,7 @@ class Transaction:
         total = sum(i.get('value') for i in inputs) - fee
         outputs = [('address', to_address, total)]
         self = klass.from_io(inputs, outputs)
-        self.sign({ pubkey:privkey })
+        self.sign(keypairs)
         return self
 
     @classmethod
