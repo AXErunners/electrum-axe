@@ -21,7 +21,7 @@ TESTNET_SERVERS = {}
 MAINNET_SERVERS = {
     'electrum.darkcointalk.org':DEFAULT_PORTS, # propulsion
     'drk1.electrum-servers.us':DEFAULT_PORTS,  # elm4ever
-    'electrum.drk.siampm.com':DEFAULT_PORTS,   # thelazier
+    'electrum.dash.siampm.com':DEFAULT_PORTS,  # thelazier
     'electrum-drk.club':DEFAULT_PORTS,         # duffman
 }
 DEFAULT_SERVERS = TESTNET_SERVERS if TESTNET else MAINNET_SERVERS
