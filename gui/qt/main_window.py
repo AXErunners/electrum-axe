@@ -267,6 +267,13 @@ class ElectrumWindow(QMainWindow):
         self.clear_receive_tab()
         self.update_receive_tab()
         self.show()
+        if self.wallet.is_watching_only():
+            msg = ' '.join([
+                _("This wallet is watching-only."),
+                _("This means you will not be able to spend Dash with it."),
+                _("Make sure you own the seed phrase or the private keys, before you request Dash to be sent to this wallet.")
+            ])
+            QMessageBox.warning(self, _('Information'), msg, _('OK'))
         run_hook('load_wallet', wallet, self)
 
     def import_old_contacts(self):
@@ -319,16 +326,16 @@ class ElectrumWindow(QMainWindow):
             QMessageBox.warning(None, _('Warning'), str(e), _('OK'))
             return
         action = wallet.get_action()
-        self.hide()
         # run wizard
         if action is not None:
+            self.hide()
             wallet = self.gui_object.run_wizard(storage, action)
+            # keep current wallet
+            if not wallet:
+                self.show()
+                return
         else:
             wallet.start_threads(self.network)
-        # keep current wallet
-        if not wallet:
-            self.show()
-            return
         # close current wallet
         self.close_wallet()
         # load new wallet in gui
@@ -412,6 +419,7 @@ class ElectrumWindow(QMainWindow):
         self.recently_visited_menu = file_menu.addMenu(_("&Recently open"))
         file_menu.addAction(_("&Open"), self.open_wallet).setShortcut(QKeySequence.Open)
         file_menu.addAction(_("&New/Restore"), self.new_wallet).setShortcut(QKeySequence.New)
+        file_menu.addAction(_("&Save Copy"), self.backup_wallet).setShortcut(QKeySequence.SaveAs)
         file_menu.addSeparator()
         file_menu.addAction(_("&Quit"), self.close)
         self.update_recently_visited()
@@ -480,7 +488,6 @@ class ElectrumWindow(QMainWindow):
 
 
     def new_transaction(self, tx):
-        print "new tx", tx
         self.tx_notifications.append(tx)
 
     def notify_transactions(self):
@@ -2292,7 +2299,7 @@ class ElectrumWindow(QMainWindow):
         tx = self.tx_from_text(data)
         if not tx:
             return
-        self.show_transaction(tx, prompt_if_unsaved=True)
+        self.show_transaction(tx)
 
 
     def read_tx_from_file(self):
@@ -2314,7 +2321,7 @@ class ElectrumWindow(QMainWindow):
             return
         tx = self.tx_from_text(text)
         if tx:
-            self.show_transaction(tx, prompt_if_unsaved=True)
+            self.show_transaction(tx)
 
     def do_process_from_file(self):
         tx = self.read_tx_from_file()
