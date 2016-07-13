@@ -1,11 +1,41 @@
+#!/usr/bin/env python
+#
+# Electrum - lightweight Bitcoin client
+# Copyright (C) 2011 Thomas Voegtlin
+#
+# Permission is hereby granted, free of charge, to any person
+# obtaining a copy of this software and associated documentation files
+# (the "Software"), to deal in the Software without restriction,
+# including without limitation the rights to use, copy, modify, merge,
+# publish, distribute, sublicense, and/or sell copies of the Software,
+# and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+# BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+# ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 import os, sys, re, json
 import platform
 import shutil
+from collections import defaultdict
 from datetime import datetime
 from decimal import Decimal
+import traceback
 import urlparse
 import urllib
 import threading
+from i18n import _
+
+base_units = {'BTC':8, 'mBTC':5, 'uBTC':2}
 
 def normalize_version(v):
     return [int(x) for x in re.sub(r'(\.0+)*$','', v).split(".")]
@@ -20,8 +50,13 @@ class NotEnoughFunds(Exception): pass
 
 class InvalidPassword(Exception):
     def __str__(self):
-        from i18n import _
         return _("Incorrect password")
+
+# Throw this exception to unwind the stack like when an error occurs.
+# However unlike other exceptions the user won't be informed.
+class UserCancelled(Exception):
+    '''An exception that is suppressed from the user'''
+    pass
 
 class MyEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -30,8 +65,52 @@ class MyEncoder(json.JSONEncoder):
             return obj.as_dict()
         return super(MyEncoder, self).default(obj)
 
+class PrintError(object):
+    '''A handy base class'''
+    def diagnostic_name(self):
+        return self.__class__.__name__
 
-class DaemonThread(threading.Thread):
+    def print_error(self, *msg):
+        print_error("[%s]" % self.diagnostic_name(), *msg)
+
+    def print_msg(self, *msg):
+        print_msg("[%s]" % self.diagnostic_name(), *msg)
+
+class ThreadJob(PrintError):
+    """A job that is run periodically from a thread's main loop.  run() is
+    called from that thread's context.
+    """
+
+    def run(self):
+        """Called periodically from the thread"""
+        pass
+
+class DebugMem(ThreadJob):
+    '''A handy class for debugging GC memory leaks'''
+    def __init__(self, classes, interval=30):
+        self.next_time = 0
+        self.classes = classes
+        self.interval = interval
+
+    def mem_stats(self):
+        import gc
+        self.print_error("Start memscan")
+        gc.collect()
+        objmap = defaultdict(list)
+        for obj in gc.get_objects():
+            for class_ in self.classes:
+                if isinstance(obj, class_):
+                    objmap[class_].append(obj)
+        for class_, objs in objmap.items():
+            self.print_error("%s: %d" % (class_.__name__, len(objs)))
+        self.print_error("Finish memscan")
+
+    def run(self):
+        if time.time() > self.next_time:
+            self.mem_stats()
+            self.next_time = time.time() + self.interval
+
+class DaemonThread(threading.Thread, PrintError):
     """ daemon thread that terminates cleanly """
 
     def __init__(self):
@@ -39,6 +118,28 @@ class DaemonThread(threading.Thread):
         self.parent_thread = threading.currentThread()
         self.running = False
         self.running_lock = threading.Lock()
+        self.job_lock = threading.Lock()
+        self.jobs = []
+
+    def add_jobs(self, jobs):
+        with self.job_lock:
+            self.jobs.extend(jobs)
+
+    def run_jobs(self):
+        # Don't let a throwing job disrupt the thread, future runs of
+        # itself, or other jobs.  This is useful protection against
+        # malformed or malicious server responses
+        with self.job_lock:
+            for job in self.jobs:
+                try:
+                    job.run()
+                except:
+                    traceback.print_exc(file=sys.stderr)
+
+    def remove_jobs(self, jobs):
+        with self.job_lock:
+            for job in jobs:
+                self.jobs.remove(job)
 
     def start(self):
         with self.running_lock:
@@ -52,12 +153,6 @@ class DaemonThread(threading.Thread):
     def stop(self):
         with self.running_lock:
             self.running = False
-
-    def print_error(self, *msg):
-        print_error("[%s]" % self.__class__.__name__, *msg)
-
-    def print_msg(self, *msg):
-        print_msg("[%s]" % self.__class__.__name__, *msg)
 
 
 
@@ -82,27 +177,75 @@ def print_msg(*args):
     sys.stdout.write(" ".join(args) + "\n")
     sys.stdout.flush()
 
-def print_json(obj):
+def json_encode(obj):
     try:
         s = json.dumps(obj, sort_keys = True, indent = 4, cls=MyEncoder)
     except TypeError:
         s = repr(obj)
-    sys.stdout.write(s + "\n")
-    sys.stdout.flush()
+    return s
 
+def json_decode(x):
+    try:
+        return json.loads(x, parse_float=decimal.Decimal)
+    except:
+        return x
 
 # decorator that prints execution time
 def profiler(func):
-    def do_profile(func, args):
+    def do_profile(func, args, kw_args):
         n = func.func_name
         t0 = time.time()
-        o = apply(func, args)
+        o = func(*args, **kw_args)
         t = time.time() - t0
         print_error("[profiler]", n, "%.4f"%t)
         return o
-    return lambda *args: do_profile(func, args)
+    return lambda *args, **kw_args: do_profile(func, args, kw_args)
 
+def headers_file_name():
+    from bitcoin import TESTNET
+    s = 'blockchain_headers'
+    if TESTNET:
+        s += '_testnet'
+    return s
 
+def android_ext_dir():
+    import jnius
+    env = jnius.autoclass('android.os.Environment')
+    return env.getExternalStorageDirectory().getPath()
+
+def android_data_dir():
+    import jnius
+    PythonActivity = jnius.autoclass('org.renpy.android.PythonActivity')
+    return PythonActivity.mActivity.getFilesDir().getPath() + '/data'
+
+def android_headers_path():
+    path = android_ext_dir() + '/org.electrum_dash.electrum_dash/' + headers_file_name()
+    d = os.path.dirname(path)
+    if not os.path.exists(d):
+        os.mkdir(d)
+    return path
+
+def android_check_data_dir():
+    """ if needed, move old directory to sandbox """
+    ext_dir = android_ext_dir()
+    data_dir = android_data_dir()
+    old_electrum_dir = ext_dir + '/electrum-dash'
+    if not os.path.exists(data_dir) and os.path.exists(old_electrum_dir):
+        import shutil
+        new_headers_path = android_headers_path()
+        old_headers_path = old_electrum_dir + '/' + headers_file_name()
+        if not os.path.exists(new_headers_path) and os.path.exists(old_headers_path):
+            print_error("Moving headers file to", new_headers_path)
+            shutil.move(old_headers_path, new_headers_path)
+        print_error("Moving data to", data_dir)
+        shutil.move(old_electrum_dir, data_dir)
+    return data_dir
+
+def get_headers_path(config):
+    if 'ANDROID_DATA' in os.environ:
+        return android_headers_path()
+    else:
+        return os.path.join(config.path, headers_file_name())
 
 def user_dir():
     if "HOME" in os.environ:
@@ -112,7 +255,7 @@ def user_dir():
     elif "LOCALAPPDATA" in os.environ:
         return os.path.join(os.environ["LOCALAPPDATA"], "Electrum-DASH")
     elif 'ANDROID_DATA' in os.environ:
-        return "/sdcard/electrum-dash/"
+        return android_check_data_dir()
     else:
         #raise Exception("No home directory found in environment variables.")
         return
@@ -145,13 +288,15 @@ def format_satoshis(x, is_diff=False, num_zeros = 0, decimal_point = 8, whitespa
         result = " " * (15 - len(result)) + result
     return result.decode('utf8')
 
-def format_time(timestamp):
-    import datetime
+def timestamp_to_datetime(timestamp):
     try:
-        time_str = datetime.datetime.fromtimestamp(timestamp).isoformat(' ')[:-3]
+        return datetime.fromtimestamp(timestamp)
     except:
-        time_str = "unknown"
-    return time_str
+        return None
+
+def format_time(timestamp):
+    date = timestamp_to_datetime(timestamp)
+    return date.isoformat(' ')[:-3] if date else _("Unknown")
 
 
 # Takes a timestamp and returns a string with the approximation of the age
@@ -234,17 +379,18 @@ def block_explorer_URL(config, kind, item):
 #_ud = re.compile('%([0-9a-hA-H]{2})', re.MULTILINE)
 #urldecode = lambda x: _ud.sub(lambda m: chr(int(m.group(1), 16)), x)
 
-def parse_URI(uri):
+def parse_URI(uri, on_pr=None):
     import bitcoin
     from bitcoin import COIN
 
     if ':' not in uri:
-        assert bitcoin.is_address(uri)
+        if not bitcoin.is_address(uri):
+            raise BaseException("Not a bitcoin address")
         return {'address': uri}
 
     u = urlparse.urlparse(uri)
-    assert u.scheme == 'dash'
-
+    if u.scheme != 'dash':
+        raise BaseException("Not a Dash URI")
     address = u.path
 
     # python for android fails to parse query
@@ -260,7 +406,8 @@ def parse_URI(uri):
 
     out = {k: v[0] for k, v in pq.items()}
     if address:
-        assert bitcoin.is_address(address)
+        if not bitcoin.is_address(address):
+            raise BaseException("Invalid bitcoin address:" + address)
         out['address'] = address
     if 'amount' in out:
         am = out['amount']
@@ -280,6 +427,22 @@ def parse_URI(uri):
         out['exp'] = int(out['exp'])
     if 'sig' in out:
         out['sig'] = bitcoin.base_decode(out['sig'], None, base=58).encode('hex')
+
+    r = out.get('r')
+    sig = out.get('sig')
+    name = out.get('name')
+    if on_pr and (r or (name and sig)):
+        def get_payment_request_thread():
+            import paymentrequest as pr
+            if name and sig:
+                s = pr.serialize_request(out).SerializeToString()
+                request = pr.PaymentRequest(s)
+            else:
+                request = pr.get_payment_request(r)
+            on_pr(request)
+        t = threading.Thread(target=get_payment_request_thread)
+        t.setDaemon(True)
+        t.start()
 
     return out
 
@@ -343,7 +506,6 @@ import socket
 import errno
 import json
 import ssl
-import traceback
 import time
 
 class SocketPipe:
@@ -363,7 +525,7 @@ class SocketPipe:
     def get(self):
         while True:
             response, self.message = parse_json(self.message)
-            if response:
+            if response is not None:
                 return response
             try:
                 data = self.socket.recv(1024)
@@ -374,10 +536,10 @@ class SocketPipe:
             except socket.error, err:
                 if err.errno == 60:
                     raise timeout
-                elif err.errno in [11, 10035]:
-                    print_error("socket errno", err.errno)
-                    time.sleep(0.1)
-                    continue
+                elif err.errno in [11, 35, 10035]:
+                    print_error("socket errno %d (resource temporarily unavailable)"% err.errno)
+                    time.sleep(0.2)
+                    raise timeout
                 else:
                     print_error("pipe: socket error", err)
                     data = ''
@@ -486,3 +648,29 @@ class StoreDict(dict):
         if key in self.keys():
             dict.pop(self, key)
             self.save()
+
+
+
+
+def check_www_dir(rdir):
+    import urllib, urlparse, shutil, os
+    if not os.path.exists(rdir):
+        os.mkdir(rdir)
+    index = os.path.join(rdir, 'index.html')
+    if not os.path.exists(index):
+        print_error("copying index.html")
+        src = os.path.join(os.path.dirname(__file__), 'www', 'index.html')
+        shutil.copy(src, index)
+    files = [
+        "https://code.jquery.com/jquery-1.9.1.min.js",
+        "https://raw.githubusercontent.com/davidshimjs/qrcodejs/master/qrcode.js",
+        "https://code.jquery.com/ui/1.10.3/jquery-ui.js",
+        "https://code.jquery.com/ui/1.10.3/themes/smoothness/jquery-ui.css"
+    ]
+    for URL in files:
+        path = urlparse.urlsplit(URL).path
+        filename = os.path.basename(path)
+        path = os.path.join(rdir, filename)
+        if not os.path.exists(path):
+            print_error("downloading ", URL)
+            urllib.urlretrieve(URL, path)
