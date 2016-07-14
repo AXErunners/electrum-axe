@@ -46,6 +46,7 @@ from electrum_dash.verifier import SPV
 from electrum_dash.util import DebugMem
 from electrum_dash.wallet import Abstract_Wallet
 from installwizard import InstallWizard
+from dash_style import dash_stylesheet
 
 
 try:
@@ -86,6 +87,7 @@ class ElectrumGui:
         self.efilter = OpenFileEventFilter(self.windows)
         self.app = QApplication(sys.argv)
         self.app.installEventFilter(self.efilter)
+        self.app.setStyleSheet(dash_stylesheet)
         self.timer = Timer()
         # shared objects
         self.invoices = InvoiceStore(self.config)
