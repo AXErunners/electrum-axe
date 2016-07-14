@@ -1831,7 +1831,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
     def update_proposals_tab(self):
         if not self.masternode_manager:
             return
-        self.proposals_list.update(list(self.masternode_manager.all_proposals))
+        self.proposals_list.update(list(self.network.all_proposals))
 
     def create_console_tab(self):
         from console import Console
