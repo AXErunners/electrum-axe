@@ -4,7 +4,7 @@ import threading
 import os
 
 from copy import deepcopy
-from util import user_dir, print_error, print_msg, print_stderr
+from util import user_dir, print_error, print_msg, print_stderr, PrintError
 
 SYSTEM_CONFIG_PATH = "/etc/electrum-dash.conf"
 
@@ -21,7 +21,7 @@ def set_config(c):
     config = c
 
 
-class SimpleConfig(object):
+class SimpleConfig(PrintError):
     """
     The SimpleConfig class is responsible for handling operations involving
     configuration files.
@@ -131,7 +131,7 @@ class SimpleConfig(object):
         f = open(path, "w")
         f.write(s)
         f.close()
-        if self.get('gui') != 'android':
+        if 'ANDROID_DATA' not in os.environ:
             import stat
             os.chmod(path, stat.S_IREAD | stat.S_IWRITE)
 
@@ -139,9 +139,8 @@ class SimpleConfig(object):
         """Set the path of the wallet."""
 
         # command line -w option
-        path = self.get('wallet_path')
-        if path:
-            return path
+        if self.get('wallet_path'):
+            return os.path.join(self.get('cwd'), self.get('wallet_path'))
 
         # path in config file
         path = self.get('default_wallet_path')
@@ -162,6 +161,29 @@ class SimpleConfig(object):
 
         return new_path
 
+    def remove_from_recently_open(self, filename):
+        recent = self.get('recently_open', [])
+        if filename in recent:
+            recent.remove(filename)
+            self.set_key('recently_open', recent)
+
+    def set_session_timeout(self, seconds):
+        self.print_error("session timeout -> %d seconds" % seconds)
+        self.set_key('session_timeout', seconds)
+
+    def get_session_timeout(self):
+        return self.get('session_timeout', 300)
+
+    def open_last_wallet(self):
+        if self.get('wallet_path') is None:
+            last_wallet = self.get('gui_last_wallet')
+            if last_wallet is not None and os.path.exists(last_wallet):
+                self.cmdline_options['default_wallet_path'] = last_wallet
+
+    def save_last_wallet(self, wallet):
+        if self.get('wallet_path') is None:
+            path = wallet.storage.path
+            self.set_key('gui_last_wallet', path)
 
 
 def read_system_config(path=SYSTEM_CONFIG_PATH):
@@ -193,7 +215,7 @@ def read_user_config(path):
         with open(config_path, "r") as f:
             data = f.read()
     except IOError:
-        print_msg("Error: Cannot read config file.")
+        print_msg("Error: Cannot read config file.", path)
         return {}
     try:
         result = json.loads(data)

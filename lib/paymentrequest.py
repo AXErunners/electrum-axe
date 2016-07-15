@@ -3,18 +3,25 @@
 # Electrum - lightweight Bitcoin client
 # Copyright (C) 2014 Thomas Voegtlin
 #
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+# Permission is hereby granted, free of charge, to any person
+# obtaining a copy of this software and associated documentation files
+# (the "Software"), to deal in the Software without restriction,
+# including without limitation the rights to use, copy, modify, merge,
+# publish, distribute, sublicense, and/or sell copies of the Software,
+# and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-# GNU General Public License for more details.
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program. If not, see <http://www.gnu.org/licenses/>.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+# BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+# ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 
 
 import hashlib
@@ -40,6 +47,7 @@ import transaction
 import x509
 import rsakey
 
+from bitcoin import TYPE_ADDRESS
 
 REQUEST_HEADERS = {'Accept': 'application/dash-paymentrequest', 'User-Agent': 'Electrum'}
 ACK_HEADERS = {'Content-Type':'application/dash-payment','Accept':'application/dash-paymentack','User-Agent':'Electrum'}
@@ -53,7 +61,6 @@ PR_UNPAID  = 0
 PR_EXPIRED = 1
 PR_UNKNOWN = 2     # sent but not propagated
 PR_PAID    = 3     # send and propagated
-PR_ERROR   = 4     # could not parse
 
 
 
@@ -79,6 +86,7 @@ class PaymentRequest:
         self.parse(data)
         self.requestor = None # known after verify
         self.tx = None
+        self.error = None
 
     def __str__(self):
         return self.raw
@@ -96,9 +104,13 @@ class PaymentRequest:
         self.outputs = []
         for o in self.details.outputs:
             addr = transaction.get_address_from_output_script(o.script)[1]
-            self.outputs.append(('address', addr, o.amount))
+            self.outputs.append((TYPE_ADDRESS, addr, o.amount))
         self.memo = self.details.memo
         self.payment_url = self.details.payment_url
+
+    def is_pr(self):
+        return self.get_amount() != 0
+        #return self.get_outputs() != [(TYPE_ADDRESS, self.get_requestor(), self.get_amount())]
 
     def verify(self, contacts):
         if not self.raw:
@@ -107,9 +119,9 @@ class PaymentRequest:
         pr = pb2.PaymentRequest()
         pr.ParseFromString(self.raw)
         if not pr.signature:
-            self.error = "No signature"
-            return
-
+            # the address will be dispayed as requestor
+            self.requestor = None
+            return True
         if pr.pki_type in ["x509+sha256", "x509+sha1"]:
             return self.verify_x509(pr)
         elif pr.pki_type in ["dnssec+btc", "dnssec+ecdsa"]:
@@ -128,6 +140,7 @@ class PaymentRequest:
         try:
             x, ca = verify_cert_chain(cert.certificate)
         except BaseException as e:
+            traceback.print_exc(file=sys.stderr)
             self.error = str(e)
             return False
         # get requestor name
@@ -184,17 +197,33 @@ class PaymentRequest:
     def get_amount(self):
         return sum(map(lambda x:x[2], self.outputs))
 
+    def get_address(self):
+        o = self.outputs[0]
+        assert o[0] == TYPE_ADDRESS
+        return o[1]
+
     def get_requestor(self):
-        return self.requestor if self.requestor else 'unknown'
+        return self.requestor if self.requestor else self.get_address()
 
     def get_verify_status(self):
-        return self.error
+        return self.error if self.requestor else "No Signature"
 
     def get_memo(self):
         return self.memo
 
+    def get_dict(self):
+        return {
+            'requestor': self.get_requestor(),
+            'memo':self.get_memo(),
+            'exp': self.get_expiration_date(),
+            'amount': self.get_amount(),
+            'signature': self.get_verify_status(),
+            'txid': self.tx,
+            'outputs': self.get_outputs()
+        }
+
     def get_id(self):
-        return self.id
+        return self.id if self.requestor else self.get_address()
 
     def get_outputs(self):
         return self.outputs[:]
@@ -210,7 +239,7 @@ class PaymentRequest:
         paymnt.transactions.append(raw_tx)
 
         ref_out = paymnt.refund_to.add()
-        ref_out.script = transaction.Transaction.pay_script('address', refund_addr)
+        ref_out.script = transaction.Transaction.pay_script(TYPE_ADDRESS, refund_addr)
         paymnt.memo = "Paid using Electrum"
         pm = paymnt.SerializeToString()
 
@@ -237,6 +266,8 @@ class PaymentRequest:
         print "PaymentACK message received: %s" % paymntack.memo
         return True, paymntack.memo
 
+    def set_paid(self, tx_hash):
+        self.tx = tx_hash
 
 
 def make_unsigned_request(req):
@@ -252,7 +283,7 @@ def make_unsigned_request(req):
     if amount is None:
         amount = 0
     memo = req['memo']
-    script = Transaction.pay_script('address', addr).decode('hex')
+    script = Transaction.pay_script(TYPE_ADDRESS, addr).decode('hex')
     outputs = [(script, amount)]
     pd = pb2.PaymentDetails()
     for script, amount in outputs:
@@ -419,7 +450,7 @@ class InvoiceStore(object):
         for k, pr in self.invoices.items():
             l[k] = {
                 'hex': str(pr).encode('hex'),
-                'requestor': pr.get_requestor(), 
+                'requestor': pr.requestor,
                 'txid': pr.tx
             }
         path = os.path.join(self.config.path, 'invoices')
@@ -437,9 +468,6 @@ class InvoiceStore(object):
 
     def add(self, pr):
         key = pr.get_id()
-        if key in self.invoices:
-            print_error('invoice already in list')
-            return key
         self.invoices[key] = pr
         self.save()
         return key
@@ -450,10 +478,6 @@ class InvoiceStore(object):
 
     def get(self, k):
         return self.invoices.get(k)
-
-    def set_paid(self, key, tx_hash):
-        self.invoices[key].tx = tx_hash
-        self.save()
 
     def sorted_list(self):
         # sort

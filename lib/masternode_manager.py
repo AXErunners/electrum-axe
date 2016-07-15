@@ -53,20 +53,37 @@ def parse_masternode_conf(lines):
         conf_lines.append(MasternodeConfLine(alias, addr_str, masternode_wif, collateral_txid, collateral_output_n))
     return conf_lines
 
+def parse_proposals_subscription_result(results):
+    """Parse the proposals subscription response."""
+    proposals = []
+    for k, result in results.items():
+        kwargs = {'proposal_name': result['Name'], 'proposal_url': result['URL'],
+                'start_block': int(result['BlockStart']), 'end_block': int(result['BlockEnd']),
+                'payment_amount': result['MonthlyPayment'], 'address': result['PaymentAddress']}
+
+        fee_txid_key = 'FeeTXHash' if result.get('FeeTXHash') else 'FeeHash'
+        kwargs['fee_txid'] = result[fee_txid_key]
+        yes_count_key = 'YesCount' if result.get('YesCount') else 'Yeas'
+        kwargs['yes_count'] = result[yes_count_key]
+        no_count_key = 'NoCount' if result.get('NoCount') else 'Nays'
+        kwargs['no_count'] = result[no_count_key]
+
+        payment_amount = Decimal(str(kwargs['payment_amount']))
+        kwargs['payment_amount'] = pow(10, 8) * payment_amount
+        proposals.append(BudgetProposal.from_dict(kwargs))
+
+    print_error('Received updated budget proposal information (%d proposals)' % len(proposals))
+    return proposals
+
 class MasternodeManager(object):
     """Masternode manager.
 
     Keeps track of masternodes and helps with signing broadcasts.
     """
     def __init__(self, wallet, config):
-        # Cache of proposal hashes.
-        # Used when retrieving the hash of a proposal.
-        self.proposal_hash_cache = OrderedDict()
         self.network_event = threading.Event()
         self.wallet = wallet
         self.config = config
-        # List of all proposals on the network.
-        self.all_proposals = []
         # Subscribed masternode statuses.
         self.masternode_statuses = {}
 
@@ -84,7 +101,6 @@ class MasternodeManager(object):
         if not self.wallet.network:
             return
         self.subscribe_to_masternodes()
-        self.subscribe_to_proposals()
 
     def subscribe_to_masternodes(self):
         for mn in self.masternodes:
@@ -95,10 +111,6 @@ class MasternodeManager(object):
                 req = ('masternode.subscribe', [collateral])
                 self.wallet.network.send([req], self.masternode_subscription_response)
                 self.masternode_statuses[collateral] = ''
-
-    def subscribe_to_proposals(self):
-        req = ('masternode.proposals.subscribe', [])
-        self.wallet.network.send([req], self.proposals_subscription_response)
 
     def get_masternode(self, alias):
         """Get the masternode labelled as alias."""
@@ -353,7 +365,7 @@ class MasternodeManager(object):
             raise Exception('Not connected')
         # Get the proposal that proposal_name identifies.
         proposal = None
-        for p in self.all_proposals:
+        for p in self.wallet.network.all_proposals:
             if p.proposal_name == proposal_name:
                 proposal = p
                 break
@@ -511,77 +523,6 @@ class MasternodeManager(object):
             raise Exception('Invalid proposal hash from server: %s' % result)
 
         proposal.submitted = True
-
-    def retrieve_proposal_hash(self, proposal_name):
-        """Retrieve proposal hash from the network."""
-        if self.proposal_hash_cache.get(proposal_name):
-            return self.proposal_hash_cache[proposal_name]
-        req = ('masternode.budget.getproposalhash', [proposal_name])
-        proposal_hash = self.wallet.network.synchronous_get([req])[0]
-        self.proposal_hash_cache[proposal_name] = proposal_hash
-        # Prune the cache.
-        while len(self.proposal_hash_cache) > 100:
-            self.proposal_hash_cache.popitem(last=False)
-        return proposal_hash
-
-    def retrieve_proposal(self, proposal_name):
-        """Retrieve proposal information from the network."""
-        proposal_hash = self.retrieve_proposal_hash(proposal_name)
-
-        req = ('masternode.budget.getproposal', [proposal_hash])
-        result = self.wallet.network.synchronous_get([req])[0]
-
-        kwargs = {'proposal_name': result['Name'], 'proposal_url': result['URL'],
-                'start_block': int(result['BlockStart']), 'end_block': int(result['BlockEnd']),
-                'payment_amount': int(result['MonthlyPayment']), 'address': result['PaymentAddress'],
-                'fee_txid': result['FeeTXHash']}
-        return BudgetProposal.from_dict(kwargs)
-
-    def retrieve_proposals(self):
-        """Retrieve proposals from the network."""
-        proposals = []
-        def on_list_proposals(proposals, r):
-            r = r['result']
-            try:
-                for k, result in r.items():
-                    kwargs = {'proposal_name': result['Name'], 'proposal_url': result['URL'],
-                            'start_block': int(result['BlockStart']), 'end_block': int(result['BlockEnd']),
-                            'payment_amount': int(result['MonthlyPayment']), 'address': result['PaymentAddress'],
-                            'fee_txid': result['FeeTXHash']}
-                    proposals.append(BudgetProposal.from_dict(kwargs))
-            finally:
-                self.network_event.set()
-
-        callback = lambda r: on_list_proposals(proposals, r)
-        self.network_event.clear()
-        self.wallet.network.send([('masternode.budget.list', [])], callback)
-        self.network_event.wait()
-        return proposals
-
-    def proposals_subscription_response(self, response):
-        """Callback for when proposals on the network change."""
-        proposals = []
-        r = response['result']
-
-        for k, result in r.items():
-            kwargs = {'proposal_name': result['Name'], 'proposal_url': result['URL'],
-                    'start_block': int(result['BlockStart']), 'end_block': int(result['BlockEnd']),
-                    'payment_amount': result['MonthlyPayment'], 'address': result['PaymentAddress']}
-
-            fee_txid_key = 'FeeTXHash' if result.get('FeeTXHash') else 'FeeHash'
-            kwargs['fee_txid'] = result[fee_txid_key]
-            yes_count_key = 'YesCount' if result.get('YesCount') else 'Yeas'
-            kwargs['yes_count'] = result[yes_count_key]
-            no_count_key = 'NoCount' if result.get('NoCount') else 'Nays'
-            kwargs['no_count'] = result[no_count_key]
-
-            payment_amount = Decimal(str(kwargs['payment_amount']))
-            kwargs['payment_amount'] = pow(10, 8) * payment_amount
-            proposals.append(BudgetProposal.from_dict(kwargs))
-
-        print_error('Received updated budget proposal information (%d proposals)' % len(proposals))
-        self.all_proposals = proposals
-        self.wallet.network.trigger_callback('proposals')
 
     def masternode_subscription_response(self, response):
         """Callback for when a masternode's status changes."""

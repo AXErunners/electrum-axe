@@ -3,7 +3,7 @@ Electrum-DASH - lightweight Dash client
 
 ::
 
-  Licence: GNU GPL v3
+  Licence: MIT Licence
   Original Author: Thomas Voegtlin
   Port Maintainer: Tyler Willis, Holger Schinzel
   Language: Python
@@ -15,14 +15,63 @@ Electrum-DASH - lightweight Dash client
     :alt: Build Status
 
 
-1. GETTING STARTED
-------------------
 
-To run Electrum from this directory, just do::
+
+
+Getting started
+===============
+
+Electrum-DASH is a pure python application. However, if you want to use the
+Qt interface, then you need to install the Qt dependencies::
+
+    sudo apt-get install python-qt4
+
+If you downloaded the official package (tar.gz), then you can run
+Electrum-DASH from its root directory, without installing it on your
+system; all the python dependencies are included in the 'packages'
+directory. To run Electrum-DASH from its root directory, just do::
 
     ./electrum-dash
 
-If you install Electrum on your system, you can run it from any
+If you cloned the git repository, then you need to compile extra files
+before you can run Electrum-DASH. Read the next section, "Development
+Version".
+
+
+
+Development version
+===================
+
+Check out the code from Github::
+
+    git clone git://github.com/dashpay/electrum-dash.git
+    cd electrum-dash
+
+Run install (this should install dependencies)::
+
+    python setup.py install
+
+Compile the icons file for Qt::
+
+    sudo apt-get install pyqt4-dev-tools
+    pyrcc4 icons.qrc -o gui/qt/icons_rc.py
+
+Compile the protobuf description file::
+
+    sudo apt-get install protobuf-compiler
+    protoc --proto_path=lib/ --python_out=lib/ lib/paymentrequest.proto
+
+Create translations::
+
+    sudo apt-get install python-pycurl gettext
+    ./contrib/make_locale
+
+
+
+Install on Linux systems
+========================
+
+If you install Electrum-DASH on your system, you can run it from any
 directory.
 
 If you have pip, you can do::
@@ -38,20 +87,18 @@ If you don't have pip, install with::
 
 
 
-To start Electrum from your web browser, see
-https://electrum-dash.org/dash_URIs.html
+Creating Binaries
+=================
 
 
+In oder to creating binaries, you must create the 'packages' directory::
 
-2. HOW OFFICIAL PACKAGES ARE CREATED
-------------------------------------
+    ./contrib/make_packages
 
-On Linux/Windows::
+This directory contains the python dependencies used by Electrum-DASH.
 
-    pyrcc4 icons.qrc -o gui/qt/icons_rc.py
-    python setup.py sdist --format=zip,gztar
-
-On Mac OS X::
+Mac OS X
+--------
 
     # On port based installs
     sudo python setup-release.py py2app
@@ -60,3 +107,15 @@ On Mac OS X::
     ARCHFLAGS="-arch i386 -arch x86_64" sudo python setup-release.py py2app --includes sip
 
     sudo hdiutil create -fs HFS+ -volname "Electrum-DASH" -srcfolder dist/Electrum-DASH.app dist/electrum-dash-VERSION-macosx.dmg
+
+
+Windows
+-------
+
+see contrib/build-wine/README
+
+
+Android
+-------
+
+see gui/kivy/Readme.txt

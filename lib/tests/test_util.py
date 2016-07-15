@@ -60,10 +60,10 @@ class TestUtil(unittest.TestCase):
                                 {'r': 'http://domain.tld/page?h=2a8628fc2fbe'})
 
     def test_parse_URI_invalid_address(self):
-        self.assertRaises(AssertionError, parse_URI, 'dash:invalidaddress')
+        self.assertRaises(BaseException, parse_URI, 'dash:invalidaddress')
 
     def test_parse_URI_invalid(self):
-        self.assertRaises(AssertionError, parse_URI, 'notdash:XfTA9qgYmaEHfWhUakwcoTtyquez8SowY1')
+        self.assertRaises(BaseException, parse_URI, 'notdash:XfTA9qgYmaEHfWhUakwcoTtyquez8SowY1')
 
     def test_parse_URI_parameter_polution(self):
         self.assertRaises(Exception, parse_URI, 'dash:XfTA9qgYmaEHfWhUakwcoTtyquez8SowY1?amount=0.0003&label=test&amount=30.0')
