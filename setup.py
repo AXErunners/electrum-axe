@@ -28,8 +28,8 @@ if platform.system() in ['Linux', 'FreeBSD', 'DragonFly']:
         else:
             usr_share = os.path.expanduser('~/.local/share')
     data_files += [
-        (os.path.join(usr_share, 'applications/'), ['electrum_dash.desktop']),
-        (os.path.join(usr_share, 'pixmaps/'), ['icons/electrum_dash.png'])
+        (os.path.join(usr_share, 'applications/'), ['electrum-dash.desktop']),
+        (os.path.join(usr_share, 'pixmaps/'), ['icons/electrum-dash.png'])
     ]
 
 setup(
@@ -60,14 +60,12 @@ setup(
         'electrum_dash_plugins.cosigner_pool',
         'electrum_dash_plugins.email_requests',
         'electrum_dash_plugins.exchange_rate',
-        'electrum_dash_plugins.greenaddress_instant',
         'electrum_dash_plugins.hw_wallet',
         'electrum_dash_plugins.keepkey',
         'electrum_dash_plugins.labels',
         'electrum_dash_plugins.ledger',
         'electrum_dash_plugins.plot',
         'electrum_dash_plugins.trezor',
-        'electrum_dash_plugins.trustedcoin',
         'electrum_dash_plugins.virtualkeyboard',
     ],
     package_dir={
