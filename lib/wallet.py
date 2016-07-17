@@ -373,13 +373,13 @@ class Abstract_Wallet(PrintError):
             raise AlreadyHaveAddress('Masternode key already in wallet', address)
 
         self.masternode_delegates[address] = (pubkey, pw_encode(sec, password))
-        self.storage.put('masternode_delegates', self.masternode_delegates, True)
+        self.storage.put('masternode_delegates', self.masternode_delegates)
         return address
 
     def delete_masternode_delegate(self, address, save = True):
         if self.masternode_delegates.get(address):
             del self.masternode_delegates[address]
-        self.storage.put('masternode_delegates', self.masternode_delegates, True)
+        self.storage.put('masternode_delegates', self.masternode_delegates)
 
     def import_key(self, sec, password):
         if not self.can_import():
