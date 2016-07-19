@@ -1,6 +1,7 @@
 from base64 import b64encode
 from datetime import datetime
 import os
+import traceback
 
 from PyQt4.QtGui import *
 from PyQt4.QtCore import *
@@ -494,7 +495,10 @@ class MasternodeDialog(QDialog):
             self.send_announce(alias)
         # Proceed to broadcasting the announcement, or re-enable the button.
         def on_sign_error(err):
-            print_error('Error signing MasternodeAnnounce: %s' % err)
+            print_error('Error signing MasternodeAnnounce:')
+            # Print traceback information to error log.
+            print_error(''.join(traceback.format_tb(err[2])))
+            print_error(''.join(traceback.format_exception_only(err[0], err[1])))
             self.sign_announce_widget.sign_button.setEnabled(True)
 
         util.WaitingDialog(self, _('Signing Masternode Announce...'), sign_thread, on_sign_successful, on_sign_error)
@@ -565,7 +569,10 @@ class MasternodeDialog(QDialog):
             self.proposals_widget.editor.vote_button.setEnabled(True)
 
         def on_vote_failed(err):
-            print_error('Error sending vote: %s' % err)
+            print_error('Error sending vote:')
+            # Print traceback information to error log.
+            print_error(''.join(traceback.format_tb(err[2])))
+            print_error(''.join(traceback.format_exception_only(err[0], err[1])))
             self.proposals_widget.editor.vote_button.setEnabled(True)
 
         util.WaitingDialog(self, _('Voting...'), vote_thread, on_vote_successful, on_vote_failed)
