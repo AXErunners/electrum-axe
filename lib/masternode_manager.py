@@ -163,11 +163,9 @@ class MasternodeManager(object):
         tx = self.wallet.transactions.get(txid)
         if not tx:
             return
-        if not tx.inputs:
-            tx.deserialize()
-        if len(tx.outputs) <= prevout_n:
+        if len(tx.outputs()) <= prevout_n:
             return
-        _, addr, value = tx.outputs[prevout_n]
+        _, addr, value = tx.outputs()[prevout_n]
         mn.vin['address'] = addr
         mn.vin['value'] = value
         mn.vin['scriptSig'] = ''
@@ -463,7 +461,7 @@ class MasternodeManager(object):
 
         h = bitcoin.hash_decode(proposal.get_hash()).encode('hex')
         script = '6a20' + h # OP_RETURN hash
-        outputs = [('script', script.decode('hex'), BUDGET_FEE_TX)]
+        outputs = [(bitcoin.TYPE_SCRIPT, script.decode('hex'), BUDGET_FEE_TX)]
         tx = self.wallet.mktx(outputs, password, self.config)
         proposal.fee_txid = tx.hash()
         if save:

@@ -486,23 +486,18 @@ class MasternodeDialog(QDialog):
         self.manager.populate_masternode_output(alias)
 
         self.sign_announce_widget.sign_button.setEnabled(False)
-        success = [False]
 
         def sign_thread():
             return self.manager.sign_announce(alias, pw)
 
         def on_sign_successful(mn):
-            success[0] = True
+            self.send_announce(alias)
         # Proceed to broadcasting the announcement, or re-enable the button.
-        def on_waiting_done():
-            if success[0]:
-                self.send_announce(alias)
-            else:
-                self.sign_announce_widget.sign_button.setEnabled(True)
+        def on_sign_error(err):
+            print_error('Error signing MasternodeAnnounce: %s' % err)
+            self.sign_announce_widget.sign_button.setEnabled(True)
 
-
-        self.waiting_dialog = util.WaitingDialog(self, _('Signing Masternode Announce...'), sign_thread, on_sign_successful, on_waiting_done)
-        self.waiting_dialog.start()
+        util.WaitingDialog(self, _('Signing Masternode Announce...'), sign_thread, on_sign_successful, on_sign_error)
 
 
     def send_announce(self, alias):
@@ -510,20 +505,22 @@ class MasternodeDialog(QDialog):
         def send_thread():
             return self.manager.send_announce(alias)
 
-        def on_send_successful(errmsg, was_announced):
+        def on_send_successful(result):
+            errmsg, was_announced = result
             if was_announced:
                 QMessageBox.information(self, _('Success'), _('Masternode "%s" activated successfully.' % alias))
                 print_error('Successfully broadcasted MasternodeAnnounce for "%s"' % alias)
             else:
                 QMessageBox.critical(self, _('Error Sending'), _(errmsg))
                 print_error('Failed to broadcast MasternodeAnnounce')
-
-        def on_waiting_done():
             self.masternodes_widget.refresh_items()
             self.masternodes_widget.select_masternode(alias)
 
-        self.waiting_dialog = util.WaitingDialog(self, _('Broadcasting masternode...'), send_thread, on_send_successful, on_waiting_done)
-        self.waiting_dialog.start()
+        def on_send_error():
+            self.masternodes_widget.refresh_items()
+            self.masternodes_widget.select_masternode(alias)
+
+        util.WaitingDialog(self, _('Broadcasting masternode...'), send_thread, on_send_successful, on_send_error)
 
     def create_vote_tab(self):
         self.proposals_widget = ProposalsWidget(self, self.gui.proposals_list.get_model())
@@ -554,22 +551,21 @@ class MasternodeDialog(QDialog):
 
 
         self.proposals_widget.editor.vote_button.setEnabled(False)
-        result = ['', False]
 
         def vote_thread():
             return self.manager.vote(mn.alias, proposal_name, vote_choice, pw)
 
-        def on_vote_successful(errmsg, res):
-            result[0:2] = (errmsg, res)
-
         # Show the result.
-        def on_waiting_done():
-            if result[1]:
+        def on_vote_successful(result):
+            errmsg, res = result
+            if res:
                 QMessageBox.information(self, _('Success'), _('Successfully voted'))
             else:
-                QMessageBox.critical(self, _('Error Voting'), _(result[0]))
+                QMessageBox.critical(self, _('Error Voting'), _(errmsg))
             self.proposals_widget.editor.vote_button.setEnabled(True)
 
+        def on_vote_failed(err):
+            print_error('Error sending vote: %s' % err)
+            self.proposals_widget.editor.vote_button.setEnabled(True)
 
-        self.waiting_dialog = util.WaitingDialog(self, _('Voting...'), vote_thread, on_vote_successful, on_waiting_done)
-        self.waiting_dialog.start()
+        util.WaitingDialog(self, _('Voting...'), vote_thread, on_vote_successful, on_vote_failed)

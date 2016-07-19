@@ -59,7 +59,7 @@ class BudgetProposal(object):
         vds.write_int32(self.start_block)
         vds.write_int32(self.end_block)
         vds.write_int64(self.payment_amount)
-        vds.write_string(Transaction.pay_script('address', self.address).decode('hex'))
+        vds.write_string(Transaction.pay_script(bitcoin.TYPE_ADDRESS, self.address).decode('hex'))
         return bitcoin.hash_encode(bitcoin.Hash(vds.input))
 
     def dump(self):
