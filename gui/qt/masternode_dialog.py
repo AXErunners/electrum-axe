@@ -10,7 +10,7 @@ from electrum_dash import bitcoin
 from electrum_dash.i18n import _
 from electrum_dash.masternode import MasternodeAnnounce
 from electrum_dash.masternode_manager import parse_masternode_conf
-from electrum_dash.util import print_error
+from electrum_dash.util import PrintError
 
 from masternode_widgets import *
 from masternode_budget_widgets import *
@@ -241,7 +241,7 @@ class MasternodesWidget(QWidget):
     def import_masternode_conf_lines(self, conf_lines, pw):
         return self.model.import_masternode_conf_lines(conf_lines, pw)
 
-class MasternodeDialog(QDialog):
+class MasternodeDialog(QDialog, PrintError):
     """GUI for managing masternodes."""
 
     def __init__(self, manager, parent):
@@ -492,13 +492,14 @@ class MasternodeDialog(QDialog):
             return self.manager.sign_announce(alias, pw)
 
         def on_sign_successful(mn):
+            self.print_msg('Successfully signed Masternode Announce.')
             self.send_announce(alias)
         # Proceed to broadcasting the announcement, or re-enable the button.
         def on_sign_error(err):
-            print_error('Error signing MasternodeAnnounce:')
+            self.print_error('Error signing MasternodeAnnounce:')
             # Print traceback information to error log.
-            print_error(''.join(traceback.format_tb(err[2])))
-            print_error(''.join(traceback.format_exception_only(err[0], err[1])))
+            self.print_error(''.join(traceback.format_tb(err[2])))
+            self.print_error(''.join(traceback.format_exception_only(err[0], err[1])))
             self.sign_announce_widget.sign_button.setEnabled(True)
 
         util.WaitingDialog(self, _('Signing Masternode Announce...'), sign_thread, on_sign_successful, on_sign_error)
@@ -512,18 +513,24 @@ class MasternodeDialog(QDialog):
         def on_send_successful(result):
             errmsg, was_announced = result
             if was_announced:
-                QMessageBox.information(self, _('Success'), _('Masternode "%s" activated successfully.' % alias))
-                print_error('Successfully broadcasted MasternodeAnnounce for "%s"' % alias)
+                self.print_msg('Successfully broadcasted MasternodeAnnounce for "%s"' % alias)
+                QMessageBox.information(self, _('Success'), _('Masternode activated successfully.'))
             else:
+                self.print_error('Failed to broadcast MasternodeAnnounce: %s' % errmsg)
                 QMessageBox.critical(self, _('Error Sending'), _(errmsg))
-                print_error('Failed to broadcast MasternodeAnnounce')
             self.masternodes_widget.refresh_items()
             self.masternodes_widget.select_masternode(alias)
 
-        def on_send_error():
+        def on_send_error(err):
+            self.print_error('Error sending Masternode Announce message:')
+            # Print traceback information to error log.
+            self.print_error(''.join(traceback.format_tb(err[2])))
+            self.print_error(''.join(traceback.format_exception_only(err[0], err[1])))
+
             self.masternodes_widget.refresh_items()
             self.masternodes_widget.select_masternode(alias)
 
+        self.print_msg('Sending Masternode Announce message...')
         util.WaitingDialog(self, _('Broadcasting masternode...'), send_thread, on_send_successful, on_send_error)
 
     def create_vote_tab(self):
@@ -569,10 +576,10 @@ class MasternodeDialog(QDialog):
             self.proposals_widget.editor.vote_button.setEnabled(True)
 
         def on_vote_failed(err):
-            print_error('Error sending vote:')
+            self.print_error('Error sending vote:')
             # Print traceback information to error log.
-            print_error(''.join(traceback.format_tb(err[2])))
-            print_error(''.join(traceback.format_exception_only(err[0], err[1])))
+            self.print_error(''.join(traceback.format_tb(err[2])))
+            self.print_error(''.join(traceback.format_exception_only(err[0], err[1])))
             self.proposals_widget.editor.vote_button.setEnabled(True)
 
         util.WaitingDialog(self, _('Voting...'), vote_thread, on_vote_successful, on_vote_failed)
