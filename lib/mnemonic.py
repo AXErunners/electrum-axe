@@ -34,7 +34,7 @@ import string
 import ecdsa
 import pbkdf2
 
-from util import print_error
+from electrum_dash.util import print_error
 from bitcoin import is_old_seed, is_new_seed
 import version
 import i18n

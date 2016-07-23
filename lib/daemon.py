@@ -32,8 +32,8 @@ import jsonrpclib
 from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCServer, SimpleJSONRPCRequestHandler
 
 from network import Network
-from util import json_decode, DaemonThread
-from util import print_msg, print_error, print_stderr
+from electrum_dash.util import json_decode, DaemonThread
+from electrum_dash.util import print_msg, print_error, print_stderr
 from wallet import WalletStorage, Wallet
 from wizard import WizardBase
 from commands import known_commands, Commands

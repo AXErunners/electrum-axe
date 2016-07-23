@@ -42,7 +42,7 @@ except ImportError:
 
 import bitcoin
 import util
-from util import print_error
+from electrum_dash.util import print_error
 import transaction
 import x509
 import rsakey

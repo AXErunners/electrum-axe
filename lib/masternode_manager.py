@@ -7,8 +7,8 @@ import bitcoin
 from blockchain import Blockchain
 from masternode import MasternodeAnnounce, NetworkAddress
 from masternode_budget import BudgetProposal, BudgetVote
-from util import AlreadyHaveAddress, print_error
-from util import format_satoshis_plain
+from electrum_dash.util import AlreadyHaveAddress, print_error
+from electrum_dash.util import format_satoshis_plain
 
 BUDGET_FEE_CONFIRMATIONS = 6
 BUDGET_FEE_TX = 5 * bitcoin.COIN

@@ -27,7 +27,7 @@ import dns
 
 import bitcoin
 import dnssec
-from util import StoreDict, print_error
+from electrum_dash.util import StoreDict, print_error
 from i18n import _
 
 
