@@ -310,7 +310,8 @@ class Network(util.DaemonThread):
         self.queue_request('server.peers.subscribe', [])
         self.queue_request('blockchain.estimatefee', [2])
         self.queue_request('blockchain.relayfee', [])
-        self.queue_request('masternode.proposals.subscribe', [])
+        # Disabled until API is stable.
+#        self.queue_request('masternode.proposals.subscribe', [])
 
     def get_status_value(self, key):
         if key == 'status':
@@ -500,9 +501,9 @@ class Network(util.DaemonThread):
             if error is None:
                 self.irc_servers = parse_servers(result)
                 self.notify('servers')
-        elif method == 'masternode.proposals.subscribe':
-            if error is None:
-                self.on_proposals(result)
+#        elif method == 'masternode.proposals.subscribe':
+#            if error is None:
+#                self.on_proposals(result)
         elif method == 'server.banner':
             if error is None:
                 self.banner = result
@@ -840,8 +841,8 @@ class Network(util.DaemonThread):
             return False, "error: " + out
         return True, out
 
-    def on_proposals(self, result):
-        """Handle new information on all budget proposals."""
-        all_proposals = masternode_manager.parse_proposals_subscription_result(result)
-        self.all_proposals = all_proposals
-        self.trigger_callback('proposals')
+#    def on_proposals(self, result):
+#        """Handle new information on all budget proposals."""
+#        all_proposals = masternode_manager.parse_proposals_subscription_result(result)
+#        self.all_proposals = all_proposals
+#        self.trigger_callback('proposals')

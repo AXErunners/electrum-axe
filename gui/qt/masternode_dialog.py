@@ -267,7 +267,8 @@ class MasternodeDialog(QDialog, PrintError):
         self.tabs.addTab(self.create_view_masternode_tab(), _('View Masternode'))
         self.tabs.addTab(self.create_sign_announce_tab(), _('Activate Masternode'))
         self.tabs.addTab(self.create_masternode_conf_tab(), _('Masternode.conf'))
-        self.tabs.addTab(self.create_vote_tab(), _('Vote'))
+        # Disabled until API is stable.
+#        self.tabs.addTab(self.create_vote_tab(), _('Vote'))
 
         # Connect to the selection signal so we can update the widget mapper.
         self.masternodes_widget.view.selectionModel().selectionChanged.connect(self.on_view_selection_changed)
