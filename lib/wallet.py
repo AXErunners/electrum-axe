@@ -361,7 +361,11 @@ class Abstract_Wallet(PrintError):
         account = self.accounts.get(IMPORTED_ACCOUNT)
         return account is not None
 
-    def import_masternode_delegate(self, sec, password):
+    def get_delegate_private_key(self, pubkey):
+        """Get the private delegate key for pubkey."""
+        return self.masternode_delegates.get(pubkey, '')
+
+    def import_masternode_delegate(self, sec):
         """Import the private key for a masternode."""
         try:
             pubkey = public_key_from_private_key(sec)
@@ -369,17 +373,16 @@ class Abstract_Wallet(PrintError):
         except Exception:
             raise Exception('Invalid private key')
 
-        if self.masternode_delegates.get(address):
+        if self.masternode_delegates.get(pubkey):
             raise AlreadyHaveAddress('Masternode key already in wallet', address)
 
-        self.masternode_delegates[address] = (pubkey, pw_encode(sec, password))
+        self.masternode_delegates[pubkey] = sec
         self.storage.put('masternode_delegates', self.masternode_delegates)
-        return address
 
-    def delete_masternode_delegate(self, address, save = True):
-        if self.masternode_delegates.get(address):
-            del self.masternode_delegates[address]
-        self.storage.put('masternode_delegates', self.masternode_delegates)
+    def delete_masternode_delegate(self, pubkey):
+        if self.masternode_delegates.get(pubkey):
+            del self.masternode_delegates[pubkey]
+            self.storage.put('masternode_delegates', self.masternode_delegates)
 
     def import_key(self, sec, password):
         if not self.can_import():
@@ -461,21 +464,19 @@ class Abstract_Wallet(PrintError):
         account_id, sequence = self.get_address_index(address)
         return self.accounts[account_id].get_pubkeys(*sequence)
 
-    def sign_masternode_ping(self, ping, address, password):
+    def sign_masternode_ping(self, ping, pubkey):
         """Sign a Masternode Ping for address."""
-        t = self.masternode_delegates.get(address)
-        if not t:
-            raise Exception('Private key not known for address %s' % address)
-        sec = pw_decode(t[1], password)
+        sec = self.masternode_delegates.get(pubkey)
+        if not sec:
+            raise Exception('Private key not known for public key %s' % pubkey)
         ping.sign(sec)
         return True
 
-    def sign_budget_vote(self, vote, address, password):
+    def sign_budget_vote(self, vote, pubkey):
         """Sign a Budget Vote for address."""
-        t = self.masternode_delegates.get(address)
-        if not t:
-            raise Exception('Private key not known for address %s' % address)
-        sec = pw_decode(t[1], password)
+        sec = self.masternode_delegates.get(pubkey)
+        if not sec:
+            raise Exception('Private key not known for public key %s' % pubkey)
         return vote.sign(sec)
 
     def sign_message(self, address, message, password):
@@ -1086,13 +1087,6 @@ class Abstract_Wallet(PrintError):
                 c = pw_encode(b, new_password)
                 self.master_private_keys[k] = c
             self.storage.put('master_private_keys', self.master_private_keys)
-
-        if hasattr(self, 'masternode_delegates'):
-            for k, (pub, v) in self.masternode_delegates.items():
-                b = pw_decode(v, old_password)
-                c = pw_encode(b, new_password)
-                self.masternode_delegates[k] = (pub, c)
-            self.storage.put('masternode_delegates', self.masternode_delegates)
 
         self.set_use_encryption(new_password is not None)
 

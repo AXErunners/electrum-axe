@@ -133,7 +133,7 @@ class MasternodesModel(QAbstractTableModel):
         elif i == self.DELEGATE:
             data = mn.delegate_key
             if role in [Qt.EditRole, Qt.DisplayRole, Qt.ToolTipRole] and data:
-                data = bitcoin.public_key_to_bc_address(data.decode('hex'))
+                data = self.manager.get_delegate_privkey(data)
             elif role == Qt.FontRole:
                 data = util.MONOSPACE_FONT
         elif i == self.ADDR:
@@ -165,11 +165,16 @@ class MasternodesModel(QAbstractTableModel):
         elif i == self.COLLATERAL:
             return True
         elif i == self.DELEGATE:
-            address = str(value.toString())
+            privkey = str(value.toString())
+            pubkey = ''
             try:
-                pubkey = self.manager.wallet.get_public_keys(address)[0]
+                # Import the key if it isn't already imported.
+                self.manager.import_masternode_delegate(privkey)
+                pubkey = bitcoin.public_key_from_private_key(privkey)
             except Exception:
-                pubkey = self.manager.get_delegate_pubkey(address)
+                # Don't fail if the key is invalid.
+                pass
+
             mn.delegate_key = pubkey
         elif i == self.ADDR:
             s = str(value.toString()).split(':')
@@ -218,6 +223,7 @@ class MasternodesWidget(QWidget):
 
     def select_masternode(self, alias):
         """Select the row that represents alias."""
+        self.view.clearSelection()
         for i in range(self.proxy_model.rowCount()):
             idx = self.proxy_model.index(i, 0)
             mn_alias = str(self.proxy_model.data(idx).toString())
@@ -413,16 +419,15 @@ class MasternodeDialog(QDialog, PrintError):
 
         If as_new is True, a new masternode will be created.
         """
-        # Make sure that we have the key for the delegate address.
-        delegate_addr = str(self.masternode_editor.delegate_key_edit.text())
+        delegate_privkey = str(self.masternode_editor.delegate_key_edit.text())
         try:
-            delegate_pubkey = self.manager.get_delegate_pubkey(delegate_addr)
+            self.manager.import_masternode_delegate(delegate_privkey)
+            delegate_pubkey = bitcoin.public_key_from_private_key(delegate_privkey)
         except Exception:
-            try:
-                delegate_pubkey = self.manager.wallet.get_public_keys(delegate_addr)[0]
-            except Exception as e:
-                QMessageBox.critical(self, _('Error'), _(str(e)))
-                return
+            # Show an error if the private key is invalid and not an empty string.
+            if delegate_privkey:
+                QMessageBox.warning(self, _('Warning'), _('Ignoring invalid delegate private key.'))
+            delegate_pubkey = ''
 
         alias = str(self.masternode_editor.alias_edit.text())
         # Construct a new masternode.
@@ -555,17 +560,10 @@ class MasternodeDialog(QDialog, PrintError):
         except Exception as e:
             return QMessageBox.critical(self, _('Cannot Vote'), _(str(e)))
 
-        pw = None
-        if self.manager.wallet.use_encryption:
-            pw = self.gui.password_dialog(msg=_('Please enter your password to vote.'))
-            if pw is None:
-                return
-
-
         self.proposals_widget.editor.vote_button.setEnabled(False)
 
         def vote_thread():
-            return self.manager.vote(mn.alias, proposal_name, vote_choice, pw)
+            return self.manager.vote(mn.alias, proposal_name, vote_choice)
 
         # Show the result.
         def on_vote_successful(result):

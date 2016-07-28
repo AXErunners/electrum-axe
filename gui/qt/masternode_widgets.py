@@ -66,6 +66,7 @@ class NetworkAddressWidget(QWidget):
         port = self.port_edit.value()
         if self.validate_ip(ip):
             return NetworkAddress(ip=ip, port=port)
+        return NetworkAddress()
 
     # TODO IPv6 support.
     def validate_ip(self, s):
@@ -180,7 +181,7 @@ class MasternodeEditor(QWidget):
         self.addr_edit = NetworkAddressWidget()
         self.delegate_key_edit = QLineEdit()
         self.delegate_key_edit.setFont(QFont(util.MONOSPACE_FONT))
-        self.delegate_key_edit.setPlaceholderText(_('The address that your masternode will sign messages with'))
+        self.delegate_key_edit.setPlaceholderText(_('Your masternode\'s private key'))
         self.protocol_version_edit = QLineEdit()
         self.protocol_version_edit.setText('70103')
 
@@ -192,7 +193,7 @@ class MasternodeEditor(QWidget):
         form.addRow(_('Alias:'), self.alias_edit)
         form.addRow(_('Status:'), self.status_edit)
         form.addRow(_('Collateral DASH Output:'), self.vin_edit)
-        form.addRow(_('Masternode DASH Address:'), self.delegate_key_edit)
+        form.addRow(_('Masternode Private Key:'), self.delegate_key_edit)
         form.addRow(_('Address:'), self.addr_edit)
         form.addRow(_('Protocol Version:'), self.protocol_version_edit)
 
@@ -304,7 +305,7 @@ class SignAnnounceWidget(QWidget):
         form = QFormLayout()
         form.addRow(_('Alias:'), self.alias_edit)
         form.addRow(_('1000 DASH Output:'), self.collateral_edit)
-        form.addRow(_('Masternode DASH Address:'), self.delegate_edit)
+        form.addRow(_('Masternode Private Key:'), self.delegate_edit)
         vbox.addLayout(form)
         vbox.addLayout(util.Buttons(self.sign_button))
         self.setLayout(vbox)

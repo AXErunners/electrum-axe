@@ -666,7 +666,7 @@ class Commands:
         """Activate a masternode."""
         self.masternode_manager.populate_masternode_output(alias)
         try:
-            self.masternode_manager.sign_announce(alias)
+            self.masternode_manager.sign_announce(alias, self.password)
         except Exception as e:
             return 'Error signing: ' + str(e)
 
@@ -772,14 +772,14 @@ class Commands:
         req = ('masternode.budget.getproposal', [proposal_hash])
         return self.network.synchronous_get([req])[0]
 
-    @command('wnp')
+    @command('wn')
     def vote(self, alias, proposal_name, vote_choice):
         """Vote on a proposal."""
         valid_choices = ('yes', 'no')
         if vote_choice.lower() not in valid_choices:
             return 'Invalid vote choice: "%s"' % vote_choice
 
-        errmsg, success = self.masternode_manager.vote(alias, proposal_name, vote_choice, self.password)
+        errmsg, success = self.masternode_manager.vote(alias, proposal_name, vote_choice)
         if errmsg:
             return 'Error: %s' % errmsg
         return success

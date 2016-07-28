@@ -138,8 +138,7 @@ class MasternodeManager(object):
             raise Exception('Nonexistent masternode')
         # Don't delete the delegate key if another masternode uses it too.
         if not any(i.alias != mn.alias and i.delegate_key == mn.delegate_key for i in self.masternodes):
-            address = bitcoin.public_key_to_bc_address(mn.delegate_key.decode('hex'))
-            self.wallet.delete_masternode_delegate(address, save)
+            self.wallet.delete_masternode_delegate(mn.delegate_key)
 
         self.masternodes.remove(mn)
         if save:
@@ -189,12 +188,9 @@ class MasternodeManager(object):
         coins = filter(is_valid, coins)
         return coins
 
-    def get_delegate_pubkey(self, address):
-        """Return the public key for address if we have it."""
-        t = self.wallet.masternode_delegates.get(address)
-        if t:
-            return t[0]
-        raise Exception('Delegate key not known: %s' % address)
+    def get_delegate_privkey(self, pubkey):
+        """Return the private delegate key for pubkey (if we have it)."""
+        return self.wallet.get_delegate_private_key(pubkey)
 
     def check_can_sign_masternode(self, alias):
         """Raise an exception if alias can't be signed and announced to the network."""
@@ -250,8 +246,7 @@ class MasternodeManager(object):
         mn.last_ping.vin = mn.vin
 
         # Sign ping with delegate key.
-        address = bitcoin.public_key_to_bc_address(mn.delegate_key.decode('hex'))
-        self.wallet.sign_masternode_ping(mn.last_ping, address, password)
+        self.wallet.sign_masternode_ping(mn.last_ping, mn.delegate_key)
 
         # After creating the Masternode Ping, sign the Masternode Announce.
         address = bitcoin.public_key_to_bc_address(mn.collateral_key.decode('hex'))
@@ -311,6 +306,17 @@ class MasternodeManager(object):
 
         mn.announced = True
 
+    def import_masternode_delegate(self, sec):
+        """Import a WIF delegate key.
+
+        An exception will not be raised if the key is already imported.
+        """
+        try:
+            self.wallet.import_masternode_delegate(sec)
+        except AlreadyHaveAddress:
+            pass
+        return True
+
     def import_masternode_conf_lines(self, conf_lines, password):
         """Import a list of MasternodeConfLine."""
         def already_have(line):
@@ -328,10 +334,7 @@ class MasternodeManager(object):
             if already_have(conf_line):
                 continue
             # Import delegate WIF key for signing last_ping.
-            try:
-                address = self.wallet.import_masternode_delegate(conf_line.wif, password)
-            except AlreadyHaveAddress as e:
-                address = e.addr
+            self.import_masternode_delegate(conf_line.wif)
             public_key = bitcoin.public_key_from_private_key(conf_line.wif)
 
             addr = conf_line.addr.split(':')
@@ -384,7 +387,7 @@ class MasternodeManager(object):
             if status not in ['PRE_ENABLED', 'ENABLED']:
                 raise Exception('Masternode is not currently enabled')
 
-    def vote(self, alias, proposal_name, vote_choice, password):
+    def vote(self, alias, proposal_name, vote_choice):
         """Vote on a budget proposal."""
         self.check_can_vote(alias, proposal_name)
         # Validate vote choice.
@@ -396,8 +399,7 @@ class MasternodeManager(object):
         vote = BudgetVote(vin=mn.vin, proposal_hash=proposal_hash, vote=vote_choice)
 
         # Sign the vote with delegate key.
-        address = bitcoin.public_key_to_bc_address(mn.delegate_key.decode('hex'))
-        sig = self.wallet.sign_budget_vote(vote, address, password)
+        sig = self.wallet.sign_budget_vote(vote, mn.delegate_key)
 
         return self.send_vote(vote, base64.b64encode(sig))
 
