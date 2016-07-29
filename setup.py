@@ -44,7 +44,7 @@ setup(
         'protobuf',
         'dnspython',
         'jsonrpclib',
-        'trezor>=0.6.3',
+        'trezor>=0.7.0',
         'x11_hash>=1.4',
     ],
     dependency_links=[

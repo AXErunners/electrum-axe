@@ -9,7 +9,7 @@ class TrezorWallet(TrezorCompatibleWallet):
 class TrezorPlugin(TrezorCompatiblePlugin):
     firmware_URL = 'https://www.mytrezor.com'
     libraries_URL = 'https://github.com/trezor/python-trezor'
-    minimum_firmware = (1, 3, 3)
+    minimum_firmware = (1, 3, 6)
     wallet_class = TrezorWallet
     try:
         from .client import TrezorClient as client_class
