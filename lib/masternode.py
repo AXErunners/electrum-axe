@@ -239,8 +239,8 @@ class MasternodeAnnounce(object):
             s += self.delegate_key.decode('hex')
         else:
             # Use the RIPEMD-160 hashes of our keys.
-            s += bitcoin.hash_160(self.collateral_key.decode('hex')).encode('hex')
-            s += bitcoin.hash_160(self.delegate_key.decode('hex')).encode('hex')
+            s += bitcoin.hash_encode(bitcoin.hash_160(self.collateral_key.decode('hex')))
+            s += bitcoin.hash_encode(bitcoin.hash_160(self.delegate_key.decode('hex')))
 
         s += str(self.protocol_version)
         return s
