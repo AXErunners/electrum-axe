@@ -231,6 +231,17 @@ class MasternodesWidget(QWidget):
                 self.view.selectRow(i)
                 break
 
+    def populate_collateral_key(self, row):
+        """Fill in the collateral key for a masternode based on its collateral output.
+
+        row refers to the desired row in the proxy model, not the actual model.
+        """
+        mn = self.masternode_for_row(row)
+        self.manager.populate_masternode_output(mn.alias)
+        # Emit dataChanged for the collateral key.
+        index = self.model.index(row, self.model.COLLATERAL)
+        self.model.dataChanged.emit(index, index)
+
     def refresh_items(self):
         self.model.dataChanged.emit(QModelIndex(), QModelIndex())
 
@@ -271,6 +282,7 @@ class MasternodeDialog(QDialog, PrintError):
 
         self.tabs = QTabWidget()
         self.tabs.addTab(self.create_view_masternode_tab(), _('View Masternode'))
+        self.tabs.addTab(self.create_collateral_tab(), _('Choose Collateral'))
         self.tabs.addTab(self.create_sign_announce_tab(), _('Activate Masternode'))
         self.tabs.addTab(self.create_masternode_conf_tab(), _('Masternode.conf'))
         # Disabled until API is stable.
@@ -290,9 +302,11 @@ class MasternodeDialog(QDialog, PrintError):
 
     def create_view_masternode_tab(self):
         """Create the tab used to view masternodes."""
-        collateral_desc = QLabel(_(''.join(['The "Collateral DASH Output" field below will appear blank until ',
-                'you activate this masternode.'])))
-        collateral_desc.setWordWrap(True)
+        desc = ' '.join(['In this tab, you can view your masternodes and fill in required data about them.',
+            'The collateral payment for a masternode can be specified using the "Choose Collateral" tab.',
+        ])
+        desc = QLabel(_(desc))
+        desc.setWordWrap(True)
 
         self.masternode_editor = editor = MasternodeEditor()
         model = self.masternodes_widget.proxy_model
@@ -322,7 +336,7 @@ class MasternodeDialog(QDialog, PrintError):
         self.delete_masternode_button.clicked.connect(self.delete_current_masternode)
 
         vbox = QVBoxLayout()
-        vbox.addWidget(collateral_desc)
+        vbox.addWidget(desc)
         vbox.addWidget(editor)
         vbox.addStretch(1)
         vbox.addLayout(util.Buttons(self.delete_masternode_button,
@@ -442,15 +456,24 @@ class MasternodeDialog(QDialog, PrintError):
         self.manager.save()
         self.masternodes_widget.select_masternode(alias)
 
+    def update_mappers_index(self):
+        """Update the current index for data widget mappers.
+
+        This updates mappers for the SignAnnounceWidget, etc.
+        """
+        row = self.mapper.currentIndex()
+        self.collateral_tab.set_mapper_index(row)
+        self.sign_announce_widget.set_mapper_index(row)
+
     def on_view_selection_changed(self, selected, deselected):
         """Update the data widget mapper."""
+        row = 0
         try:
-            idx = selected.indexes()[0]
-            self.mapper.setCurrentIndex(idx.row())
-            self.sign_announce_widget.set_mapper_index(idx.row())
+            row = selected.indexes()[0].row()
         except Exception:
-            self.mapper.setCurrentIndex(0)
-            self.sign_announce_widget.set_mapper_index(0)
+            pass
+        self.mapper.setCurrentIndex(row)
+        self.update_mappers_index()
 
     def on_editor_alias_changed(self, text):
         """Enable or disable the 'Save As New Masternode' button.
@@ -462,9 +485,13 @@ class MasternodeDialog(QDialog, PrintError):
         enable = len(text) > 0 and self.manager.get_masternode(text) is None
         self.save_new_masternode_button.setEnabled(enable)
 
+    def create_collateral_tab(self):
+        self.collateral_tab = MasternodeOutputsTab(self)
+        return self.collateral_tab
+
     def create_sign_announce_tab(self):
         desc = ' '.join(['You can sign a Masternode Announce message to activate your masternode.',
-            'First, scan for valid 1000 DASH outputs below.',
+            'First, ensure that all the required data has been entered for this masternode.',
             'Then, click "Activate Masternode" to activate your masternode.',
         ])
         desc = QLabel(_(desc))
@@ -488,9 +515,6 @@ class MasternodeDialog(QDialog, PrintError):
             pw = self.gui.password_dialog(msg=_('Please enter your password to activate masternode "%s".' % alias))
             if pw is None:
                 return
-
-        # Make sure the masternode is populated with everything we can find out about it.
-        self.manager.populate_masternode_output(alias)
 
         self.sign_announce_widget.sign_button.setEnabled(False)
 
@@ -582,3 +606,9 @@ class MasternodeDialog(QDialog, PrintError):
             self.proposals_widget.editor.vote_button.setEnabled(True)
 
         util.WaitingDialog(self, _('Voting...'), vote_thread, on_vote_successful, on_vote_failed)
+
+    def populate_collateral_key(self):
+        """Use the selected masternode's collateral output to determine its collateral key."""
+        row = self.mapper.currentIndex()
+        self.masternodes_widget.populate_collateral_key(row)
+        self.update_mappers_index()

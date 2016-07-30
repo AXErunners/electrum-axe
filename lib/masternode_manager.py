@@ -197,6 +197,8 @@ class MasternodeManager(object):
         mn = self.get_masternode(alias)
         if not mn:
             raise Exception('Nonexistent masternode')
+        if not mn.vin.get('prevout_hash'):
+            raise Exception('Collateral payment is not specified')
         if not mn.collateral_key:
             raise Exception('Collateral key is not specified')
         if not mn.delegate_key:

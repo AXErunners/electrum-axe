@@ -245,10 +245,10 @@ class MasternodeOutputsWidget(QListWidget):
             return
         self.outputSelected.emit(self.outputs[str(items[0].text())])
 
-class SignAnnounceWidget(QWidget):
-    """Widget that displays information about signing a Masternode Announce."""
+class MasternodeOutputsTab(QWidget):
+    """Widget that is used to select a masternode output."""
     def __init__(self, parent):
-        super(SignAnnounceWidget, self).__init__(parent)
+        super(MasternodeOutputsTab, self).__init__(parent)
         self.dialog = parent
         self.manager = parent.manager
 
@@ -260,11 +260,109 @@ class SignAnnounceWidget(QWidget):
             self.scan_for_outputs(include_frozen_checkbox.isChecked())
         self.scan_outputs_button.clicked.connect(on_scan_outputs)
 
-        # Displays the status of the masternode.
         self.status_edit = QLineEdit()
         self.status_edit.setReadOnly(True)
         self.valid_outputs_list = MasternodeOutputsWidget()
         self.valid_outputs_list.outputSelected.connect(self.set_output)
+
+        self.collateral_edit = PrevOutWidget()
+        self.collateral_edit.setReadOnly(True)
+
+        self.mapper = QDataWidgetMapper()
+        self.mapper.setSubmitPolicy(QDataWidgetMapper.ManualSubmit)
+        self.mapper.setModel(self.dialog.masternodes_widget.proxy_model)
+
+        model = self.dialog.masternodes_widget.model
+        self.mapper.addMapping(self.collateral_edit, model.VIN, 'string')
+
+        self.save_output_button = QPushButton(_('Save'))
+        self.save_output_button.setEnabled(False)
+        self.save_output_button.clicked.connect(self.save_output)
+
+
+        vbox = QVBoxLayout()
+
+        desc = ' '.join(['Use this tab to scan for and choose a collateral payment for your masternode.',
+            'A valid collateral payment is exactly 1000 DASH.'])
+        desc = QLabel(_(desc))
+        desc.setWordWrap(True)
+        vbox.addWidget(desc)
+
+        status_box = QHBoxLayout()
+        status_box.setContentsMargins(0, 0, 0, 0)
+        status_box.addWidget(QLabel(_('Status:')))
+        status_box.addWidget(self.status_edit, stretch=1)
+        vbox.addLayout(status_box)
+
+        valid_outputs_box = QVBoxLayout()
+        valid_outputs_box.setContentsMargins(0, 0, 0, 0)
+        valid_outputs_box.addWidget(QLabel(_('Masternode Outputs:')))
+        valid_outputs_box.addWidget(self.valid_outputs_list)
+
+        vbox.addLayout(util.Buttons(include_frozen_checkbox, self.scan_outputs_button))
+        vbox.addLayout(valid_outputs_box)
+
+        vbox.addWidget(self.collateral_edit)
+        vbox.addLayout(util.Buttons(self.save_output_button))
+        self.setLayout(vbox)
+
+    def scan_for_outputs(self, include_frozen):
+        """Scan for 1000 DASH outputs.
+
+        If one or more is found, populate the list and enable the sign button.
+        """
+        self.valid_outputs_list.clear()
+        exclude_frozen = not include_frozen
+
+        coins = self.manager.get_masternode_outputs(exclude_frozen=exclude_frozen)
+
+        if len(coins) > 0:
+            self.valid_outputs_list.add_outputs(coins)
+        else:
+            self.status_edit.setText(_('No 1000 DASH outputs were found.'))
+            self.status_edit.setStyleSheet(util.RED_FG)
+
+    def set_output(self, vin):
+        """Set the selected output."""
+        self.collateral_edit.set_dict(vin)
+        self.save_output_button.setEnabled(True)
+
+    def save_output(self):
+        """Save the selected output as the current masternode's collateral."""
+        self.mapper.submit()
+        # Determine the masternode's collateral key using this output.
+        self.dialog.populate_collateral_key()
+
+    def set_mapper_index(self, row):
+        """Set the row that the data widget mapper should use."""
+        self.valid_outputs_list.clear()
+        self.status_edit.clear()
+        self.status_edit.setStyleSheet(util.BLACK_FG)
+        self.mapper.setCurrentIndex(row)
+        mn = self.dialog.masternodes_widget.masternode_for_row(row)
+
+        status_text = _('Masternode has no collateral payment assigned.')
+        can_scan = not mn.announced
+        # Disable the scan_outputs button if the masternode already has an assigned output.
+        if mn.vin.get('value', 0) == COIN * 1000:
+            can_scan = False
+            self.valid_outputs_list.add_output(mn.vin)
+            status_text = _('Masternode already has a collateral payment.')
+
+        self.status_edit.setText(_(status_text))
+
+        self.scan_outputs_button.setEnabled(can_scan)
+
+class SignAnnounceWidget(QWidget):
+    """Widget that displays information about signing a Masternode Announce."""
+    def __init__(self, parent):
+        super(SignAnnounceWidget, self).__init__(parent)
+        self.dialog = parent
+        self.manager = parent.manager
+
+        # Displays the status of the masternode.
+        self.status_edit = QLineEdit()
+        self.status_edit.setReadOnly(True)
 
         self.alias_edit = QLineEdit()
         self.collateral_edit = PrevOutWidget()
@@ -292,19 +390,12 @@ class SignAnnounceWidget(QWidget):
         status_box.addWidget(QLabel(_('Status:')))
         status_box.addWidget(self.status_edit, stretch=1)
 
-        valid_outputs_box = QVBoxLayout()
-        valid_outputs_box.setContentsMargins(0, 0, 0, 0)
-        valid_outputs_box.addWidget(QLabel(_('Masternode Outputs:')))
-        valid_outputs_box.addWidget(self.valid_outputs_list)
-
         vbox = QVBoxLayout()
         vbox.addLayout(status_box)
-        vbox.addLayout(util.Buttons(include_frozen_checkbox, self.scan_outputs_button))
-        vbox.addLayout(valid_outputs_box)
 
         form = QFormLayout()
         form.addRow(_('Alias:'), self.alias_edit)
-        form.addRow(_('1000 DASH Output:'), self.collateral_edit)
+        form.addRow(_('Collateral DASH Output:'), self.collateral_edit)
         form.addRow(_('Masternode Private Key:'), self.delegate_edit)
         vbox.addLayout(form)
         vbox.addLayout(util.Buttons(self.sign_button))
@@ -312,16 +403,10 @@ class SignAnnounceWidget(QWidget):
 
     def set_mapper_index(self, row):
         """Set the row that the data widget mapper should use."""
-        self.valid_outputs_list.clear()
         self.status_edit.clear()
         self.status_edit.setStyleSheet(util.BLACK_FG)
         self.mapper.setCurrentIndex(row)
         mn = self.dialog.masternodes_widget.masternode_for_row(row)
-        can_scan = not mn.announced
-        # Disable the scan_outputs button if the masternode already has an assigned output.
-        if mn.vin.get('value', 0) == COIN * 1000:
-            can_scan = False
-            self.valid_outputs_list.add_output(mn.vin)
 
         # Disable the sign button if the masternode can't be signed (for whatever reason).
         status_text = '%s can be activated' % mn.alias
@@ -333,30 +418,7 @@ class SignAnnounceWidget(QWidget):
             can_sign = False
 
         self.status_edit.setText(_(status_text))
-
-        self.scan_outputs_button.setEnabled(can_scan)
         self.sign_button.setEnabled(can_sign)
-
-    def set_output(self, vin):
-        """Set the masternode's output to the selected one."""
-        self.collateral_edit.set_dict(vin)
-
-    def scan_for_outputs(self, include_frozen):
-        """Scan for 1000 DASH outputs.
-
-        If one or more is found, populate the list and enable the sign button.
-        """
-        self.valid_outputs_list.clear()
-        exclude_frozen = not include_frozen
-
-        coins = self.manager.get_masternode_outputs(exclude_frozen=exclude_frozen)
-
-        if len(coins) > 0:
-            self.valid_outputs_list.add_outputs(coins)
-            self.sign_button.setEnabled(True)
-        else:
-            self.status_edit.setText(_('No 1000 DASH outputs were found.'))
-            self.status_edit.setStyleSheet(util.RED_FG)
 
     def sign_announce(self):
         """Set the masternode's vin and sign an announcement."""
