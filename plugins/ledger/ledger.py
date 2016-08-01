@@ -4,13 +4,17 @@ import hashlib
 import time
 
 import electrum_dash
-from electrum_dash.bitcoin import EncodeBase58Check, DecodeBase58Check, TYPE_ADDRESS
+from electrum_dash.bitcoin import EncodeBase58Check, DecodeBase58Check, bc_address_to_hash_160, hash_160_to_bc_address, TYPE_ADDRESS, PUBKEY_ADDR, SCRIPT_ADDR
 from electrum_dash.i18n import _
 from electrum_dash.plugins import BasePlugin, hook
 from ..hw_wallet import BIP44_HW_Wallet
 from ..hw_wallet import HW_PluginBase
 from electrum_dash.util import format_satoshis_plain, print_error
 
+
+def setAlternateCoinVersions(self, regular, p2sh):
+    apdu = [ self.BTCHIP_CLA, 0x14, 0x00, 0x00, 0x02, regular, p2sh ]
+    self.dongle.exchange(bytearray(apdu))
 
 try:
     from btchip.btchipComm import getDongle, DongleWait
@@ -20,6 +24,7 @@ try:
     from btchip.btchipPersoWizard import StartBTChipPersoDialog
     from btchip.btchipFirmwareWizard import checkFirmware, updateFirmware
     from btchip.btchipException import BTChipException
+    btchip.setAlternateCoinVersions = setAlternateCoinVersions
     BTCHIP = True
     BTCHIP_DEBUG = False
 except ImportError:
@@ -186,6 +191,10 @@ class BTChipWallet(BIP44_HW_Wallet):
                 if output <> None: # should never happen
                     self.give_error("Multiple outputs with no change not supported")
                 output = address
+                if not self.canAlternateCoinVersions:
+                    v, h = bc_address_to_hash_160(address)
+                    if v == PUBKEY_ADDR:
+                        output = hash_160_to_bc_address(h, 0)
                 outputAmount = amount
 
         self.get_client() # prompt for the PIN before displaying the dialog if necessary
@@ -330,7 +339,10 @@ class LedgerPlugin(HW_PluginBase):
             try:
                 d = getDongle(BTCHIP_DEBUG)
                 client = btchip(d)
-                firmware = client.getFirmwareVersion()['version'].split(".")
+                ver = client.getFirmwareVersion()
+                firmware = ver['version'].split(".")
+                wallet.canAlternateCoinVersions = (ver['specialVersion'] >= 0x20 and
+                                                   map(int, firmware) >= [1, 0, 1])
                 if not checkFirmware(firmware):
                     d.close()
                     try:
@@ -365,6 +377,8 @@ class LedgerPlugin(HW_PluginBase):
                         raise Exception('Aborted by user - please unplug the dongle and plug it again before retrying')
                     pin = pin.encode()
                     client.verifyPin(pin)
+                    if wallet.canAlternateCoinVersions:
+                        client.setAlternateCoinVersions(PUBKEY_ADDR, SCRIPT_ADDR)
 
             except BTChipException, e:
                 try:
