@@ -105,7 +105,7 @@ class TrezorCompatiblePlugin(HW_PluginBase):
             pair = [device.path, None]
 
         try:
-            transport = self.HidTransport(pair)
+            transport = self.hid_transport(pair)
         except BaseException as e:
             # We were probably just disconnected; never mind
             self.print_error("cannot connect at", device.path, str(e))
