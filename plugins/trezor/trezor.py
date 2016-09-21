@@ -21,6 +21,11 @@ class TrezorPlugin(TrezorCompatiblePlugin):
         libraries_available = False
 
     @classmethod
+    def bridge_transport(cls, d):
+        from trezorlib.transport_bridge import BridgeTransport
+        return BridgeTransport(d)
+
+    @classmethod
     def hid_transport(cls, pair):
         from trezorlib.transport_hid import HidTransport
         return HidTransport(pair)
