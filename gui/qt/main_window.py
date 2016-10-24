@@ -485,7 +485,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         if self.network.is_connected():
             d = self.network.get_donation_address()
             host = self.network.get_parameters()[0]
-            self.pay_to_URI('bitcoin:%s?message=donation for %s'%(d, host))
+            self.pay_to_URI('dash:%s?message=donation for %s'%(d, host))
 
     def show_about(self):
         QMessageBox.about(self, "Electrum-DASH",
