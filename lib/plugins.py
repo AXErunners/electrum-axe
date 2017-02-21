@@ -43,9 +43,9 @@ class Plugins(DaemonThread):
         DaemonThread.__init__(self)
         if is_local:
             find = imp.find_module('plugins')
-            plugins = imp.load_module('electrum_plugins', *find)
+            plugins = imp.load_module('electrum_dash_plugins', *find)
         else:
-            plugins = __import__('electrum_plugins')
+            plugins = __import__('electrum_dash_plugins')
         self.pkgpath = os.path.dirname(plugins.__file__)
         self.config = config
         self.hw_wallets = {}
@@ -86,7 +86,7 @@ class Plugins(DaemonThread):
         return len(self.plugins)
 
     def load_plugin(self, name):
-        full_name = 'electrum_plugins.' + name + '.' + self.gui_name
+        full_name = 'electrum_dash_plugins.' + name + '.' + self.gui_name
         loader = pkgutil.find_loader(full_name)
         if not loader:
             raise RuntimeError("%s implementation for %s plugin not found"
