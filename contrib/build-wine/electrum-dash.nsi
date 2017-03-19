@@ -6,7 +6,7 @@
 ;--------------------------------
 ;Variables
 
-  !define PRODUCT_NAME "Electrum"
+  !define PRODUCT_NAME "Electrum-DASH"
   !define PRODUCT_WEB_SITE "https://github.com/spesmilo/electrum"
   !define PRODUCT_PUBLISHER "Electrum Technologies GmbH"
   !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
@@ -72,7 +72,7 @@
   !define MUI_ABORTWARNING
   !define MUI_ABORTWARNING_TEXT "Are you sure you wish to abort the installation of ${PRODUCT_NAME}?"
   
-  !define MUI_ICON "..\..\icons\electrum.ico"
+  !define MUI_ICON "icons\electrum-dash.ico"
   
 ;--------------------------------
 ;Pages
@@ -106,7 +106,7 @@ Section
 
   ;Files to pack into the installer
   File /r "dist\electrum\*.*"
-  File "..\..\icons\electrum.ico"
+  File "icons\electrum-dash.ico"
 
   ;Store installation folder
   WriteRegStr HKCU "Software\${PRODUCT_NAME}" "" $INSTDIR
@@ -117,13 +117,13 @@ Section
 
   ;Create desktop shortcut
   DetailPrint "Creating desktop shortcut..."
-  CreateShortCut "$DESKTOP\${PRODUCT_NAME}.lnk" "$INSTDIR\electrum.exe" ""
+  CreateShortCut "$DESKTOP\${PRODUCT_NAME}.lnk" "$INSTDIR\electrum-dash.exe" ""
 
   ;Create start-menu items
   DetailPrint "Creating start-menu items..."
   CreateDirectory "$SMPROGRAMS\${PRODUCT_NAME}"
   CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\Uninstall.lnk" "$INSTDIR\Uninstall.exe" "" "$INSTDIR\Uninstall.exe" 0
-  CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME}.lnk" "$INSTDIR\electrum.exe" "" "$INSTDIR\electrum.exe" 0
+  CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME}.lnk" "$INSTDIR\electrum-dash.exe" "" "$INSTDIR\electrum-dash.exe" 0
 
   ;Links dash: URI's to Electrum
   WriteRegStr HKCU "Software\Classes\dash" "" "URL:dash Protocol"
@@ -137,7 +137,7 @@ Section
   WriteRegStr HKCU "${PRODUCT_UNINST_KEY}" "DisplayVersion" "${PRODUCT_VERSION}"
   WriteRegStr HKCU "${PRODUCT_UNINST_KEY}" "URLInfoAbout" "${PRODUCT_WEB_SITE}"
   WriteRegStr HKCU "${PRODUCT_UNINST_KEY}" "Publisher" "${PRODUCT_PUBLISHER}"
-  WriteRegStr HKCU "${PRODUCT_UNINST_KEY}" "DisplayIcon" "$INSTDIR\electrum.ico"
+  WriteRegStr HKCU "${PRODUCT_UNINST_KEY}" "DisplayIcon" "$INSTDIR\electrum-dash.ico"
 
   ;Fixes Windows broken size estimates
   ${GetSize} "$INSTDIR" "/S=0K" $0 $1 $2
