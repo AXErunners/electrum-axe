@@ -91,6 +91,13 @@ QWidget { /* Set default style for QWidget, override in following statements */
     border: 0;
 }
 
+QGroupBox {
+    margin-top: 1em;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+}
 
 /**********************/
 /* 1. Navigation Bar */
@@ -345,6 +352,13 @@ QPushButton:focus {
 
 QPushButton:pressed {
     border:1px solid #333;
+}
+
+QPushButton:disabled
+{
+    color: #D3E8FE;
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+stop: 0 #A5CFFA, stop: 1 #72B2F8);
 }
 
 QComboBox { /* Dropdown Menus */

@@ -16,3 +16,4 @@ env/
 .tox/
 .buildozer/
 bin/
+electrum_data/
