@@ -1,8 +1,10 @@
 import time
+from struct import pack
 
 from electrum_dash.i18n import _
 from electrum_dash.util import PrintError, UserCancelled
-from electrum_dash.wallet import BIP44_Wallet
+from electrum_dash.keystore import bip39_normalize_passphrase
+from electrum_dash.bitcoin import serialize_xpub
 
 
 class GuiMixin(object):
@@ -63,7 +65,7 @@ class GuiMixin(object):
         passphrase = self.handler.get_passphrase(msg, self.creating_wallet)
         if passphrase is None:
             return self.proto.Cancel()
-        passphrase = BIP44_Wallet.normalize_passphrase(passphrase)
+        passphrase = bip39_normalize_passphrase(passphrase)
         return self.proto.PassphraseAck(passphrase=passphrase)
 
     def callback_WordRequest(self, msg):
@@ -142,11 +144,17 @@ class TrezorClientBase(GuiMixin, PrintError):
         '''Provided here as in keepkeylib but not trezorlib.'''
         self.transport.write(self.proto.Cancel())
 
-    def first_address(self, derivation):
-        return self.address_from_derivation(derivation)
+    def i4b(self, x):
+        return pack('>I', x)
 
-    def address_from_derivation(self, derivation):
-        return self.get_address('Dash', self.expand_path(derivation))
+    def get_xpub(self, bip32_path):
+        address_n = self.expand_path(bip32_path)
+        creating = False #self.next_account_number() == 0
+        node = self.get_public_node(address_n, creating).node
+        return serialize_xpub(0, node.chain_code, node.public_key, node.depth, self.i4b(node.fingerprint), self.i4b(node.child_num))
+
+    #def address_from_derivation(self, derivation):
+    #    return self.get_address('Bitcoin', self.expand_path(derivation))
 
     def toggle_passphrase(self):
         if self.features.passphrase_protection:
@@ -201,7 +209,7 @@ class TrezorClientBase(GuiMixin, PrintError):
         return (f.major_version, f.minor_version, f.patch_version)
 
     def atleast_version(self, major, minor=0, patch=0):
-        return cmp(self.firmware_version(), (major, minor, patch))
+        return cmp(self.firmware_version(), (major, minor, patch)) >= 0
 
     @staticmethod
     def wrapper(func):

@@ -42,18 +42,33 @@ except ImportError:
 
 import bitcoin
 import util
-from electrum_dash.util import print_error
+from util import print_error
 import transaction
 import x509
 import rsakey
 
 from bitcoin import TYPE_ADDRESS
 
-REQUEST_HEADERS = {'Accept': 'application/dash-paymentrequest', 'User-Agent': 'Electrum'}
-ACK_HEADERS = {'Content-Type':'application/dash-payment','Accept':'application/dash-paymentack','User-Agent':'Electrum'}
+REQUEST_HEADERS = {
+    'Accept': 'application/dash-paymentrequest',
+    'User-Agent': 'Electrum',
+}
+
+ACK_HEADERS = {
+    'Content-Type': 'application/dash-payment',
+    'Accept': 'application/dash-paymentack',
+    'User-Agent': 'Electrum'
+}
 
 ca_path = requests.certs.where()
-ca_list, ca_keyID = x509.load_certificates(ca_path)
+ca_list = None
+ca_keyID = None
+
+def load_ca_list():
+    global ca_list, ca_keyID
+    if ca_list is None:
+        ca_list, ca_keyID = x509.load_certificates(ca_path)
+
 
 
 # status of payment requests
@@ -66,32 +81,50 @@ PR_PAID    = 3     # send and propagated
 
 def get_payment_request(url):
     u = urlparse.urlparse(url)
+    error = None
     if u.scheme in ['http', 'https']:
-        response = requests.request('GET', url, headers=REQUEST_HEADERS)
-        data = response.content
-        print_error('fetched payment request', url, len(data))
+        try:
+            response = requests.request('GET', url, headers=REQUEST_HEADERS)
+            response.raise_for_status()
+            # Guard against `bitcoin:`-URIs with invalid payment request URLs
+            if "Content-Type" not in response.headers \
+            or response.headers["Content-Type"] != "application/bitcoin-paymentrequest":
+                data = None
+                error = "payment URL not pointing to a payment request handling server"
+            else:
+                data = response.content
+            print_error('fetched payment request', url, len(response.content))
+        except requests.exceptions.RequestException:
+            data = None
+            error = "payment URL not pointing to a valid server"
     elif u.scheme == 'file':
-        with open(u.path, 'r') as f:
-            data = f.read()
+        try:
+            with open(u.path, 'r') as f:
+                data = f.read()
+        except IOError:
+            data = None
+            error = "payment URL not pointing to a valid file"
     else:
         raise BaseException("unknown scheme", url)
-    pr = PaymentRequest(data)
+    pr = PaymentRequest(data, error)
     return pr
 
 
 class PaymentRequest:
 
-    def __init__(self, data):
+    def __init__(self, data, error=None):
         self.raw = data
+        self.error = error
         self.parse(data)
         self.requestor = None # known after verify
         self.tx = None
-        self.error = None
 
     def __str__(self):
         return self.raw
 
     def parse(self, r):
+        if self.error:
+            return
         self.id = bitcoin.sha256(r)[0:16].encode('hex')
         try:
             self.data = pb2.PaymentRequest()
@@ -113,11 +146,17 @@ class PaymentRequest:
         #return self.get_outputs() != [(TYPE_ADDRESS, self.get_requestor(), self.get_amount())]
 
     def verify(self, contacts):
+        if self.error:
+            return False
         if not self.raw:
             self.error = "Empty request"
-            return
+            return False
         pr = pb2.PaymentRequest()
-        pr.ParseFromString(self.raw)
+        try:
+            pr.ParseFromString(self.raw)
+        except:
+            self.error = "Error: Cannot parse payment request"
+            return False
         if not pr.signature:
             # the address will be dispayed as requestor
             self.requestor = None
@@ -131,6 +170,7 @@ class PaymentRequest:
             return False
 
     def verify_x509(self, paymntreq):
+        load_ca_list()
         if not ca_list:
             self.error = "Trusted certificate authorities list not found"
             return False
@@ -266,9 +306,6 @@ class PaymentRequest:
         print "PaymentACK message received: %s" % paymntack.memo
         return True, paymntack.memo
 
-    def set_paid(self, tx_hash):
-        self.tx = tx_hash
-
 
 def make_unsigned_request(req):
     from transaction import Transaction
@@ -310,6 +347,7 @@ def sign_request_with_alias(pr, alias, alias_privkey):
 
 def verify_cert_chain(chain):
     """ Verify a chain of certificates. The last certificate is the CA"""
+    load_ca_list()
     # parse the chain
     cert_num = len(chain)
     x509_chain = []
@@ -424,26 +462,37 @@ def make_request(config, req):
 
 class InvoiceStore(object):
 
-    def __init__(self, config):
-        self.config = config
+    def __init__(self, storage):
+        self.storage = storage
         self.invoices = {}
-        self.load_invoices()
+        self.paid = {}
+        d = self.storage.get('invoices', {})
+        self.load(d)
 
-    def load_invoices(self):
-        path = os.path.join(self.config.path, 'invoices')
-        try:
-            with open(path, 'r') as f:
-                d = json.loads(f.read())
-        except:
-            return
+    def set_paid(self, pr, txid):
+        pr.tx = txid
+        self.paid[txid] = pr.get_id()
+
+    def load(self, d):
         for k, v in d.items():
             try:
                 pr = PaymentRequest(v.get('hex').decode('hex'))
                 pr.tx = v.get('txid')
                 pr.requestor = v.get('requestor')
                 self.invoices[k] = pr
+                if pr.tx:
+                    self.paid[pr.tx] = k
             except:
                 continue
+
+    def import_file(self, path):
+        try:
+            with open(path, 'r') as f:
+                d = json.loads(f.read())
+                self.load(d)
+        except:
+            return
+        self.save()
 
     def save(self):
         l = {}
@@ -453,10 +502,7 @@ class InvoiceStore(object):
                 'requestor': pr.requestor,
                 'txid': pr.tx
             }
-        path = os.path.join(self.config.path, 'invoices')
-        with open(path, 'w') as f:
-            s = json.dumps(l, indent=4, sort_keys=True)
-            r = f.write(s)
+        self.storage.put('invoices', l)
 
     def get_status(self, key):
         pr = self.get(key)
@@ -483,3 +529,5 @@ class InvoiceStore(object):
         # sort
         return self.invoices.values()
 
+    def unpaid_invoices(self):
+        return [ self.invoices[k] for k in filter(lambda x: self.get_status(x)!=PR_PAID, self.invoices.keys())]

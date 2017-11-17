@@ -41,10 +41,14 @@ kivy.require('1.8.0')
 from kivy.logger import Logger
 from main_window import ElectrumWindow
 
+
+
+
 class ElectrumGui:
 
     def __init__(self, config, daemon, plugins):
         Logger.debug('ElectrumGUI: initialising')
+        self.daemon = daemon
         self.network = daemon.network
         self.config = config
         self.plugins = plugins
@@ -56,4 +60,5 @@ class ElectrumGui:
                            plugins = self.plugins,
                            gui_object=self)
         w.run()
-        self.config.save_last_wallet(w.wallet)
+        if w.wallet:
+            self.config.save_last_wallet(w.wallet)

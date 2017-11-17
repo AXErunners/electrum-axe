@@ -1,8 +1,8 @@
 from decimal import Decimal
 _ = lambda x:x
 #from i18n import _
-from electrum_dash.wallet import WalletStorage, Wallet
-from electrum_dash.util import format_satoshis, set_verbosity, StoreDict
+from electrum_dash import WalletStorage, Wallet
+from electrum_dash.util import format_satoshis, set_verbosity
 from electrum_dash.bitcoin import is_valid, COIN, TYPE_ADDRESS
 from electrum_dash.network import filter_protocol
 import sys, getpass, datetime
@@ -14,11 +14,14 @@ class ElectrumGui:
 
     def __init__(self, config, daemon, plugins):
         self.config = config
-        network = daemon.network
+        self.network = daemon.network
         storage = WalletStorage(config.get_wallet_path())
         if not storage.file_exists:
             print "Wallet not found. try 'electrum-dash create'"
             exit()
+        if storage.is_encrypted():
+            password = getpass.getpass('Password:', stream=None)
+            storage.decrypt(password)
 
         self.done = 0
         self.last_balance = ""
@@ -31,10 +34,10 @@ class ElectrumGui:
         self.str_fee = ""
 
         self.wallet = Wallet(storage)
-        self.wallet.start_threads(network)
-        self.contacts = StoreDict(self.config, 'contacts')
+        self.wallet.start_threads(self.network)
+        self.contacts = self.wallet.contacts
 
-        network.register_callback(self.on_network, ['updated', 'banner'])
+        self.network.register_callback(self.on_network, ['updated', 'banner'])
         self.commands = [_("[h] - displays this help text"), \
                          _("[i] - display transaction history"), \
                          _("[o] - enter payment order"), \
@@ -127,7 +130,7 @@ class ElectrumGui:
         self.print_list(messages, "%19s  %25s "%("Key", "Value"))
 
     def print_addresses(self):
-        messages = map(lambda addr: "%30s    %30s       "%(addr, self.wallet.labels.get(addr,"")), self.wallet.addresses())
+        messages = map(lambda addr: "%30s    %30s       "%(addr, self.wallet.labels.get(addr,"")), self.wallet.get_addresses())
         self.print_list(messages, "%19s  %25s "%("Address", "Label"))
 
     def print_order(self):

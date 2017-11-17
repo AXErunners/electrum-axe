@@ -24,7 +24,7 @@ if platform.system() in ['Linux', 'FreeBSD', 'DragonFly']:
     if not os.access(opts.root_path + usr_share, os.W_OK) and \
        not os.access(opts.root_path, os.W_OK):
         if 'XDG_DATA_HOME' in os.environ.keys():
-            usr_share = os.environ['$XDG_DATA_HOME']
+            usr_share = os.environ['XDG_DATA_HOME']
         else:
             usr_share = os.path.expanduser('~/.local/share')
     data_files += [
@@ -36,7 +36,7 @@ setup(
     name="Electrum-DASH",
     version=version.ELECTRUM_VERSION,
     install_requires=[
-        'slowaes>=0.1a1',
+        'pyaes',
         'ecdsa>=0.9',
         'pbkdf2',
         'requests',
@@ -44,11 +44,12 @@ setup(
         'protobuf',
         'dnspython',
         'jsonrpclib',
+        'PySocks>=1.6.6',
         'trezor>=0.6.3',
         'x11_hash>=1.4',
     ],
     dependency_links=[
-        'git+https://github.com/mazaclub/x11_hash@1.4#egg=x11_hash-1.4',
+        'git+https://github.com/akhavr/x11_hash@1.4#egg=x11_hash-1.4',
         'git+https://github.com/electrum-dash/python-trezor@v0.6.13#egg=trezor',
     ],
     packages=[
@@ -59,13 +60,12 @@ setup(
         'electrum_dash_plugins.audio_modem',
         'electrum_dash_plugins.cosigner_pool',
         'electrum_dash_plugins.email_requests',
-        'electrum_dash_plugins.exchange_rate',
         'electrum_dash_plugins.hw_wallet',
         'electrum_dash_plugins.keepkey',
         'electrum_dash_plugins.labels',
         'electrum_dash_plugins.ledger',
-        'electrum_dash_plugins.plot',
         'electrum_dash_plugins.trezor',
+        'electrum_dash_plugins.digitalbitbox',
         'electrum_dash_plugins.virtualkeyboard',
     ],
     package_dir={
@@ -75,6 +75,7 @@ setup(
     },
     package_data={
         'electrum_dash': [
+            'currencies.json',
             'www/index.html',
             'wordlist/*.txt',
             'locale/*/LC_MESSAGES/electrum.mo',
@@ -83,7 +84,7 @@ setup(
     scripts=['electrum-dash'],
     data_files=data_files,
     description="Lightweight Dashpay Wallet",
-    author="mazaclub",
+    author="akhavr",
     license="MIT License",
     url="https://electrum-dash.org",
     long_description="""Lightweight Dashpay Wallet"""

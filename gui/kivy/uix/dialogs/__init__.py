@@ -67,7 +67,6 @@ class EventsDialog(Factory.Popup):
 
     def __init__(self, **kwargs):
         super(EventsDialog, self).__init__(**kwargs)
-        self._on_release = kwargs.get('on_release')
 
     def on_release(self, instance):
         pass
@@ -76,7 +75,6 @@ class EventsDialog(Factory.Popup):
         pass
 
     def close(self):
-        self._on_release = None
         self.dismiss()
 
 
@@ -182,6 +180,9 @@ class InfoBubble(Factory.Bubble):
                 App.get_running_app().stop()
                 import sys
                 sys.exit()
+            else:
+                App.get_running_app().is_exit = False
+
         if now:
             return on_stop()
 

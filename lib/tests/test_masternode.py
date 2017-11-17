@@ -55,7 +55,7 @@ class TestMasternode(unittest.TestCase):
         announce = MasternodeAnnounce.deserialize(raw_announce)
         message = announce.serialize_for_sig()
 
-        pk = bitcoin.public_key_to_bc_address(announce.collateral_key.decode('hex'), 139)
+        pk = bitcoin.public_key_to_p2pkh(announce.collateral_key.decode('hex'))
         self.assertTrue(announce.verify())
 
 
@@ -63,7 +63,7 @@ class TestMasternode(unittest.TestCase):
         announce = MasternodeAnnounce.deserialize(raw)
         msg = announce.serialize_for_sig()
 
-        pk = bitcoin.public_key_to_bc_address(announce.collateral_key.decode('hex'), 139)
+        pk = bitcoin.public_key_to_p2pkh(announce.collateral_key.decode('hex'))
         self.assertTrue(announce.verify(pk))
 
     def test_serialize_protocol_version_70201(self):

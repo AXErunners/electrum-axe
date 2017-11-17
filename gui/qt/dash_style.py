@@ -5,8 +5,7 @@ dash_stylesheet = """
 /* Lite Mode -- cloned from "CleanLook" theme */
 #main_window
 {
-    border-image: url(:/icons/bg.png) 0 0 0 0 stretch stretch;
-
+    /*border-image: url(:/icons/bg.png) 0 0 0 0 stretch stretch;*/
 }
 
 MiniWindow QPushButton {

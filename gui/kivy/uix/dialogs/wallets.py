@@ -14,7 +14,7 @@ Builder.load_string('''
 <WalletDialog@Popup>:
     title: _('Wallets')
     id: popup
-    path: ''
+    path: os.path.dirname(app.get_wallet_path())
     BoxLayout:
         orientation: 'vertical'
         padding: '10dp'
@@ -23,36 +23,42 @@ Builder.load_string('''
             dirselect: False
             filter_dirs: True
             filter: '*.*'
-            path: os.path.dirname(app.get_wallet_path())
+            path: root.path
+            rootpath: root.path
             size_hint_y: 0.6
         Widget
             size_hint_y: 0.1
         GridLayout:
-            cols: 2
+            cols: 3
             size_hint_y: 0.1
-            Button:
-                size_hint: 0.1, None
-                height: '48dp'
-                text: _('Cancel')
-                on_release:
-                    popup.dismiss()
             Button:
                 id: open_button
                 size_hint: 0.1, None
                 height: '48dp'
-                text: _('Open') if wallet_selector.selection else _('New Wallet')
+                text: _('New')
                 on_release:
                     popup.dismiss()
                     root.new_wallet(app, wallet_selector.path)
+            Button:
+                id: open_button
+                size_hint: 0.1, None
+                height: '48dp'
+                text: _('Open')
+                disabled: not wallet_selector.selection
+                on_release:
+                    popup.dismiss()
+                    root.open_wallet(app)
 ''')
 
 class WalletDialog(Factory.Popup):
+
     def new_wallet(self, app, dirname):
         def cb(text):
             if text:
                 app.load_wallet_by_name(os.path.join(dirname, text))
-        if self.ids.wallet_selector.selection:
-            app.load_wallet_by_name(self.ids.wallet_selector.selection[0])
-        else:
-            d = LabelDialog(_('Enter wallet name'), '', cb)
-            d.open()
+        d = LabelDialog(_('Enter wallet name'), '', cb)
+        d.open()
+
+    def open_wallet(self, app):
+        app.load_wallet_by_name(self.ids.wallet_selector.selection[0])
+

@@ -5,36 +5,27 @@ from PyQt4.Qt import (QDialog, QInputDialog, QLineEdit,
 import PyQt4.QtCore as QtCore
 
 from electrum_dash.i18n import _
-from electrum_dash.plugins import hook
-from .ledger import LedgerPlugin, BTChipWallet
-from ..hw_wallet.qt import QtHandlerBase
+from .ledger import LedgerPlugin
+from ..hw_wallet.qt import QtHandlerBase, QtPluginBase
+from electrum_dash_gui.qt.util import *
 
-class Plugin(LedgerPlugin):
+from btchip.btchipPersoWizard import StartBTChipPersoDialog
 
-    @hook
-    def load_wallet(self, wallet, window):
-        if type(wallet) != BTChipWallet:
-            return
-        wallet.handler = BTChipQTHandler(window)
-        if self.btchip_is_connected(wallet):
-            if not wallet.check_proper_device():
-                window.show_error(_("This wallet does not match your Ledger device"))
-                wallet.force_watching_only = True
-        else:
-            window.show_error(_("Ledger device not detected.\nContinuing in watching-only mode."))
-            wallet.force_watching_only = True
+class Plugin(LedgerPlugin, QtPluginBase):
+    icon_unpaired = ":icons/ledger_unpaired.png"
+    icon_paired = ":icons/ledger.png"
 
-    def on_create_wallet(self, wallet, wizard):
-        assert type(wallet) == self.wallet_class
-        wallet.handler = BTChipQTHandler(wizard)
-#        self.select_device(wallet)
-        wallet.create_hd_account(None)
+    def create_handler(self, window):
+        return Ledger_Handler(window)
 
-class BTChipQTHandler(QtHandlerBase):
+class Ledger_Handler(QtHandlerBase):
+    setup_signal = pyqtSignal()
+    auth_signal = pyqtSignal(object)
 
     def __init__(self, win):
-        super(BTChipQTHandler, self).__init__(win, 'Ledger')
-
+        super(Ledger_Handler, self).__init__(win, 'Ledger')
+        self.setup_signal.connect(self.setup_dialog)
+        self.auth_signal.connect(self.auth_dialog)
 
     def word_dialog(self, msg):
         response = QInputDialog.getText(self.top_level_window(), "Ledger Wallet Authentication", msg, QLineEdit.Password)
@@ -42,4 +33,45 @@ class BTChipQTHandler(QtHandlerBase):
             self.word = None
         else:
             self.word = str(response[0])
-        self.done.set()                
+        self.done.set()
+    
+    def message_dialog(self, msg):
+        self.clear_dialog()
+        self.dialog = dialog = WindowModalDialog(self.top_level_window(), _("Ledger Status"))
+        l = QLabel(msg)
+        vbox = QVBoxLayout(dialog)
+        vbox.addWidget(l)
+        dialog.show()
+
+    def auth_dialog(self, data):
+        try:
+            from .auth2fa import LedgerAuthDialog
+        except ImportError as e:
+            self.message_dialog(str(e))
+            return
+        dialog = LedgerAuthDialog(self, data)
+        dialog.exec_()
+        self.word = dialog.pin
+        self.done.set()
+                    
+    def get_auth(self, data):
+        self.done.clear()
+        self.auth_signal.emit(data)
+        self.done.wait()
+        return self.word
+        
+    def get_setup(self):
+        self.done.clear()
+        self.setup_signal.emit()
+        self.done.wait()
+        return 
+        
+    def setup_dialog(self):
+        dialog = StartBTChipPersoDialog()
+        dialog.exec_()
+
+
+        
+        
+        
+        

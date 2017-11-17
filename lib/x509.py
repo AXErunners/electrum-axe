@@ -27,7 +27,7 @@
 from datetime import datetime
 import sys
 import util
-from electrum_dash.util import profiler, print_error
+from util import profiler, print_error
 import ecdsa
 import hashlib
 
@@ -292,9 +292,9 @@ class X509(object):
         not_before = time.mktime(time.strptime(self.notBefore, TIMESTAMP_FMT))
         not_after = time.mktime(time.strptime(self.notAfter, TIMESTAMP_FMT))
         if not_before > now:
-            raise CertificateError('Certificate has not entered its valid date range.')
+            raise CertificateError('Certificate has not entered its valid date range. (%s)'%self.get_common_name())
         if not_after <= now:
-            raise CertificateError('Certificate has expired.')
+            raise CertificateError('Certificate has expired. (%s)'%self.get_common_name())
 
     def getFingerprint(self):
         return hashlib.sha1(self.bytes).digest()

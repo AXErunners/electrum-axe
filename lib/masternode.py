@@ -114,8 +114,7 @@ class MasternodePing(object):
 
         if not delegate_pubkey:
             delegate_pubkey = bitcoin.public_key_from_private_key(wif).decode('hex')
-        self.sig = eckey.sign_message(serialized, bitcoin.is_compressed(wif),
-                    bitcoin.public_key_to_bc_address(delegate_pubkey))
+        self.sig = eckey.sign_message(serialized, bitcoin.is_compressed(wif))
         return self.sig
 
     def dump(self):
@@ -300,13 +299,12 @@ class MasternodeAnnounce(object):
         eckey = bitcoin.regenerate_key(wif)
 
         serialized = self.serialize_for_sig(update_time=update_time)
-        self.sig = eckey.sign_message(serialized, bitcoin.is_compressed(wif),
-                    bitcoin.public_key_to_bc_address(self.collateral_key.decode('hex')))
+        self.sig = eckey.sign_message(serialized, bitcoin.is_compressed(wif))
         return self.sig
 
     def verify(self, addr=None):
         """Verify that our sig is signed with addr's key."""
         if not addr:
-            addr = bitcoin.public_key_to_bc_address(self.collateral_key.decode('hex'))
+            addr = bitcoin.public_key_to_p2pkh(self.collateral_key.decode('hex'))
         return bitcoin.verify_message(addr, self.sig, self.serialize_for_sig())
 

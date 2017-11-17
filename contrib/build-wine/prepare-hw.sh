@@ -22,7 +22,7 @@ cd tmp
 #wget http://downloads.sourceforge.net/project/mingw/Installer/mingw-get-setup.exe
 #wine mingw-get-setup.exe
 
-#echo "add c:\MinGW\bin to PATH using regedit"
+#echo "add c:\MinGW\bin to PATH using regedit" in HKEY_CURRENT_USER/Environment
 #regedit
 #exit
 
@@ -30,60 +30,23 @@ cd tmp
 #wine mingw-get install mingw-utils
 #wine mingw-get install mingw32-libz
 
+
 #create cfg file
-#printf "[build]\ncompiler=mingw32\n" > /opt/me/wine64/drive_c/Python27/Lib/distutils/distutils.cfg
+#printf "[build]\ncompiler=mingw32\n" > /opt/wine64/drive_c/Python27/Lib/distutils/distutils.cfg
 
 # Install Cython
-#wine "$PYHOME\\Scripts\\easy_install.exe" cython
-
-
-# not working
-##wine "$PYHOME\\Scripts\\easy_install.exe" hidapi
+$PYTHON -m pip install setuptools --upgrade
+$PYTHON -m pip install cython
+$PYTHON -m pip install trezor
+$PYTHON -m pip install keepkey
+$PYTHON -m pip install btchip-python
 
 #git clone https://github.com/trezor/cython-hidapi.git
-
 #replace: from distutils.core import setup, Extenstion
-
 #cd cython-hidapi
 #git submodule init
 #git submodule update
 #$PYTHON setup.py install
 #cd ..
 
-
-
-if [ -d "trezor-git" ]; then
-    cd trezor-git
-    git pull
-    cd ..
-else
-    git clone -b $BRANCH $TREZOR_GIT_URL trezor-git
-fi
-cd trezor-git
-$PYTHON setup.py install
-cd ..
-
-#keepkey
-if [ -d "keepkey-git" ]; then
-    cd keepkey-git
-    git pull
-    cd ..
-else
-    git clone -b $BRANCH $KEEPKEY_GIT_URL keepkey-git
-fi
-cd keepkey-git
-# fails $PYTHON setup.py install
-cd ..
-
-#btchip
-if [ -d "btchip-git" ]; then
-    cd btchip-git
-    git pull
-    cd ..
-else
-    git clone -b $BRANCH $BTCHIP_GIT_URL btchip-git
-fi
-cd btchip-git
-$PYTHON setup.py install
-cd ..
 

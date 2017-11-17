@@ -1,9 +1,9 @@
 import tty, sys
 import curses, datetime, locale
 from decimal import Decimal
+import getpass
 
 from electrum_dash.util import format_satoshis, set_verbosity
-from electrum_dash.util import StoreDict
 from electrum_dash.bitcoin import is_valid, COIN, TYPE_ADDRESS
 from electrum_dash import Wallet, WalletStorage
 
@@ -21,10 +21,12 @@ class ElectrumGui:
         if not storage.file_exists:
             print "Wallet not found. try 'electrum-dash create'"
             exit()
-
+        if storage.is_encrypted():
+            password = getpass.getpass('Password:', stream=None)
+            storage.decrypt(password)
         self.wallet = Wallet(storage)
         self.wallet.start_threads(self.network)
-        self.contacts = StoreDict(self.config, 'contacts')
+        self.contacts = self.wallet.contacts
 
         locale.setlocale(locale.LC_ALL, '')
         self.encoding = locale.getpreferredencoding()
@@ -106,9 +108,8 @@ class ElectrumGui:
 
         b = 0
         self.history = []
-
         for item in self.wallet.get_history():
-            tx_hash, conf, value, timestamp, balance = item
+            tx_hash, height, conf, timestamp, value, balance = item
             if conf:
                 try:
                     time_str = datetime.datetime.fromtimestamp(timestamp).isoformat(' ')[:-3]
@@ -147,7 +148,7 @@ class ElectrumGui:
         self.stdscr.addstr(self.maxy -1, self.maxx-30, ' '.join([_("Settings"), _("Network"), _("Quit")]))
 
     def print_receive(self):
-        addr = self.wallet.get_unused_address(None)
+        addr = self.wallet.get_receiving_address()
         self.stdscr.addstr(2, 1, "Address: "+addr)
         self.print_qr(addr)
 
@@ -157,7 +158,7 @@ class ElectrumGui:
 
     def print_addresses(self):
         fmt = "%-35s  %-30s"
-        messages = map(lambda addr: fmt % (addr, self.wallet.labels.get(addr,"")), self.wallet.addresses())
+        messages = map(lambda addr: fmt % (addr, self.wallet.labels.get(addr,"")), self.wallet.get_addresses())
         self.print_list(messages,   fmt % ("Address", "Label"))
 
     def print_edit_line(self, y, label, text, index, size):
@@ -322,7 +323,7 @@ class ElectrumGui:
             self.show_message(_('Invalid Fee'))
             return
 
-        if self.wallet.use_encryption:
+        if self.wallet.has_password():
             password = self.password_dialog()
             if not password:
                 return
@@ -384,7 +385,7 @@ class ElectrumGui:
                 self.network.set_parameters(host, port, protocol, proxy, auto_connect)
 
     def settings_dialog(self):
-        fee = str(Decimal(self.wallet.fee_per_kb(self.config)) / COIN)
+        fee = str(Decimal(self.config.fee_per_kb()) / COIN)
         out = self.run_dialog('Settings', [
             {'label':'Default fee', 'type':'satoshis', 'value': fee }
             ], buttons = 1)

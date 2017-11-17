@@ -159,8 +159,7 @@ class BudgetVote(object):
         delegate_pubkey = bitcoin.public_key_from_private_key(wif).decode('hex')
         eckey = bitcoin.regenerate_key(wif)
         serialized = unicode(self.serialize_for_sig(update_time=update_time)).encode('utf-8')
-        return eckey.sign_message(serialized, bitcoin.is_compressed(wif),
-                bitcoin.public_key_to_bc_address(delegate_pubkey))
+        return eckey.sign_message(serialized, bitcoin.is_compressed(wif))
 
     def get_vin_short(self):
         return '%s-%d' % (self.vin['prevout_hash'], self.vin['prevout_n'])

@@ -24,17 +24,51 @@
 import sys
 import re
 import dns
+import os
+import json
 
 import bitcoin
 import dnssec
-from electrum_dash.util import StoreDict, print_error
+from util import print_error
 from i18n import _
 
 
-class Contacts(StoreDict):
+class Contacts(dict):
 
-    def __init__(self, config):
-        StoreDict.__init__(self, config, 'contacts')
+    def __init__(self, storage):
+        self.storage = storage
+        d = self.storage.get('contacts', {})
+        try:
+            self.update(d)
+        except:
+            return
+        # backward compatibility
+        for k, v in self.items():
+            _type, n = v
+            if _type == 'address' and bitcoin.is_address(n):
+                self.pop(k)
+                self[n] = ('address', k)
+
+    def save(self):
+        self.storage.put('contacts', dict(self))
+
+    def import_file(self, path):
+        try:
+            with open(path, 'r') as f:
+                d = self._validate(json.loads(f.read()))
+        except:
+            return
+        self.update(d)
+        self.save()
+
+    def __setitem__(self, key, value):
+        dict.__setitem__(self, key, value)
+        self.save()
+
+    def pop(self, key):
+        if key in self.keys():
+            dict.pop(self, key)
+            self.save()
 
     def resolve(self, k):
         if bitcoin.is_address(k):
@@ -82,4 +116,15 @@ class Contacts(StoreDict):
             return regex.search(haystack).groups()[0]
         except AttributeError:
             return None
-
+            
+    def _validate(self, data):
+        for k,v in data.items():
+            if k == 'contacts':
+                return self._validate(v)
+            if not bitcoin.is_address(k):
+                data.pop(k)
+            else:
+                _type,_ = v
+                if _type != 'address':
+                    data.pop(k)
+        return data

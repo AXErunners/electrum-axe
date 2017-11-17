@@ -127,7 +127,7 @@ class MasternodesModel(QAbstractTableModel):
         elif i == self.COLLATERAL:
             data = mn.collateral_key
             if role in [Qt.EditRole, Qt.DisplayRole, Qt.ToolTipRole] and data:
-                data = bitcoin.public_key_to_bc_address(data.decode('hex'))
+                data = bitcoin.public_key_to_p2pkh(data.decode('hex'))
             elif role == Qt.FontRole:
                 data = util.MONOSPACE_FONT
         elif i == self.DELEGATE:

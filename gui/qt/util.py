@@ -27,6 +27,28 @@ BLACK_FG = "QWidget {color:black;}"
 
 dialogs = []
 
+from electrum_dash.paymentrequest import PR_UNPAID, PR_PAID, PR_UNKNOWN, PR_EXPIRED
+
+pr_icons = {
+    PR_UNPAID:":icons/unpaid.png",
+    PR_PAID:":icons/confirmed.png",
+    PR_EXPIRED:":icons/expired.png"
+}
+
+pr_tooltips = {
+    PR_UNPAID:_('Pending'),
+    PR_PAID:_('Paid'),
+    PR_EXPIRED:_('Expired')
+}
+
+expiration_values = [
+    (_('1 hour'), 60*60),
+    (_('1 day'), 24*60*60),
+    (_('1 week'), 7*24*60*60),
+    (_('Never'), None)
+]
+
+
 class Timer(QThread):
     stopped = False
 
@@ -47,7 +69,7 @@ class EnterButton(QPushButton):
 
     def keyPressEvent(self, e):
         if e.key() == Qt.Key_Return:
-            apply(self.func,())
+            self.func()
 
 
 class ThreadedButton(QPushButton):
@@ -351,6 +373,7 @@ class MyTreeWidget(QTreeWidget):
                  editable_columns=None):
         QTreeWidget.__init__(self, parent)
         self.parent = parent
+        self.config = self.parent.config
         self.stretch_column = stretch_column
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(create_menu)
@@ -366,8 +389,9 @@ class MyTreeWidget(QTreeWidget):
             editable_columns = [stretch_column]
         self.editable_columns = editable_columns
         self.setItemDelegate(ElectrumItemDelegate(self))
-        self.itemActivated.connect(self.on_activated)
+        self.itemDoubleClicked.connect(self.on_doubleclick)
         self.update_headers(headers)
+        self.current_filter = ""
 
     def update_headers(self, headers):
         self.setColumnCount(len(headers))
@@ -387,7 +411,7 @@ class MyTreeWidget(QTreeWidget):
             item.setFlags(item.flags() & ~Qt.ItemIsEditable)
 
     def keyPressEvent(self, event):
-        if event.key() == Qt.Key_F2:
+        if event.key() in [ Qt.Key_F2, Qt.Key_Return ] and self.editor is None:
             self.on_activated(self.currentItem(), self.currentColumn())
         else:
             QTreeWidget.keyPressEvent(self, event)
@@ -399,13 +423,15 @@ class MyTreeWidget(QTreeWidget):
     def on_permit_edit(self, item, column):
         return True
 
-    def on_activated(self, item, column):
+    def on_doubleclick(self, item, column):
         if self.permit_edit(item, column):
             self.editItem(item, column)
-        else:
-            pt = self.visualItemRect(item).bottomLeft()
-            pt.setX(50)
-            self.emit(SIGNAL('customContextMenuRequested(const QPoint&)'), pt)
+
+    def on_activated(self, item, column):
+        # on 'enter' we show the menu
+        pt = self.visualItemRect(item).bottomLeft()
+        pt.setX(50)
+        self.emit(SIGNAL('customContextMenuRequested(const QPoint&)'), pt)
 
     def createEditor(self, parent, option, index):
         self.editor = QStyledItemDelegate.createEditor(self.itemDelegate(),
@@ -442,7 +468,7 @@ class MyTreeWidget(QTreeWidget):
         key = str(item.data(0, Qt.UserRole).toString())
         text = unicode(item.text(column))
         self.parent.wallet.set_label(key, text)
-        self.parent.history_list.update()
+        self.parent.history_list.update_labels()
         self.parent.update_completions()
 
     def update(self):
@@ -450,7 +476,11 @@ class MyTreeWidget(QTreeWidget):
         if self.editor:
             self.pending_update = True
         else:
+            self.setUpdatesEnabled(False)
             self.on_update()
+            self.setUpdatesEnabled(True)
+        if self.current_filter:
+            self.filter(self.current_filter)
 
     def on_update(self):
         pass
@@ -464,8 +494,10 @@ class MyTreeWidget(QTreeWidget):
             for x in self.get_leaves(item):
                 yield x
 
-    def filter(self, p, columns):
+    def filter(self, p):
+        columns = self.__class__.filter_columns
         p = unicode(p).lower()
+        self.current_filter = p
         for item in self.get_leaves(self.invisibleRootItem()):
             item.setHidden(all([unicode(item.text(column)).lower().find(p) == -1
                                 for column in columns]))

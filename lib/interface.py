@@ -60,7 +60,6 @@ class TcpConnection(threading.Thread, util.PrintError):
 
     def __init__(self, server, queue, config_path):
         threading.Thread.__init__(self)
-        self.daemon = True
         self.config_path = config_path
         self.queue = queue
         self.server = server
@@ -68,6 +67,7 @@ class TcpConnection(threading.Thread, util.PrintError):
         self.host = str(self.host)
         self.port = int(self.port)
         self.use_ssl = (self.protocol == 's')
+        self.daemon = True
 
     def diagnostic_name(self):
         return self.host
@@ -105,6 +105,7 @@ class TcpConnection(threading.Thread, util.PrintError):
         for res in l:
             try:
                 s = socket.socket(res[0], socket.SOCK_STREAM)
+                s.settimeout(10)
                 s.connect(res[4])
                 s.settimeout(2)
                 s.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
@@ -256,20 +257,26 @@ class Interface(util.PrintError):
         self.request_time = time.time()
         self.unsent_requests.append(args)
 
+    def num_requests(self):
+        '''Keep unanswered requests below 100'''
+        n = 100 - len(self.unanswered_requests)
+        return min(n, len(self.unsent_requests))
+
     def send_requests(self):
-        '''Sends all queued requests.  Returns False on failure.'''
+        '''Sends queued requests.  Returns False on failure.'''
         make_dict = lambda (m, p, i): {'method': m, 'params': p, 'id': i}
-        wire_requests = map(make_dict, self.unsent_requests)
+        n = self.num_requests()
+        wire_requests = self.unsent_requests[0:n]
         try:
-            self.pipe.send_all(wire_requests)
+            self.pipe.send_all(map(make_dict, wire_requests))
         except socket.error, e:
             self.print_error("socket error:", e)
             return False
-        for request in self.unsent_requests:
+        self.unsent_requests = self.unsent_requests[n:]
+        for request in wire_requests:
             if self.debug:
                 self.print_error("-->", request)
             self.unanswered_requests[request[2]] = request
-        self.unsent_requests = []
         return True
 
     def ping_required(self):
@@ -306,10 +313,11 @@ class Interface(util.PrintError):
                 response = self.pipe.get()
             except util.timeout:
                 break
-            if response is None:
+            if not type(response) is dict:
                 responses.append((None, None))
-                self.closed_remotely = True
-                self.print_error("connection closed remotely")
+                if response is None:
+                    self.closed_remotely = True
+                    self.print_error("connection closed remotely")
                 break
             if self.debug:
                 self.print_error("<--", response)

@@ -5,7 +5,6 @@ import json
 import sys
 import traceback
 
-import aes
 import base64
 
 import electrum_dash
@@ -19,7 +18,7 @@ class LabelsPlugin(BasePlugin):
 
     def __init__(self, parent, config, name):
         BasePlugin.__init__(self, parent, config, name)
-        self.target_host = 'sync.bytesized-hosting.com:9090'
+        self.target_host = 'labels.bauerj.eu'
         self.wallets = {}
 
     def encode(self, wallet, msg):
@@ -31,7 +30,8 @@ class LabelsPlugin(BasePlugin):
     def decode(self, wallet, message):
         password, iv, wallet_id = self.wallets[wallet]
         decoded = base64.b64decode(message)
-        decrypted = electrum_dash.bitcoin.aes_decrypt_with_iv(password, iv, decoded)
+        decrypted = electrum_dash.bitcoin.aes_decrypt_with_iv(password,
+                                                              iv, decoded)
         return decrypted.decode('utf8')
 
     def get_nonce(self, wallet):

@@ -4,15 +4,14 @@ import threading
 from PyQt4.Qt import Qt
 from PyQt4.Qt import QGridLayout, QInputDialog, QPushButton
 from PyQt4.Qt import QVBoxLayout, QLabel, SIGNAL
-from electrum_dash_gui.qt.main_window import StatusBarButton
 from electrum_dash_gui.qt.util import *
 from .plugin import TIM_NEW, TIM_RECOVER, TIM_MNEMONIC
-from ..hw_wallet.qt import QtHandlerBase
+from ..hw_wallet.qt import QtHandlerBase, QtPluginBase
 
 from electrum_dash.i18n import _
 from electrum_dash.plugins import hook, DeviceMgr
 from electrum_dash.util import PrintError, UserCancelled
-from electrum_dash.wallet import Wallet, BIP44_Wallet
+from electrum_dash.wallet import Wallet, Standard_Wallet
 
 PASSPHRASE_HELP_SHORT =_(
     "Passphrases allow you to access new wallets, each "
@@ -131,18 +130,19 @@ class CharacterDialog(WindowModalDialog):
 
 class QtHandler(QtHandlerBase):
 
-    charSig = pyqtSignal(object)
+    char_signal = pyqtSignal(object)
+    pin_signal = pyqtSignal(object)
 
     def __init__(self, win, pin_matrix_widget_class, device):
         super(QtHandler, self).__init__(win, device)
-        win.connect(win, SIGNAL('pin_dialog'), self.pin_dialog)
-        self.charSig.connect(self.update_character_dialog)
+        self.char_signal.connect(self.update_character_dialog)
+        self.pin_signal.connect(self.pin_dialog)
         self.pin_matrix_widget_class = pin_matrix_widget_class
         self.character_dialog = None
 
     def get_char(self, msg):
         self.done.clear()
-        self.charSig.emit(msg)
+        self.char_signal.emit(msg)
         self.done.wait()
         data = self.character_dialog.data
         if not data or 'done' in data:
@@ -152,7 +152,7 @@ class QtHandler(QtHandlerBase):
 
     def get_pin(self, msg):
         self.done.clear()
-        self.win.emit(SIGNAL('pin_dialog'), msg)
+        self.pin_signal.emit(msg)
         self.done.wait()
         return self.response
 
@@ -176,12 +176,34 @@ class QtHandler(QtHandlerBase):
         self.character_dialog.get_char(msg.word_pos, msg.character_pos)
         self.done.set()
 
-    def request_trezor_init_settings(self, method, device):
-        wizard = self.win
 
+
+class QtPlugin(QtPluginBase):
+    # Derived classes must provide the following class-static variables:
+    #   icon_file
+    #   pin_matrix_widget_class
+
+    def create_handler(self, window):
+        return QtHandler(window, self.pin_matrix_widget_class(), self.device)
+
+    @hook
+    def receive_menu(self, menu, addrs, wallet):
+        if type(wallet) is not Standard_Wallet:
+            return
+        keystore = wallet.get_keystore()
+        if type(keystore) == self.keystore_class and len(addrs) == 1:
+            def show_address():
+                keystore.thread.add(partial(self.show_address, wallet, addrs[0]))
+            menu.addAction(_("Show on %s") % self.device, show_address)
+
+    def show_settings_dialog(self, window, keystore):
+        device_id = self.choose_device(window, keystore)
+        if device_id:
+            SettingsDialog(window, self, keystore, device_id).exec_()
+
+    def request_trezor_init_settings(self, wizard, method, device):
         vbox = QVBoxLayout()
-        next_enabled=True
-
+        next_enabled = True
         label = QLabel(_("Enter a label to name your device:"))
         name = QLineEdit()
         hl = QHBoxLayout()
@@ -220,7 +242,8 @@ class QtHandler(QtHandlerBase):
             else:
                 msg = _("Enter the master private key beginning with xprv:")
                 def set_enabled():
-                    wizard.next_button.setEnabled(Wallet.is_xprv(clean_text(text)))
+                    from electrum_dash.keystore import is_xprv
+                    wizard.next_button.setEnabled(is_xprv(clean_text(text)))
                 text.textChanged.connect(set_enabled)
                 next_enabled = False
 
@@ -249,7 +272,7 @@ class QtHandler(QtHandlerBase):
         vbox.addWidget(passphrase_warning)
         vbox.addWidget(cb_phrase)
 
-        wizard.set_main_layout(vbox, next_enabled=next_enabled)
+        wizard.exec_layout(vbox, next_enabled=next_enabled)
 
         if method in [TIM_NEW, TIM_RECOVER]:
             item = bg.checkedId()
@@ -261,76 +284,6 @@ class QtHandler(QtHandlerBase):
         return (item, unicode(name.text()), pin, cb_phrase.isChecked())
 
 
-def qt_plugin_class(base_plugin_class):
-
-  class QtPlugin(base_plugin_class):
-    # Derived classes must provide the following class-static variables:
-    #   icon_file
-    #   pin_matrix_widget_class
-
-    def create_handler(self, window):
-        return QtHandler(window, self.pin_matrix_widget_class(), self.device)
-
-    @hook
-    def load_wallet(self, wallet, window):
-        if type(wallet) != self.wallet_class:
-            return
-        window.tzb = StatusBarButton(QIcon(self.icon_file), self.device,
-                                     partial(self.settings_dialog, window))
-        window.statusBar().addPermanentWidget(window.tzb)
-        wallet.handler = self.create_handler(window)
-        # Trigger a pairing
-        wallet.thread.add(partial(self.get_client, wallet))
-
-    def on_create_wallet(self, wallet, wizard):
-        assert type(wallet) == self.wallet_class
-        wallet.handler = self.create_handler(wizard)
-        wallet.thread = TaskThread(wizard, wizard.on_error)
-        # Setup device and create accounts in separate thread; wait until done
-        loop = QEventLoop()
-        exc_info = []
-        self.setup_device(wallet, on_done=loop.quit,
-                          on_error=lambda info: exc_info.extend(info))
-        loop.exec_()
-        # If an exception was thrown, show to user and exit install wizard
-        if exc_info:
-            wizard.on_error(exc_info)
-            raise UserCancelled
-
-    @hook
-    def receive_menu(self, menu, addrs, wallet):
-        if type(wallet) == self.wallet_class and len(addrs) == 1:
-            def show_address():
-                wallet.thread.add(partial(self.show_address, wallet, addrs[0]))
-            menu.addAction(_("Show on %s") % self.device, show_address)
-
-    def settings_dialog(self, window):
-        device_id = self.choose_device(window)
-        if device_id:
-            SettingsDialog(window, self, device_id).exec_()
-
-    def choose_device(self, window):
-        '''This dialog box should be usable even if the user has
-        forgotten their PIN or it is in bootloader mode.'''
-        device_id = self.device_manager().wallet_id(window.wallet)
-        if not device_id:
-            info = self.device_manager().select_device(window.wallet, self)
-            device_id = info.device.id_
-        return device_id
-
-    def query_choice(self, window, msg, choices):
-        dialog = WindowModalDialog(window)
-        clayout = ChoicesLayout(msg, choices)
-        layout = clayout.layout()
-        layout.addStretch(1)
-        layout.addLayout(Buttons(CancelButton(dialog), OkButton(dialog)))
-        dialog.setLayout(layout)
-        if not dialog.exec_():
-            return None
-        return clayout.selected_index()
-
-
-  return QtPlugin
 
 
 class SettingsDialog(WindowModalDialog):
@@ -338,24 +291,22 @@ class SettingsDialog(WindowModalDialog):
     We want users to be able to wipe a device even if they've forgotten
     their PIN.'''
 
-    def __init__(self, window, plugin, device_id):
+    def __init__(self, window, plugin, keystore, device_id):
         title = _("%s Settings") % plugin.device
         super(SettingsDialog, self).__init__(window, title)
         self.setMaximumWidth(540)
 
         devmgr = plugin.device_manager()
         config = devmgr.config
-        handler = window.wallet.handler
-        thread = window.wallet.thread
-        # wallet can be None, needn't be window.wallet
-        wallet = devmgr.wallet_by_id(device_id)
+        handler = keystore.handler
+        thread = keystore.thread
         hs_rows, hs_cols = (64, 128)
 
         def invoke_client(method, *args, **kw_args):
             unpair_after = kw_args.pop('unpair_after', False)
 
             def task():
-                client = devmgr.client_by_id(device_id, handler)
+                client = devmgr.client_by_id(device_id)
                 if not client:
                     raise RuntimeError("Device not connected")
                 if method:
@@ -451,6 +402,7 @@ class SettingsDialog(WindowModalDialog):
             invoke_client('set_pin', remove=True)
 
         def wipe_device():
+            wallet = window.wallet
             if wallet and sum(wallet.get_balance()):
                 title = _("Confirm Device Wipe")
                 msg = _("Are you SURE you want to wipe the device?\n"

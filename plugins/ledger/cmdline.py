@@ -1,4 +1,4 @@
-from legder import LedgerPlugin
+from ledger import LedgerPlugin
 from electrum_dash.util import print_msg
 
 class BTChipCmdLineHandler:

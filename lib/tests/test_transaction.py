@@ -3,10 +3,11 @@ from lib import transaction
 from lib.bitcoin import TYPE_ADDRESS
 
 import pprint
+from lib.keystore import xpubkey_to_address
 
 unsigned_blob = '01000000012a5c9a94fcde98f5581cd00162c60a13936ceb75389ea65bf38633b424eb4031000000005701ff4c53ff0488b21e03ef2afea18000000089689bff23e1e7fb2f161daa37270a97a3d8c2e537584b2d304ecb47b86d21fc021b010d3bd425f8cf2e04824bfdf1f1f5ff1d51fadd9a41f9e3fb8dd3403b1bfe00000000ffffffff0140420f00000000001976a914230ac37834073a42146f11ef8414ae929feaafc388ac00000000'
 signed_blob = '01000000012a5c9a94fcde98f5581cd00162c60a13936ceb75389ea65bf38633b424eb4031000000006c493046022100a82bbc57a0136751e5433f41cf000b3f1a99c6744775e76ec764fb78c54ee100022100f9e80b7de89de861dc6fb0c1429d5da72c2b6b2ee2406bc9bfb1beedd729d985012102e61d176da16edd1d258a200ad9759ef63adf8e14cd97f53227bae35cdb84d2f6ffffffff0140420f00000000001976a914230ac37834073a42146f11ef8414ae929feaafc388ac00000000'
-
+v2_blob = "0200000001191601a44a81e061502b7bfbc6eaa1cef6d1e6af5308ef96c9342f71dbf4b9b5000000006b483045022100a6d44d0a651790a477e75334adfb8aae94d6612d01187b2c02526e340a7fd6c8022028bdf7a64a54906b13b145cd5dab21a26bd4b85d6044e9b97bceab5be44c2a9201210253e8e0254b0c95776786e40984c1aa32a7d03efa6bdacdea5f421b774917d346feffffff026b20fa04000000001976a914024db2e87dd7cfd0e5f266c5f212e21a31d805a588aca0860100000000001976a91421919b94ae5cefcdf0271191459157cdb41c4cbf88aca6240700"
 
 class TestBCDataStream(unittest.TestCase):
 
@@ -54,8 +55,8 @@ class TestTransaction(unittest.TestCase):
     def test_tx_unsigned(self):
         expected = {
             'inputs': [{
+                'type': 'p2pkh',
                 'address': 'XdjwdihsyoLpoCHFUpd8x3iH1rsMsS2q5P',
-                'is_coinbase': False,
                 'num_sig': 1,
                 'prevout_hash': '3140eb24b43386f35ba69e3875eb6c93130ac66201d01c58f598defc949a5c2a',
                 'prevout_n': 0,
@@ -77,7 +78,7 @@ class TestTransaction(unittest.TestCase):
         self.assertEquals(tx.deserialize(), expected)
         self.assertEquals(tx.deserialize(), None)
 
-        self.assertEquals(tx.as_dict(), {'hex': unsigned_blob, 'complete': False})
+        self.assertEquals(tx.as_dict(), {'hex': unsigned_blob, 'complete': False, 'final': True})
         self.assertEquals(tx.get_outputs(), [('Xdt8NqE5wSX9ytfP958t4tKdXoZDo6Bm6T', 1000000)])
         self.assertEquals(tx.get_output_addresses(), ['Xdt8NqE5wSX9ytfP958t4tKdXoZDo6Bm6T'])
 
@@ -85,7 +86,6 @@ class TestTransaction(unittest.TestCase):
         self.assertTrue(tx.has_address('XdjwdihsyoLpoCHFUpd8x3iH1rsMsS2q5P'))
         self.assertFalse(tx.has_address('Xn6ZqLcuKpYoSkiXKmLMWKtoF2sNExHwjT'))
 
-        self.assertEquals(tx.inputs_to_sign(), set(x_pubkey for i in expected['inputs'] for x_pubkey in i['x_pubkeys']))
         self.assertEquals(tx.serialize(), unsigned_blob)
 
         tx.update_signatures(signed_blob)
@@ -99,15 +99,15 @@ class TestTransaction(unittest.TestCase):
     def test_tx_signed(self):
         expected = {
             'inputs': [{
+                'type': 'p2pkh',
                 'address': 'XdjwdihsyoLpoCHFUpd8x3iH1rsMsS2q5P',
-                'is_coinbase': False,
                 'num_sig': 1,
                 'prevout_hash': '3140eb24b43386f35ba69e3875eb6c93130ac66201d01c58f598defc949a5c2a',
                 'prevout_n': 0,
                 'pubkeys': ['02e61d176da16edd1d258a200ad9759ef63adf8e14cd97f53227bae35cdb84d2f6'],
                 'scriptSig': '493046022100a82bbc57a0136751e5433f41cf000b3f1a99c6744775e76ec764fb78c54ee100022100f9e80b7de89de861dc6fb0c1429d5da72c2b6b2ee2406bc9bfb1beedd729d985012102e61d176da16edd1d258a200ad9759ef63adf8e14cd97f53227bae35cdb84d2f6',
                 'sequence': 4294967295,
-                'signatures': ['3046022100a82bbc57a0136751e5433f41cf000b3f1a99c6744775e76ec764fb78c54ee100022100f9e80b7de89de861dc6fb0c1429d5da72c2b6b2ee2406bc9bfb1beedd729d985'],
+                'signatures': ['3046022100a82bbc57a0136751e5433f41cf000b3f1a99c6744775e76ec764fb78c54ee100022100f9e80b7de89de861dc6fb0c1429d5da72c2b6b2ee2406bc9bfb1beedd729d98501'],
                 'x_pubkeys': ['02e61d176da16edd1d258a200ad9759ef63adf8e14cd97f53227bae35cdb84d2f6']}],
             'lockTime': 0,
             'outputs': [{
@@ -121,9 +121,8 @@ class TestTransaction(unittest.TestCase):
         tx = transaction.Transaction(signed_blob)
         self.assertEquals(tx.deserialize(), expected)
         self.assertEquals(tx.deserialize(), None)
-        self.assertEquals(tx.as_dict(), {'hex': signed_blob, 'complete': True})
+        self.assertEquals(tx.as_dict(), {'hex': signed_blob, 'complete': True, 'final': True})
 
-        self.assertEquals(tx.inputs_to_sign(), set())
         self.assertEquals(tx.serialize(), signed_blob)
 
         tx.update_signatures(signed_blob)
@@ -133,14 +132,18 @@ class TestTransaction(unittest.TestCase):
             transaction.Transaction.pay_script(output_type=None, addr='')
 
         with self.assertRaises(BaseException):
-            transaction.parse_xpub('')
+            xpubkey_to_address('')
 
     def test_parse_xpub(self):
-        res = transaction.parse_xpub('fe4e13b0f311a55b8a5db9a32e959da9f011b131019d4cebe6141b9e2c93edcbfc0954c358b062a9f94111548e50bde5847a3096b8b7872dcffadb0e9579b9017b01000200')
+        res = xpubkey_to_address('fe4e13b0f311a55b8a5db9a32e959da9f011b131019d4cebe6141b9e2c93edcbfc0954c358b062a9f94111548e50bde5847a3096b8b7872dcffadb0e9579b9017b01000200')
         self.assertEquals(res, ('04ee98d63800824486a1cf5b4376f2f574d86e0a3009a6448105703453f3368e8e1d8d090aaecdd626a45cc49876709a3bbb6dc96a4311b3cac03e225df5f63dfc', 'XjNytJHxbRZCF4s7MzaKvw4Rrf6bPRuPnW'))
 
-        res = transaction.parse_xpub('fd4c7d260305ef27224bbcf6cf5238d2b3638b5a78d5')
-        self.assertEquals(res, (None, 'Xn6ZqLcuKpYoSkiXKmLMWKtoF2sNExHwjT'))
+        res = xpubkey_to_address('fd4c7d260305ef27224bbcf6cf5238d2b3638b5a78d5')
+        self.assertEquals(res, ('fd4c7d260305ef27224bbcf6cf5238d2b3638b5a78d5', 'Xn6ZqLcuKpYoSkiXKmLMWKtoF2sNExHwjT'))
+
+    def test_version_field(self):
+        tx = transaction.Transaction(v2_blob)
+        self.assertEquals(tx.txid(), "b97f9180173ab141b61b9f944d841e60feec691d6daab4d4d932b24dd36606fe")
 
 
 class NetworkMock(object):

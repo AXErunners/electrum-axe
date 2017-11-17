@@ -1,4 +1,5 @@
 PYTHON = python
+
 # needs kivy installed or in PYTHONPATH
 
 .PHONY: theming apk clean

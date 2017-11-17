@@ -17,7 +17,7 @@ from android import activity
 
 BUILDVERSION = autoclass('android.os.Build$VERSION').SDK_INT
 NfcAdapter = autoclass('android.nfc.NfcAdapter')
-PythonActivity = autoclass('org.renpy.android.PythonActivity')
+PythonActivity = autoclass('org.kivy.android.PythonActivity')
 JString = autoclass('java.lang.String')
 Charset = autoclass('java.nio.charset.Charset')
 locale = autoclass('java.util.Locale')
@@ -165,20 +165,21 @@ class ScannerAndroid(NFCBase):
     def create_AAR(self):
         '''Create the record responsible for linking our application to the tag.
         '''
-        return NdefRecord.createApplicationRecord(JString("org.electrum.kivy"))
+        return NdefRecord.createApplicationRecord(
+            JString("org.electrum_dash.electrum_dash_develop.kivy"))
 
     def create_TNF_EXTERNAL(self, data):
         '''Create our actual payload record.
         '''
         if BUILDVERSION >= 14:
-            domain = "org.electrum"
+            domain = "org.electrum_dash.electrum_dash_develop"
             stype = "externalType"
             extRecord = NdefRecord.createExternal(domain, stype, data)
         else:
             # Creating the NdefRecord manually:
             extRecord = NdefRecord(
                 NdefRecord.TNF_EXTERNAL_TYPE,
-                "org.electrum:externalType",
+                "org.electrum_dash_electrum_dash.electrum_dash_develop:externalType",
                 '',
                 data)
         return extRecord
@@ -213,7 +214,7 @@ class ScannerAndroid(NFCBase):
         # Create record
         ndef_record = NdefRecord(
                 NdefRecord.TNF_MIME_MEDIA,
-                'org.electrum.kivy', '', data)
+                'org.electrum_dash.electrum_dash_develop.kivy', '', data)
         
         # Create message
         ndef_message = NdefMessage([ndef_record])

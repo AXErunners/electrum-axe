@@ -39,20 +39,20 @@ import PyQt4.QtCore as QtCore
 from electrum_dash.i18n import _, set_language
 from electrum_dash.plugins import run_hook
 from electrum_dash import SimpleConfig, Wallet, WalletStorage
-from electrum_dash.paymentrequest import InvoiceStore
-from electrum_dash.contacts import Contacts
 from electrum_dash.synchronizer import Synchronizer
 from electrum_dash.verifier import SPV
-from electrum_dash.util import DebugMem
+from electrum_dash.util import DebugMem, UserCancelled, InvalidPassword
 from electrum_dash.wallet import Abstract_Wallet
-from installwizard import InstallWizard
+from installwizard import InstallWizard, GoBack
 from dash_style import dash_stylesheet
 
 
 try:
     import icons_rc
 except Exception:
-    sys.exit("Error: Could not import icons_rc.py, please generate it with: 'pyrcc4 icons.qrc -o gui/qt/icons_rc.py'")
+    print "Error: Could not find icons file."
+    print "Please run 'pyrcc4 icons.qrc -o gui/qt/icons_rc.py', and reinstall Electrum-DASH"
+    sys.exit(1)
 
 from util import *   # * needed for plugins
 from main_window import ElectrumWindow
@@ -89,9 +89,7 @@ class ElectrumGui:
         self.app.installEventFilter(self.efilter)
         self.app.setStyleSheet(dash_stylesheet)
         self.timer = Timer()
-        # shared objects
-        self.invoices = InvoiceStore(self.config)
-        self.contacts = Contacts(self.config)
+        self.nd = None
         # init tray
         self.dark_icon = self.config.get("dark_icon", False)
         self.tray = QSystemTrayIcon(self.tray_icon(), None)
@@ -143,6 +141,19 @@ class ElectrumGui:
         # Use a signal as can be called from daemon thread
         self.app.emit(SIGNAL('new_window'), path, uri)
 
+    def show_network_dialog(self, parent):
+        from network_dialog import NetworkDialog
+        if not self.daemon.network:
+            parent.show_warning(_('You are using Electrum in offline mode; restart Electrum if you want to get connected'), title=_('Offline'))
+            return
+        if self.nd:
+            self.nd.on_update()
+            self.nd.show()
+            self.nd.raise_()
+            return
+        self.nd = NetworkDialog(self.daemon.network, self.config)
+        self.nd.show()
+
     def create_window_for_wallet(self, wallet):
         w = ElectrumWindow(self, wallet)
         self.windows.append(w)
@@ -150,9 +161,6 @@ class ElectrumGui:
         # FIXME: Remove in favour of the load_wallet hook
         run_hook('on_new_window', w)
         return w
-
-    def get_wizard(self):
-        return InstallWizard(self.config, self.app, self.plugins)
 
     def start_new_window(self, path, uri):
         '''Raises the window for the wallet if it is open.  Otherwise
@@ -162,14 +170,19 @@ class ElectrumGui:
                 w.bring_to_top()
                 break
         else:
-            wallet = self.daemon.load_wallet(path, self.get_wizard)
+            wallet = self.daemon.load_wallet(path, None)
             if not wallet:
-                return
+                storage = WalletStorage(path)
+                wizard = InstallWizard(self.config, self.app, self.plugins, storage)
+                wallet = wizard.run_and_get_wallet()
+                wizard.terminate()
+                if not wallet:
+                    return
+                wallet.start_threads(self.daemon.network)
+                self.daemon.add_wallet(wallet)
             w = self.create_window_for_wallet(wallet)
-
         if uri:
             w.pay_to_URI(uri)
-
         return w
 
     def close_window(self, window):
@@ -180,23 +193,35 @@ class ElectrumGui:
             self.config.save_last_wallet(window.wallet)
         run_hook('on_close_window', window)
 
+    def init_network(self):
+        # Show network dialog if config does not exist
+        if self.daemon.network:
+            if self.config.get('auto_connect') is None:
+                wizard = InstallWizard(self.config, self.app, self.plugins, None)
+                wizard.init_network(self.daemon.network)
+                wizard.terminate()
+
     def main(self):
+        try:
+            self.init_network()
+        except UserCancelled:
+            return
+        except GoBack:
+            return
+        except:
+            traceback.print_exc(file=sys.stdout)
+            return
         self.timer.start()
         self.config.open_last_wallet()
-        if not self.start_new_window(self.config.get_wallet_path(),
-                                     self.config.get('url')):
+        path = self.config.get_wallet_path()
+        if not self.start_new_window(path, self.config.get('url')):
             return
-
         signal.signal(signal.SIGINT, lambda *args: self.app.quit())
-
         # main loop
         self.app.exec_()
-
         # Shut down the timer cleanly
         self.timer.stop()
-
         # clipboard persistence. see http://www.mail-archive.com/pyqt@riverbankcomputing.com/msg17328.html
         event = QtCore.QEvent(QtCore.QEvent.Clipboard)
         self.app.sendEvent(self.app.clipboard(), event)
-
         self.tray.hide()

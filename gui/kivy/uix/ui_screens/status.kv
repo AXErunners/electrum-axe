@@ -1,7 +1,5 @@
-#:import os os
-
 Popup:
-    title: "Electrum"
+    title: "Electrum-DASH"
     confirmed: 0
     unconfirmed: 0
     unmatured: 0
@@ -26,7 +24,7 @@ Popup:
                     spacing: '10dp'
                     BoxLabel:
                         text: _('Wallet Name')
-                        value: os.path.basename(app.wallet.storage.path)
+                        value: app.wallet_name()
                     BoxLabel:
                         text: _("Wallet type:")
                         value: app.wallet.wallet_type
@@ -51,7 +49,7 @@ Popup:
                 TopLabel:
                     text: _('Master Public Key')
                 RefLabel:
-                    data: app.wallet.get_master_public_key()
+                    data: app.wallet.get_master_public_key() or 'None'
                     name: _('Master Public Key')
                 TopLabel:
                     id: seed_label
@@ -70,5 +68,7 @@ Popup:
             Button:
                 size_hint: 0.5, None
                 height: '48dp'
-                text: _('Close')
-                on_release: root.dismiss()
+                text: _('Delete')
+                on_release:
+                    root.dismiss()
+                    app.delete_wallet()

@@ -30,7 +30,8 @@ from PyQt4.QtGui import *
 from PyQt4.QtCore import *
 
 from util import *
-from history_widget import HistoryWidget
+from history_list import HistoryList
+from qrtextedit import ShowQRTextEdit
 
 class AddressDialog(WindowModalDialog):
 
@@ -54,12 +55,32 @@ class AddressDialog(WindowModalDialog):
         self.addr_e.setReadOnly(True)
         vbox.addWidget(self.addr_e)
 
+        try:
+            pubkeys = self.wallet.get_public_keys(address)
+        except BaseException as e:
+            pubkeys = None
+        if pubkeys:
+            vbox.addWidget(QLabel(_("Public keys") + ':'))
+            for pubkey in pubkeys:
+                pubkey_e = ButtonsLineEdit(pubkey)
+                pubkey_e.addCopyButton(self.app)
+                vbox.addWidget(pubkey_e)
+
+        try:
+            redeem_script = self.wallet.pubkeys_to_redeem_script(pubkeys)
+        except BaseException as e:
+            redeem_script = None
+        if redeem_script:
+            vbox.addWidget(QLabel(_("Redeem Script") + ':'))
+            redeem_e = ShowQRTextEdit(text=redeem_script)
+            redeem_e.addCopyButton(self.app)
+            vbox.addWidget(redeem_e)
+
         vbox.addWidget(QLabel(_("History")))
-        self.hw = HistoryWidget(self.parent)
+        self.hw = HistoryList(self.parent)
         self.hw.get_domain = self.get_domain
         vbox.addWidget(self.hw)
 
-        vbox.addStretch(1)
         vbox.addLayout(Buttons(CloseButton(self)))
         self.format_amount = self.parent.format_amount
         self.hw.update()

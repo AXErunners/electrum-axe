@@ -35,16 +35,19 @@ import urllib
 import threading
 from i18n import _
 
-base_units = {'BTC':8, 'mBTC':5, 'uBTC':2}
+base_units = {'DASH':8, 'mDASH':5, 'uDASH':2}
+fee_levels = [_('Within 25 blocks'), _('Within 10 blocks'), _('Within 5 blocks'), _('Within 2 blocks'), _('In the next block')]
 
 def normalize_version(v):
     return [int(x) for x in re.sub(r'(\.0+)*$','', v).split(".")]
+
 
 # Raised when importing a key that's already in the wallet.
 class AlreadyHaveAddress(Exception):
     def __init__(self, msg, addr):
         super(AlreadyHaveAddress, self).__init__(msg)
         self.addr = addr
+
 
 class NotEnoughFunds(Exception): pass
 
@@ -154,6 +157,12 @@ class DaemonThread(threading.Thread, PrintError):
         with self.running_lock:
             self.running = False
 
+    def on_stop(self):
+        if 'ANDROID_DATA' in os.environ:
+            import jnius
+            jnius.detach()
+            self.print_error("jnius detach")
+        self.print_error("stopped")
 
 
 is_verbose = False
@@ -186,7 +195,7 @@ def json_encode(obj):
 
 def json_decode(x):
     try:
-        return json.loads(x, parse_float=decimal.Decimal)
+        return json.loads(x, parse_float=Decimal)
     except:
         return x
 
@@ -201,12 +210,14 @@ def profiler(func):
         return o
     return lambda *args, **kw_args: do_profile(func, args, kw_args)
 
+
 def headers_file_name():
     from bitcoin import TESTNET
     s = 'blockchain_headers'
     if TESTNET:
         s += '_testnet'
     return s
+
 
 def android_ext_dir():
     import jnius
@@ -215,15 +226,14 @@ def android_ext_dir():
 
 def android_data_dir():
     import jnius
-    PythonActivity = jnius.autoclass('org.renpy.android.PythonActivity')
+    PythonActivity = jnius.autoclass('org.kivy.android.PythonActivity')
     return PythonActivity.mActivity.getFilesDir().getPath() + '/data'
 
-def android_headers_path():
-    path = android_ext_dir() + '/org.electrum_dash.electrum_dash/' + headers_file_name()
-    d = os.path.dirname(path)
+def android_headers_dir():
+    d = android_ext_dir() + '/org.electrum_dash.electrum_dash'
     if not os.path.exists(d):
         os.mkdir(d)
-    return path
+    return d
 
 def android_check_data_dir():
     """ if needed, move old directory to sandbox """
@@ -232,8 +242,8 @@ def android_check_data_dir():
     old_electrum_dir = ext_dir + '/electrum-dash'
     if not os.path.exists(data_dir) and os.path.exists(old_electrum_dir):
         import shutil
-        new_headers_path = android_headers_path()
-        old_headers_path = old_electrum_dir + '/' + headers_file_name()
+        new_headers_path = android_headers_dir() + headers_file_name()
+        old_headers_path = old_electrum_dir + headers_file_name()
         if not os.path.exists(new_headers_path) and os.path.exists(old_headers_path):
             print_error("Moving headers file to", new_headers_path)
             shutil.move(old_headers_path, new_headers_path)
@@ -241,21 +251,18 @@ def android_check_data_dir():
         shutil.move(old_electrum_dir, data_dir)
     return data_dir
 
-def get_headers_path(config):
-    if 'ANDROID_DATA' in os.environ:
-        return android_headers_path()
-    else:
-        return os.path.join(config.path, headers_file_name())
+def get_headers_dir(config):
+    return android_headers_dir() if 'ANDROID_DATA' in os.environ else config.path
 
 def user_dir():
-    if "HOME" in os.environ:
+    if 'ANDROID_DATA' in os.environ:
+        return android_check_data_dir()
+    elif os.name == 'posix':
         return os.path.join(os.environ["HOME"], ".electrum-dash")
     elif "APPDATA" in os.environ:
         return os.path.join(os.environ["APPDATA"], "Electrum-DASH")
     elif "LOCALAPPDATA" in os.environ:
         return os.path.join(os.environ["LOCALAPPDATA"], "Electrum-DASH")
-    elif 'ANDROID_DATA' in os.environ:
-        return android_check_data_dir()
     else:
         #raise Exception("No home directory found in environment variables.")
         return
@@ -352,18 +359,31 @@ def time_difference(distance_in_time, include_seconds):
     else:
         return "over %d years" % (round(distance_in_minutes / 525600))
 
-block_explorer_info = {
-    'Dash.org': ('http://explorer.dash.org',
-                        {'tx': 'tx', 'addr': 'address'}),
-    'Bchain.info': ('https://bchain.info/DASH',
-                        {'tx': 'tx', 'addr': 'addr'}),
+
+mainnet_block_explorers = {
+    'Dash.org': ('https://explorer.dash.org', {
+        'tx': 'tx', 'addr': 'address'
+    }),
+    'Bchain.info': ('https://bchain.info/DASH', {
+        'tx': 'tx', 'addr': 'addr'
+    }),
 }
+
+testnet_block_explorers = {
+    'Dash.org': ('https://test.explorer.dash.org', {
+        'tx': 'tx', 'addr': 'address'
+    }),
+}
+
+def block_explorer_info():
+    import bitcoin
+    return testnet_block_explorers if bitcoin.TESTNET else mainnet_block_explorers
 
 def block_explorer(config):
     return config.get('block_explorer', 'Dash.org')
 
 def block_explorer_tuple(config):
-    return block_explorer_info.get(block_explorer(config))
+    return block_explorer_info().get(block_explorer(config))
 
 def block_explorer_URL(config, kind, item):
     be_tuple = block_explorer_tuple(config)
@@ -458,7 +478,8 @@ def create_URI(addr, amount, message):
         if type(message) == unicode:
             message = message.encode('utf8')
         query.append('message=%s'%urllib.quote(message))
-    p = urlparse.ParseResult(scheme='dash', netloc='', path=addr, params='', query='&'.join(query), fragment='')
+    p = urlparse.ParseResult(scheme='dash', netloc='', path=addr, params='',
+                             query='&'.join(query), fragment='')
     return urlparse.urlunparse(p)
 
 
@@ -484,6 +505,7 @@ def parse_json(message):
         j = None
     return j, message[n+1:]
 
+
 def utfify(arg):
     """Convert unicode argument to UTF-8.
 
@@ -496,7 +518,6 @@ def utfify(arg):
     elif isinstance(arg, unicode):
         return arg.encode('utf-8')
     return arg
-
 
 
 class timeout(Exception):
@@ -533,7 +554,7 @@ class SocketPipe:
                 raise timeout
             except ssl.SSLError:
                 raise timeout
-            except socket.error, err:
+            except socket.error as err:
                 if err.errno == 60:
                     raise timeout
                 elif err.errno in [11, 35, 10035]:
@@ -618,37 +639,6 @@ class QueuePipe:
     def send_all(self, requests):
         for request in requests:
             self.send(request)
-
-
-
-class StoreDict(dict):
-
-    def __init__(self, config, name):
-        self.config = config
-        self.path = os.path.join(self.config.path, name)
-        self.load()
-
-    def load(self):
-        try:
-            with open(self.path, 'r') as f:
-                self.update(json.loads(f.read()))
-        except:
-            pass
-
-    def save(self):
-        with open(self.path, 'w') as f:
-            s = json.dumps(self, indent=4, sort_keys=True)
-            r = f.write(s)
-
-    def __setitem__(self, key, value):
-        dict.__setitem__(self, key, value)
-        self.save()
-
-    def pop(self, key):
-        if key in self.keys():
-            dict.pop(self, key)
-            self.save()
-
 
 
 

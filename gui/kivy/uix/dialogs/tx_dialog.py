@@ -6,7 +6,7 @@ from kivy.clock import Clock
 from kivy.uix.label import Label
 
 from electrum_dash_gui.kivy.i18n import _
-from datetime import datetime
+from datetime_dash import datetime
 from electrum_dash.util import InvalidPassword
 
 Builder.load_string('''
@@ -74,8 +74,8 @@ Builder.load_string('''
                 size_hint: 0.5, None
                 height: '48dp'
                 text: _('Sign') if root.can_sign else _('Broadcast') if root.can_broadcast else ''
-                opacity: 1 if root.can_sign or root.can_broadcast else 0
-                disabled: not( root.can_sign or root.can_broadcast )
+                disabled: not(root.can_sign or root.can_broadcast)
+                opacity: 0 if self.disabled else 1
                 on_release:
                     if root.can_sign: root.do_sign()
                     if root.can_broadcast: root.do_broadcast()
@@ -88,7 +88,7 @@ Builder.load_string('''
                 size_hint: 0.5, None
                 height: '48dp'
                 text: _('Close')
-                on_release: popup.dismiss()
+                on_release: root.dismiss()
 ''')
 
 
@@ -104,38 +104,25 @@ class TxDialog(Factory.Popup):
         self.update()
 
     def update(self):
-        self.can_broadcast = False
-        if self.tx.is_complete():
-            self.tx_hash = self.tx.hash()
-            self.description = self.wallet.get_label(self.tx_hash)
-            if self.tx_hash in self.wallet.transactions.keys():
-                conf, timestamp = self.wallet.get_confirmations(self.tx_hash)
-                self.status_str = _("%d confirmations")%conf if conf else _('Pending')
-                if timestamp:
-                    self.date_str = datetime.fromtimestamp(timestamp).isoformat(' ')[:-3]
-            else:
-                self.can_broadcast = self.app.network is not None
-                self.status_str = _('Signed')
+        format_amount = self.app.format_amount_and_units
+        tx_hash, self.status_str, self.description, self.can_broadcast, amount, fee, height, conf, timestamp, exp_n = self.wallet.get_tx_info(self.tx)
+        self.tx_hash = tx_hash or ''
+        if timestamp:
+            self.date_str = datetime.fromtimestamp(timestamp).isoformat(' ')[:-3]
+        elif exp_n:
+            self.date_str = _('Within %d blocks') % exp_n if exp_n > 0 else _('unknown (low fee)')
         else:
-            s, r = self.tx.signature_count()
-            self.status_str = _("Unsigned") if s == 0 else _('Partially signed') + ' (%d/%d)'%(s,r)
+            self.date_str = ''
 
-        is_relevant, is_mine, v, fee = self.wallet.get_wallet_delta(self.tx)
-        self.is_mine = is_mine
-        if is_relevant:
-            if is_mine:
-                if fee is not None:
-                    self.amount_str = self.app.format_amount_and_units(-v+fee)
-                    self.fee_str = self.app.format_amount_and_units(-fee)
-                else:
-                    self.amount_str = self.app.format_amount_and_units(-v)
-                    self.fee_str = _("unknown")
-            else:
-                self.amount_str = self.app.format_amount_and_units(v)
-                self.fee_str = ''
-        else:
+        if amount is None:
             self.amount_str = _("Transaction unrelated to your wallet")
-            self.fee_str = ''
+        elif amount > 0:
+            self.is_mine = False
+            self.amount_str = format_amount(amount)
+        else:
+            self.is_mine = True
+            self.amount_str = format_amount(-amount)
+        self.fee_str = format_amount(fee) if fee is not None else _('unknown')
         self.can_sign = self.wallet.can_sign(self.tx)
         self.ids.output_list.update(self.tx.outputs())
 

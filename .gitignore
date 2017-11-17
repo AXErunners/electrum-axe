@@ -4,9 +4,9 @@
 build/
 dist/
 *.egg/
-/electrum-dash.py
+/electrum.py
 contrib/pyinstaller/
-Electrum*.egg-info/
+Electrum.egg-info/
 gui/qt/icons_rc.py
 locale/
 .devlocaltmp/
@@ -16,4 +16,12 @@ env/
 .tox/
 .buildozer/
 bin/
+
+# tox files
+.cache/
+.coverage
+
 electrum_data/
+gui/kivy/theming/light-0.png
+gui/kivy/theming/light.atlas
+Electrum_DASH.egg-info/

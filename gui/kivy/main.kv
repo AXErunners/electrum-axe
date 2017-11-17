@@ -1,7 +1,7 @@
 #:import Clock kivy.clock.Clock
 #:import Window kivy.core.window.Window
 #:import Factory kivy.factory.Factory
-#:import _ electrum_gui.kivy.i18n._
+#:import _ electrum_dash_gui.kivy.i18n._
 
 
 ###########################
@@ -17,6 +17,7 @@
 
 <TextInput>
     on_focus: app._focused_widget = root
+    font_size: '18sp'
 
 <Button>
     on_parent: self.MIN_STATE_TIME = 0.1
@@ -225,7 +226,7 @@
     size_hint: 0.5, None
     default_text: ''
     text: self.default_text
-    padding: '5dp', '5db'
+    padding: '5dp', '5dp'
     height: '40dp'
     text_color: self.foreground_color
     disabled_color: 1, 1, 1, 1
@@ -259,7 +260,7 @@
     do_default_tab: False
     Carousel:
         scroll_timeout: 250
-        scroll_distance: '20dp'
+        scroll_distance: '100dp'
         anim_type: 'out_quart'
         min_move: .05
         anim_move_duration: .1
@@ -290,6 +291,34 @@
         Rectangle:
             pos: self.x + sp(2), self.y + sp(2)
             size: self.width - sp(4), self.height - sp(4)
+
+
+<SettingsItem@ButtonBehavior+BoxLayout>
+    orientation: 'vertical'
+    title: ''
+    description: ''
+    size_hint: 1, None
+    height: '60dp'
+    canvas.before:
+        Color:
+            rgba: (0.192, .498, 0.745, 1) if self.state == 'down' else (0.3, 0.3, 0.3, 0)
+        Rectangle:
+            size: self.size
+            pos: self.pos
+    on_release:
+        Clock.schedule_once(self.action)
+    Widget
+    TopLabel:
+        id: title
+        text: self.parent.title
+        bold: True
+        halign: 'left'
+    TopLabel:
+        text: self.parent.description
+        color: 0.8, 0.8, 0.8, 1
+        halign: 'left'
+    Widget
+
 
 
 
@@ -337,9 +366,12 @@
 
 
 <ActionOvrButton@ActionButton>
-    on_release:
-        Clock.schedule_once(lambda dt: self.parent.parent.dismiss() if self.parent else None, 0.05)
+    #on_release:
+        # fixme: the following line was commented out because it does no seem to do what it is intended
+        # Clock.schedule_once(lambda dt: self.parent.parent.dismiss() if self.parent else None, 0.05)
+    on_press:
         Clock.schedule_once(lambda dt: app.popup_dialog(self.name), 0.05)
+        self.state = 'normal'
 
 
 BoxLayout:
@@ -361,6 +393,7 @@ BoxLayout:
                 app_icon_width: '100dp'
                 with_previous: False
                 size_hint_x: None
+                on_release: app.popup_dialog('network')
 
             ActionButton:
                 id: action_status
@@ -370,8 +403,7 @@ BoxLayout:
                 color: 0.7, 0.7, 0.7, 1
                 text: app.status
                 font_size: '22dp'
-                minimum_width: '1dp'
-                disabled: app.wallet is None
+                #minimum_width: '1dp'
                 on_release: app.popup_dialog('status')
 
             ActionOverflow:
@@ -382,6 +414,9 @@ BoxLayout:
                 ActionOvrButton:
                     name: 'wallets'
                     text: _('Wallets')
+                ActionOvrButton:
+                    name: 'network'
+                    text: _('Network')
                 ActionOvrButton:
                     name: 'settings'
                     text: _('Settings')

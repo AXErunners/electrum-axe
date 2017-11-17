@@ -3,7 +3,7 @@ from kivy.factory import Factory
 from kivy.properties import ObjectProperty
 from kivy.lang import Builder
 
-from electrum_dash.bitcoin import RECOMMENDED_FEE
+from electrum_dash.util import fee_levels
 from electrum_dash_gui.kivy.i18n import _
 
 Builder.load_string('''
@@ -22,7 +22,8 @@ Builder.load_string('''
                 text: ''
         Slider:
             id: slider
-            range: 0, 100
+            range: 0, 4
+            step: 1
             on_value: root.on_slider(self.value)
         BoxLayout:
             orientation: 'horizontal'
@@ -32,14 +33,6 @@ Builder.load_string('''
             CheckBox:
                 id: dynfees
                 on_active: root.on_checkbox(self.active)
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint: 1, None
-            Label:
-                id: reco
-                font_size: '6pt'
-                text_size: self.size
-                text: ''
         Widget:
             size_hint: 1, 1
         BoxLayout:
@@ -65,50 +58,53 @@ class FeeDialog(Factory.Popup):
         Factory.Popup.__init__(self)
         self.app = app
         self.config = config
+        self.fee_step = self.config.max_fee_rate() / 10
+        self.fee_rate = self.config.fee_per_kb()
         self.callback = callback
-
-        self.dynfees = self.config.get('dynamic_fees', False)
-        self.fee_factor = self.config.get('fee_factor', 50)
-        self.static_fee = self.config.get('fee_per_kb', RECOMMENDED_FEE)
-
+        self.dynfees = self.config.get('dynamic_fees', True)
         self.ids.dynfees.active = self.dynfees
         self.update_slider()
         self.update_text()
 
-        if self.app.network and self.app.network.fee:
-            self.ids.reco.text = _('Recommended fee for inclusion in the next two blocks') + ': ' + self.app.format_amount_and_units(self.app.network.fee) +'/kb' 
-
     def update_text(self):
-        self.ids.fee_per_kb.text = self.get_fee_text()
+        value = int(self.ids.slider.value)
+        self.ids.fee_per_kb.text = self.get_fee_text(value)
 
     def update_slider(self):
         slider = self.ids.slider
         if self.dynfees:
-            slider.value = self.fee_factor
-            slider.range = (0, 100)
+            slider.range = (0, 4)
+            slider.step = 1
+            slider.value = self.config.get('fee_level', 2)
         else:
-            slider.value = self.static_fee
-            slider.range = (0, 2*RECOMMENDED_FEE)
+            slider.range = (1, 10)
+            slider.step = 1
+            slider.value = min(self.fee_rate / self.fee_step, 10)
 
-    def get_fee_text(self):
+    def get_fee_text(self, value):
         if self.ids.dynfees.active:
-            return 'Recommendation x %d%%'%(self.fee_factor + 50)
+            tooltip = fee_levels[value]
+            if self.config.has_fee_estimates():
+                dynfee = self.config.dynfee(value)
+                tooltip += '\n' + (self.app.format_amount_and_units(dynfee)) + '/kB'
         else:
-            return self.app.format_amount_and_units(self.static_fee) + '/kB'
+            fee_rate = value * self.fee_step
+            tooltip = self.app.format_amount_and_units(fee_rate) + '/kB'
+            if self.config.has_fee_estimates():
+                i = self.config.reverse_dynfee(fee_rate)
+                tooltip += '\n' + (_('low fee') if i < 0 else 'Within %d blocks'%i)
+        return tooltip
 
     def on_ok(self):
+        value = int(self.ids.slider.value)
         self.config.set_key('dynamic_fees', self.dynfees, False)
         if self.dynfees:
-            self.config.set_key('fee_factor', self.fee_factor, True)
+            self.config.set_key('fee_level', value, True)
         else:
-            self.config.set_key('fee_per_kb', self.static_fee, True)
+            self.config.set_key('fee_per_kb', value * self.fee_step, True)
         self.callback()
 
     def on_slider(self, value):
-        if self.dynfees:
-            self.fee_factor = int(value)
-        else:
-            self.static_fee = int(value)
         self.update_text()
 
     def on_checkbox(self, b):
