@@ -16,7 +16,7 @@
 
   ;Name and file
   Name "${PRODUCT_NAME}"
-  OutFile "dist/electrum-setup.exe"
+  OutFile "dist/electrum-dash-${PRODUCT_VERSION}-setup.exe"
 
   ;Default installation folder
   InstallDir "$PROGRAMFILES\${PRODUCT_NAME}"
@@ -110,7 +110,7 @@ Section
   Delete "$SMPROGRAMS\${PRODUCT_NAME}\*.*"
 
   ;Files to pack into the installer
-  File /r "dist\electrum\*.*"
+  File /r "dist\electrum-dash\*.*"
   File "icons\electrum-dash.ico"
 
   ;Store installation folder
@@ -134,7 +134,7 @@ Section
   WriteRegStr HKCU "Software\Classes\dash" "" "URL:dash Protocol"
   WriteRegStr HKCU "Software\Classes\dash" "URL Protocol" ""
   WriteRegStr HKCU "Software\Classes\dash" "DefaultIcon" "$\"$INSTDIR\electrum-dash.ico, 0$\""
-  WriteRegStr HKCU "Software\Classes\bitcoin\shell\open\command" "" "$\"$INSTDIR\electrum-dash-${PRODUCT_VERSION}.exe$\" $\"%1$\""
+  WriteRegStr HKCU "Software\Classes\dash\shell\open\command" "" "$\"$INSTDIR\electrum-dash-${PRODUCT_VERSION}.exe$\" $\"%1$\""
 
   ;Adds an uninstaller possibilty to Windows Uninstall or change a program section
   WriteRegStr HKCU "${PRODUCT_UNINST_KEY}" "DisplayName" "$(^Name)"

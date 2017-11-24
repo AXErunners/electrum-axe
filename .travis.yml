@@ -1,15 +1,46 @@
-sudo: false
-language: python
-python:
-    - "2.7"
-addons:
-  apt:
-    packages:
-    - libusb-1.0-0-dev
-    - libudev-dev
+matrix:
+  include:
+    - if: tag =~ .+
+      os: osx
+    - os: linux
+      language: python
+      python: 2.7
+      sudo: required
+      services:
+        - docker
+      addons:
+        apt:
+          packages:
+          - libusb-1.0-0-dev
+          - libudev-dev
+before_install:
+    - source contrib/travis/electrum_dash_version_env.sh
+    - echo electrum-dash version is $ELECTRUM_DASH_VERSION
+    - mkdir -p build && cp contrib/travis/* ./build/ && if [[ $TRAVIS_OS_NAME == 'osx' ]]; then ./build/before_install-osx.sh ; else ./build/before_install-linux.sh ; fi
 install:
-    - pip install tox
+    - if [[ -z $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]]; then pip install tox; fi
 script:
-    - tox
+    - if [[ -z $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]]; then tox; fi
+    - if [[ $TRAVIS_OS_NAME == 'osx' ]]; then ./build/travis-build-osx.sh ; else ./build/travis-build-linux.sh; fi
 after_success:
-    - if [ "$TRAVIS_BRANCH" = "master" ]; then pip install pycurl requests && contrib/make_locale; fi
+    - if [ "$TRAVIS_BRANCH" = "master" ] && [[ -z $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]]; then pip install pycurl requests && contrib/make_locale; fi
+deploy:
+  - provider: releases
+    api_key:
+      secure: iPOHd0JAy7xD4kAcNOF1hLQttYgM9FPdmauXviDXQCHvfD3izhd0+JIDocmbYjfN0ConYwthnNnzWRT1ohC4oid8oDzVyxAX1hoQPzeyddzQb6DrAiCkDui17Jf1OCe39zzy79Z0OTs4sZYQSPYoNysKUJ2tKT/Ia7/BLZCFoEG/Z0WeCJkZXJBEujOIh1eJtXUIP60945RQQ+loHt8eFuGZa8NmFEUtq6yOoYnaZVw+LMnlqTtBB2LP/fo08dUJA2GYBFlzuR1/JdQa8sbG4uwBdFIxC+Y5ksdbxZfSRPYqHjBkUzUn2ft4U+u0XSpy1xZS7TBhaic3rbB+BbiWtpOFjotvjzx7i/KNwejxa+3xI/etjIgXvYYAKByMJFakZpkph+a9wrMAFFPZZDKGbxiONGWJ79NpX4zcXYkN9g95xviKPupPB4SHN2uYpifr2zHvq4im7gcUfdILGmfVhBs2lBd/xkatfMShIgyLckoXq8A5vojf2yVZ/A9bQZx1bgyk5L6sJn56VBec6Gtjch5xPAz2nfG7qKlhRM42FgZYAJ/rMOJatWA+x5A8LkdA6SMRglmlcy/TPrGMcYxIoi0CV71iXdnevFLZ0jhl+8iSkoWJYbOK1kVjhxjAWSQcRhRwjeYPaoWjC+fD8MDYvHlEwr10fN4HggTQU5sxZ9E=
+    file:
+      - build/electrum-dash/dist/electrum-dash-$ELECTRUM_DASH_VERSION-macosx.dmg
+    on:
+      repo: akhavr/electrum-dash
+      tags: true
+      condition: "$TRAVIS_OS_NAME = osx"
+  - provider: releases
+    api_key:
+      secure: iPOHd0JAy7xD4kAcNOF1hLQttYgM9FPdmauXviDXQCHvfD3izhd0+JIDocmbYjfN0ConYwthnNnzWRT1ohC4oid8oDzVyxAX1hoQPzeyddzQb6DrAiCkDui17Jf1OCe39zzy79Z0OTs4sZYQSPYoNysKUJ2tKT/Ia7/BLZCFoEG/Z0WeCJkZXJBEujOIh1eJtXUIP60945RQQ+loHt8eFuGZa8NmFEUtq6yOoYnaZVw+LMnlqTtBB2LP/fo08dUJA2GYBFlzuR1/JdQa8sbG4uwBdFIxC+Y5ksdbxZfSRPYqHjBkUzUn2ft4U+u0XSpy1xZS7TBhaic3rbB+BbiWtpOFjotvjzx7i/KNwejxa+3xI/etjIgXvYYAKByMJFakZpkph+a9wrMAFFPZZDKGbxiONGWJ79NpX4zcXYkN9g95xviKPupPB4SHN2uYpifr2zHvq4im7gcUfdILGmfVhBs2lBd/xkatfMShIgyLckoXq8A5vojf2yVZ/A9bQZx1bgyk5L6sJn56VBec6Gtjch5xPAz2nfG7qKlhRM42FgZYAJ/rMOJatWA+x5A8LkdA6SMRglmlcy/TPrGMcYxIoi0CV71iXdnevFLZ0jhl+8iSkoWJYbOK1kVjhxjAWSQcRhRwjeYPaoWjC+fD8MDYvHlEwr10fN4HggTQU5sxZ9E=
+    file:
+      - build/electrum-dash/dist/Electrum-DASH-$ELECTRUM_DASH_VERSION.tar.gz
+      - build/electrum-dash/dist/electrum-dash-$ELECTRUM_DASH_VERSION-setup.exe
+    on:
+      repo: akhavr/electrum-dash
+      tags: true
+      condition: "$TRAVIS_OS_NAME = linux"

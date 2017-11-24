@@ -1,104 +1,107 @@
 # -*- mode: python -*-
+import sys
 
-# We don't put these files in to actually include them in the script but to make the Analysis method scan them for imports
-a = Analysis(['electrum-dash',
-              'gui/qt/main_window.py',
-              'gui/text.py',
-              'lib/util.py',
-              'lib/wallet.py',
-              'lib/simple_config.py',
-              'lib/bitcoin.py',
-              'lib/interface.py',
-              'lib/dnssec.py',
-              'lib/daemon.py',
-              #'packages/trezorctl.py',
-	      'plugins/trezor/trezor.py',
-              'gui/qt/installwizard.py',
-              #'gui/qt/icons_rc.py',
-              ],
-             hiddenimports=["PyQt4",
-                            "lib",
-                            "lib.daemon",
-                            "gui",
-                            "gui.qt",
-                            "gui.qt.installwizard",
-                            "gui.qt.dash_style",
-                            "gui.qt.icons_rc",
-                            "plugins",
-                            "trezorlib",
-                            "hid",
-                            "dnspython",
-                            "slowaes",
-                            "requests",
-                            "qrcode",
-                            "jsonrpclib"],
-             pathex=['lib','gui','plugins','packages'],
-             hookspath=None)
 
-##### include mydir in distribution #######
-def extra_datas(mydir):
-    def rec_glob(p, files):
-        import os
-        import glob
-        for d in glob.glob(p):
-            if os.path.isfile(d):
-                files.append(d)
-            rec_glob("%s/*" % d, files)
-    files = []
-    rec_glob("%s/*" % mydir, files)
-    extra_datas = []
-    for f in files:
-        extra_datas.append((f, f, 'DATA'))
+for i, x in enumerate(sys.argv):
+    if x == '--name':
+        cmdline_name = sys.argv[i+1]
+        break
+else:
+    raise BaseException('no name')
 
-    return extra_datas
-###########################################
+hiddenimports = [
+    'lib',
+    'lib.base_wizard',
+    'lib.plot',
+    'lib.qrscanner',
+    'lib.websockets',
+    'gui.qt',
 
-# append dirs
+    'plugins',
 
-# Theme data
-a.datas += extra_datas('data')
+    'plugins.hw_wallet.qt',
 
-# Localization
-a.datas += extra_datas('locale')
+    'plugins.audio_modem.qt',
+    'plugins.cosigner_pool.qt',
+    'plugins.digitalbitbox.qt',
+    'plugins.email_requests.qt',
+    'plugins.keepkey.qt',
+    'plugins.labels.qt',
+    'plugins.trezor.qt',
+    'plugins.ledger.qt',
+    'plugins.virtualkeyboard.qt',
+]
 
-# Py folders that are needed because of the magic import finding
-a.datas += extra_datas('gui')
-a.datas += extra_datas('lib')
-a.datas += extra_datas('plugins')
-a.datas += [ ('packages/requests/cacert.pem', 'packages/requests/cacert.pem', 'DATA') ]
-a.datas += [ ('packages/trezorctl.py', 'packages/trezorctl.py', 'DATA') ]
-a.datas += [ ('lib/wordlist/english.txt', 'electrum_dash/lib/wordlist/english.txt', 'DATA') ]
+datas = [
+    ('packages/requests/cacert.pem', 'packages/requests'),
+    ('lib/currencies.json', 'electrum_dash'),
+    ('lib/wordlist', 'electrum_dash/wordlist'),
+]
 
-# Dependencies
-a.datas += extra_datas('packages')
+# https://github.com/pyinstaller/pyinstaller/wiki/Recipe-remove-tkinter-tcl
+sys.modules['FixTk'] = None
+excludes = ['FixTk', 'tcl', 'tk', '_tkinter', 'tkinter', 'Tkinter']
+
+a = Analysis(['electrum-dash'],
+             pathex=['plugins'],
+             hiddenimports=hiddenimports,
+             datas=datas,
+             excludes=excludes,
+             runtime_hooks=['pyi_runtimehook.py'])
+
+# http://stackoverflow.com/questions/19055089/
+for d in a.datas:
+    if 'pyconfig' in d[0]:
+        a.datas.remove(d)
+        break
+
+# Add TOC to electrum_dash, electrum_dash_gui, electrum_dash_plugins
+for p in sorted(a.pure):
+    if p[0].startswith('lib') and p[2] == 'PYMODULE':
+        a.pure += [('electrum_dash%s' % p[0][3:] , p[1], p[2])]
+    if p[0].startswith('gui') and p[2] == 'PYMODULE':
+        a.pure += [('electrum_dash_gui%s' % p[0][3:] , p[1], p[2])]
+    if p[0].startswith('plugins') and p[2] == 'PYMODULE':
+        a.pure += [('electrum_dash_plugins%s' % p[0][7:] , p[1], p[2])]
 
 pyz = PYZ(a.pure)
+
 exe = EXE(pyz,
           a.scripts,
-          a.binaries,
-          a.datas,
-          name=os.path.join('build/electrum-dash/electrum-dash', 'electrum-dash_osx.bin'),
+          exclude_binaries=True,
           debug=False,
-          strip=None,
+          strip=False,
           upx=False,
+          console=False,
           icon='icons/electrum-dash.ico',
-          console=False)
-          # The console True makes an annoying black box pop up, but it does make electrum-dash output command line commands, with this turned off no output will be given but commands can still be used
+          name=os.path.join('build/electrum-dash/electrum-dash', cmdline_name))
 
-coll = COLLECT(exe,
+# trezorctl separate bin
+tctl_a = Analysis(['/usr/local/bin/trezorctl'],
+                  hiddenimports=['pkgutil'],
+                  excludes=excludes,
+                  runtime_hooks=['pyi_tctl_runtimehook.py'])
+
+tctl_pyz = PYZ(tctl_a.pure)
+
+tctl_exe = EXE(tctl_pyz,
+           tctl_a.scripts,
+           exclude_binaries=True,
+           debug=False,
+           strip=False,
+           upx=False,
+           console=True,
+           name=os.path.join('build/electrum-dash/electrum-dash', 'trezorctl.bin'))
+
+coll = COLLECT(exe, tctl_exe,
                a.binaries,
-               a.zipfiles,
                a.datas,
-               strip=None,
-               upx=True,
-               debug=False,
-               icon='icons/electrum-dash.ico',
-               console=False,
+               strip=False,
+               upx=False,
                name=os.path.join('dist', 'electrum-dash'))
 
 app = BUNDLE(coll,
              name=os.path.join('dist', 'Electrum-DASH.app'),
              appname="Electrum-DASH",
-	     icon='electrum-dash.icns',
-             version = 'ELECTRUM_VERSION'
-)
+	         icon='electrum-dash.icns',
+             version = 'ELECTRUM_VERSION')
