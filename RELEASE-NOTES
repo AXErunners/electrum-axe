@@ -1,3 +1,9 @@
+# Release 2.9.3.1
+ * Fix a vulnerability caused by Cross-Origin Resource Sharing (CORS)
+   in the JSONRPC interface. Previous versions of Electrum are
+   vulnerable to port scanning and deanonimization attacks from
+   malicious websites. Wallets that are not password-protected are
+   vulnerable to theft.
 # Release 2.9.3
   * fix configuration file issue #2719
   * disable 'spend confirmed only' option by default
