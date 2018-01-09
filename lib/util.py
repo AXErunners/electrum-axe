@@ -33,6 +33,7 @@ import traceback
 import urlparse
 import urllib
 import threading
+import hmac
 from i18n import _
 
 base_units = {'DASH':8, 'mDASH':5, 'uDASH':2}
@@ -198,6 +199,60 @@ def json_decode(x):
         return json.loads(x, parse_float=Decimal)
     except:
         return x
+
+
+def to_string(x, enc):
+    if isinstance(x, (bytes, bytearray)):
+        return x.decode(enc)
+    if isinstance(x, str):
+        return x
+    else:
+        raise TypeError("Not a string or bytes like object")
+
+
+def to_bytes(something, encoding='utf8'):
+    """
+    cast string to bytes() like object, but for python2 support it's bytearray copy
+    """
+    if isinstance(something, bytes):
+        return something
+    if isinstance(something, str):
+        return something.encode(encoding)
+    elif isinstance(something, bytearray):
+        return bytes(something)
+    else:
+        raise TypeError("Not a string or bytes like object")
+
+
+# constant_time_compare taken from Django Source Code
+if hasattr(hmac, "compare_digest"):
+    # Prefer the stdlib implementation, when available.
+    def constant_time_compare(val1, val2):
+        return hmac.compare_digest(to_bytes(val1, 'utf8'), to_bytes(val2, 'utf8'))
+else:
+    import six
+    def constant_time_compare(val1, val2):
+        """
+        Returns True if the two strings are equal, False otherwise.
+
+        The time taken is independent of the number of characters that match.
+
+        For the sake of simplicity, this function executes in constant time only
+        when the two strings have the same length. It short-circuits when they
+        have different lengths. Since Django only uses it to compare hashes of
+        known expected length, this is acceptable.
+        """
+        if len(val1) != len(val2):
+            return False
+        result = 0
+        if six.PY3 and isinstance(val1, bytes) and isinstance(val2, bytes):
+            for x, y in zip(val1, val2):
+                result |= x ^ y
+        else:
+            for x, y in zip(val1, val2):
+                result |= ord(x) ^ ord(y)
+        return result == 0
+
 
 # decorator that prints execution time
 def profiler(func):
