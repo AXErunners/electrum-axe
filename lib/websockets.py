@@ -22,8 +22,8 @@
 # ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-
-import threading, Queue, os, json, time
+import queue
+import threading, os, json
 from collections import defaultdict
 try:
     from SimpleWebSocketServer import WebSocket, SimpleSSLWebSocketServer
@@ -31,9 +31,9 @@ except ImportError:
     import sys
     sys.exit("install SimpleWebSocketServer")
 
-import util
+from . import util
 
-request_queue = Queue.Queue()
+request_queue = queue.Queue()
 
 class ElectrumWebSocket(WebSocket):
 
@@ -57,7 +57,7 @@ class WsClientThread(util.DaemonThread):
         util.DaemonThread.__init__(self)
         self.network = network
         self.config = config
-        self.response_queue = Queue.Queue()
+        self.response_queue = queue.Queue()
         self.subscriptions = defaultdict(list)
 
     def make_request(self, request_id):
@@ -75,7 +75,7 @@ class WsClientThread(util.DaemonThread):
         while self.is_running():
             try:
                 ws, request_id = request_queue.get()
-            except Queue.Empty:
+            except queue.Empty:
                 continue
             try:
                 addr, amount = self.make_request(request_id)
@@ -92,7 +92,7 @@ class WsClientThread(util.DaemonThread):
         while self.is_running():
             try:
                 r = self.response_queue.get(timeout=0.1)
-            except Queue.Empty:
+            except queue.Empty:
                 continue
             util.print_error('response', r)
             method = r.get('method')
@@ -108,7 +108,7 @@ class WsClientThread(util.DaemonThread):
                 for ws, amount in l:
                     if not ws.closed:
                         if sum(result.values()) >=amount:
-                            ws.sendMessage(unicode('paid'))
+                            ws.sendMessage('paid')
 
 
 

@@ -28,8 +28,8 @@ from threading import Thread
 import re
 from decimal import Decimal
 
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
 
 from electrum_gui.qt.util import *
 from electrum_gui.qt.qrcodewidget import QRCodeWidget
@@ -37,10 +37,18 @@ from electrum_gui.qt.amountedit import AmountEdit
 from electrum_gui.qt.main_window import StatusBarButton
 from electrum.i18n import _
 from electrum.plugins import hook
-from trustedcoin import TrustedCoinPlugin, server
+from .trustedcoin import TrustedCoinPlugin, server
+
+
+class TOS(QTextEdit):
+    tos_signal = pyqtSignal()
+    error_signal = pyqtSignal(object)
 
 
 class Plugin(TrustedCoinPlugin):
+
+    def __init__(self, parent, config, name):
+        super().__init__(parent, config, name)
 
     @hook
     def on_new_window(self, window):
@@ -49,7 +57,7 @@ class Plugin(TrustedCoinPlugin):
             return
         if wallet.can_sign_without_server():
             msg = ' '.join([
-                _('This wallet is was restored from seed, and it contains two master private keys.'),
+                _('This wallet was restored from seed, and it contains two master private keys.'),
                 _('Therefore, two-factor authentication is disabled.')
             ])
             action = lambda: window.show_message(msg)
@@ -71,6 +79,10 @@ class Plugin(TrustedCoinPlugin):
         grid.addWidget(QLabel(_('Code')), 1, 0)
         grid.addWidget(pw, 1, 1)
         vbox.addLayout(grid)
+        msg = _('If you have lost your second factor, you need to restore your wallet from seed in order to request a new code.')
+        label = QLabel(msg)
+        label.setWordWrap(1)
+        vbox.addWidget(label)
         vbox.addLayout(Buttons(CancelButton(d), OkButton(d)))
         if not d.exec_():
             return
@@ -181,9 +193,10 @@ class Plugin(TrustedCoinPlugin):
         vbox = QVBoxLayout()
         vbox.addWidget(QLabel(_("Terms of Service")))
 
-        tos_e = QTextEdit()
+        tos_e = TOS()
         tos_e.setReadOnly(True)
         vbox.addWidget(tos_e)
+        tos_received = False
 
         vbox.addWidget(QLabel(_("Please enter your e-mail address")))
         email_e = QLineEdit()
@@ -194,17 +207,33 @@ class Plugin(TrustedCoinPlugin):
         next_button.setText(_('Accept'))
 
         def request_TOS():
-            tos = server.get_terms_of_service()
+            try:
+                tos = server.get_terms_of_service()
+            except Exception as e:
+                import traceback
+                traceback.print_exc(file=sys.stderr)
+                tos_e.error_signal.emit(_('Could not retrieve Terms of Service:')
+                                        + '\n' + str(e))
+                return
             self.TOS = tos
-            window.emit(SIGNAL('twofactor:TOS'))
+            tos_e.tos_signal.emit()
 
         def on_result():
             tos_e.setText(self.TOS)
+            nonlocal tos_received
+            tos_received = True
+            set_enabled()
+
+        def on_error(msg):
+            window.show_error(str(msg))
+            window.terminate()
 
         def set_enabled():
-            next_button.setEnabled(re.match(regexp,email_e.text()) is not None)
+            valid_email = re.match(regexp, email_e.text()) is not None
+            next_button.setEnabled(tos_received and valid_email)
 
-        window.connect(window, SIGNAL('twofactor:TOS'), on_result)
+        tos_e.tos_signal.connect(on_result)
+        tos_e.error_signal.connect(on_error)
         t = Thread(target=request_TOS)
         t.setDaemon(True)
         t.start()
