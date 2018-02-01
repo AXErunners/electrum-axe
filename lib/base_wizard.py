@@ -240,7 +240,7 @@ class BaseWizard(object):
 
     def on_hw_derivation(self, name, device_info, derivation):
         from .keystore import hardware_keystore
-        xtype = 'p2wpkh-p2sh' if derivation.startswith("m/49'/") else 'standard'
+        xtype = 'standard'
         try:
             xpub = self.plugin.get_xpub(device_info.device.id_, derivation, xtype, self)
         except BaseException as e:
@@ -271,7 +271,7 @@ class BaseWizard(object):
     def restore_from_seed(self):
         self.opt_bip39 = True
         self.opt_ext = True
-        is_cosigning_seed = lambda x: bitcoin.seed_type(x) in ['standard', 'segwit']
+        is_cosigning_seed = lambda x: bitcoin.seed_type(x) in ['standard']
         test = bitcoin.is_seed if self.wallet_type == 'standard' else is_cosigning_seed
         self.restore_seed_dialog(run_next=self.on_restore_seed, test=test)
 
@@ -280,7 +280,7 @@ class BaseWizard(object):
         if self.seed_type == 'bip39':
             f = lambda passphrase: self.on_restore_bip39(seed, passphrase)
             self.passphrase_dialog(run_next=f) if is_ext else f('')
-        elif self.seed_type in ['standard', 'segwit']:
+        elif self.seed_type in ['standard']:
             f = lambda passphrase: self.run('create_keystore', seed, passphrase)
             self.passphrase_dialog(run_next=f) if is_ext else f('')
         elif self.seed_type == 'old':
@@ -313,7 +313,7 @@ class BaseWizard(object):
             from .bitcoin import xpub_type
             t1 = xpub_type(k.xpub)
         if self.wallet_type == 'standard':
-            if has_xpub and t1 not in ['standard', 'p2wpkh', 'p2wpkh-p2sh']:
+            if has_xpub and t1 not in ['standard']:
                 self.show_error(_('Wrong key type') + ' %s'%t1)
                 self.run('choose_keystore')
                 return
@@ -321,7 +321,7 @@ class BaseWizard(object):
             self.run('create_wallet')
         elif self.wallet_type == 'multisig':
             assert has_xpub
-            if t1 not in ['standard', 'p2wsh', 'p2wsh-p2sh']:
+            if t1 not in ['standard']:
                 self.show_error(_('Wrong key type') + ' %s'%t1)
                 self.run('choose_keystore')
                 return
@@ -380,17 +380,12 @@ class BaseWizard(object):
         title = _('Choose Seed type')
         message = ' '.join([
             "The type of addresses used by your wallet will depend on your seed.",
-            "Segwit wallets use bech32 addresses, defined in BIP173.",
-            "Please note that websites and other wallets may not support these addresses yet.",
-            "Thus, you might want to keep using a non-segwit wallet in order to be able to receive bitcoins during the transition period."
         ])
         choices = [
             ('create_standard_seed', _('Standard')),
-            ('create_segwit_seed', _('Segwit')),
         ]
         self.choice_dialog(title=title, message=message, choices=choices, run_next=self.run)
 
-    def create_segwit_seed(self): self.create_seed('segwit')
     def create_standard_seed(self): self.create_seed('standard')
 
     def create_seed(self, seed_type):

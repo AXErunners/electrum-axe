@@ -35,7 +35,6 @@ import pyaes
 from .util import bfh, bh2u, to_string
 from . import version
 from .util import print_error, InvalidPassword, assert_bytes, to_bytes, inv_dict
-from . import segwit_addr
 
 def read_json_dict(filename):
     path = os.path.join(os.path.dirname(__file__), filename)
@@ -51,21 +50,11 @@ def read_json_dict(filename):
 
 # Version numbers for BIP32 extended keys
 # standard: xprv, xpub
-# segwit in p2sh: yprv, ypub
-# native segwit: zprv, zpub
 XPRV_HEADERS = {
     'standard': 0x0488ade4,
-    'p2wpkh-p2sh': 0x049d7878,
-    'p2wsh-p2sh': 0x295b005,
-    'p2wpkh': 0x4b2430c,
-    'p2wsh': 0x2aa7a99
 }
 XPUB_HEADERS = {
     'standard': 0x0488b21e,
-    'p2wpkh-p2sh': 0x049d7cb2,
-    'p2wsh-p2sh': 0x295b43f,
-    'p2wpkh': 0x4b24746,
-    'p2wsh': 0x2aa7ed3
 }
 
 
@@ -74,34 +63,33 @@ class NetworkConstants:
     @classmethod
     def set_mainnet(cls):
         cls.TESTNET = False
-        cls.WIF_PREFIX = 0x80
-        cls.ADDRTYPE_P2PKH = 0
-        cls.ADDRTYPE_P2SH = 5
-        cls.SEGWIT_HRP = "bc"
-        cls.HEADERS_URL = "https://headers.electrum.org/blockchain_headers"
-        cls.GENESIS = "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"
+        cls.WIF_PREFIX = 204
+        cls.ADDRTYPE_P2PKH = 76
+        cls.ADDRTYPE_P2SH = 16
+        cls.HEADERS_URL = ''  # TODO headers bootstrap
+        cls.GENESIS = '00000ffd590b1485b3caadc19b22e6379c733355108f107a430458cdf3407ab6'
         cls.DEFAULT_PORTS = {'t': '50001', 's': '50002'}
         cls.DEFAULT_SERVERS = read_json_dict('servers.json')
 
     @classmethod
     def set_testnet(cls):
         cls.TESTNET = True
-        cls.WIF_PREFIX = 0xef
-        cls.ADDRTYPE_P2PKH = 111
-        cls.ADDRTYPE_P2SH = 196
-        cls.SEGWIT_HRP = "tb"
-        cls.HEADERS_URL = "https://headers.electrum.org/testnet_headers"
-        cls.GENESIS = "000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943"
+        cls.WIF_PREFIX = 239
+        cls.ADDRTYPE_P2PKH = 140
+        cls.ADDRTYPE_P2SH = 19
+        cls.HEADERS_URL = ''  # TODO headers bootstrap
+        cls.GENESIS = '00000bafbc94add76cb75e2ec92894837288a481e5c005f6563d91623bf8bc2c'
         cls.DEFAULT_PORTS = {'t':'51001', 's':'51002'}
         cls.DEFAULT_SERVERS = read_json_dict('servers_testnet.json')
+        XPRV_HEADERS['standard'] = 0x04358394
+        XPUB_HEADERS['standard'] = 0x043587cf
 
 
 NetworkConstants.set_mainnet()
 
 ################################## transactions
 
-FEE_STEP = 10000
-MAX_FEE_RATE = 300000
+MAX_FEE_RATE = 10000
 FEE_TARGETS = [25, 10, 5, 2]
 
 COINBASE_MATURITY = 100
@@ -283,8 +271,6 @@ def seed_type(x):
         return 'old'
     elif is_new_seed(x):
         return 'standard'
-    elif is_new_seed(x, version.SEED_PREFIX_SW):
-        return 'segwit'
     elif is_new_seed(x, version.SEED_PREFIX_2FA):
         return '2fa'
     return ''
@@ -324,7 +310,7 @@ def hash_160(public_key):
         return md.digest()
 
 
-def hash160_to_b58_address(h160, addrtype, witness_program_version=1):
+def hash160_to_b58_address(h160, addrtype):
     s = bytes([addrtype])
     s += h160
     return base_encode(s+Hash(s)[0:4], base=58)
@@ -345,42 +331,15 @@ def hash160_to_p2sh(h160):
 def public_key_to_p2pkh(public_key):
     return hash160_to_p2pkh(hash_160(public_key))
 
-def hash_to_segwit_addr(h):
-    return segwit_addr.encode(NetworkConstants.SEGWIT_HRP, 0, h)
-
-def public_key_to_p2wpkh(public_key):
-    return hash_to_segwit_addr(hash_160(public_key))
-
-def script_to_p2wsh(script):
-    return hash_to_segwit_addr(sha256(bfh(script)))
-
-def p2wpkh_nested_script(pubkey):
-    pkh = bh2u(hash_160(bfh(pubkey)))
-    return '00' + push_script(pkh)
-
-def p2wsh_nested_script(witness_script):
-    wsh = bh2u(sha256(bfh(witness_script)))
-    return '00' + push_script(wsh)
-
 def pubkey_to_address(txin_type, pubkey):
     if txin_type == 'p2pkh':
         return public_key_to_p2pkh(bfh(pubkey))
-    elif txin_type == 'p2wpkh':
-        return hash_to_segwit_addr(hash_160(bfh(pubkey)))
-    elif txin_type == 'p2wpkh-p2sh':
-        scriptSig = p2wpkh_nested_script(pubkey)
-        return hash160_to_p2sh(hash_160(bfh(scriptSig)))
     else:
         raise NotImplementedError(txin_type)
 
 def redeem_script_to_address(txin_type, redeem_script):
     if txin_type == 'p2sh':
         return hash160_to_p2sh(hash_160(bfh(redeem_script)))
-    elif txin_type == 'p2wsh':
-        return script_to_p2wsh(redeem_script)
-    elif txin_type == 'p2wsh-p2sh':
-        scriptSig = p2wsh_nested_script(redeem_script)
-        return hash160_to_p2sh(hash_160(bfh(scriptSig)))
     else:
         raise NotImplementedError(txin_type)
 
@@ -392,13 +351,6 @@ def script_to_address(script):
     return addr
 
 def address_to_script(addr):
-    witver, witprog = segwit_addr.decode(NetworkConstants.SEGWIT_HRP, addr)
-    if witprog is not None:
-        assert (0 <= witver <= 16)
-        OP_n = witver + 0x50 if witver > 0 else 0
-        script = bh2u(bytes([OP_n]))
-        script += push_script(bh2u(bytes(witprog)))
-        return script
     addrtype, hash_160 = b58_address_to_hash160(addr)
     if addrtype == NetworkConstants.ADDRTYPE_P2PKH:
         script = '76a9'                                      # op_dup, op_hash_160
@@ -509,15 +461,9 @@ def DecodeBase58Check(psz):
 
 
 
-# extended key export format for segwit
-
 SCRIPT_TYPES = {
     'p2pkh':0,
-    'p2wpkh':1,
-    'p2wpkh-p2sh':2,
     'p2sh':5,
-    'p2wsh':6,
-    'p2wsh-p2sh':7
 }
 
 
@@ -568,13 +514,6 @@ def address_from_private_key(sec):
     public_key = public_key_from_private_key(privkey, compressed)
     return pubkey_to_address(txin_type, public_key)
 
-def is_segwit_address(addr):
-    try:
-        witver, witprog = segwit_addr.decode(NetworkConstants.SEGWIT_HRP, addr)
-    except Exception as e:
-        return False
-    return witprog is not None
-
 def is_b58_address(addr):
     try:
         addrtype, h = b58_address_to_hash160(addr)
@@ -585,7 +524,7 @@ def is_b58_address(addr):
     return addr == hash160_to_b58_address(h, addrtype)
 
 def is_address(addr):
-    return is_segwit_address(addr) or is_b58_address(addr)
+    return is_b58_address(addr)
 
 
 def is_private_key(key):
@@ -629,7 +568,7 @@ def verify_message(address, sig, message):
         public_key, compressed = pubkey_from_signature(sig, h)
         # check public key using the address
         pubkey = point_to_ser(public_key.pubkey.point, compressed)
-        for txin_type in ['p2pkh','p2wpkh','p2wpkh-p2sh']:
+        for txin_type in ['p2pkh']:
             addr = pubkey_to_address(txin_type, bh2u(pubkey))
             if address == addr:
                 break

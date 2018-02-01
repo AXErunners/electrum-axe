@@ -346,7 +346,7 @@ class Abstract_Wallet(PrintError):
             return []
         index = self.get_address_index(address)
         pk, compressed = self.keystore.get_private_key(index, password)
-        if self.txin_type in ['p2sh', 'p2wsh', 'p2wsh-p2sh']:
+        if self.txin_type in ['p2sh']:
             pubkeys = self.get_public_keys(address)
             redeem_script = self.pubkeys_to_redeem_script(pubkeys)
         else:
@@ -1096,12 +1096,6 @@ class Abstract_Wallet(PrintError):
         address = txin['address']
         if self.is_mine(address):
             txin['type'] = self.get_txin_type(address)
-            # segwit needs value to sign
-            if txin.get('value') is None and Transaction.is_segwit_input(txin):
-                received, spent = self.get_addr_io(address)
-                item = received.get(txin['prevout_hash']+':%d'%txin['prevout_n'])
-                tx_height, value, is_cb = item
-                txin['value'] = value
             self.add_input_sig_info(txin, address)
 
     def can_sign(self, tx):
@@ -1519,11 +1513,11 @@ class Imported_Wallet(Simple_Wallet):
             txin_type, pubkey = self.keystore.import_privkey(sec, pw)
         except Exception:
             raise BaseException('Invalid private key', sec)
-        if txin_type in ['p2pkh', 'p2wpkh', 'p2wpkh-p2sh']:
+        if txin_type in ['p2pkh']:
             if redeem_script is not None:
                 raise BaseException('Cannot use redeem script with', txin_type, sec)
             addr = bitcoin.pubkey_to_address(txin_type, pubkey)
-        elif txin_type in ['p2sh', 'p2wsh', 'p2wsh-p2sh']:
+        elif txin_type in ['p2sh']:
             if redeem_script is None:
                 raise BaseException('Redeem script required for', txin_type, sec)
             addr = bitcoin.redeem_script_to_address(txin_type, redeem_script)
@@ -1552,7 +1546,7 @@ class Imported_Wallet(Simple_Wallet):
             txin['x_pubkeys'] = [x_pubkey]
             txin['signatures'] = [None]
             return
-        if txin['type'] in ['p2pkh', 'p2wpkh', 'p2wpkh-p2sh']:
+        if txin['type'] in ['p2pkh']:
             pubkey = self.addresses[address]['pubkey']
             txin['num_sig'] = 1
             txin['x_pubkeys'] = [pubkey]

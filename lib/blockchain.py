@@ -255,14 +255,6 @@ class Blockchain(util.PrintError):
     def get_hash(self, height):
         return hash_header(self.read_header(height))
 
-    def BIP9(self, height, flag):
-        v = self.read_header(height)['version']
-        return ((v & 0xE0000000) == 0x20000000) and ((v & flag) == flag)
-
-    def segwit_support(self, N=144):
-        h = self.local_height
-        return sum([self.BIP9(h-i, 2) for i in range(N)])*10000/N/100.
-
     def get_target(self, index):
         if bitcoin.NetworkConstants.TESTNET:
             return 0, 0
