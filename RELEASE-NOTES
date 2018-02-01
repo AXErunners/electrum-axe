@@ -22,10 +22,8 @@ issue #3374. Users should upgrade to 3.0.5.
   * Qt GUI: sweeping now uses the Send tab, allowing fees to be set
   * Windows: if using the installer binary, there is now a separate shortcut
     for "Electrum Testnet"
-  * Digital Bitbox: added suport for p2sh-segwit
   * OS notifications for incoming transactions
   * better transaction size estimation:
-    - fees for segwit txns were somewhat underestimated (#3347)
     - some multisig txns were underestimated
     - handle uncompressed pubkeys
   * fix #3321: testnet for Windows binaries
@@ -39,7 +37,6 @@ issue #3374. Users should upgrade to 3.0.5.
   * sweeping minikeys: search for both compressed and uncompressed
     pubkeys
   * fix wizard crash when attempting to reset Google Authenticator
-  * fix #3248: fix Ledger+segwit signing
   * fix #3262: fix SSL payment request signing
   * other minor fixes.
 
@@ -52,55 +49,6 @@ issue #3374. Users should upgrade to 3.0.5.
     supported. If you cloned the source repository, you will need to
     run "python3 setup.py install" in order to install the new
     dependencies.
-
-  * Segwit support: 
-
-    - Native segwit scripts are supported using a new type of
-      seed. The version number for segwit seeds is 0x100. The install
-      wizard will not create segwit seeds by default; users must
-      opt-in with the segwit option.
-
-    - Native segwit scripts are represented using bech32 addresses,
-      following BIP173. Please note that BIP173 is still in draft
-      status, and that other wallets/websites may not support
-      it. Thus, you should keep a non-segwit wallet in order to be
-      able to receive bitcoins during the transition period. If BIP173
-      ends up being rejected or substantially modified, your wallet
-      may have to be restored from seed. This will not affect funds
-      sent to bech32 addresses, and it will not affect the capacity of
-      Electrum to spend these funds.
-
-    - Segwit scripts embedded in p2sh are supported with hardware
-      wallets or bip39 seeds. To create a segwit-in-p2sh wallet,
-      trezor/ledger users will need to enter a BIP49 derivation path.
-
-    - The BIP32 master keys of segwit wallets are serialized using new
-      version numbers. The new version numbers encode the script type,
-      and they result in the following prefixes:
-
-         * xpub/xprv : p2pkh or p2sh
-         * ypub/yprv : p2wpkh-in-p2sh
-         * Ypub/Yprv : p2wsh-in-p2sh
-         * zpub/zprv : p2wpkh
-         * Zpub/Zprv : p2wsh
-
-      These values are identical for mainnet and testnet; tpub/tprv
-      prefixes are no longer used in testnet wallets.
-
-    - The Wallet Import Format (WIF) is similarly extended for segwit
-      scripts. After a base58-encoded key is decoded to binary, its
-      first byte encodes the script type:
-
-         * 128 + 0: p2pkh
-         * 128 + 1: p2wpkh
-         * 128 + 2: p2wpkh-in-p2sh
-         * 128 + 5: p2sh
-         * 128 + 6: p2wsh
-         * 128 + 7: p2wsh-in-p2sh
-
-      The distinction between p2sh and p2pkh in private key means that
-      it is not possible to import a p2sh private key and associate it
-      to a p2pkh address.
 
   * A new version of the Electrum protocol is required by the client
     (version 1.1). Servers using older versions of the protocol will
@@ -184,7 +132,6 @@ issue #3374. Users should upgrade to 3.0.5.
     - Dynamic fees are enabled by default.
     - Child Pays For Parent (CPFP) dialog in the GUI.
     - RBF is automatically proposed for low fee transactions.
-  * Support for Segregated Witness (testnet only).
   * Support for Digital Bitbox hardware wallet.
   * The GUI shows a blue icon when connected using a proxy.
 

@@ -56,10 +56,6 @@ class Ledger_Client():
         # This only happens once so it's bearable
         #self.get_client() # prompt for the PIN before displaying the dialog if necessary
         #self.handler.show_message("Computing master public key")
-        if xtype in ['p2wpkh', 'p2wsh'] and not self.supports_native_segwit():
-            raise Exception("Firmware version too old for Segwit support. Please update at https://www.ledgerwallet.com")
-        if xtype in ['p2wpkh-p2sh', 'p2wsh-p2sh'] and not self.supports_segwit():
-            raise Exception("Firmware version too old for Segwit support. Please update at https://www.ledgerwallet.com")
         splitPath = bip32_path.split('/')
         if splitPath[0] == 'm':
             splitPath = splitPath[1:]
@@ -103,19 +99,11 @@ class Ledger_Client():
     def supports_multi_output(self):
         return self.multiOutputSupported
 
-    def supports_segwit(self):
-        return self.segwitSupported
-
-    def supports_native_segwit(self):
-        return self.nativeSegwitSupported
-
     def perform_hw1_preflight(self):
         try:
             firmwareInfo = self.dongleObject.getFirmwareVersion()
             firmware = firmwareInfo['version'].split(".")
             self.multiOutputSupported = int(firmware[0]) >= 1 and int(firmware[1]) >= 1 and int(firmware[2]) >= 4
-            self.segwitSupported = (int(firmware[0]) >= 1 and int(firmware[1]) >= 1 and int(firmware[2]) >= 10) or (firmwareInfo['specialVersion'] == 0x20 and int(firmware[0]) == 1 and int(firmware[1]) == 0 and int(firmware[2]) >= 4)
-            self.nativeSegwitSupported = int(firmware[0]) >= 1 and int(firmware[1]) >= 1 and int(firmware[2]) >= 10
 
             if not checkFirmware(firmware):
                 self.dongleObject.dongle.close()
@@ -270,7 +258,6 @@ class Ledger_KeyStore(Hardware_KeyStore):
         output = None
         outputAmount = None
         p2shTransaction = False
-        segwitTransaction = False
         pin = ""
         self.get_client() # prompt for the PIN before displaying the dialog if necessary
 
@@ -282,16 +269,6 @@ class Ledger_KeyStore(Hardware_KeyStore):
 
             if txin['type'] in ['p2sh']:
                 p2shTransaction = True
-
-            if txin['type'] in ['p2wpkh-p2sh', 'p2wsh-p2sh']:
-                if not self.get_client_electrum().supports_segwit():
-                    self.give_error("Firmware version too old to support segwit. Please update at https://www.ledgerwallet.com")
-                segwitTransaction = True
-
-            if txin['type'] in ['p2wpkh', 'p2wsh']:
-                if not self.get_client_electrum().supports_native_segwit():
-                    self.give_error("Firmware version too old to support native segwit. Please update at https://www.ledgerwallet.com")
-                segwitTransaction = True
 
             pubkeys, x_pubkeys = tx.get_sorted_pubkeys(txin)
             for i, x_pubkey in enumerate(x_pubkeys):
@@ -344,14 +321,7 @@ class Ledger_KeyStore(Hardware_KeyStore):
             # Get trusted inputs from the original transactions
             for utxo in inputs:                
                 sequence = int_to_hex(utxo[5], 4)
-                if segwitTransaction:
-                    txtmp = bitcoinTransaction(bfh(utxo[0]))                    
-                    tmp = bfh(utxo[3])[::-1]
-                    tmp += bfh(int_to_hex(utxo[1], 4))
-                    tmp += txtmp.outputs[utxo[1]].amount
-                    chipInputs.append({'value' : tmp, 'witness' : True, 'sequence' : sequence})
-                    redeemScripts.append(bfh(utxo[2]))
-                elif not p2shTransaction:
+                if not p2shTransaction:
                     txtmp = bitcoinTransaction(bfh(utxo[0]))
                     trustedInput = self.get_client().getTrustedInput(txtmp, utxo[1])
                     trustedInput['sequence'] = sequence
@@ -368,12 +338,13 @@ class Ledger_KeyStore(Hardware_KeyStore):
             inputIndex = 0
             rawTx = tx.serialize()
             self.get_client().enableAlternate2fa(False)
-            if segwitTransaction:
-                self.get_client().startUntrustedTransaction(True, inputIndex,
-                                                            chipInputs, redeemScripts[inputIndex])
+            while inputIndex < len(inputs):
+                self.get_client().startUntrustedTransaction(firstTransaction, inputIndex,
+                                                        chipInputs, redeemScripts[inputIndex])
                 outputData = self.get_client().finalizeInputFull(txOutput)
                 outputData['outputData'] = txOutput
-                transactionOutput = outputData['outputData']
+                if firstTransaction:
+                    transactionOutput = outputData['outputData']
                 if outputData['confirmationNeeded']:
                     outputData['address'] = output
                     self.handler.finished()
@@ -382,38 +353,14 @@ class Ledger_KeyStore(Hardware_KeyStore):
                         raise UserWarning()
                     if pin != 'paired':
                         self.handler.show_message(_("Confirmed. Signing Transaction..."))
-                while inputIndex < len(inputs):
-                    singleInput = [ chipInputs[inputIndex] ]
-                    self.get_client().startUntrustedTransaction(False, 0,
-                                                            singleInput, redeemScripts[inputIndex])
+                else:
+                    # Sign input with the provided PIN
                     inputSignature = self.get_client().untrustedHashSign(inputsPaths[inputIndex], pin, lockTime=tx.locktime)
                     inputSignature[0] = 0x30 # force for 1.4.9+
                     signatures.append(inputSignature)
                     inputIndex = inputIndex + 1
-            else:
-                while inputIndex < len(inputs):
-                    self.get_client().startUntrustedTransaction(firstTransaction, inputIndex,
-                                                            chipInputs, redeemScripts[inputIndex])
-                    outputData = self.get_client().finalizeInputFull(txOutput)
-                    outputData['outputData'] = txOutput
-                    if firstTransaction:
-                        transactionOutput = outputData['outputData']
-                    if outputData['confirmationNeeded']:
-                        outputData['address'] = output
-                        self.handler.finished()
-                        pin = self.handler.get_auth( outputData ) # does the authenticate dialog and returns pin
-                        if not pin:
-                            raise UserWarning()
-                        if pin != 'paired':
-                            self.handler.show_message(_("Confirmed. Signing Transaction..."))
-                    else:
-                        # Sign input with the provided PIN
-                        inputSignature = self.get_client().untrustedHashSign(inputsPaths[inputIndex], pin, lockTime=tx.locktime)
-                        inputSignature[0] = 0x30 # force for 1.4.9+
-                        signatures.append(inputSignature)
-                        inputIndex = inputIndex + 1
-                    if pin != 'paired':
-                        firstTransaction = False
+                if pin != 'paired':
+                    firstTransaction = False
         except UserWarning:
             self.handler.show_error(_('Cancelled by user'))
             return
@@ -444,7 +391,6 @@ class LedgerPlugin(HW_PluginBase):
                  ]
 
     def __init__(self, parent, config, name):
-        self.segwit = config.get("segwit")
         HW_PluginBase.__init__(self, parent, config, name)
         if self.libraries_available:
             self.device_manager().register_devices(self.DEVICE_IDS)

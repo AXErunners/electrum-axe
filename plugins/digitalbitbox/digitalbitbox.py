@@ -86,7 +86,7 @@ class DigitalBitbox_Client():
 
 
     def get_xpub(self, bip32_path, xtype):
-        assert xtype in ('standard', 'p2wpkh-p2sh')
+        assert xtype in ('standard')
         reply = self._get_xpub(bip32_path)
         if reply:
             xpub = reply['xpub']
