@@ -19,4 +19,5 @@ bin/
 
 # tox files
 .cache/
+.pytest_cache/
 .coverage
