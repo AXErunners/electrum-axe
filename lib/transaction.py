@@ -92,6 +92,8 @@ class BCDataStream(object):
         return ''
 
     def read_boolean(self): return self.read_bytes(1)[0] != chr(0)
+    def read_char(self): return self._read_num('<b')
+    def read_uchar(self): return self._read_num('<B')
     def read_int16(self): return self._read_num('<h')
     def read_uint16(self): return self._read_num('<H')
     def read_int32(self): return self._read_num('<i')
@@ -100,6 +102,8 @@ class BCDataStream(object):
     def read_uint64(self): return self._read_num('<Q')
 
     def write_boolean(self, val): return self.write(chr(1) if val else chr(0))
+    def write_char(self, val): return self._write_num('<b', val)
+    def write_uchar(self, val): return self._write_num('<B', val)
     def write_int16(self, val): return self._write_num('<h', val)
     def write_uint16(self, val): return self._write_num('<H', val)
     def write_int32(self, val): return self._write_num('<i', val)
@@ -809,7 +813,7 @@ class Transaction:
                     secexp = pkey.secret
                     private_key = bitcoin.MySigningKey.from_secret_exponent(secexp, curve = SECP256k1)
                     public_key = private_key.get_verifying_key()
-                    sig = private_key.sign_digest_deterministic(pre_hash, hashfunc=hashlib.sha256, sigencode = ecdsa.util.sigencode_der)
+                    sig = private_key.sign_digest_deterministic(pre_hash, hashfunc=hashlib.sha256, sigencode = ecdsa.util.sigencode_der_canonize)
                     assert public_key.verify_digest(sig, pre_hash, sigdecode = ecdsa.util.sigdecode_der)
                     txin['signatures'][j] = bh2u(sig) + '01'
                     #txin['x_pubkeys'][j] = pubkey

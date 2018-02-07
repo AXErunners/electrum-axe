@@ -41,6 +41,9 @@ from .i18n import _
 from .transaction import Transaction, multisig_script
 from .paymentrequest import PR_PAID, PR_UNPAID, PR_UNKNOWN, PR_EXPIRED
 from .plugins import run_hook
+from .masternode import MasternodeAnnounce
+from .masternode_budget import BudgetProposal
+from .masternode_manager import MasternodeManager, parse_masternode_conf, BUDGET_FEE_CONFIRMATIONS
 
 known_commands = {}
 
@@ -81,7 +84,7 @@ def command(s):
             wallet = args[0].wallet
             password = kwargs.get('password')
             if c.requires_wallet and wallet is None:
-                raise BaseException("wallet not loaded. Use 'electrum daemon load_wallet'")
+                raise BaseException("wallet not loaded. Use 'electrum-dash daemon load_wallet'")
             if c.requires_password and password is None and wallet.storage.get('use_encryption'):
                 return {'error': 'Password required' }
             return func(*args, **kwargs)
@@ -95,6 +98,10 @@ class Commands:
         self.config = config
         self.wallet = wallet
         self.network = network
+        self.masternode_manager = None
+        if self.wallet:
+            self.masternode_manager = MasternodeManager(self.wallet,
+                                                        self.config)
         self._callback = callback
 
     def _run(self, method, args, password_getter):
@@ -130,8 +137,8 @@ class Commands:
     @command('wn')
     def restore(self, text):
         """Restore a wallet from text. Text can be a seed phrase, a master
-        public key, a master private key, a list of bitcoin addresses
-        or bitcoin private keys. If you want to be prompted for your
+        public key, a master private key, a list of Dash addresses
+        or Dash private keys. If you want to be prompted for your
         seed, type '?' or ':' (concealed) """
         raise BaseException('Not a JSON-RPC command')
 
@@ -288,7 +295,7 @@ class Commands:
     @command('')
     def dumpprivkeys(self):
         """Deprecated."""
-        return "This command is deprecated. Use a pipe instead: 'electrum listaddresses | electrum getprivatekeys - '"
+        return "This command is deprecated. Use a pipe instead: 'electrum-dash listaddresses | electrum-dash getprivatekeys - '"
 
     @command('')
     def validateaddress(self, address):
@@ -332,7 +339,7 @@ class Commands:
 
     @command('n')
     def getmerkle(self, txid, height):
-        """Get Merkle branch of a transaction included in a block. Electrum
+        """Get Merkle branch of a transaction included in a block. Electrum-DASH
         uses this to verify transactions (Simple Payment Verification)."""
         return self.network.synchronous_get(('blockchain.transaction.get_merkle', [txid, int(height)]))
 
@@ -343,7 +350,7 @@ class Commands:
 
     @command('')
     def version(self):
-        """Return the version of electrum."""
+        """Return the version of electrum-dash."""
         from .version import ELECTRUM_VERSION
         return ELECTRUM_VERSION
 
@@ -491,7 +498,7 @@ class Commands:
 
     @command('w')
     def setlabel(self, key, label):
-        """Assign a label to an item. Item may be a bitcoin address or a
+        """Assign a label to an item. Item may be a Dash address or a
         transaction ID"""
         self.wallet.set_label(key, label)
 
@@ -569,7 +576,7 @@ class Commands:
             PR_PAID: 'Paid',
             PR_EXPIRED: 'Expired',
         }
-        out['amount (BTC)'] = format_satoshis(out.get('amount'))
+        out['amount (DASH)'] = format_satoshis(out.get('amount'))
         out['status'] = pr_str[out.get('status', PR_UNKNOWN)]
         return out
 
@@ -651,6 +658,183 @@ class Commands:
         for k in list(self.wallet.receive_requests.keys()):
             self.wallet.remove_payment_request(k, self.config)
 
+    # Masternode commands.
+    @command('wnp')
+    def importmasternodeconf(self, conf_file):
+        """Import a masternode.conf file."""
+        if not os.path.exists(conf_file):
+            return 'File does not exist.'
+        with open(conf_file, 'r') as f:
+            lines = f.readlines()
+
+        try:
+            conf_lines = parse_masternode_conf(lines)
+        except Exception as e:
+            return 'Error parsing: ' + str(e)
+
+        num = self.masternode_manager.import_masternode_conf_lines(conf_file, self.password)
+        if not num:
+            return 'Could not import any configurations. Please ensure that they are not already imported.'
+        return '%d configuration%s imported.' % (num, 's' if num == 1 else '')
+
+    @command('w')
+    def newmasternode(self, alias):
+        """Create a new masternode."""
+        try:
+            self.masternode_manager.add_masternode(MasternodeAnnounce(alias=alias))
+            return 'Added new masternode "%s".' % alias
+        except Exception as e:
+            return 'Error: %s' % str(e)
+
+    @command('w')
+    def rmmasternode(self, alias):
+        """Remove an existing masternode."""
+        try:
+            self.masternode_manager.remove_masternode(alias)
+            return 'Removed masternode "%s".' % alias
+        except Exception as e:
+            return 'Error: %s' % str(e)
+
+    @command('w')
+    def listmasternodes(self):
+        """List wallet masternodes."""
+        return sorted([i.alias for i in self.masternode_manager.masternodes])
+
+    @command('w')
+    def showmasternode(self, alias):
+        """Show details about a masternode."""
+        mn = self.masternode_manager.get_masternode(alias)
+        if not mn:
+            return 'No masternode exists for alias "%s".' % alias
+        return mn.dump()
+
+    @command('w')
+    def listmasternodepayments(self):
+        """List unused masternode-compatible payments."""
+        return self.masternode_manager.get_masternode_outputs(exclude_frozen = False)
+
+    @command('wnp')
+    def activatemasternode(self, alias):
+        """Activate a masternode."""
+        self.masternode_manager.populate_masternode_output(alias)
+        try:
+            self.masternode_manager.sign_announce(alias, self.password)
+        except Exception as e:
+            return 'Error signing: ' + str(e)
+
+        try:
+            self.masternode_manager.send_announce(alias)
+        except Exception as e:
+            return 'Error sending: ' + str(e)
+
+        return 'Masternode "%s" activated successfully.' % alias
+
+    # Budget-related commands.
+    @command('wp')
+    def prepareproposal(self, proposal_name, proposal_url, payments_count, block_start, address, amount, broadcast=False):
+        """Create a budget proposal transaction."""
+        proposal = self.masternode_manager.get_proposal(proposal_name)
+        amount = int(amount*COIN)
+        if not proposal:
+            proposal = BudgetProposal(proposal_name=proposal_name, proposal_url=proposal_url, start_block=block_start,
+                        payment_amount=amount, address=address)
+            proposal.set_payments_count(payments_count)
+            self.masternode_manager.add_proposal(proposal)
+
+        tx = self.masternode_manager.create_proposal_tx(proposal_name, self.password)
+
+        if broadcast:
+            r, h = self.wallet.sendtx(tx)
+            return h
+        return str(tx)
+
+    @command('wn')
+    def sendproposal(self, proposal_name):
+        """Send a budget proposal."""
+        try:
+            errmsg, submitted = self.masternode_manager.submit_proposal(proposal_name)
+        except Exception as e:
+            return 'Error: %s' % str(e)
+
+        if errmsg:
+            return 'Error: %s' % errmsg
+        return submitted
+
+    @command('wn')
+    def sendreadyproposals(self):
+        """Send all budget proposals that are ready to be sent."""
+        results = {}
+        proposals = filter(lambda p: p.fee_txid and not p.submitted and not p.rejected, self.masternode_manager.proposals)
+        for p in proposals:
+            confirmations, timestamp = self.wallet.get_confirmations(p.fee_txid)
+            if confirmations < BUDGET_FEE_CONFIRMATIONS:
+                continue
+
+            errmsg, success = self.masternode_manager.submit_proposal(p.proposal_name)
+            if not success:
+                results[p.proposal_name] = errmsg
+            else:
+                results[p.proposal_name] = 'Successfully submitted'
+
+        return results
+
+    @command('w')
+    def listproposals(self):
+        """List proposals created with this wallet."""
+        return {p.proposal_name: p.dump() for p in self.masternode_manager.proposals}
+
+    @command('w')
+    def listreadyproposals(self):
+        """List the proposals created with this wallet that are ready to be submitted."""
+        results = {}
+        proposals = filter(lambda p: p.fee_txid and not p.submitted and not p.rejected, self.masternode_manager.proposals)
+        for p in proposals:
+            confirmations, timestamp = self.wallet.get_confirmations(p.fee_txid)
+            if confirmations < BUDGET_FEE_CONFIRMATIONS:
+                continue
+            results[p.proposal_name] = p.dump()
+
+        return results
+
+    @command('n')
+    def mnbudget(self, budget_command):
+        """Get information on masternode budget proposals."""
+        valid_commands = ('list', 'nextblock', 'nextsuperblocksize', 'projection')
+        if budget_command not in valid_commands:
+            return 'Budget command must be one of %s' % valid_commands
+        method = 'masternode.budget.%s' % budget_command
+        return self.network.synchronous_get([(method, [])])[0]
+
+    @command('n')
+    def getvotes(self, proposal_hash):
+        """Get the votes for a budget proposal."""
+        req = ('masternode.budget.getvotes', [proposal_hash])
+        return self.network.synchronous_get([req])[0]
+
+    @command('n')
+    def getproposalhash(self, proposal_name):
+        """Get the hash of a budget proposal by its name."""
+        req = ('masternode.budget.getproposalhash', [proposal_name])
+        return self.network.synchronous_get([req])[0]
+
+    @command('n')
+    def getproposal(self, proposal_hash):
+        """Get information on a budget proposal."""
+        req = ('masternode.budget.getproposal', [proposal_hash])
+        return self.network.synchronous_get([req])[0]
+
+    @command('wn')
+    def vote(self, alias, proposal_name, vote_choice):
+        """Vote on a proposal."""
+        valid_choices = ('yes', 'no')
+        if vote_choice.lower() not in valid_choices:
+            return 'Invalid vote choice: "%s"' % vote_choice
+
+        errmsg, success = self.masternode_manager.vote(alias, proposal_name, vote_choice)
+        if errmsg:
+            return 'Error: %s' % errmsg
+        return success
+
     @command('n')
     def notify(self, address, URL):
         """Watch an address. Everytime the address changes, a http POST is sent to the URL."""
@@ -679,8 +863,8 @@ class Commands:
 
 param_descriptions = {
     'privkey': 'Private key. Type \'?\' to get a prompt.',
-    'destination': 'Bitcoin address, contact or alias',
-    'address': 'Bitcoin address',
+    'destination': 'Dash address, contact or alias',
+    'address': 'Dash address',
     'seed': 'Seed phrase',
     'txid': 'Transaction ID',
     'pos': 'Position',
@@ -690,10 +874,12 @@ param_descriptions = {
     'pubkey': 'Public key',
     'message': 'Clear text message. Use quotes if it contains spaces.',
     'encrypted': 'Encrypted message',
-    'amount': 'Amount to be sent (in BTC). Type \'!\' to send the maximum available.',
-    'requested_amount': 'Requested amount (in BTC).',
+    'amount': 'Amount to be sent (in DASH). Type \'!\' to send the maximum available.',
+    'requested_amount': 'Requested amount (in DASH).',
     'outputs': 'list of ["address", amount]',
     'redeem_script': 'redeem script (hexadecimal)',
+    'conf_file': 'Masternode.conf file from Dash.',
+    'alias': 'Masternode alias.',
 }
 
 command_options = {
@@ -708,7 +894,7 @@ command_options = {
     'labels':      ("-l", "Show the labels of listed addresses"),
     'nocheck':     (None, "Do not verify aliases"),
     'imax':        (None, "Maximum number of inputs"),
-    'fee':         ("-f", "Transaction fee (in BTC)"),
+    'fee':         ("-f", "Transaction fee (in Dash)"),
     'from_addr':   ("-F", "Source address (must be a wallet address; use sweep to spend from non-wallet address)."),
     'change_addr': ("-c", "Change address. Default is a spare address, or the source address if it's not in the wallet"),
     'nbits':       (None, "Number of bits of entropy"),
@@ -733,8 +919,10 @@ command_options = {
 from .transaction import tx_from_str
 json_loads = lambda x: json.loads(x, parse_float=lambda x: str(Decimal(x)))
 arg_types = {
+    'block_start': int,
     'num': int,
     'nbits': int,
+    'payments_count': int,
     'imax': int,
     'entropy': int,
     'tx': tx_from_str,
@@ -753,10 +941,10 @@ config_variables = {
         'requests_dir': 'directory where a bip70 file will be written.',
         'ssl_privkey': 'Path to your SSL private key, needed to sign the request.',
         'ssl_chain': 'Chain of SSL certificates, needed for signed requests. Put your certificate at the top and the root CA at the end',
-        'url_rewrite': 'Parameters passed to str.replace(), in order to create the r= part of bitcoin: URIs. Example: \"(\'file:///var/www/\',\'https://electrum.org/\')\"',
+        'url_rewrite': 'Parameters passed to str.replace(), in order to create the r= part of dash: URIs. Example: \"(\'file:///var/www/\',\'https://electrum-dash.org/\')\"',
     },
     'listrequests':{
-        'url_rewrite': 'Parameters passed to str.replace(), in order to create the r= part of bitcoin: URIs. Example: \"(\'file:///var/www/\',\'https://electrum.org/\')\"',
+        'url_rewrite': 'Parameters passed to str.replace(), in order to create the r= part of dash: URIs. Example: \"(\'file:///var/www/\',\'https://electrum-dash.org/\')\"',
     }
 }
 
@@ -820,7 +1008,7 @@ def add_network_options(parser):
 def add_global_options(parser):
     group = parser.add_argument_group('global options')
     group.add_argument("-v", "--verbose", action="store_true", dest="verbose", default=False, help="Show debugging information")
-    group.add_argument("-D", "--dir", dest="electrum_path", help="electrum directory")
+    group.add_argument("-D", "--dir", dest="electrum_path", help="electrum-dash directory")
     group.add_argument("-P", "--portable", action="store_true", dest="portable", default=False, help="Use local 'electrum_data' directory")
     group.add_argument("-w", "--wallet", dest="wallet_path", help="wallet path")
     group.add_argument("--testnet", action="store_true", dest="testnet", default=False, help="Use Testnet")
@@ -828,12 +1016,12 @@ def add_global_options(parser):
 def get_parser():
     # create main parser
     parser = argparse.ArgumentParser(
-        epilog="Run 'electrum help <command>' to see the help for a command")
+        epilog="Run 'electrum-dash help <command>' to see the help for a command")
     add_global_options(parser)
     subparsers = parser.add_subparsers(dest='cmd', metavar='<command>')
     # gui
-    parser_gui = subparsers.add_parser('gui', description="Run Electrum's Graphical User Interface.", help="Run GUI (default)")
-    parser_gui.add_argument("url", nargs='?', default=None, help="bitcoin URI (or bip70 file)")
+    parser_gui = subparsers.add_parser('gui', description="Run Electrum-DASH Graphical User Interface.", help="Run GUI (default)")
+    parser_gui.add_argument("url", nargs='?', default=None, help="dash URI (or bip70 file)")
     parser_gui.add_argument("-g", "--gui", dest="gui", help="select graphical user interface", choices=['qt', 'kivy', 'text', 'stdio'])
     parser_gui.add_argument("-o", "--offline", action="store_true", dest="offline", default=False, help="Run offline")
     parser_gui.add_argument("-m", action="store_true", dest="hide_gui", default=False, help="hide GUI on startup")
