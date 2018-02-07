@@ -1081,17 +1081,9 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         self.fee_e.editingFinished.connect(self.update_fee)
         self.connect_fields(self, self.amount_e, self.fiat_send_e, self.fee_e)
 
-        self.rbf_checkbox = QCheckBox(_('Replaceable'))
-        msg = [_('If you check this box, your transaction will be marked as non-final,'),
-               _('and you will have the possiblity, while it is unconfirmed, to replace it with a transaction that pays a higher fee.'),
-               _('Note that some merchants do not accept non-final transactions until they are confirmed.')]
-        self.rbf_checkbox.setToolTip('<p>' + ' '.join(msg) + '</p>')
-        self.rbf_checkbox.setVisible(False)
-
         grid.addWidget(self.fee_e_label, 5, 0)
         grid.addWidget(self.fee_slider, 5, 1)
         grid.addWidget(self.fee_e, 5, 2)
-        grid.addWidget(self.rbf_checkbox, 5, 3)
 
         self.preview_button = EnterButton(_("Preview"), self.do_preview)
         self.preview_button.setToolTip(_('Display the details of your transactions before signing it.'))
@@ -1213,20 +1205,6 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
 
             if fee is None:
                 return
-            rbf_policy = self.config.get('rbf_policy', 1)
-            if rbf_policy == 0:
-                b = True
-            elif rbf_policy == 1:
-                fee_rate = fee * 1000 / tx.estimated_size()
-                try:
-                    c = self.config.reverse_dynfee(fee_rate)
-                    b = c in [-1, 25]
-                except:
-                    b = False
-            elif rbf_policy == 2:
-                b = False
-            self.rbf_checkbox.setVisible(b)
-            self.rbf_checkbox.setChecked(b)
 
 
     def from_list_delete(self, item):
@@ -1355,10 +1333,6 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
 
         amount = tx.output_value() if self.is_max else sum(map(lambda x:x[2], outputs))
         fee = tx.get_fee()
-
-        use_rbf = self.rbf_checkbox.isChecked()
-        if use_rbf:
-            tx.set_rbf(True)
 
         if fee < self.wallet.relayfee() * tx.estimated_size() / 1000:
             self.show_error(_("This transaction requires a higher fee, or it will not be propagated by the network"))
@@ -1567,7 +1541,6 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             e.setText('')
             e.setFrozen(False)
         self.set_pay_from([])
-        self.rbf_checkbox.setChecked(False)
         self.tx_external_keypairs = {}
         self.update_status()
         run_hook('do_clear', self)
@@ -2506,16 +2479,6 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         feebox_cb.stateChanged.connect(on_feebox)
         fee_widgets.append((feebox_cb, None))
 
-        rbf_policy = self.config.get('rbf_policy', 1)
-        rbf_label = HelpLabel(_('Propose Replace-By-Fee') + ':', '')
-        rbf_combo = QComboBox()
-        rbf_combo.addItems([_('Always'), _('If the fee is low'), _('Never')])
-        rbf_combo.setCurrentIndex(rbf_policy)
-        def on_rbf(x):
-            self.config.set_key('rbf_policy', x)
-        rbf_combo.currentIndexChanged.connect(on_rbf)
-        fee_widgets.append((rbf_label, rbf_combo))
-
         self.fee_unit = self.config.get('fee_unit', 0)
         fee_unit_label = HelpLabel(_('Fee Unit') + ':', '')
         fee_unit_combo = QComboBox()
@@ -2904,93 +2867,3 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         grid.setRowStretch(len(plugins.descriptions.values()), 1)
         vbox.addLayout(Buttons(CloseButton(d)))
         d.exec_()
-
-    def cpfp(self, parent_tx, new_tx):
-        total_size = parent_tx.estimated_size() + new_tx.estimated_size()
-        d = WindowModalDialog(self, _('Child Pays for Parent'))
-        vbox = QVBoxLayout(d)
-        msg = (
-            "A CPFP is a transaction that sends an unconfirmed output back to "
-            "yourself, with a high fee. The goal is to have miners confirm "
-            "the parent transaction in order to get the fee attached to the "
-            "child transaction.")
-        vbox.addWidget(WWLabel(_(msg)))
-        msg2 = ("The proposed fee is computed using your "
-            "fee/kB settings, applied to the total size of both child and "
-            "parent transactions. After you broadcast a CPFP transaction, "
-            "it is normal to see a new unconfirmed transaction in your history.")
-        vbox.addWidget(WWLabel(_(msg2)))
-        grid = QGridLayout()
-        grid.addWidget(QLabel(_('Total size') + ':'), 0, 0)
-        grid.addWidget(QLabel('%d bytes'% total_size), 0, 1)
-        max_fee = new_tx.output_value()
-        grid.addWidget(QLabel(_('Input amount') + ':'), 1, 0)
-        grid.addWidget(QLabel(self.format_amount(max_fee) + ' ' + self.base_unit()), 1, 1)
-        output_amount = QLabel('')
-        grid.addWidget(QLabel(_('Output amount') + ':'), 2, 0)
-        grid.addWidget(output_amount, 2, 1)
-        fee_e = BTCAmountEdit(self.get_decimal_point)
-        def f(x):
-            a = max_fee - fee_e.get_amount()
-            output_amount.setText((self.format_amount(a) + ' ' + self.base_unit()) if a else '')
-        fee_e.textChanged.connect(f)
-        fee = self.config.fee_per_kb() * total_size / 1000
-        fee_e.setAmount(fee)
-        grid.addWidget(QLabel(_('Fee' + ':')), 3, 0)
-        grid.addWidget(fee_e, 3, 1)
-        def on_rate(dyn, pos, fee_rate):
-            fee = fee_rate * total_size / 1000
-            fee = min(max_fee, fee)
-            fee_e.setAmount(fee)
-        fee_slider = FeeSlider(self, self.config, on_rate)
-        fee_slider.update()
-        grid.addWidget(fee_slider, 4, 1)
-        vbox.addLayout(grid)
-        vbox.addLayout(Buttons(CancelButton(d), OkButton(d)))
-        if not d.exec_():
-            return
-        fee = fee_e.get_amount()
-        if fee > max_fee:
-            self.show_error(_('Max fee exceeded'))
-            return
-        new_tx = self.wallet.cpfp(parent_tx, fee)
-        new_tx.set_rbf(True)
-        self.show_transaction(new_tx)
-
-    def bump_fee_dialog(self, tx):
-        is_relevant, is_mine, v, fee = self.wallet.get_wallet_delta(tx)
-        tx_label = self.wallet.get_label(tx.txid())
-        tx_size = tx.estimated_size()
-        d = WindowModalDialog(self, _('Bump Fee'))
-        vbox = QVBoxLayout(d)
-        vbox.addWidget(QLabel(_('Current fee') + ': %s'% self.format_amount(fee) + ' ' + self.base_unit()))
-        vbox.addWidget(QLabel(_('New fee' + ':')))
-
-        fee_e = BTCAmountEdit(self.get_decimal_point)
-        fee_e.setAmount(fee * 1.5)
-        vbox.addWidget(fee_e)
-
-        def on_rate(dyn, pos, fee_rate):
-            fee = fee_rate * tx_size / 1000
-            fee_e.setAmount(fee)
-        fee_slider = FeeSlider(self, self.config, on_rate)
-        vbox.addWidget(fee_slider)
-        cb = QCheckBox(_('Final'))
-        vbox.addWidget(cb)
-        vbox.addLayout(Buttons(CancelButton(d), OkButton(d)))
-        if not d.exec_():
-            return
-        is_final = cb.isChecked()
-        new_fee = fee_e.get_amount()
-        delta = new_fee - fee
-        if delta < 0:
-            self.show_error("fee too low")
-            return
-        try:
-            new_tx = self.wallet.bump_fee(tx, delta)
-        except BaseException as e:
-            self.show_error(str(e))
-            return
-        if is_final:
-            new_tx.set_rbf(False)
-        self.show_transaction(new_tx, tx_label)

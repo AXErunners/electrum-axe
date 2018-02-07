@@ -143,7 +143,6 @@ def sweep(privkeys, network, config, recipient, fee=None, imax=100):
     locktime = network.get_local_height()
 
     tx = Transaction.from_io(inputs, outputs, locktime=locktime)
-    tx.set_rbf(True)
     tx.sign(keypairs)
     return tx
 
@@ -505,7 +504,6 @@ class Abstract_Wallet(PrintError):
         is_relevant, is_mine, v, fee = self.get_wallet_delta(tx)
         exp_n = None
         can_broadcast = False
-        can_bump = False
         label = ''
         height = conf = timestamp = None
         tx_hash = tx.txid()
@@ -526,7 +524,6 @@ class Abstract_Wallet(PrintError):
                         size = tx.estimated_size()
                         fee_per_kb = fee * 1000 / size
                         exp_n = self.network.config.reverse_dynfee(fee_per_kb)
-                    can_bump = is_mine and not tx.is_final()
             else:
                 status = _("Signed")
                 can_broadcast = self.network is not None
@@ -545,7 +542,7 @@ class Abstract_Wallet(PrintError):
         else:
             amount = None
 
-        return tx_hash, status, label, can_broadcast, can_bump, amount, fee, height, conf, timestamp, exp_n
+        return tx_hash, status, label, can_broadcast, amount, fee, height, conf, timestamp, exp_n
 
     def get_addr_io(self, address):
         h = self.history.get(address, [])
@@ -1040,61 +1037,6 @@ class Abstract_Wallet(PrintError):
             if tx_age > age:
                 age = tx_age
         return age > age_limit
-
-    def bump_fee(self, tx, delta):
-        if tx.is_final():
-            raise BaseException(_("Cannot bump fee: transaction is final"))
-        inputs = copy.deepcopy(tx.inputs())
-        outputs = copy.deepcopy(tx.outputs())
-        for txin in inputs:
-            txin['signatures'] = [None] * len(txin['signatures'])
-            self.add_input_info(txin)
-        # use own outputs
-        s = list(filter(lambda x: self.is_mine(x[1]), outputs))
-        # ... unless there is none
-        if not s:
-            s = outputs
-            x_fee = run_hook('get_tx_extra_fee', self, tx)
-            if x_fee:
-                x_fee_address, x_fee_amount = x_fee
-                s = filter(lambda x: x[1]!=x_fee_address, s)
-
-        # prioritize low value outputs, to get rid of dust
-        s = sorted(s, key=lambda x: x[2])
-        for o in s:
-            i = outputs.index(o)
-            otype, address, value = o
-            if value - delta >= self.dust_threshold():
-                outputs[i] = otype, address, value - delta
-                delta = 0
-                break
-            else:
-                del outputs[i]
-                delta -= value
-                if delta > 0:
-                    continue
-        if delta > 0:
-            raise BaseException(_('Cannot bump fee: could not find suitable outputs'))
-        locktime = self.get_local_height()
-        return Transaction.from_io(inputs, outputs, locktime=locktime)
-
-    def cpfp(self, tx, fee):
-        txid = tx.txid()
-        for i, o in enumerate(tx.outputs()):
-            otype, address, value = o
-            if otype == TYPE_ADDRESS and self.is_mine(address):
-                break
-        else:
-            return
-        coins = self.get_addr_utxo(address)
-        item = coins.get(txid+':%d'%i)
-        if not item:
-            return
-        self.add_input_info(item)
-        inputs = [item]
-        outputs = [(TYPE_ADDRESS, address, value - fee)]
-        locktime = self.get_local_height()
-        return Transaction.from_io(inputs, outputs, locktime=locktime)
 
     def add_input_info(self, txin):
         address = txin['address']
