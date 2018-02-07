@@ -79,17 +79,11 @@ class BaseWizard(object):
         ])
         wallet_kinds = [
             ('standard',  _("Standard wallet")),
-            ('2fa', _("Wallet with two-factor authentication")),
             ('multisig',  _("Multi-signature wallet")),
-            ('imported',  _("Import Bitcoin addresses or private keys")),
+            ('imported',  _("Import Dash addresses or private keys")),
         ]
         choices = [pair for pair in wallet_kinds if pair[0] in wallet_types]
         self.choice_dialog(title=title, message=message, choices=choices, run_next=self.on_wallet_type)
-
-    def load_2fa(self):
-        self.storage.put('wallet_type', '2fa')
-        self.storage.put('use_trustedcoin', True)
-        self.plugin = self.plugins.load_plugin('trustedcoin')
 
     def on_wallet_type(self, choice):
         self.wallet_type = choice
@@ -97,9 +91,6 @@ class BaseWizard(object):
             action = 'choose_keystore'
         elif choice == 'multisig':
             action = 'choose_multisig'
-        elif choice == '2fa':
-            self.load_2fa()
-            action = self.storage.get_action()
         elif choice == 'imported':
             action = 'import_addresses_or_keys'
         self.run(action)
@@ -138,8 +129,8 @@ class BaseWizard(object):
 
     def import_addresses_or_keys(self):
         v = lambda x: keystore.is_address_list(x) or keystore.is_private_key_list(x)
-        title = _("Import Bitcoin Addresses")
-        message = _("Enter a list of Bitcoin addresses (this will create a watching-only wallet), or a list of private keys.")
+        title = _("Import Dash Addresses")
+        message = _("Enter a list of Dash addresses (this will create a watching-only wallet), or a list of private keys.")
         self.add_xpub_dialog(title=title, message=message, run_next=self.on_import, is_valid=v)
 
     def on_import(self, text):
@@ -160,8 +151,8 @@ class BaseWizard(object):
             v = keystore.is_master_key
             title = _("Create keystore from a master key")
             message = ' '.join([
-                _("To create a watching-only wallet, please enter your master public key (xpub/ypub/zpub)."),
-                _("To create a spending wallet, please enter a master private key (xprv/yprv/zprv).")
+                _("To create a watching-only wallet, please enter your master public key (xpub)."),
+                _("To create a spending wallet, please enter a master private key (xprv).")
             ])
             self.add_xpub_dialog(title=title, message=message, run_next=self.on_restore_from_key, is_valid=v)
         else:
@@ -285,13 +276,6 @@ class BaseWizard(object):
             self.passphrase_dialog(run_next=f) if is_ext else f('')
         elif self.seed_type == 'old':
             self.run('create_keystore', seed, '')
-        elif self.seed_type == '2fa':
-            if self.is_kivy:
-                self.show_error('2FA seeds are not supported in this version')
-                self.run('restore_from_seed')
-            else:
-                self.load_2fa()
-                self.run('on_restore_seed', seed, is_ext)
         else:
             raise BaseException('Unknown seed type', self.seed_type)
 
@@ -424,5 +408,5 @@ class BaseWizard(object):
             self.wallet.synchronize()
             self.wallet.storage.write()
             self.terminate()
-        msg = _("Electrum is generating your addresses, please wait.")
+        msg = _("Electrum-DASH is generating your addresses, please wait.")
         self.waiting_dialog(task, msg)
