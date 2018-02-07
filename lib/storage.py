@@ -250,6 +250,7 @@ class WalletStorage(PrintError):
 
     def upgrade(self):
         self.print_error('upgrading wallet format')
+        self.backup_old_version()
 
         self.convert_imported()
         self.convert_wallet_type()
@@ -261,6 +262,20 @@ class WalletStorage(PrintError):
 
         self.put('seed_version', FINAL_SEED_VERSION)  # just to be sure
         self.write()
+
+    def backup_old_version(self):
+        from datetime import datetime
+        now = datetime.now()
+        now_str = now.strftime('%Y%m%d_%H%M%S')
+        backup_file = '%s_%s.back' % (self.path, now_str)
+        if not os.path.exists(backup_file):
+            from shutil import copyfile, copymode
+            copyfile(self.path, backup_file)
+            copymode(self.path, backup_file)
+            self.backup_file = backup_file
+            self.backup_message = ('Wallet was upgraded to new version.'
+                                   ' Backup copy of old wallet version'
+                                   ' placed at: %s' % backup_file)
 
     def convert_wallet_type(self):
         wallet_type = self.get('wallet_type')
@@ -327,7 +342,7 @@ class WalletStorage(PrintError):
             self.put('wallet_type', 'standard')
             self.put('keystore', d)
 
-        elif (wallet_type == '2fa') or multisig_type(wallet_type):
+        elif multisig_type(wallet_type):
             for key in xpubs.keys():
                 d = {
                     'type': 'bip32',
