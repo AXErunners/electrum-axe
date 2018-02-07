@@ -31,6 +31,7 @@ import json
 
 import ecdsa
 import pyaes
+import x11_hash
 
 from .util import bfh, bh2u, to_string
 from . import version
@@ -234,6 +235,10 @@ def Hash(x):
     x = to_bytes(x, 'utf8')
     out = bytes(sha256(sha256(x)))
     return out
+
+
+def PoWHash(x):
+    return x11_hash.getPoWHash(bytes(x, 'utf-8'))
 
 
 hash_encode = lambda x: bh2u(x[::-1])
@@ -558,7 +563,7 @@ from ecdsa.util import string_to_number, number_to_string
 
 def msg_magic(message):
     length = bfh(var_int(len(message)))
-    return b"\x18Bitcoin Signed Message:\n" + length + message
+    return b"\x19DarkCoin Signed Message:\n" + length + message
 
 
 def verify_message(address, sig, message):
@@ -573,7 +578,8 @@ def verify_message(address, sig, message):
             if address == addr:
                 break
         else:
-            raise Exception("Bad signature")
+            raise Exception("Bad signature for %s, sig is for %s" % (address,
+                                                                     addr))
         # check message
         public_key.verify_digest(sig[1:], h, sigdecode = ecdsa.util.sigdecode_string)
         return True
