@@ -27,7 +27,43 @@ from . import util
 from . import bitcoin
 from .bitcoin import *
 
-MAX_TARGET = 0x00000000FFFF0000000000000000000000000000000000000000000000000000
+
+target_timespan = 24 * 60 * 60 # Dash: 1 day
+target_spacing = 2.5 * 60 # Dash: 2.5 minutes
+interval = target_timespan / target_spacing # 576
+max_target = 0x00000ffff0000000000000000000000000000000000000000000000000000000
+
+START_CALC_HEIGHT = 70560
+USE_DIFF_CALC = False
+
+
+def bits_to_target(bits):
+    """Convert a compact representation to a hex target."""
+    MM = 256*256*256
+    a = bits%MM
+    if a < 0x8000:
+        a *= 256
+    target = (a) * pow(2, 8 * (bits/MM - 3))
+    return target
+
+
+def target_to_bits(target):
+    """Convert a target to compact representation."""
+    MM = 256*256*256
+    c = ("%064X"%target)[2:]
+    i = 31
+    while c[0:2]=="00":
+        c = c[2:]
+        i -= 1
+
+    c = int('0x'+c[0:6],16)
+    if c >= 0x800000:
+        c /= 256
+        i += 1
+
+    new_bits = c + MM * i
+    return new_bits
+
 
 def serialize_header(res):
     s = int_to_hex(res.get('version'), 4) \
@@ -55,7 +91,7 @@ def hash_header(header):
         return '0' * 64
     if header.get('prev_block_hash') is None:
         header['prev_block_hash'] = '00'*32
-    return hash_encode(Hash(bfh(serialize_header(header))))
+    return hash_encode(PoWHash(bfh(serialize_header(header))))
 
 
 blockchains = {}
@@ -150,20 +186,32 @@ class Blockchain(util.PrintError):
             raise BaseException("prev hash mismatch: %s vs %s" % (prev_hash, header.get('prev_block_hash')))
         if bitcoin.NetworkConstants.TESTNET:
             return
-        if bits != header.get('bits'):
-            raise BaseException("bits mismatch: %s vs %s" % (bits, header.get('bits')))
-        if int('0x' + _hash, 16) > target:
-            raise BaseException("insufficient proof of work: %s vs target %s" % (int('0x' + _hash, 16), target))
+        #if bits != header.get('bits'):
+        #    raise BaseException("bits mismatch: %s vs %s" % (bits, header.get('bits')))
+        #if int('0x' + _hash, 16) > target:
+        #    raise BaseException("insufficient proof of work: %s vs target %s" % (int('0x' + _hash, 16), target))
+        if USE_DIFF_CALC:
+            if header.get('block_height', 0) > START_CALC_HEIGHT:
+                assert bits == header.get('bits'), "bits mismatch: %s vs %s" \
+                    % (bits, header.get('bits'))
+            _hash = self.hash_header(header)
+            assert int('0x' + _hash, 16) <= target, \
+                "insufficient proof of work: %s vs target %s" % \
+                    (int('0x' + _hash, 16), target)
 
     def verify_chunk(self, index, data):
         num = len(data) // 80
         prev_header = None
         if index != 0:
             prev_header = self.read_header(index * 2016 - 1)
-        bits, target = self.get_target(index)
+        chain = []
         for i in range(num):
             raw_header = data[i*80:(i+1) * 80]
             header = deserialize_header(raw_header, index*2016 + i)
+            height = index*2016 + i
+            header['block_height'] = height
+            chain.append(header)
+            bits, target = self.get_target(height, chain)
             self.verify_header(header, prev_header, bits, target)
             prev_header = header
 
@@ -255,38 +303,76 @@ class Blockchain(util.PrintError):
     def get_hash(self, height):
         return hash_header(self.read_header(height))
 
-    def get_target(self, index):
-        if bitcoin.NetworkConstants.TESTNET:
-            return 0, 0
-        if index == 0:
-            return 0x1d00ffff, MAX_TARGET
-        first = self.read_header((index-1) * 2016)
-        last = self.read_header(index*2016 - 1)
-        # bits to target
-        bits = last.get('bits')
-        bitsN = (bits >> 24) & 0xff
-        if not (bitsN >= 0x03 and bitsN <= 0x1d):
-            raise BaseException("First part of bits should be in [0x03, 0x1d]")
-        bitsBase = bits & 0xffffff
-        if not (bitsBase >= 0x8000 and bitsBase <= 0x7fffff):
-            raise BaseException("Second part of bits should be in [0x8000, 0x7fffff]")
-        target = bitsBase << (8 * (bitsN-3))
-        # new target
-        nActualTimespan = last.get('timestamp') - first.get('timestamp')
-        nTargetTimespan = 14 * 24 * 60 * 60
-        nActualTimespan = max(nActualTimespan, nTargetTimespan // 4)
-        nActualTimespan = min(nActualTimespan, nTargetTimespan * 4)
-        new_target = min(MAX_TARGET, (target * nActualTimespan) // nTargetTimespan)
-        # convert new target to bits
-        c = ("%064x" % new_target)[2:]
-        while c[:2] == '00' and len(c) > 6:
-            c = c[2:]
-        bitsN, bitsBase = len(c) // 2, int('0x' + c[:6], 16)
-        if bitsBase >= 0x800000:
-            bitsN += 1
-            bitsBase >>= 8
-        new_bits = bitsN << 24 | bitsBase
-        return new_bits, bitsBase << (8 * (bitsN - 3))
+    def get_target_dgw(self, block_height, chain=None):
+        if chain is None:
+            chain = []
+
+        last = self.read_header(block_height-1)
+        if last is None:
+            for h in chain:
+                if h.get('block_height') == block_height-1:
+                    last = h
+
+        # params
+        BlockLastSolved = last
+        BlockReading = last
+        nActualTimespan = 0
+        LastBlockTime = 0
+        PastBlocksMin = 24
+        PastBlocksMax = 24
+        CountBlocks = 0
+        PastDifficultyAverage = 0
+        PastDifficultyAveragePrev = 0
+        bnNum = 0
+
+        if BlockLastSolved is None or block_height-1 < PastBlocksMin:
+            return target_to_bits(max_target), max_target
+        for i in range(1, PastBlocksMax + 1):
+            CountBlocks += 1
+
+            if CountBlocks <= PastBlocksMin:
+                if CountBlocks == 1:
+                    PastDifficultyAverage = bits_to_target(BlockReading.get('bits'))
+                else:
+                    bnNum = bits_to_target(BlockReading.get('bits'))
+                    PastDifficultyAverage = ((PastDifficultyAveragePrev * CountBlocks)+(bnNum)) / (CountBlocks + 1)
+                PastDifficultyAveragePrev = PastDifficultyAverage
+
+            if LastBlockTime > 0:
+                Diff = (LastBlockTime - BlockReading.get('timestamp'))
+                nActualTimespan += Diff
+            LastBlockTime = BlockReading.get('timestamp')
+
+            BlockReading = self.read_header((block_height-1) - CountBlocks)
+            if BlockReading is None:
+                for br in chain:
+                    if br.get('block_height') == (block_height-1) - CountBlocks:
+                        BlockReading = br
+
+        bnNew = PastDifficultyAverage
+        nTargetTimespan = CountBlocks * target_spacing
+
+        nActualTimespan = max(nActualTimespan, nTargetTimespan/3)
+        nActualTimespan = min(nActualTimespan, nTargetTimespan*3)
+
+        # retarget
+        bnNew *= nActualTimespan
+        bnNew /= nTargetTimespan
+
+        bnNew = min(bnNew, max_target)
+
+        new_bits = target_to_bits(bnNew)
+        return new_bits, bnNew
+
+    def get_target(self, height, chain=None):
+        if chain is None:
+            chain = []  # Do not use mutables as default values!
+
+        if height == 0 or not USE_DIFF_CALC:
+            return target_to_bits(max_target), max_target
+
+        if height > START_CALC_HEIGHT:
+            return self.get_target_dgw(height, chain)
 
     def can_connect(self, header, check_height=True):
         height = header['block_height']
