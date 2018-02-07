@@ -41,6 +41,7 @@ from .bitcoin import *
 from .interface import Connection, Interface
 from . import blockchain
 from .version import ELECTRUM_VERSION, PROTOCOL_VERSION
+from . import masternode_manager
 
 
 NODES_RETRY_INTERVAL = 60
@@ -192,6 +193,8 @@ class Network(util.DaemonThread):
         self.banner = ''
         self.donation_address = ''
         self.relay_fee = None
+        # List of all proposals on the network.
+        self.all_proposals = []
         # callbacks passed with subscriptions
         self.subscriptions = defaultdict(list)
         self.sub_cache = {}
@@ -318,6 +321,8 @@ class Network(util.DaemonThread):
             self.queue_request('server.version', params, self.interface)
         for h in self.subscribed_addresses:
             self.queue_request('blockchain.scripthash.subscribe', [h])
+        # Disabled until API is stable.
+        # self.queue_request('masternode.proposals.subscribe', [])
 
     def request_fee_estimates(self):
         self.config.requested_fee_estimates()
@@ -535,6 +540,9 @@ class Network(util.DaemonThread):
             if error is None:
                 self.irc_servers = parse_servers(result)
                 self.notify('servers')
+#        elif method == 'masternode.proposals.subscribe':
+#            if error is None:
+#                self.on_proposals(result)
         elif method == 'server.banner':
             if error is None:
                 self.banner = result
@@ -1069,3 +1077,9 @@ class Network(util.DaemonThread):
         if out != tx_hash:
             return False, "error: " + out
         return True, out
+
+#    def on_proposals(self, result):
+#        """Handle new information on all budget proposals."""
+#        all_proposals = masternode_manager.parse_proposals_subscription_result(result)
+#        self.all_proposals = all_proposals
+#        self.trigger_callback('proposals')
