@@ -3,14 +3,21 @@ import hashlib
 import sys
 import traceback
 
-from electrum import bitcoin
-from electrum.bitcoin import TYPE_ADDRESS, int_to_hex, var_int
-from electrum.i18n import _
-from electrum.plugins import BasePlugin
-from electrum.keystore import Hardware_KeyStore
-from electrum.transaction import Transaction
+from electrum_dash import bitcoin
+from electrum_dash.bitcoin import (TYPE_ADDRESS, int_to_hex, var_int,
+                                   b58_address_to_hash160,
+                                   hash160_to_b58_address, NetworkConstants)
+from electrum_dash.i18n import _
+from electrum_dash.plugins import BasePlugin
+from electrum_dash.keystore import Hardware_KeyStore
+from electrum_dash.transaction import Transaction
 from ..hw_wallet import HW_PluginBase
-from electrum.util import print_error, is_verbose, bfh, bh2u
+from electrum_dash.util import print_error, is_verbose, bfh, bh2u
+
+
+def setAlternateCoinVersions(self, regular, p2sh):
+    apdu = [self.BTCHIP_CLA, 0x14, 0x00, 0x00, 0x02, regular, p2sh]
+    self.dongle.exchange(bytearray(apdu))
 
 try:
     import hid
@@ -20,6 +27,7 @@ try:
     from btchip.bitcoinTransaction import bitcoinTransaction
     from btchip.btchipFirmwareWizard import checkFirmware, updateFirmware
     from btchip.btchipException import BTChipException
+    btchip.setAlternateCoinVersions = setAlternateCoinVersions
     BTCHIP = True
     BTCHIP_DEBUG = is_verbose
 except ImportError:
@@ -50,7 +58,7 @@ class Ledger_Client():
 
     def get_xpub(self, bip32_path, xtype):
         self.checkDevice()
-        # bip32_path is of the form 44'/0'/1'
+        # bip32_path is of the form 44'/5'/1'
         # S-L-O-W - we don't handle the fingerprint directly, so compute
         # it manually from the previous node
         # This only happens once so it's bearable
@@ -103,6 +111,8 @@ class Ledger_Client():
         try:
             firmwareInfo = self.dongleObject.getFirmwareVersion()
             firmware = firmwareInfo['version'].split(".")
+            self.canAlternateCoinVersions = (firmwareInfo['specialVersion'] >= 0x20 and
+                                             map(int, firmware) >= [1, 0, 1])
             self.multiOutputSupported = int(firmware[0]) >= 1 and int(firmware[1]) >= 1 and int(firmware[2]) >= 4
 
             if not checkFirmware(firmware):
@@ -128,6 +138,9 @@ class Ledger_Client():
                     raise Exception('Aborted by user - please unplug the dongle and plug it again before retrying')
                 pin = pin.encode()
                 self.dongleObject.verifyPin(pin)
+                if self.canAlternateCoinVersions:
+                    self.dongleObject.setAlternateCoinVersions(NetworkConstants.ADDRTYPE_P2PKH,
+                                                               NetworkConstants.ADDRTYPE_P2SH)
         except BTChipException as e:
             if (e.sw == 0x6faa):
                 raise Exception("Dongle is temporarily locked - please unplug it and replug it again")
@@ -141,7 +154,7 @@ class Ledger_Client():
                 self.perform_hw1_preflight()
             except BTChipException as e:
                 if (e.sw == 0x6d00):
-                    raise BaseException("Device not in Bitcoin mode")
+                    raise BaseException("Device not in Dash mode")
                 raise e
             self.preflightDone = True
 
@@ -314,6 +327,10 @@ class Ledger_KeyStore(Hardware_KeyStore):
                     changeAmount = amount
                 else:
                     output = address
+                    if not self.get_client_electrum().canAlternateCoinVersions:
+                        v, h = b58_address_to_hash160(address)
+                        if v == NetworkConstants.ADDRTYPE_P2PKH:
+                            output = hash160_to_b58_address(h, 0)
                     outputAmount = amount
 
         self.handler.show_message(_("Confirm Transaction on your Ledger device..."))
@@ -424,7 +441,7 @@ class LedgerPlugin(HW_PluginBase):
         device_id = device_info.device.id_
         client = devmgr.client_by_id(device_id)
         client.handler = self.create_handler(wizard)
-        client.get_xpub("m/44'/0'", 'standard') # TODO replace by direct derivation once Nano S > 1.1
+        client.get_xpub("m/44'/5'", 'standard') # TODO replace by direct derivation once Nano S > 1.1
 
     def get_xpub(self, device_id, derivation, xtype, wizard):
         devmgr = self.device_manager()

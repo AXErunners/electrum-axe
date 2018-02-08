@@ -1,4 +1,4 @@
-from electrum.plugins import hook
+from electrum_dash.plugins import hook
 from .ledger import LedgerPlugin
 from ..hw_wallet import CmdLineHandler
 
