@@ -332,7 +332,7 @@ class WalletStorage(PrintError):
             self.put('wallet_type', 'standard')
             self.put('keystore', d)
 
-        elif (wallet_type == '2fa') or multisig_type(wallet_type):
+        elif multisig_type(wallet_type):
             for key in xpubs.keys():
                 d = {
                     'type': 'bip32',

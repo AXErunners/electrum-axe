@@ -17,6 +17,8 @@ hiddenimports = [
     'lib.websockets',
     'gui.qt',
 
+    'memonic',  # required by python-trezor
+
     'plugins',
 
     'plugins.hw_wallet.qt',
@@ -76,6 +78,18 @@ exe = EXE(pyz,
           icon='icons/electrum-dash.ico',
           name=os.path.join('build\\pyi.win32\\electrum', cmdline_name))
 
+# exe with console output
+conexe = EXE(pyz,
+          a.scripts,
+          exclude_binaries=True,
+          debug=False,
+          strip=False,
+          upx=False,
+          console=True,
+          icon='icons/electrum-dash.ico',
+          name=os.path.join('build\\pyi.win32\\electrum',
+                            'console-%s' % cmdline_name))
+
 # trezorctl separate executable
 tctl_a = Analysis(['C:/Python27/Scripts/trezorctl'],
                   hiddenimports=['pkgutil'],
@@ -93,7 +107,7 @@ tctl_exe = EXE(tctl_pyz,
            console=True,
            name=os.path.join('build\\pyi.win32\\electrum', 'trezorctl.exe'))
 
-coll = COLLECT(exe, tctl_exe,
+coll = COLLECT(exe, conexe, tctl_exe,
                a.binaries,
                a.datas,
                strip=False,

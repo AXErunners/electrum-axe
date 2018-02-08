@@ -36,7 +36,7 @@ from functools import wraps
 from decimal import Decimal
 
 import util
-from util import print_msg, format_satoshis, print_stderr
+from util import print_msg, format_satoshis, print_stderr, json_decode
 import bitcoin
 from bitcoin import is_address, hash_160, COIN, TYPE_ADDRESS
 import transaction
@@ -155,10 +155,8 @@ class Commands:
     @command('')
     def setconfig(self, key, value):
         """Set a configuration variable. 'value' may be a string or a Python expression."""
-        try:
-            value = ast.literal_eval(value)
-        except:
-            pass
+        if key not in ('rpcuser', 'rpcpassword'):
+            value = json_decode(value)
         self.config.set_key(key, value)
         return True
 

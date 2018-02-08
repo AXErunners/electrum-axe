@@ -1,8 +1,6 @@
 #!/bin/bash
-wineboot && sleep 5
 
-wineboot --update; wine python C:/Python27/Scripts/pip.exe install \
-    btchip-python==0.1.23
+wineboot && sleep 5
 
 source ./contrib/travis/electrum_dash_version_env.sh;
 echo wine build version is $ELECTRUM_DASH_VERSION

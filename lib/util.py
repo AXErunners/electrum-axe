@@ -416,18 +416,19 @@ def time_difference(distance_in_time, include_seconds):
 
 
 mainnet_block_explorers = {
-    'Dash.org': ('https://explorer.dash.org', {
-        'tx': 'tx', 'addr': 'address'
-    }),
-    'Bchain.info': ('https://bchain.info/DASH', {
-        'tx': 'tx', 'addr': 'addr'
-    }),
+    'Dash.org': ('https://explorer.dash.org',
+                       {'tx': 'tx', 'addr': 'address'}),
+    'Bchain.info': ('https://bchain.info/DASH',
+                       {'tx': 'tx', 'addr': 'addr'}),
+    'system default': ('blockchain:',
+                       {'tx': 'tx', 'addr': 'address'}),
 }
 
 testnet_block_explorers = {
-    'Dash.org': ('https://test.explorer.dash.org', {
-        'tx': 'tx', 'addr': 'address'
-    }),
+    'Dash.org': ('https://test.explorer.dash.org',
+                       {'tx': 'tx', 'addr': 'address'}),
+    'system default': ('blockchain:',
+                       {'tx': 'tx', 'addr': 'address'}),
 }
 
 def block_explorer_info():
@@ -460,7 +461,7 @@ def parse_URI(uri, on_pr=None):
 
     if ':' not in uri:
         if not bitcoin.is_address(uri):
-            raise BaseException("Not a bitcoin address")
+            raise BaseException("Not a Dash address")
         return {'address': uri}
 
     u = urlparse.urlparse(uri)
@@ -482,7 +483,7 @@ def parse_URI(uri, on_pr=None):
     out = {k: v[0] for k, v in pq.items()}
     if address:
         if not bitcoin.is_address(address):
-            raise BaseException("Invalid bitcoin address:" + address)
+            raise BaseException("Invalid Dash address:" + address)
         out['address'] = address
     if 'amount' in out:
         am = out['amount']

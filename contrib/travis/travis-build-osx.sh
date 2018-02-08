@@ -25,10 +25,11 @@ sudo pip2 install \
     jsonrpclib==0.1.7 \
     PySocks==1.6.7 \
     x11_hash>=1.4 \
-    protobuf==3.4.0 \
+    protobuf==2.6.1 \
+    mnemonic==0.18 \
     btchip-python==0.1.23 \
     keepkey==0.7.3 \
-    trezor==0.7.16
+    git+https://github.com/trezor/python-trezor@0.7.x
 
 pyrcc4 icons.qrc -o gui/qt/icons_rc.py
 

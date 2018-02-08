@@ -17,6 +17,8 @@ hiddenimports = [
     'lib.websockets',
     'gui.qt',
 
+    'memonic',  # required by python-trezor
+
     'plugins',
 
     'plugins.hw_wallet.qt',

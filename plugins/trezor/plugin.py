@@ -92,8 +92,6 @@ class TrezorCompatiblePlugin(HW_PluginBase):
         try:
             return self.hid_transport(pair)
         except BaseException as e:
-            # see fdb810ba622dc7dbe1259cbafb5b28e19d2ab114
-            raise
             self.print_error("cannot connect at", device.path, str(e))
             return None
  
@@ -106,7 +104,7 @@ class TrezorCompatiblePlugin(HW_PluginBase):
             return None
 
     def create_client(self, device, handler):
-        transport = self._try_bridge(device) or self._try_hid(device)
+        transport = self._try_hid(device)
         if not transport:
             self.print_error("cannot connect to device")
             return
@@ -145,7 +143,7 @@ class TrezorCompatiblePlugin(HW_PluginBase):
         return client
 
     def get_coin_name(self):
-        return "Testnet" if TESTNET else "Dash"
+        return "Dash Testnet" if TESTNET else "Dash"
 
     def initialize_device(self, device_id, wizard, handler):
         # Initialization method
@@ -191,8 +189,11 @@ class TrezorCompatiblePlugin(HW_PluginBase):
 
         if method == TIM_NEW:
             strength = 64 * (item + 2)  # 128, 192 or 256
+            u2f_counter = 0
+            skip_backup = False
             client.reset_device(True, strength, passphrase_protection,
-                                    pin_protection, label, language)
+                                pin_protection, label, language,
+                                u2f_counter, skip_backup)
         elif method == TIM_RECOVER:
             word_count = 6 * (item + 2)  # 12, 18 or 24
             client.step = 0
