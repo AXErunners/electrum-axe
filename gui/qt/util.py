@@ -6,7 +6,7 @@ import queue
 from collections import namedtuple
 from functools import partial
 
-from electrum.i18n import _
+from electrum_dash.i18n import _
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
@@ -21,7 +21,7 @@ else:
 
 dialogs = []
 
-from electrum.paymentrequest import PR_UNPAID, PR_PAID, PR_EXPIRED
+from electrum_dash.paymentrequest import PR_UNPAID, PR_PAID, PR_EXPIRED
 
 pr_icons = {
     PR_UNPAID:":icons/unpaid.png",
@@ -400,6 +400,7 @@ class MyTreeWidget(QTreeWidget):
         self.setColumnCount(len(headers))
         self.setHeaderLabels(headers)
         self.header().setStretchLastSection(False)
+        self.header().setDefaultAlignment(Qt.AlignCenter)
         for col in range(len(headers)):
             sm = QHeaderView.Stretch if col == self.stretch_column else QHeaderView.ResizeToContents
             self.header().setSectionResizeMode(col, sm)

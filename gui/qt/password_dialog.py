@@ -26,12 +26,12 @@
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-from electrum.i18n import _
+from electrum_dash.i18n import _
 from .util import *
 import re
 import math
 
-from electrum.plugins import run_hook
+from electrum_dash.plugins import run_hook
 
 def check_password_strength(password):
 
@@ -173,7 +173,7 @@ class ChangePasswordDialog(WindowModalDialog):
             msg += ' ' + _('Use this dialog to add a password to your wallet.')
         else:
             if not is_encrypted:
-                msg = _('Your bitcoins are password protected. However, your wallet file is not encrypted.')
+                msg = _('Your Dash coins are password protected. However, your wallet file is not encrypted.')
             else:
                 msg = _('Your wallet is password protected and encrypted.')
             msg += ' ' + _('Use this dialog to change your password.')

@@ -37,14 +37,14 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 import PyQt5.QtCore as QtCore
 
-from electrum.i18n import _, set_language
-from electrum.plugins import run_hook
-from electrum import WalletStorage
-# from electrum.synchronizer import Synchronizer
-# from electrum.verifier import SPV
-# from electrum.util import DebugMem
-from electrum.util import UserCancelled, print_error
-# from electrum.wallet import Abstract_Wallet
+from electrum_dash.i18n import _, set_language
+from electrum_dash.plugins import run_hook
+from electrum_dash import WalletStorage
+# from electrum_dash.synchronizer import Synchronizer
+# from electrum_dash.verifier import SPV
+# from electrum_dash.util import DebugMem
+from electrum_dash.util import UserCancelled, print_error
+# from electrum_dash.wallet import Abstract_Wallet
 
 from .installwizard import InstallWizard, GoBack
 
@@ -54,7 +54,7 @@ try:
 except Exception as e:
     print(e)
     print("Error: Could not find icons file.")
-    print("Please run 'pyrcc5 icons.qrc -o gui/qt/icons_rc.py', and reinstall Electrum")
+    print("Please run 'pyrcc5 icons.qrc -o gui/qt/icons_rc.py', and reinstall Electrum-DASH")
     sys.exit(1)
 
 from .util import *   # * needed for plugins
@@ -105,7 +105,7 @@ class ElectrumGui:
         # init tray
         self.dark_icon = self.config.get("dark_icon", False)
         self.tray = QSystemTrayIcon(self.tray_icon(), None)
-        self.tray.setToolTip('Electrum')
+        self.tray.setToolTip('Electrum-DASH')
         self.tray.activated.connect(self.tray_activated)
         self.build_tray_menu()
         self.tray.show()
@@ -127,7 +127,7 @@ class ElectrumGui:
             submenu.addAction(_("Close"), window.close)
         m.addAction(_("Dark/Light"), self.toggle_tray_icon)
         m.addSeparator()
-        m.addAction(_("Exit Electrum"), self.close)
+        m.addAction(_("Exit Electrum-DASH"), self.close)
 
     def tray_icon(self):
         if self.dark_icon:
@@ -159,7 +159,7 @@ class ElectrumGui:
 
     def show_network_dialog(self, parent):
         if not self.daemon.network:
-            parent.show_warning(_('You are using Electrum in offline mode; restart Electrum if you want to get connected'), title=_('Offline'))
+            parent.show_warning(_('You are using Electrum-DASH in offline mode; restart Electrum-DASH if you want to get connected'), title=_('Offline'))
             return
         if self.nd:
             self.nd.on_update()

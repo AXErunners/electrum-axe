@@ -26,9 +26,9 @@
 import webbrowser
 
 from .util import *
-from electrum.i18n import _
-from electrum.util import block_explorer_URL
-from electrum.util import timestamp_to_datetime, profiler
+from electrum_dash.i18n import _
+from electrum_dash.util import block_explorer_URL
+from electrum_dash.util import timestamp_to_datetime, profiler
 
 
 TX_ICONS = [
