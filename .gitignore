@@ -21,3 +21,8 @@ bin/
 .cache/
 .pytest_cache/
 .coverage
+
+electrum_data/
+gui/kivy/theming/light-0.png
+gui/kivy/theming/light.atlas
+Electrum_DASH.egg-info/

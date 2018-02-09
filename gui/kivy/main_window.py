@@ -7,15 +7,15 @@ import traceback
 from decimal import Decimal
 import threading
 
-import electrum
-from electrum.bitcoin import TYPE_ADDRESS
-from electrum import WalletStorage, Wallet
-from electrum_gui.kivy.i18n import _
-from electrum.paymentrequest import InvoiceStore
-from electrum.util import profiler, InvalidPassword
-from electrum.plugins import run_hook
-from electrum.util import format_satoshis, format_satoshis_plain
-from electrum.paymentrequest import PR_UNPAID, PR_PAID, PR_UNKNOWN, PR_EXPIRED
+import electrum_dash
+from electrum_dash.bitcoin import TYPE_ADDRESS
+from electrum_dash import WalletStorage, Wallet
+from electrum_dash_gui.kivy.i18n import _
+from electrum_dash.paymentrequest import InvoiceStore
+from electrum_dash.util import profiler, InvalidPassword
+from electrum_dash.plugins import run_hook
+from electrum_dash.util import format_satoshis, format_satoshis_plain
+from electrum_dash.paymentrequest import PR_UNPAID, PR_PAID, PR_UNKNOWN, PR_EXPIRED
 
 from kivy.app import App
 from kivy.core.window import Window
@@ -30,10 +30,10 @@ from kivy.metrics import inch
 from kivy.lang import Builder
 
 ## lazy imports for factory so that widgets can be used in kv
-#Factory.register('InstallWizard', module='electrum_gui.kivy.uix.dialogs.installwizard')
-#Factory.register('InfoBubble', module='electrum_gui.kivy.uix.dialogs')
-#Factory.register('OutputList', module='electrum_gui.kivy.uix.dialogs')
-#Factory.register('OutputItem', module='electrum_gui.kivy.uix.dialogs')
+#Factory.register('InstallWizard', module='electrum_dash_gui.kivy.uix.dialogs.installwizard')
+#Factory.register('InfoBubble', module='electrum_dash_gui.kivy.uix.dialogs')
+#Factory.register('OutputList', module='electrum_dash_gui.kivy.uix.dialogs')
+#Factory.register('OutputItem', module='electrum_dash_gui.kivy.uix.dialogs')
 
 from .uix.dialogs.installwizard import InstallWizard
 from .uix.dialogs import InfoBubble
@@ -48,14 +48,14 @@ util = False
 
 # register widget cache for keeping memory down timeout to forever to cache
 # the data
-Cache.register('electrum_widgets', timeout=0)
+Cache.register('electrum_dash_widgets', timeout=0)
 
 from kivy.uix.screenmanager import Screen
 from kivy.uix.tabbedpanel import TabbedPanel
 from kivy.uix.label import Label
 from kivy.core.clipboard import Clipboard
 
-Factory.register('TabbedCarousel', module='electrum_gui.kivy.uix.screens')
+Factory.register('TabbedCarousel', module='electrum_dash_gui.kivy.uix.screens')
 
 # Register fonts without this you won't be able to use bold/italic...
 # inside markup.
@@ -67,7 +67,7 @@ Label.register('Roboto',
                'gui/kivy/data/fonts/Roboto-Bold.ttf')
 
 
-from electrum.util import base_units
+from electrum_dash.util import base_units
 
 
 class ElectrumWindow(App):
@@ -95,7 +95,7 @@ class ElectrumWindow(App):
         from .uix.dialogs.choice_dialog import ChoiceDialog
         protocol = 's'
         def cb2(host):
-            from electrum.bitcoin import NetworkConstants
+            from electrum_dash.bitcoin import NetworkConstants
             pp = servers.get(host, NetworkConstants.DEFAULT_PORTS)
             port = pp.get(protocol, '')
             popup.ids.host.text = host
@@ -128,7 +128,7 @@ class ElectrumWindow(App):
         self.send_screen.set_URI(uri)
 
     def on_new_intent(self, intent):
-        if intent.getScheme() != 'bitcoin':
+        if intent.getScheme() != 'dash':
             return
         uri = intent.getDataString()
         self.set_URI(uri)
@@ -150,7 +150,7 @@ class ElectrumWindow(App):
         self._trigger_update_history()
 
     def _get_bu(self):
-        return self.electrum_config.get('base_unit', 'mBTC')
+        return self.electrum_config.get('base_unit', 'mDASH')
 
     def _set_bu(self, value):
         assert value in base_units.keys()
@@ -237,7 +237,7 @@ class ElectrumWindow(App):
 
         App.__init__(self)#, **kwargs)
 
-        title = _('Electrum App')
+        title = _('Electrum-DASH App')
         self.electrum_config = config = kwargs.get('config', None)
         self.language = config.get('language', 'en')
         self.network = network = kwargs.get('network', None)
@@ -290,17 +290,17 @@ class ElectrumWindow(App):
             self.send_screen.do_clear()
 
     def on_qr(self, data):
-        from electrum.bitcoin import base_decode, is_address
+        from electrum_dash.bitcoin import base_decode, is_address
         data = data.strip()
         if is_address(data):
             self.set_URI(data)
             return
-        if data.startswith('bitcoin:'):
+        if data.startswith('dash:'):
             self.set_URI(data)
             return
         # try to decode transaction
-        from electrum.transaction import Transaction
-        from electrum.util import bh2u
+        from electrum_dash.transaction import Transaction
+        from electrum_dash.util import bh2u
         try:
             text = bh2u(base_decode(data, None, base=43))
             tx = Transaction(text)
@@ -337,7 +337,7 @@ class ElectrumWindow(App):
         self.receive_screen.screen.address = addr
 
     def show_pr_details(self, req, status, is_invoice):
-        from electrum.util import format_time
+        from electrum_dash.util import format_time
         requestor = req.get('requestor')
         exp = req.get('exp')
         memo = req.get('memo')
@@ -359,7 +359,7 @@ class ElectrumWindow(App):
         popup.open()
 
     def show_addr_details(self, req, status):
-        from electrum.util import format_time
+        from electrum_dash.util import format_time
         fund = req.get('fund')
         isaddr = 'y'
         popup = Builder.load_file('gui/kivy/uix/ui_screens/invoice.kv')
@@ -440,7 +440,7 @@ class ElectrumWindow(App):
         self.fiat_unit = self.fx.ccy if self.fx.is_enabled() else ''
         # default tab
         self.switch_to('history')
-        # bind intent for bitcoin: URI scheme
+        # bind intent for dash: URI scheme
         if platform == 'android':
             from android import activity
             from jnius import autoclass
@@ -483,7 +483,7 @@ class ElectrumWindow(App):
                 self.load_wallet(wallet)
                 self.on_resume()
         else:
-            Logger.debug('Electrum: Wallet not found. Launching install wizard')
+            Logger.debug('Electrum-DASH: Wallet not found. Launching install wizard')
             storage = WalletStorage(path)
             wizard = Factory.InstallWizard(self.electrum_config, storage)
             wizard.bind(on_wizard_complete=self.on_wizard_complete)
@@ -558,13 +558,13 @@ class ElectrumWindow(App):
 
         #setup lazy imports for mainscreen
         Factory.register('AnimatedPopup',
-                         module='electrum_gui.kivy.uix.dialogs')
+                         module='electrum_dash_gui.kivy.uix.dialogs')
         Factory.register('QRCodeWidget',
-                         module='electrum_gui.kivy.uix.qrcodewidget')
+                         module='electrum_dash_gui.kivy.uix.qrcodewidget')
 
         # preload widgets. Remove this if you want to load the widgets on demand
-        #Cache.append('electrum_widgets', 'AnimatedPopup', Factory.AnimatedPopup())
-        #Cache.append('electrum_widgets', 'QRCodeWidget', Factory.QRCodeWidget())
+        #Cache.append('electrum_dash_widgets', 'AnimatedPopup', Factory.AnimatedPopup())
+        #Cache.append('electrum_dash_widgets', 'QRCodeWidget', Factory.QRCodeWidget())
 
         # load and focus the ui
         self.root.manager = self.root.ids['manager']
@@ -576,7 +576,7 @@ class ElectrumWindow(App):
         self.receive_screen = None
         self.requests_screen = None
         self.address_screen = None
-        self.icon = "icons/electrum.png"
+        self.icon = "icons/electrum-dash.png"
         self.tabs = self.root.ids['tabs']
 
     def update_interfaces(self, dt):
@@ -665,8 +665,8 @@ class ElectrumWindow(App):
                 from plyer import notification
             icon = (os.path.dirname(os.path.realpath(__file__))
                     + '/../../' + self.icon)
-            notification.notify('Electrum', message,
-                            app_icon=icon, app_name='Electrum')
+            notification.notify('Electrum-DASH', message,
+                            app_icon=icon, app_name='Electrum-DASH')
         except ImportError:
             Logger.Error('Notification: needs plyer; `sudo pip install plyer`')
 

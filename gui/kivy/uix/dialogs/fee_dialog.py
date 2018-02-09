@@ -3,8 +3,8 @@ from kivy.factory import Factory
 from kivy.properties import ObjectProperty
 from kivy.lang import Builder
 
-from electrum.util import fee_levels
-from electrum_gui.kivy.i18n import _
+from electrum_dash.util import fee_levels
+from electrum_dash_gui.kivy.i18n import _
 
 Builder.load_string('''
 <FeeDialog@Popup>

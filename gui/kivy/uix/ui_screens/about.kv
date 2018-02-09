@@ -1,7 +1,7 @@
-#:import VERSION electrum.version.ELECTRUM_VERSION
+#:import VERSION electrum_dash.version.ELECTRUM_VERSION
 
 Popup:
-    title: _("About Electrum")
+    title: _("About Electrum-DASH")
     BoxLayout:
         orientation: 'vertical'
         spacing: '10dp'
@@ -26,10 +26,10 @@ Popup:
                 size_hint_x: 0.4
             TopLabel:
                 markup: True
-                text: '[color=6666ff][ref=x]https://electrum.org[/ref][/color]'
+                text: '[color=6666ff][ref=x]https://electrum-dash.org[/ref][/color]'
                 on_ref_press:
                     import webbrowser
-                    webbrowser.open("https://electrum.org")
+                    webbrowser.open("https://electrum-dash.org")
                 size_hint_x: 0.6
             TopLabel:
                 text: _('Developers')

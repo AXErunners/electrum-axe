@@ -1,4 +1,4 @@
-#:import _ electrum_gui.kivy.i18n._
+#:import _ electrum_dash_gui.kivy.i18n._
 #:import Decimal decimal.Decimal
 #:set btc_symbol chr(171)
 #:set mbtc_symbol chr(187)
@@ -68,7 +68,7 @@ ReceiveScreen:
                     pos_hint: {'center_y': .5}
                 BlueButton:
                     id: address_label
-                    text: s.address if s.address else _('Bitcoin Address')
+                    text: s.address if s.address else _('Dash Address')
                     shorten: True
                     disabled: True
             CardSeparator:
