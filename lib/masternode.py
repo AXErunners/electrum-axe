@@ -2,10 +2,10 @@
 import time
 import base64
 
-import bitcoin
-from bitcoin import hash_encode, hash_decode
-from transaction import BCDataStream, parse_input
-import util
+from . import bitcoin
+from .bitcoin import hash_encode, hash_decode
+from .transaction import BCDataStream, parse_input
+from . import util
 
 class NetworkAddress(object):
     """A network address."""

@@ -1,14 +1,15 @@
 """Masternode-related widgets."""
 
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5.QtWidgets import *
 
 from electrum_dash import bitcoin
 from electrum_dash.bitcoin import COIN
 from electrum_dash.i18n import _
 from electrum_dash.masternode import NetworkAddress, MasternodeAnnounce
 
-import util
+from . import util
 
 def masternode_status(status):
     """Get a human-friendly representation of status.
@@ -320,7 +321,7 @@ class MasternodeOutputsTab(QWidget):
             self.valid_outputs_list.add_outputs(coins)
         else:
             self.status_edit.setText(_('No 1000 DASH outputs were found.'))
-            self.status_edit.setStyleSheet(util.RED_FG)
+            self.status_edit.setStyleSheet(util.ColorScheme.RED.as_stylesheet())
 
     def set_output(self, vin):
         """Set the selected output."""
@@ -337,7 +338,7 @@ class MasternodeOutputsTab(QWidget):
         """Set the row that the data widget mapper should use."""
         self.valid_outputs_list.clear()
         self.status_edit.clear()
-        self.status_edit.setStyleSheet(util.BLACK_FG)
+        self.status_edit.setStyleSheet(util.ColorScheme.DEFAULT.as_stylesheet())
         self.mapper.setCurrentIndex(row)
         mn = self.dialog.masternodes_widget.masternode_for_row(row)
 
@@ -404,7 +405,7 @@ class SignAnnounceWidget(QWidget):
     def set_mapper_index(self, row):
         """Set the row that the data widget mapper should use."""
         self.status_edit.clear()
-        self.status_edit.setStyleSheet(util.BLACK_FG)
+        self.status_edit.setStyleSheet(util.ColorScheme.DEFAULT.as_stylesheet())
         self.mapper.setCurrentIndex(row)
         mn = self.dialog.masternodes_widget.masternode_for_row(row)
 

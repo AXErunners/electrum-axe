@@ -1,15 +1,16 @@
 import webbrowser
 
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5.QtWidgets import *
 
 from electrum_dash.i18n import _
 from electrum_dash.masternode_budget import BudgetProposal, BudgetVote
 from electrum_dash.masternode_manager import BUDGET_FEE_CONFIRMATIONS
 from electrum_dash.util import block_explorer_URL, print_error, format_satoshis_plain
 
-from amountedit import BTCAmountEdit
-import util
+from .amountedit import BTCAmountEdit
+from . import util
 
 # Color used when displaying proposals that we created.
 MY_PROPOSAL_COLOR = '#80ff80'

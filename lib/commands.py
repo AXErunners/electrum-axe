@@ -881,6 +881,7 @@ param_descriptions = {
 }
 
 command_options = {
+    'broadcast':   (None, "Broadcast the transaction to the Dash network"),
     'password':    ("-W", "Password"),
     'new_password':(None, "New Password"),
     'receiving':   (None, "Show only receiving addresses"),

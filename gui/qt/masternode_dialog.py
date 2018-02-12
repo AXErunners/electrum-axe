@@ -3,8 +3,8 @@ from datetime import datetime
 import os
 import traceback
 
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
 
 from electrum_dash import bitcoin
 from electrum_dash.i18n import _
@@ -12,9 +12,9 @@ from electrum_dash.masternode import MasternodeAnnounce
 from electrum_dash.masternode_manager import parse_masternode_conf
 from electrum_dash.util import PrintError
 
-from masternode_widgets import *
-from masternode_budget_widgets import *
-import util
+from .masternode_widgets import *
+from .masternode_budget_widgets import *
+from . import util
 
 # Background color for enabled masternodes.
 ENABLED_MASTERNODE_BG = '#80ff80'
@@ -205,10 +205,10 @@ class MasternodesWidget(QWidget):
             header.setHighlightSections(False)
 
         header = self.view.horizontalHeader()
-        header.setResizeMode(MasternodesModel.ALIAS, QHeaderView.ResizeToContents)
-        header.setResizeMode(MasternodesModel.VIN, QHeaderView.Stretch)
-        header.setResizeMode(MasternodesModel.COLLATERAL, QHeaderView.ResizeToContents)
-        header.setResizeMode(MasternodesModel.DELEGATE, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(MasternodesModel.ALIAS, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(MasternodesModel.VIN, QHeaderView.Stretch)
+        header.setSectionResizeMode(MasternodesModel.COLLATERAL, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(MasternodesModel.DELEGATE, QHeaderView.ResizeToContents)
         self.view.verticalHeader().setVisible(False)
 
         self.view.setSelectionMode(QAbstractItemView.SingleSelection)

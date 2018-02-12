@@ -238,7 +238,7 @@ def Hash(x):
 
 
 def PoWHash(x):
-    return x11_hash.getPoWHash(bytes(x, 'utf-8'))
+    return x11_hash.getPoWHash(to_bytes(x))
 
 
 hash_encode = lambda x: bh2u(x[::-1])
