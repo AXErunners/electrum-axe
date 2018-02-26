@@ -1,14 +1,16 @@
+# Release 2.9.4 (security update)
+  * Incorporate electrum 2.9.4 changes
 # Release 2.9.3.2 (Security update)
- * The JSONRPC interface is password protected
- * JSONRPC commands are disabled if the GUI is running, except 'ping',
-   which is used to determine if a GUI is already running
- * Fix hardware wallets supoort for Windows/OSX builds
+  * The JSONRPC interface is password protected
+  * JSONRPC commands are disabled if the GUI is running, except 'ping',
+    which is used to determine if a GUI is already running
+  * Fix hardware wallets supoort for Windows/OSX builds
 # Release 2.9.3.1 (Security update)
- * Fix a vulnerability caused by Cross-Origin Resource Sharing (CORS)
-   in the JSONRPC interface. Previous versions of Electrum are
-   vulnerable to port scanning and deanonimization attacks from
-   malicious websites. Wallets that are not password-protected are
-   vulnerable to theft.
+  * Fix a vulnerability caused by Cross-Origin Resource Sharing (CORS)
+    in the JSONRPC interface. Previous versions of Electrum are
+    vulnerable to port scanning and deanonimization attacks from
+    malicious websites. Wallets that are not password-protected are
+    vulnerable to theft.
 # Release 2.9.3
   * fix configuration file issue #2719
   * disable 'spend confirmed only' option by default

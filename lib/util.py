@@ -214,9 +214,9 @@ def to_bytes(something, encoding='utf8'):
     """
     cast string to bytes() like object, but for python2 support it's bytearray copy
     """
-    if isinstance(something, bytes):
+    if isinstance(something, (str, bytes)):
         return something
-    if isinstance(something, str):
+    if isinstance(something, unicode):
         return something.encode(encoding)
     elif isinstance(something, bytearray):
         return bytes(something)
