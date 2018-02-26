@@ -174,7 +174,6 @@ ButtonsLineEdit {
 
 QLabel {
     color: #333;
-    min-height:25px;
 }
 
 
