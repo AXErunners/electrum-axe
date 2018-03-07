@@ -1,6 +1,9 @@
 #!/bin/bash
 BUILD_REPO_URL=https://github.com/akhavr/electrum-dash.git
 
+export PATH="/usr/local/opt/python@2/bin:$PATH"
+export PATH="/usr/local/opt/python@2/libexec/bin:$PATH"
+
 cd build
 
 if [[ -z $TRAVIS_TAG ]]; then
