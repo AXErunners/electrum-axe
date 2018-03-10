@@ -1,0 +1,28 @@
+#!/usr/bin/env python
+
+from electrum_axe import SimpleConfig, set_verbosity
+from electrum_axe.network import filter_protocol
+import time, Queue
+from collections import defaultdict
+
+import util, json
+set_verbosity(False)
+
+config = SimpleConfig()
+servers = filter_protocol(protocol = 't')
+results = util.send_request(servers, 'blockchain.headers.subscribe', [])
+
+d = defaultdict(int)
+
+for k, r in results.items():
+    blocks = r.get('block_height')
+    d[blocks] += 1
+
+
+
+for k, v in results.items():
+    print k, v.get('block_height')
+
+v = d.values()
+numblocks = d.keys()[v.index(max(v))]
+print "blocks:",numblocks

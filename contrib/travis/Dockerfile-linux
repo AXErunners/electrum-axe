@@ -1,0 +1,6 @@
+FROM ubuntu:16.04
+LABEL maintainer "Andriy Khavryuchenko <akhavr@khavr.com>"
+
+RUN apt-get update -y
+RUN apt-get install -y python-pip pyqt4-dev-tools
+RUN pip install --upgrade pip
