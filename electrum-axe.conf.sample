@@ -6,7 +6,7 @@
 # that can be rewritten by the client
 
 [client]
-server = electrum.novit.ro:50001:t
+server = 198.143.186.117:50001:t
 proxy = None
 gap_limit = 5
 # booleans use python syntax
