@@ -1,24 +1,6 @@
-Electrum-AXE - Lightweight AXE client
-=====================================
-
-::
-
-  Licence: MIT Licence
-  Author: Thomas Voegtlin
-  Language: Python
-  Homepage: https://electrum-axe.org/
-
-
-.. image:: https://travis-ci.org/akhavr/electrum-axe.svg?branch=develop
-    :target: https://travis-ci.org/akhavr/electrum-axe
-    :alt: Build Status
-
-
-
-
-
-Getting started
-===============
+electrum-AXE
+---
+[![Build Status](https://travis-ci.org/AXErunners/electrum-axe.svg?branch=master)](https://travis-ci.org/AXErunners/electrum-axe)
 
 Electrum-AXE is a pure python application. If you want to use the
 Qt interface, install the Qt dependencies::
@@ -50,7 +32,7 @@ Development version
 
 Check out the code from Github::
 
-    git clone https://github.com/akhavr/electrum-axe
+    git clone https://github.com/AXErunners/electrum-axe
     cd electrum-axe
 
 Run install (this should install dependencies)::
