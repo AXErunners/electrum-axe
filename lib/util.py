@@ -416,10 +416,8 @@ def time_difference(distance_in_time, include_seconds):
 
 
 mainnet_block_explorers = {
-    'AXE.org': ('https://explorer.axe.org',
+    'AXE': ('http://207.246.65.114:3001',
                        {'tx': 'tx', 'addr': 'address'}),
-    'Bchain.info': ('https://bchain.info/AXE',
-                       {'tx': 'tx', 'addr': 'addr'}),
     'system default': ('blockchain:',
                        {'tx': 'tx', 'addr': 'address'}),
 }
@@ -436,7 +434,7 @@ def block_explorer_info():
     return testnet_block_explorers if bitcoin.TESTNET else mainnet_block_explorers
 
 def block_explorer(config):
-    return config.get('block_explorer', 'AXE.org')
+    return config.get('block_explorer', 'AXE')
 
 def block_explorer_tuple(config):
     return block_explorer_info().get(block_explorer(config))
@@ -487,7 +485,7 @@ def parse_URI(uri, on_pr=None):
         out['address'] = address
     if 'amount' in out:
         am = out['amount']
-        m = re.match('([0-9\.]+)X([0-9])', am)
+        m = re.match('([0-9\.]+)P([0-9])', am)
         if m:
             k = int(m.group(2)) - 8
             amount = Decimal(m.group(1)) * pow(  Decimal(10) , k)
