@@ -4,8 +4,8 @@
 [Desktop Entry]
 Comment=Lightweight AXE Client
 Exec=electrum-axe %u
-GenericName[en_US]=Electrum-DASH
-GenericName=Electrum-DASH
+GenericName[en_US]=Electrum-AXE
+GenericName=Electrum-AXE
 Icon=electrum-axe
 Name[en_US]=Electrum AXE Wallet
 Name=Electrum AXE Wallet
