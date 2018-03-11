@@ -31,7 +31,7 @@ Development version
 
 Check out the code from Github::
 
-    git clone https://github.com/akhavr/electrum-axe
+    git clone https://github.com/AXErunners/electrum-axe
     cd electrum-axe
 
 Run install (this should install dependencies)::
