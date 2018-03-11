@@ -1,6 +1,7 @@
 electrum-AXE
----
-[![Build Status](https://travis-ci.org/AXErunners/electrum-axe.svg?branch=master)](https://travis-ci.org/AXErunners/electrum-axe)
+===========
+.. image:: https://travis-ci.org/AXErunners/electrum-axe.svg?branch=master
+    :target: https://travis-ci.org/AXErunners/electrum-axe
 
 Electrum-AXE is a pure python application. If you want to use the
 Qt interface, install the Qt dependencies::
