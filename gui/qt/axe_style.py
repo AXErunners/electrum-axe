@@ -67,7 +67,7 @@ stop: 0 #A5CFFA, stop: 1 #72B2F8);
 
 
 /**********************/
-/* DASH Evolution CSS */
+/* AXE Evolution CSS */
 /*
 0. OSX Reset
 1. Navigation Bar

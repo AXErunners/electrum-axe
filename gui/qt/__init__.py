@@ -51,7 +51,7 @@ try:
     import icons_rc
 except Exception:
     print "Error: Could not find icons file."
-    print "Please run 'pyrcc4 icons.qrc -o gui/qt/icons_rc.py', and reinstall Electrum-DASH"
+    print "Please run 'pyrcc4 icons.qrc -o gui/qt/icons_rc.py', and reinstall Electrum-AXE"
     sys.exit(1)
 
 from util import *   # * needed for plugins
@@ -93,7 +93,7 @@ class ElectrumGui:
         # init tray
         self.dark_icon = self.config.get("dark_icon", False)
         self.tray = QSystemTrayIcon(self.tray_icon(), None)
-        self.tray.setToolTip('Electrum-DASH')
+        self.tray.setToolTip('Electrum-AXE')
         self.tray.activated.connect(self.tray_activated)
         self.build_tray_menu()
         self.tray.show()
@@ -110,7 +110,7 @@ class ElectrumGui:
             submenu.addAction(_("Close"), window.close)
         m.addAction(_("Dark/Light"), self.toggle_tray_icon)
         m.addSeparator()
-        m.addAction(_("Exit Electrum-DASH"), self.close)
+        m.addAction(_("Exit Electrum-AXE"), self.close)
         self.tray.setContextMenu(m)
 
     def tray_icon(self):
