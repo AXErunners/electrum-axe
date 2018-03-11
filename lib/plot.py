@@ -37,7 +37,7 @@ def plot_history(wallet, history):
     plt.subplots_adjust(bottom=0.2)
     plt.xticks( rotation=25 )
     ax = plt.gca()
-    plt.ylabel('DASH')
+    plt.ylabel('AXE')
     plt.xlabel('Month')
     xfmt = md.DateFormatter('%Y-%m-%d')
     ax.xaxis.set_major_formatter(xfmt)

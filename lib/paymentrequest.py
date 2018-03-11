@@ -51,13 +51,13 @@ from bitcoin import TYPE_ADDRESS
 
 REQUEST_HEADERS = {
     'Accept': 'application/axe-paymentrequest',
-    'User-Agent': 'Electrum-DASH',
+    'User-Agent': 'Electrum-AXE',
 }
 
 ACK_HEADERS = {
     'Content-Type': 'application/axe-payment',
     'Accept': 'application/axe-paymentack',
-    'User-Agent': 'Electrum-DASH'
+    'User-Agent': 'Electrum-AXE'
 }
 
 ca_path = requests.certs.where()
@@ -280,7 +280,7 @@ class PaymentRequest:
 
         ref_out = paymnt.refund_to.add()
         ref_out.script = transaction.Transaction.pay_script(TYPE_ADDRESS, refund_addr)
-        paymnt.memo = "Paid using Electrum-DASH"
+        paymnt.memo = "Paid using Electrum-AXE"
         pm = paymnt.SerializeToString()
 
         payurl = urlparse.urlparse(pay_det.payment_url)

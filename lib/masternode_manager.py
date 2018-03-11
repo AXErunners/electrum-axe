@@ -181,7 +181,7 @@ class MasternodeManager(object):
         unused = lambda d: '%s:%d' % (d['prevout_hash'], d['prevout_n']) not in used_vins
         correct_amount = lambda d: d['value'] == 1000 * bitcoin.COIN
 
-        # Valid outputs have a value of exactly 1000 DASH and
+        # Valid outputs have a value of exactly 1000 AXE and
         # are not in use by an existing masternode.
         is_valid = lambda d: correct_amount(d) and unused(d)
 
@@ -212,7 +212,7 @@ class MasternodeManager(object):
             raise Exception('Collateral payment must have at least %d confirmations (current: %d)' % (MASTERNODE_MIN_CONFIRMATIONS, confirmations))
         # Ensure that the masternode's vin is valid.
         if mn.vin.get('value', 0) != bitcoin.COIN * 1000:
-            raise Exception('Masternode requires a collateral 1000 DASH output.')
+            raise Exception('Masternode requires a collateral 1000 AXE output.')
 
         # If the masternode has been announced, it can be announced again if it has been disabled.
         if mn.announced:

@@ -36,7 +36,7 @@ import threading
 import hmac
 from i18n import _
 
-base_units = {'DASH':8, 'mDASH':5, 'uDASH':2}
+base_units = {'AXE':8, 'mAXE':5, 'uAXE':2}
 fee_levels = [_('Within 25 blocks'), _('Within 10 blocks'), _('Within 5 blocks'), _('Within 2 blocks'), _('In the next block')]
 
 def normalize_version(v):
@@ -315,9 +315,9 @@ def user_dir():
     elif os.name == 'posix':
         return os.path.join(os.environ["HOME"], ".electrum-axe")
     elif "APPDATA" in os.environ:
-        return os.path.join(os.environ["APPDATA"], "Electrum-DASH")
+        return os.path.join(os.environ["APPDATA"], "Electrum-AXE")
     elif "LOCALAPPDATA" in os.environ:
-        return os.path.join(os.environ["LOCALAPPDATA"], "Electrum-DASH")
+        return os.path.join(os.environ["LOCALAPPDATA"], "Electrum-AXE")
     else:
         #raise Exception("No home directory found in environment variables.")
         return
@@ -418,7 +418,7 @@ def time_difference(distance_in_time, include_seconds):
 mainnet_block_explorers = {
     'AXE.org': ('https://explorer.axe.org',
                        {'tx': 'tx', 'addr': 'address'}),
-    'Bchain.info': ('https://bchain.info/DASH',
+    'Bchain.info': ('https://bchain.info/AXE',
                        {'tx': 'tx', 'addr': 'addr'}),
     'system default': ('blockchain:',
                        {'tx': 'tx', 'addr': 'address'}),
