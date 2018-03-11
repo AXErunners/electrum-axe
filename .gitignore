@@ -1,0 +1,17 @@
+.env
+
+# Ansible
+*.retry
+
+# Vagrant
+.vagrant
+
+# Terraform
+*.tfstate
+*.tfstate.backup
+.terraform
+/clusters/aws-example.inventory
+
+# CLion
+cmake-build-debug
+.idea
