@@ -44,7 +44,7 @@ import x11_hash
 # https://github.com/axepay/axe/ 0.11.0 Release notes for drkp/drkv/DRKP/DRKV
 # https://github.com/satoshilabs/slips/blob/master/slip-0044.md
 TESTNET = False
-ADDRTYPE_P2PKH = 76
+ADDRTYPE_P2PKH = 55
 ADDRTYPE_P2SH = 16
 WIF = 204
 XPRV_HEADER = 0x0488ade4
