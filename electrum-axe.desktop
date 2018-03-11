@@ -13,5 +13,4 @@ Categories=Network;
 StartupNotify=false
 Terminal=false
 Type=Application
-MimeType=x-scheme-handler/axepay;
-
+MimeType=x-scheme-handler/axerunners;
