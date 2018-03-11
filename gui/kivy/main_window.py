@@ -150,7 +150,7 @@ class ElectrumWindow(App):
         self._trigger_update_history()
 
     def _get_bu(self):
-        return self.electrum_config.get('base_unit', 'mDASH')
+        return self.electrum_config.get('base_unit', 'mAXE')
 
     def _set_bu(self, value):
         assert value in base_units.keys()
@@ -237,7 +237,7 @@ class ElectrumWindow(App):
 
         super(ElectrumWindow, self).__init__(**kwargs)
 
-        title = _('Electrum-DASH App')
+        title = _('Electrum-AXE App')
         self.electrum_config = config = kwargs.get('config', None)
         self.language = config.get('language', 'en')
 
@@ -490,7 +490,7 @@ class ElectrumWindow(App):
                 self.load_wallet(wallet)
                 self.on_resume()
         else:
-            Logger.debug('Electrum-DASH: Wallet not found. Launching install wizard')
+            Logger.debug('Electrum-AXE: Wallet not found. Launching install wizard')
             storage = WalletStorage(path)
             wizard = Factory.InstallWizard(self.electrum_config, storage)
             wizard.bind(on_wizard_complete=self.on_wizard_complete)
@@ -671,8 +671,8 @@ class ElectrumWindow(App):
                 from plyer import notification
             icon = (os.path.dirname(os.path.realpath(__file__))
                     + '/../../' + self.icon)
-            notification.notify('Electrum-DASH', message,
-                            app_icon=icon, app_name='Electrum-DASH')
+            notification.notify('Electrum-AXE', message,
+                            app_icon=icon, app_name='Electrum-AXE')
         except ImportError:
             Logger.Error('Notification: needs plyer; `sudo pip install plyer`')
 
