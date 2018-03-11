@@ -1,4 +1,4 @@
-"""DASH masternode support."""
+"""AXE masternode support."""
 import time
 import base64
 

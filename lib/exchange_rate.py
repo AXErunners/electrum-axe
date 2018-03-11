@@ -41,14 +41,14 @@ class ExchangeBase(PrintError):
         # APIs must have https
         url = ''.join(['https://', site, get_string])
         response = requests.request('GET', url, headers={
-            'User-Agent': 'Electrum-DASH'
+            'User-Agent': 'Electrum-AXE'
         })
         return response.json()
 
     def get_csv(self, site, get_string):
         url = ''.join(['https://', site, get_string])
         response = requests.request('GET', url, headers={
-            'User-Agent': 'Electrum-DASH'
+            'User-Agent': 'Electrum-AXE'
         })
         reader = csv.DictReader(response.content.split('\n'))
         return list(reader)
@@ -101,7 +101,7 @@ class ExchangeBase(PrintError):
 class Bittrex(ExchangeBase):
     def get_rates(self, ccy):
         json = self.get_json('bittrex.com',
-                             '/api/v1.1/public/getticker?market=BTC-DASH')
+                             '/api/v1.1/public/getticker?market=BTC-AXE')
         quote_currencies = {}
         if not json.get('success', False):
             return quote_currencies
@@ -114,7 +114,7 @@ class Poloniex(ExchangeBase):
     def get_rates(self, ccy):
         json = self.get_json('poloniex.com', '/public?command=returnTicker')
         quote_currencies = {}
-        axe_ticker = json.get('BTC_DASH')
+        axe_ticker = json.get('BTC_AXE')
         quote_currencies['BTC'] = Decimal(axe_ticker['last'])
         return quote_currencies
 
