@@ -15,7 +15,7 @@ fi
 cd electrum-axe
 
 source ./contrib/travis/electrum_axe_version_env.sh;
-echo wine build version is $ELECTRUM_DASH_VERSION
+echo wine build version is $ELECTRUM_AXE_VERSION
 
 sudo pip2 install \
     dnspython==1.12.0 \
@@ -44,9 +44,9 @@ cp /usr/local/lib/python2.7/site-packages/requests/cacert.pem packages/requests/
 
 pyinstaller \
     -y \
-    --name electrum-axe-$ELECTRUM_DASH_VERSION.bin \
+    --name electrum-axe-$ELECTRUM_AXE_VERSION.bin \
     osx.spec
 
-sudo hdiutil create -fs HFS+ -volname "Electrum-DASH" \
-    -srcfolder dist/Electrum-DASH.app \
-    dist/electrum-axe-$ELECTRUM_DASH_VERSION-macosx.dmg
+sudo hdiutil create -fs HFS+ -volname "Electrum-AXE" \
+    -srcfolder dist/Electrum-AXE.app \
+    dist/electrum-axe-$ELECTRUM_AXE_VERSION-macosx.dmg
