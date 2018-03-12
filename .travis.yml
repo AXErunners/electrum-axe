@@ -37,7 +37,7 @@ deploy:
   file:
   - build/electrum-axe/dist/electrum-axe-$ELECTRUM_AXE_VERSION-macosx.dmg
   on:
-    repo: akhavr/electrum-axe
+    repo: axerunners/electrum-axe
     tags: true
     condition: "$TRAVIS_OS_NAME = osx"
 - provider: releases
@@ -47,9 +47,6 @@ deploy:
   - build/electrum-axe/dist/Electrum-AXE-$ELECTRUM_AXE_VERSION.tar.gz
   - build/electrum-axe/dist/electrum-axe-$ELECTRUM_AXE_VERSION-setup.exe
   on:
-    repo: akhavr/electrum-axe
+    repo: axerunners/electrum-axe
     tags: true
     condition: "$TRAVIS_OS_NAME = linux"
-notifications:
-  slack:
-    secure: g2tFyXklhL4WOD/jQ8nxiOBqVv2F26iE4aVgvpclQ/9Fnh6jXEk3jCXyMqt39fcbB4Hka2wPr4n5uWH3tRaChFpwK5LQS5vuymllloqdxAShgIXXciZ1k/Ka1K+mxMEPJriQm4MT5AvzcLVSkJ0i5LYW8nWgG7+fTEullWS4hlPLC77C36iK2CWDaxfFqqe8oPTdsCVbik8HQ62ZWDM6Sh6TZbQD7F9eUBmiwwQhRB2BMxPkWghwQ//FRJ+PIpg7PtWRru/JjNg3adOsHnwlltqUVAolacZCbpxDKFR+GLpYmLkMrwdnVA7apZ2In/yo25ByAkxshCgw45lmGB0dtC1zeAe3Get9eGP5w3o9Zedj5T5esX0BNArDK70C+kTXcPeJaRRQJPrs5OYXRPKjD+uiJqe1fIFSmhdM6vvuMPdyA1z0Fd0/9G2O/Qi8tFxcFmM8n6JQGfD9ojOQF8fPYcHM9gsOgNU9J2PfV3RnRtv3VZogxs4azKG2M8JhD/lwqZBNi4FgdllW6NE7+5TB2KX07xy/zx0m81u8k6J228sAuiRsUBcpmW7pqlqLIENMzwV8pDcA93Ps0EWJKWbzRi+hIEkBnaFE9WHY0GcKuW0TCrnonZ4FOnJNO/G9HzxvQ97bcJDvhUloJ2pBBsH0P4IZ1RlDXFpc5DqTT2qxZSo=
