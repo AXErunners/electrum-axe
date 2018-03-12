@@ -52,8 +52,8 @@ DEFAULT_PORTS = {'t':'50001', 's':'50002'}
 #then gradually switch remaining nodes to e-x nodes
 
 DEFAULT_SERVERS = {
-    '198.143.186.117':DEFAULT_PORTS,  # thelazier
-    # cert verify failed 'electrum-drk.club':DEFAULT_PORTS,         # duffman
+    '198.143.186.117':DEFAULT_PORTS,
+    '207.246.65.114':DEFAULT_PORTS,
 }
 
 def set_testnet():
@@ -67,7 +67,7 @@ def set_testnet():
 NODES_RETRY_INTERVAL = 60
 SERVER_RETRY_INTERVAL = 10
 MIN_SERVER_VERSION = 1.0
-MIN_ELECTRUMX_VERSION = '1.0.11'
+MIN_ELECTRUMX_VERSION = '1.0'
 
 
 def parse_servers(result):
