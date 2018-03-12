@@ -550,7 +550,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         QMessageBox.about(self, "Electrum-AXE",
             _("Version")+" %s" % (self.wallet.electrum_version) + "\n\n" +
                 _("Electrum-AXE's focus is speed, with low resource usage and simplifying AXE. You do not need to perform regular backups, because your wallet can be recovered from a secret phrase that you can memorize or write on paper. Startup times are instant because it operates in conjunction with high-performance servers that handle the most complicated parts of the AXE system."  + "\n\n" +
-                _("Uses icons from the Icons8 icon pack (icons8.com).")))
+                _("Uses icons from the Icons8 icon pack (icons8.com) and The Noun Project (AXErunners license).")))
 
     def show_report_bug(self):
         msg = ' '.join([
