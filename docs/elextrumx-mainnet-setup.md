@@ -22,11 +22,11 @@ Start axed container.
 ```
 docker run --restart=always -v axed-data:/axe \
     --name=axed-node --net axe-mainnet -d \
-    -p 9999:9999 -p 127.0.0.1:9998:9998 zebralucky/axed
+    -p 9937:9937 -p 127.0.0.1:9337:9337 axerunners/axed
 ```
 
 **Notes**:
- - port 9999 is published without bind to localhost and can be
+ - port 9937 is published without bind to localhost and can be
  accessible from out world even with firewall setup:
  https://github.com/moby/moby/issues/22054
 
