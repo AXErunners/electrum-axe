@@ -12,7 +12,7 @@ import argparse
 version = imp.load_source('version', 'lib/version.py')
 
 if sys.version_info[:3] < (3, 4, 0):
-    sys.exit("Error: Electrum requires Python version >= 3.4.0...")
+    sys.exit("Error: Electrum-DASH requires Python version >= 3.4.0...")
 
 data_files = []
 
@@ -28,12 +28,12 @@ if platform.system() in ['Linux', 'FreeBSD', 'DragonFly']:
         else:
             usr_share = os.path.expanduser('~/.local/share')
     data_files += [
-        (os.path.join(usr_share, 'applications/'), ['electrum.desktop']),
-        (os.path.join(usr_share, 'pixmaps/'), ['icons/electrum.png'])
+        (os.path.join(usr_share, 'applications/'), ['electrum-dash.desktop']),
+        (os.path.join(usr_share, 'pixmaps/'), ['icons/electrum-dash.png'])
     ]
 
 setup(
-    name="Electrum",
+    name="Electrum-DASH",
     version=version.ELECTRUM_VERSION,
     install_requires=[
         'pyaes>=0.1a1',
@@ -45,32 +45,31 @@ setup(
         'dnspython',
         'jsonrpclib-pelix',
         'PySocks>=1.6.6',
+        'x11_hash>=1.4',
     ],
     packages=[
-        'electrum',
-        'electrum_gui',
-        'electrum_gui.qt',
-        'electrum_plugins',
-        'electrum_plugins.audio_modem',
-        'electrum_plugins.cosigner_pool',
-        'electrum_plugins.email_requests',
-        'electrum_plugins.greenaddress_instant',
-        'electrum_plugins.hw_wallet',
-        'electrum_plugins.keepkey',
-        'electrum_plugins.labels',
-        'electrum_plugins.ledger',
-        'electrum_plugins.trezor',
-        'electrum_plugins.digitalbitbox',
-        'electrum_plugins.trustedcoin',
-        'electrum_plugins.virtualkeyboard',
+        'electrum_dash',
+        'electrum_dash_gui',
+        'electrum_dash_gui.qt',
+        'electrum_dash_plugins',
+        'electrum_dash_plugins.audio_modem',
+        'electrum_dash_plugins.cosigner_pool',
+        'electrum_dash_plugins.email_requests',
+        'electrum_dash_plugins.hw_wallet',
+        'electrum_dash_plugins.keepkey',
+        'electrum_dash_plugins.labels',
+        'electrum_dash_plugins.ledger',
+        'electrum_dash_plugins.trezor',
+        'electrum_dash_plugins.digitalbitbox',
+        'electrum_dash_plugins.virtualkeyboard',
     ],
     package_dir={
-        'electrum': 'lib',
-        'electrum_gui': 'gui',
-        'electrum_plugins': 'plugins',
+        'electrum_dash': 'lib',
+        'electrum_dash_gui': 'gui',
+        'electrum_dash_plugins': 'plugins',
     },
     package_data={
-        'electrum': [
+        'electrum_dash': [
             'servers.json',
             'servers_testnet.json',
             'currencies.json',
@@ -79,12 +78,12 @@ setup(
             'locale/*/LC_MESSAGES/electrum.mo',
         ]
     },
-    scripts=['electrum'],
+    scripts=['electrum-dash'],
     data_files=data_files,
-    description="Lightweight Bitcoin Wallet",
-    author="Thomas Voegtlin",
-    author_email="thomasv@electrum.org",
-    license="MIT Licence",
-    url="https://electrum.org",
-    long_description="""Lightweight Bitcoin Wallet"""
+    description="Lightweight Dashpay Wallet",
+    maintainer="akhavr",
+    maintainer_email="akhavr@khavr.com",
+    license="MIT License",
+    url="https://electrum-dash.org",
+    long_description="""Lightweight Dashpay Wallet"""
 )
