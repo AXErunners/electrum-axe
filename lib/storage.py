@@ -250,7 +250,8 @@ class WalletStorage(PrintError):
 
     def upgrade(self):
         self.print_error('upgrading wallet format')
-        self.backup_old_version()
+        if self.requires_upgrade():
+            self.backup_old_version()
 
         self.convert_imported()
         self.convert_wallet_type()
