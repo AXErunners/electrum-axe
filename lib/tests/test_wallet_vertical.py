@@ -57,8 +57,8 @@ class TestWalletKeystoreAddressIntegrity(unittest.TestCase):
 
         w = self._create_standard_wallet(ks)
 
-        self.assertEqual(w.get_receiving_addresses()[0], '1NNkttn1YvVGdqBW4PR6zvc3Zx3H5owKRf')
-        self.assertEqual(w.get_change_addresses()[0], '1KSezYMhAJMWqFbVFB2JshYg69UpmEXR4D')
+        self.assertEqual(w.get_receiving_addresses()[0], 'Xx4bj9RuWdhrnmn5vGjKrTHqQHcy99RsGV')
+        self.assertEqual(w.get_change_addresses()[0], 'Xu8Vpo1b81a6zCC574LXjEETvV4Wq58z24')
 
     @mock.patch.object(storage.WalletStorage, '_write')
     def test_electrum_seed_old(self, mock_write):
@@ -74,8 +74,8 @@ class TestWalletKeystoreAddressIntegrity(unittest.TestCase):
 
         w = self._create_standard_wallet(ks)
 
-        self.assertEqual(w.get_receiving_addresses()[0], '1FJEEB8ihPMbzs2SkLmr37dHyRFzakqUmo')
-        self.assertEqual(w.get_change_addresses()[0], '1KRW8pH6HFHZh889VDq6fEKvmrsmApwNfe')
+        self.assertEqual(w.get_receiving_addresses()[0], 'Xpz54Rncf6aC9od2cE64teK5okqgWxVpTk')
+        self.assertEqual(w.get_change_addresses()[0], 'Xu7Ly4vzExW9r4ijM79KWm1icCTTBoVCFE')
 
     @mock.patch.object(storage.WalletStorage, '_write')
     def test_bip39_seed_bip44_standard(self, mock_write):
@@ -90,8 +90,8 @@ class TestWalletKeystoreAddressIntegrity(unittest.TestCase):
 
         w = self._create_standard_wallet(ks)
 
-        self.assertEqual(w.get_receiving_addresses()[0], '16j7Dqk3Z9DdTdBtHcCVLaNQy9MTgywUUo')
-        self.assertEqual(w.get_change_addresses()[0], '1GG5bVeWgAp5XW7JLCphse14QaC4qiHyWn')
+        self.assertEqual(w.get_receiving_addresses()[0], 'XgQx46PwWrSDcZnU9VWiC74CoUw9ibZm8n')
+        self.assertEqual(w.get_change_addresses()[0], 'XqwvRkJQdt2fgShtC68vjAgrEumkqA7qcK')
 
     @mock.patch.object(storage.WalletStorage, '_write')
     def test_electrum_multisig_seed_standard(self, mock_write):
@@ -109,8 +109,8 @@ class TestWalletKeystoreAddressIntegrity(unittest.TestCase):
 
         w = self._create_multisig_wallet(ks1, ks2)
 
-        self.assertEqual(w.get_receiving_addresses()[0], '32ji3QkAgXNz6oFoRfakyD3ys1XXiERQYN')
-        self.assertEqual(w.get_change_addresses()[0], '36XWwEHrrVCLnhjK5MrVVGmUHghr9oWTN1')
+        self.assertEqual(w.get_receiving_addresses()[0], '7TTLsc2LVWUd6ZnkhHFGJb3dnZMuSQooiu')
+        self.assertEqual(w.get_change_addresses()[0], '7XF9mRa2fUHynUGGLyWzpem8DEYDzN7Bew')
 
     @mock.patch.object(storage.WalletStorage, '_write')
     def test_bip39_multisig_seed_bip45_standard(self, mock_write):
@@ -127,6 +127,6 @@ class TestWalletKeystoreAddressIntegrity(unittest.TestCase):
 
         w = self._create_multisig_wallet(ks1, ks2)
 
-        self.assertEqual(w.get_receiving_addresses()[0], '3H3iyACDTLJGD2RMjwKZcCwpdYZLwEZzKb')
-        self.assertEqual(w.get_change_addresses()[0], '31hyfHrkhNjiPZp1t7oky5CGNYqSqDAVM9')
+        self.assertEqual(w.get_receiving_addresses()[0], '7hmMoMUPGKPuCnxK1Yz4wawUZ6PinbtLHj')
+        self.assertEqual(w.get_change_addresses()[0], '7SRcVV8vWMqMPLLy9jUGJTBvJ6fpavXGvy')
 
