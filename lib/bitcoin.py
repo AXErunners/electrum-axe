@@ -71,6 +71,8 @@ class NetworkConstants:
         cls.GENESIS = '00000ffd590b1485b3caadc19b22e6379c733355108f107a430458cdf3407ab6'
         cls.DEFAULT_PORTS = {'t': '50001', 's': '50002'}
         cls.DEFAULT_SERVERS = read_json_dict('servers.json')
+        XPRV_HEADERS['standard'] = 0x0488ade4
+        XPUB_HEADERS['standard'] = 0x0488b21e
 
     @classmethod
     def set_testnet(cls):
