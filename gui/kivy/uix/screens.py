@@ -263,7 +263,7 @@ class SendScreen(CScreen):
             outputs = [(bitcoin.TYPE_ADDRESS, address, amount)]
         message = self.screen.message
         amount = sum(map(lambda x:x[2], outputs))
-        self._do_send(amount, message, outputs, False)
+        self._do_send(amount, message, outputs)
 
     def _do_send(self, amount, message, outputs):
         # make unsigned transaction

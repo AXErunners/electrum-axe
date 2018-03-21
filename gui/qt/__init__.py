@@ -47,6 +47,7 @@ from electrum_dash.util import UserCancelled, print_error
 # from electrum_dash.wallet import Abstract_Wallet
 
 from .installwizard import InstallWizard, GoBack
+from .dash_style import dash_stylesheet
 
 
 try:
@@ -99,6 +100,7 @@ class ElectrumGui:
         self.efilter = OpenFileEventFilter(self.windows)
         self.app = QElectrumApplication(sys.argv)
         self.app.installEventFilter(self.efilter)
+        self.app.setStyleSheet(dash_stylesheet)
         self.timer = Timer()
         self.nd = None
         self.network_updated_signal_obj = QNetworkUpdatedSignalObject()
