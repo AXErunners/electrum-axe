@@ -1,9 +1,9 @@
 include LICENCE RELEASE-NOTES AUTHORS
 include README.rst
-include electrum.conf.sample
-include electrum.desktop
+include electrum-dash.conf.sample
+include electrum-dash.desktop
 include *.py
-include electrum
+include electrum-dash
 recursive-include lib *.py
 recursive-include gui *.py
 recursive-include plugins *.py
