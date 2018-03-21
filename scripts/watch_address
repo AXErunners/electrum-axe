@@ -2,13 +2,13 @@
 
 import sys
 import time
-from electrum import SimpleConfig, Network
-from electrum.util import print_msg, json_encode
+from electrum_dash import SimpleConfig, Network
+from electrum_dash.util import print_msg, json_encode
 
 try:
     addr = sys.argv[1]
 except Exception:
-    print("usage: watch_address <bitcoin_address>")
+    print("usage: watch_address <dash_address>")
     sys.exit(1)
 
 # start network
