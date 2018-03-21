@@ -1307,8 +1307,9 @@ class Abstract_Wallet(PrintError):
     def import_masternode_delegate(self, sec):
         """Import the private key for a masternode."""
         try:
-            pubkey = public_key_from_private_key(sec)
-            address = public_key_to_p2pkh(pubkey.decode('hex'))
+            txin_type, key, is_compressed = bitcoin.deserialize_privkey(sec)
+            pubkey = public_key_from_private_key(key, is_compressed)
+            address = public_key_to_p2pkh(pubkey)
         except Exception:
             raise Exception('Invalid private key')
 

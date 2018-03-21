@@ -6,6 +6,8 @@ from . import bitcoin
 from .bitcoin import hash_encode, hash_decode
 from .transaction import BCDataStream, parse_input
 from . import util
+from .util import bfh, bh2u, to_bytes, to_string
+
 
 class NetworkAddress(object):
     """A network address."""
@@ -16,7 +18,7 @@ class NetworkAddress(object):
     @classmethod
     def deserialize(cls, vds):
         # IPv4-mapped IPv6 address.
-        _ = vds.read_bytes(12);
+        _ = vds.read_bytes(12)
         ip = []
         for i in range(4):
             ip.append(vds.read_uchar())
@@ -39,17 +41,18 @@ class NetworkAddress(object):
         if not vds:
             vds = BCDataStream()
         # IPv4-mapped IPv6 address.
-        vds.write('00000000000000000000ffff'.decode('hex'))
+        vds.write(bfh('00000000000000000000ffff'))
 
         ip = map(int, self.ip.split('.'))
         for i in ip:
             vds.write_uchar(i)
         # Ports are encoded as big-endian.
         vds._write_num('>H', self.port)
-        return vds.input.encode('hex')
+        return bh2u(vds.input)
 
     def dump(self):
         return {'ip': self.ip, 'port': self.port}
+
 
 class MasternodePing(object):
     """A masternode ping message."""
@@ -87,7 +90,7 @@ class MasternodePing(object):
         vds.write(hash_decode(self.block_hash))
         vds.write_int64(self.sig_time)
         vds.write_string(self.sig)
-        return vds.input.encode('hex')
+        return bh2u(vds.input)
 
     def serialize_for_sig(self, update_time=False):
         s = serialize_input_str(self.vin)
@@ -96,7 +99,7 @@ class MasternodePing(object):
         if update_time:
             self.sig_time = int(time.time())
         s += str(self.sig_time)
-        return s
+        return to_bytes(s)
 
     def sign(self, wif, delegate_pubkey=None, current_time=None):
         """Sign this ping.
@@ -109,23 +112,26 @@ class MasternodePing(object):
             self.sig_time = current_time
             update_time = False
 
-        eckey = bitcoin.regenerate_key(wif)
-        serialized = unicode(self.serialize_for_sig(update_time=update_time)).encode('utf-8')
+        txin_type, key, is_compressed = bitcoin.deserialize_privkey(wif)
+        eckey = bitcoin.regenerate_key(key)
+        serialized = self.serialize_for_sig(update_time=update_time)
 
         if not delegate_pubkey:
-            delegate_pubkey = bitcoin.public_key_from_private_key(wif).decode('hex')
-        self.sig = eckey.sign_message(serialized, bitcoin.is_compressed(wif))
+            delegate_pubkey = bfh(bitcoin.public_key_from_private_key(key, is_compressed))
+        self.sig = eckey.sign_message(serialized, is_compressed)
         return self.sig
 
     def dump(self):
-        sig = base64.b64encode(self.sig)
+        sig = base64.b64encode(self.sig).decode('utf-8')
         return {'vin': self.vin, 'block_hash': self.block_hash, 'sig_time': self.sig_time, 'sig': sig}
+
 
 def serialize_input(vds, vin):
     vds.write(hash_decode(vin['prevout_hash']))
     vds.write_uint32(vin['prevout_n'])
     vds.write_string(vin['scriptSig'])
     vds.write_uint32(vin['sequence'])
+
 
 def serialize_input_str(vin):
     """Used by MasternodePing in its serialization for signing."""
@@ -144,6 +150,7 @@ def serialize_input_str(vin):
         s.append(', nSequence=%d' % vin['sequence'])
     s.append(')')
     return ''.join(s)
+
 
 class MasternodeAnnounce(object):
     """A masternode announce message.
@@ -182,11 +189,11 @@ class MasternodeAnnounce(object):
     @classmethod
     def deserialize(cls, raw):
         vds = BCDataStream()
-        vds.write(raw.decode('hex'))
+        vds.write(bfh(raw))
         vin = parse_input(vds)
         address = NetworkAddress.deserialize(vds)
-        collateral_pubkey = vds.read_bytes(vds.read_compact_size()).encode('hex')
-        delegate_pubkey = vds.read_bytes(vds.read_compact_size()).encode('hex')
+        collateral_pubkey = bh2u(vds.read_bytes(vds.read_compact_size()))
+        delegate_pubkey = bh2u(vds.read_bytes(vds.read_compact_size()))
 
         sig = vds.read_bytes(vds.read_compact_size())
         sig_time = vds.read_int64()
@@ -205,7 +212,7 @@ class MasternodeAnnounce(object):
     def get_hash(self):
         vds = BCDataStream()
         serialize_input(vds, self.vin)
-        vds.write_string(self.collateral_key.decode('hex'))
+        vds.write_string(bfh(self.collateral_key))
         vds.write_int64(self.sig_time)
         return hash_encode(bitcoin.Hash(vds.input))
 
@@ -214,34 +221,34 @@ class MasternodeAnnounce(object):
             vds = BCDataStream()
         serialize_input(vds, self.vin)
         self.addr.serialize(vds)
-        vds.write_string(self.collateral_key.decode('hex'))
-        vds.write_string(self.delegate_key.decode('hex'))
+        vds.write_string(bfh(self.collateral_key))
+        vds.write_string(bfh(self.delegate_key))
         vds.write_string(self.sig)
         vds.write_int64(self.sig_time)
         vds.write_uint32(self.protocol_version)
         self.last_ping.serialize(vds)
         vds.write_int64(self.last_dsq)
 
-        return vds.input.encode('hex')
+        return bh2u(vds.input)
 
     def serialize_for_sig(self, update_time=False):
         """Serialize the message for signing."""
         if update_time:
             self.sig_time = int(time.time())
 
-        s = str(self.addr)
-        s += str(self.sig_time)
+        s = to_bytes(str(self.addr))
+        s += to_bytes(str(self.sig_time))
 
         if self.protocol_version < 70201:
             # Decode the hex-encoded bytes for our keys.
-            s += self.collateral_key.decode('hex')
-            s += self.delegate_key.decode('hex')
+            s += bfh(self.collateral_key)
+            s += bfh(self.delegate_key)
         else:
             # Use the RIPEMD-160 hashes of our keys.
-            s += bitcoin.hash_encode(bitcoin.hash_160(self.collateral_key.decode('hex')))
-            s += bitcoin.hash_encode(bitcoin.hash_160(self.delegate_key.decode('hex')))
+            s += to_bytes(hash_encode(bitcoin.hash_160(bfh(self.collateral_key))), 'utf-8')
+            s += to_bytes(hash_encode(bitcoin.hash_160(bfh(self.delegate_key))), 'utf-8')
 
-        s += str(self.protocol_version)
+        s += to_bytes(str(self.protocol_version))
         return s
 
     def get_collateral_str(self):
@@ -279,7 +286,7 @@ class MasternodeAnnounce(object):
             kwargs[key] = getattr(self, key)
 
         if self.sig:
-            kwargs['sig'] = base64.b64encode(self.sig)
+            kwargs['sig'] = base64.b64encode(self.sig).decode('utf-8')
         if self.addr:
             kwargs['addr'] = self.addr.dump()
         if self.last_ping:
@@ -296,15 +303,16 @@ class MasternodeAnnounce(object):
         if current_time is not None:
             self.sig_time = current_time
             update_time = False
-        eckey = bitcoin.regenerate_key(wif)
+
+        txin_type, key, is_compressed = bitcoin.deserialize_privkey(wif)
+        eckey = bitcoin.regenerate_key(key)
 
         serialized = self.serialize_for_sig(update_time=update_time)
-        self.sig = eckey.sign_message(serialized, bitcoin.is_compressed(wif))
+        self.sig = eckey.sign_message(serialized, is_compressed)
         return self.sig
 
     def verify(self, addr=None):
         """Verify that our sig is signed with addr's key."""
         if not addr:
-            addr = bitcoin.public_key_to_p2pkh(self.collateral_key.decode('hex'))
+            addr = bitcoin.public_key_to_p2pkh(bfh(self.collateral_key))
         return bitcoin.verify_message(addr, self.sig, self.serialize_for_sig())
-

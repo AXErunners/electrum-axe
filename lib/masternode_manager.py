@@ -7,7 +7,7 @@ from . import bitcoin
 from .blockchain import Blockchain
 from .masternode import MasternodeAnnounce, NetworkAddress
 from .masternode_budget import BudgetProposal, BudgetVote
-from .util import AlreadyHaveAddress, print_error
+from .util import AlreadyHaveAddress, print_error, bfh
 from .util import format_satoshis_plain
 
 BUDGET_FEE_CONFIRMATIONS = 6
@@ -37,8 +37,8 @@ def parse_masternode_conf(lines):
 
         # Validate input.
         try:
-            key_valid = bitcoin.ASecretToSecret(masternode_wif)
-            assert key_valid
+            txin_type, key, is_compressed = bitcoin.deserialize_privkey(masternode_wif)
+            assert key
         except Exception:
             raise ValueError('Invalid masternode private key of alias "%s"' % alias)
 
@@ -251,7 +251,7 @@ class MasternodeManager(object):
         self.wallet.sign_masternode_ping(mn.last_ping, mn.delegate_key)
 
         # After creating the Masternode Ping, sign the Masternode Announce.
-        address = bitcoin.public_key_to_p2pkh(mn.collateral_key.decode('hex'))
+        address = bitcoin.public_key_to_p2pkh(bfh(mn.collateral_key))
         mn.sig = self.wallet.sign_message(address, mn.serialize_for_sig(update_time=True), password)
 
         return mn
@@ -337,7 +337,8 @@ class MasternodeManager(object):
                 continue
             # Import delegate WIF key for signing last_ping.
             self.import_masternode_delegate(conf_line.wif)
-            public_key = bitcoin.public_key_from_private_key(conf_line.wif)
+            txin_type, key, is_compressed = bitcoin.deserialize_privkey(conf_line.wif)
+            public_key = bitcoin.public_key_from_private_key(key, is_compressed)
 
             addr = conf_line.addr.split(':')
             addr = NetworkAddress(ip=addr[0], port=int(addr[1]))
@@ -463,9 +464,9 @@ class MasternodeManager(object):
         if proposal.submitted:
             raise Exception('Proposal has already been submitted')
 
-        h = bitcoin.hash_decode(proposal.get_hash()).encode('hex')
+        h = bfh(bitcoin.hash_decode(proposal.get_hash()))
         script = '6a20' + h # OP_RETURN hash
-        outputs = [(bitcoin.TYPE_SCRIPT, script.decode('hex'), BUDGET_FEE_TX)]
+        outputs = [(bitcoin.TYPE_SCRIPT, bfh(script), BUDGET_FEE_TX)]
         tx = self.wallet.mktx(outputs, password, self.config)
         proposal.fee_txid = tx.hash()
         if save:
