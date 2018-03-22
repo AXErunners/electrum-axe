@@ -1,82 +1,109 @@
 # -*- mode: python -*-
-
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules
-
 import sys
+
+
 for i, x in enumerate(sys.argv):
     if x == '--name':
-        VERSION = sys.argv[i+1]
+        cmdline_name = sys.argv[i+1]
         break
 else:
-    raise BaseException('no version')
+    raise BaseException('no name')
 
-home = '/Users/voegtlin/electrum/'
-block_cipher=None
+hiddenimports = [
+    'lib',
+    'lib.base_wizard',
+    'lib.plot',
+    'lib.qrscanner',
+    'lib.websockets',
+    'gui.qt',
 
-# see https://github.com/pyinstaller/pyinstaller/issues/2005
-hiddenimports = []
-hiddenimports += collect_submodules('trezorlib')
-hiddenimports += collect_submodules('btchip')
-hiddenimports += collect_submodules('keepkeylib')
+    'memonic',  # required by python-trezor
+
+    'plugins',
+
+    'plugins.hw_wallet.qt',
+
+    'plugins.audio_modem.qt',
+    'plugins.cosigner_pool.qt',
+    'plugins.digitalbitbox.qt',
+    'plugins.email_requests.qt',
+    'plugins.keepkey.qt',
+    'plugins.labels.qt',
+    'plugins.trezor.qt',
+    'plugins.ledger.qt',
+    'plugins.virtualkeyboard.qt',
+]
 
 datas = [
-    (home+'lib/currencies.json', 'electrum'),
-    (home+'lib/servers.json', 'electrum'),
-    (home+'lib/wordlist/english.txt', 'electrum/wordlist'),
-    (home+'lib/locale', 'electrum/locale'),
-    (home+'plugins', 'electrum_plugins'),
+    ('packages/requests/cacert.pem', 'packages/requests'),
+    ('lib/currencies.json', 'electrum_dash'),
+    ('lib/wordlist', 'electrum_dash/wordlist'),
 ]
-datas += collect_data_files('trezorlib')
-datas += collect_data_files('btchip')
-datas += collect_data_files('keepkeylib')
 
-# We don't put these files in to actually include them in the script but to make the Analysis method scan them for imports
-a = Analysis([home+'electrum',
-              home+'gui/qt/main_window.py',
-              home+'gui/text.py',
-              home+'lib/util.py',
-              home+'lib/wallet.py',
-              home+'lib/simple_config.py',
-              home+'lib/bitcoin.py',
-              home+'lib/dnssec.py',
-              home+'lib/commands.py',
-              home+'plugins/cosigner_pool/qt.py',
-              home+'plugins/email_requests/qt.py',
-              home+'plugins/trezor/client.py',
-              home+'plugins/trezor/qt.py',
-              home+'plugins/keepkey/qt.py',
-              home+'plugins/ledger/qt.py',
-              ],
-             datas=datas,
+# https://github.com/pyinstaller/pyinstaller/wiki/Recipe-remove-tkinter-tcl
+sys.modules['FixTk'] = None
+excludes = ['FixTk', 'tcl', 'tk', '_tkinter', 'tkinter', 'Tkinter']
+
+a = Analysis(['electrum-dash'],
+             pathex=['plugins'],
              hiddenimports=hiddenimports,
-             hookspath=[])
+             datas=datas,
+             excludes=excludes,
+             runtime_hooks=['pyi_runtimehook.py'])
 
-# http://stackoverflow.com/questions/19055089/pyinstaller-onefile-warning-pyconfig-h-when-importing-scipy-or-scipy-signal
+# http://stackoverflow.com/questions/19055089/
 for d in a.datas:
-    if 'pyconfig' in d[0]: 
+    if 'pyconfig' in d[0]:
         a.datas.remove(d)
         break
 
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+# Add TOC to electrum_dash, electrum_dash_gui, electrum_dash_plugins
+for p in sorted(a.pure):
+    if p[0].startswith('lib') and p[2] == 'PYMODULE':
+        a.pure += [('electrum_dash%s' % p[0][3:] , p[1], p[2])]
+    if p[0].startswith('gui') and p[2] == 'PYMODULE':
+        a.pure += [('electrum_dash_gui%s' % p[0][3:] , p[1], p[2])]
+    if p[0].startswith('plugins') and p[2] == 'PYMODULE':
+        a.pure += [('electrum_dash_plugins%s' % p[0][7:] , p[1], p[2])]
+
+pyz = PYZ(a.pure)
 
 exe = EXE(pyz,
           a.scripts,
-          a.binaries,
-          a.datas,
-          name='Electrum',
+          exclude_binaries=True,
           debug=False,
           strip=False,
-          upx=True,
-          icon=home+'electrum.icns',
-          console=False)
+          upx=False,
+          console=False,
+          icon='icons/electrum-dash.ico',
+          name=os.path.join('build/electrum-dash/electrum-dash', cmdline_name))
 
-app = BUNDLE(exe,
-             version = VERSION,
-             name='Electrum.app',
-             icon=home+'electrum.icns',
-             bundle_identifier=None,
-             info_plist = {
-                 'NSHighResolutionCapable':'True'
-             }
-)
+# trezorctl separate bin
+tctl_a = Analysis(['/usr/local/bin/trezorctl'],
+                  hiddenimports=['pkgutil'],
+                  excludes=excludes,
+                  runtime_hooks=['pyi_tctl_runtimehook.py'])
 
+tctl_pyz = PYZ(tctl_a.pure)
+
+tctl_exe = EXE(tctl_pyz,
+           tctl_a.scripts,
+           exclude_binaries=True,
+           debug=False,
+           strip=False,
+           upx=False,
+           console=True,
+           name=os.path.join('build/electrum-dash/electrum-dash', 'trezorctl.bin'))
+
+coll = COLLECT(exe, tctl_exe,
+               a.binaries,
+               a.datas,
+               strip=False,
+               upx=False,
+               name=os.path.join('dist', 'electrum-dash'))
+
+app = BUNDLE(coll,
+             name=os.path.join('dist', 'Electrum-DASH.app'),
+             appname="Electrum-DASH",
+	         icon='electrum-dash.icns',
+             version = 'ELECTRUM_VERSION')

@@ -1,0 +1,66 @@
+FROM ubuntu:16.04
+LABEL maintainer "Andriy Khavryuchenko <akhavr@khavr.com>"
+
+RUN dpkg --add-architecture i386
+RUN apt-get update -y
+RUN apt-get install -y software-properties-common
+RUN add-apt-repository -y ppa:ubuntu-wine/ppa
+RUN apt-get update -y
+RUN echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | debconf-set-selections
+RUN apt-get install -y wine1.8 xvfb wget zip winbind unzip git
+
+RUN wget -O python.msi https://www.python.org/ftp/python/2.7.13/python-2.7.13.msi
+RUN wget -O pywin32.exe https://sourceforge.net/projects/pywin32/files/pywin32/Build%20220/pywin32-220.win32-py2.7.exe/download
+RUN wget -O PyQt.exe "https://sourceforge.net/projects/pyqt/files/PyQt4/PyQt-4.11.4/PyQt4-4.11.4-gpl-Py2.7-Qt4.8.7-x32.exe/download"
+RUN wget -O nsis.exe "http://prdownloads.sourceforge.net/nsis/nsis-2.46-setup.exe?download"
+
+RUN xvfb-run -a  wineboot && sleep 5
+RUN xvfb-run -a winetricks -q vcrun2008
+
+RUN xvfb-run -a -e /dev/stdout -a msiexec /q /i python.msi && sleep 5
+
+# PyQt should be installed here, not later, otherwise it doesn't find the python
+RUN xvfb-run -a wine PyQt.exe /S
+
+ENV WINEPREFIX /root/.wine
+ENV PYHOME c:/Python27
+
+RUN wget -O VCForPython27.msi https://download.microsoft.com/download/7/9/6/796EF2E4-801B-4FC4-AB28-B59FBF6D907B/VCForPython27.msi \
+    && xvfb-run -a -e /dev/stdout -a msiexec /q /i VCForPython27.msi && sleep 5
+
+RUN unzip -qq pywin32.exe ; echo
+RUN cp -r PLATLIB/* $WINEPREFIX/drive_c/Python27/Lib/site-packages/
+RUN mkdir -p $WINEPREFIX/drive_c/Python27/Scripts/
+RUN cp -r SCRIPTS/* $WINEPREFIX/drive_c/Python27/Scripts/
+RUN wineboot --update && xvfb-run -a wine $PYHOME/python.exe -B \
+     $WINEPREFIX/drive_c/Python27/Scripts/pywin32_postinstall.py -install
+
+COPY ./x11_hash/build/lib.win32-2.7/x11_hash.pyd $WINEPREFIX/drive_c/Python27/Lib/site-packages
+COPY ./python-trezor/dist/Python27 $WINEPREFIX/drive_c/Python27
+
+RUN rm -rf /tmp/.wine-* ; wineboot --update ; xvfb-run -a wine nsis.exe /S
+
+RUN rm -rf /tmp/.wine-* ; wineboot --update ; wine python -m ensurepip
+
+RUN rm -rf /tmp/.wine-* ; wineboot --update ; wine python C:/Python27/Scripts/pip.exe install \
+    PyInstaller==3.2.1 \
+    dnspython==1.12.0 \
+    pyaes==1.6.1 \
+    ecdsa==0.13 \
+    requests==2.5.1 \
+    six==1.11.0 \
+    qrcode==5.1 \
+    pbkdf2==1.3 \
+    protobuf==2.6.1 \
+    jsonrpclib==0.1.7 \
+    PySocks==1.6.7 \
+    win_inet_pton==1.0.1 \
+    mnemonic==0.18
+
+RUN rm -rf /tmp/.wine-* ; wineboot --update ; wine python C:/Python27/Scripts/pip.exe install --upgrade \
+    setuptools
+
+RUN rm -rf /tmp/.wine-* ; wineboot --update ; wine python C:/Python27/Scripts/pip.exe install \
+    cython==0.27.3 \
+    btchip-python==0.1.23 \
+    keepkey==0.7.3
