@@ -9,9 +9,9 @@ RUN apt-get update -y
 RUN echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | debconf-set-selections
 RUN apt-get install -y wine1.8 xvfb wget zip winbind unzip git
 
-RUN wget -O python.msi https://www.python.org/ftp/python/2.7.13/python-2.7.13.msi
-RUN wget -O pywin32.exe https://sourceforge.net/projects/pywin32/files/pywin32/Build%20220/pywin32-220.win32-py2.7.exe/download
-RUN wget -O PyQt.exe "https://sourceforge.net/projects/pyqt/files/PyQt4/PyQt-4.11.4/PyQt4-4.11.4-gpl-Py2.7-Qt4.8.7-x32.exe/download"
+RUN wget -O python.msi https://www.python.org/ftp/python/3.4.4/python-3.4.4.msi
+RUN wget -O pywin32.exe https://github.com/mhammond/pywin32/releases/download/b221/pywin32-221.win32-py3.4.exe
+RUN wget -O PyQt.exe "https://sourceforge.net/projects/pyqt/files/PyQt5/PyQt-5.5.1/PyQt5-5.5.1-gpl-Py3.4-Qt5.5.1-x32.exe/download"
 RUN wget -O nsis.exe "http://prdownloads.sourceforge.net/nsis/nsis-2.46-setup.exe?download"
 
 RUN xvfb-run -a  wineboot && sleep 5
