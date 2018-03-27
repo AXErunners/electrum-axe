@@ -165,9 +165,9 @@ class Test_keyImport(unittest.TestCase):
     """ The keys used in this class are TEST keys from
         https://en.bitcoin.it/wiki/BIP_0032_TestVectors"""
 
-    private_key = "XK6TSbQyfRvQuHBuTjEhHcbaBW8dM8KaQzLv47Vpc5xXPNqesKTt"
-    public_key_hex = "0339a36013301597daef41fbe593a02cc513d0b55527ec2df1050e2e8ff49c85c2"
-    main_address = "XfTA9qgYmaEHfWhUakwcoTtyquez8SowY1"
+    private_key = "XCcwWZt1XGvSjXFS2H7bXNENaoHRTrkMxPSRjWt7gqvtSMTW3dSj"
+    public_key_hex = "037DBCDF16562DF0416CDE500F7E71CBEB3C61D805587EAEE8714DB589461C70B1"
+    main_address = "PEJsVdsrdV111hitfBupfQozJ2foDuCesP"
 
     def test_public_key_from_private_key(self):
         result = public_key_from_private_key(self.private_key)
@@ -188,7 +188,7 @@ class Test_keyImport(unittest.TestCase):
 
 class Test_seeds(unittest.TestCase):
     """ Test old and new seeds. """
-    
+
     def test_new_seed(self):
         seed = "cram swing cover prefer miss modify ritual silly deliver chunk behind inform able"
         self.assertTrue(is_new_seed(seed))
