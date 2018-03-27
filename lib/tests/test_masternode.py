@@ -82,8 +82,8 @@ class TestMasternode(unittest.TestCase):
         self.assertEqual(expected, msg)
 
     def test_create_and_sign(self):
-        collateral_pub = '038ae57bd0fa5b45640e771614ec571c7326a2266c78bb444f1971c85188411ba1' # XahPxwmCuKjPq69hzVxP18V1eASwDWbUrn
-        delegate_pub = '02526201c87c1b4630aabbd04572eec3e2545e442503e57e60880fafcc1f684dbc' # Xx2nSdhaT7c9SREKBPAgzpkhu518XFgkgh
+        collateral_pub = '028B31698A6D2491D0A486E306590C4226E6109822DE693329A540C0AA1BD84F12' # PJ3LxvwcJuuVKAxSk5bmcPzWSa3zSSXaRq
+        delegate_pub = '02EA76B378BD64B095308AB1BFCB205ACEF95D2DC93F301A649A6AC4D4F703F703' # PVNGfyhmPmCqDHP27no9yN334nsncXupSV
         protocol_version = 70103
 
         ip = '0.0.0.0'
@@ -97,12 +97,12 @@ class TestMasternode(unittest.TestCase):
         announce = MasternodeAnnounce(vin=vin, addr=addr, collateral_key=collateral_pub, delegate_key=delegate_pub,
                 protocol_version=protocol_version, last_ping=last_ping)
 
-        collateral_wif = 'XJqCcyfnLYK4Y7ZDVjLrgPnsrq2cWMF6MX9cyhKgfMajwqrCwZaS'
-        delegate_wif = 'XCbhXBc2N9q8kxqBF41rSuLWVpVVbDm7P1oPv9GxcrS9QXYBWZkB'
+        collateral_wif = 'XFzhL4n21SRNLQp5z3QvEVDa3mXAB4erjWQ6Zf5N1HbWiiYUXJgf'
+        delegate_wif = 'XGY6yyp8u7WPzgQCec34DqZhZjLE26Hoc4DZVE8Uf97P2G5E4897'
         announce.last_ping.sign(delegate_wif, delegate_pub.decode('hex'), 1461858375)
         sig = announce.sign(collateral_wif, 1461858375)
 
-        address = 'XahPxwmCuKjPq69hzVxP18V1eASwDWbUrn'
+        address = 'PJ3LxvwcJuuVKAxSk5bmcPzWSa3zSSXaRq'
         self.assertTrue(announce.verify(address))
         self.assertTrue(bitcoin.verify_message(address, sig, announce.serialize_for_sig()))
         # DEBUG information. Uncomment to see serialization.
