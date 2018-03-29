@@ -14,4 +14,5 @@ export PATH="/usr/local/opt/python@3/libexec/bin:$PATH"
 brew install pyqt5
 sudo pip3 install Cython
 
-sudo pip3 install pyinstaller==3.2.1
+# https://github.com/pyinstaller/pyinstaller/issues/3359#issuecomment-370276763
+sudo pip3 install git+https://github.com/bjones1/pyinstaller.git@pyqt5_fix
