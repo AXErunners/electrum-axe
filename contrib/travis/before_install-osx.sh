@@ -8,10 +8,10 @@ fi
 cd build
 
 brew update
-export PATH="/usr/local/opt/python@2/bin:$PATH"
-export PATH="/usr/local/opt/python@2/libexec/bin:$PATH"
+export PATH="/usr/local/opt/python@3/bin:$PATH"
+export PATH="/usr/local/opt/python@3/libexec/bin:$PATH"
 
-brew install akhavr/qt4/pyqt@4
-sudo pip2 install Cython
+brew install pyqt5
+sudo pip3 install Cython
 
-sudo pip2 install pyinstaller==3.2.1
+sudo pip3 install pyinstaller==3.2.1

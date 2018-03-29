@@ -17,7 +17,7 @@ hiddenimports = [
     'lib.websockets',
     'gui.qt',
 
-    'memonic',  # required by python-trezor
+    'mnemonic',  # required by python-trezor
 
     'plugins',
 
@@ -35,7 +35,8 @@ hiddenimports = [
 ]
 
 datas = [
-    ('packages/requests/cacert.pem', 'packages/requests'),
+    ('lib/servers.json', 'electrum_dash'),
+    ('lib/servers_testnet.json', 'electrum_dash'),
     ('lib/currencies.json', 'electrum_dash'),
     ('lib/wordlist', 'electrum_dash/wordlist'),
 ]

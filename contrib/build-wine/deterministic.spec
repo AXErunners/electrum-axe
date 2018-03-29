@@ -17,7 +17,7 @@ hiddenimports = [
     'lib.websockets',
     'gui.qt',
 
-    'memonic',  # required by python-trezor
+    'mnemonic',  # required by python-trezor
 
     'plugins',
 
@@ -35,7 +35,8 @@ hiddenimports = [
 ]
 
 datas = [
-    ('cacert.pem', 'requests'),
+    ('lib/servers.json', 'electrum_dash'),
+    ('lib/servers_testnet.json', 'electrum_dash'),
     ('lib/currencies.json', 'electrum_dash'),
     ('lib/wordlist', 'electrum_dash/wordlist'),
 ]
@@ -91,7 +92,7 @@ conexe = EXE(pyz,
                             'console-%s' % cmdline_name))
 
 # trezorctl separate executable
-tctl_a = Analysis(['C:/Python27/Scripts/trezorctl'],
+tctl_a = Analysis(['C:/Python34/Scripts/trezorctl'],
                   hiddenimports=['pkgutil'],
                   excludes=excludes,
                   runtime_hooks=['pyi_tctl_runtimehook.py'])
