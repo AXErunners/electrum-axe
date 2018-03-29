@@ -9,6 +9,7 @@ if [[ -z $TRAVIS_TAG ]]; then
 fi
 
 cd build
+
 BUILD_REPO_URL=https://github.com/akhavr/electrum-dash.git
 git clone --branch $TRAVIS_TAG $BUILD_REPO_URL electrum-dash
 
