@@ -667,6 +667,7 @@ def is_private_key_list(text):
 is_mpk = lambda x: is_old_mpk(x) or is_xpub(x)
 is_private = lambda x: is_seed(x) or is_xprv(x) or is_private_key_list(x)
 is_master_key = lambda x: is_old_mpk(x) or is_xprv(x) or is_xpub(x)
+is_master_key_plus_drk = lambda x: is_drkp(x) or is_dkrv(x) or is_master_key(x)
 is_private_key = lambda x: is_xprv(x) or is_private_key_list(x)
 is_bip32_key = lambda x: is_xprv(x) or is_xpub(x)
 
@@ -716,6 +717,22 @@ def from_xprv(xprv):
     k.xpub = xpub
     return k
 
+def from_drkp(drkp):
+    xtype, depth, fingerprint, child_number, c, cK = deserialize_drkp(drkp)
+    xpub = serialize_xpub(xtype, c, cK, depth, fingerprint, child_number)
+    k = BIP32_KeyStore({})
+    k.xpub = xpub
+    return k
+
+def from_drkv(drkv):
+    xtype, depth, fingerprint, child_number, c, k = deserialize_drkv(drkv)
+    xprv = serialize_xprv(xtype, c, k, depth, fingerprint, child_number)
+    xpub = bitcoin.xpub_from_xprv(xprv)
+    k = BIP32_KeyStore({})
+    k.xprv = xprv
+    k.xpub = xpub
+    return k
+
 def from_master_key(text):
     if is_xprv(text):
         k = from_xprv(text)
@@ -723,6 +740,10 @@ def from_master_key(text):
         k = from_old_mpk(text)
     elif is_xpub(text):
         k = from_xpub(text)
+    elif is_drkv(text):
+        k = from_drkv(text)
+    elif is_drkp(text):
+        k = from_drkp(text)
     else:
         raise BaseException('Invalid key')
     return k

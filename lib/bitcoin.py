@@ -71,6 +71,8 @@ class NetworkConstants:
         cls.GENESIS = '00000ffd590b1485b3caadc19b22e6379c733355108f107a430458cdf3407ab6'
         cls.DEFAULT_PORTS = {'t': '50001', 's': '50002'}
         cls.DEFAULT_SERVERS = read_json_dict('servers.json')
+        cls.DRKV_HEADER = 0x02fe52f8  # drkv
+        cls.DRKP_HEADER = 0x02fe52cc  # drkp
         XPRV_HEADERS['standard'] = 0x0488ade4
         XPUB_HEADERS['standard'] = 0x0488b21e
 
@@ -84,6 +86,8 @@ class NetworkConstants:
         cls.GENESIS = '00000bafbc94add76cb75e2ec92894837288a481e5c005f6563d91623bf8bc2c'
         cls.DEFAULT_PORTS = {'t':'51001', 's':'51002'}
         cls.DEFAULT_SERVERS = read_json_dict('servers_testnet.json')
+        cls.DRKV_HEADER = 0x3a8061a0  # DRKV
+        cls.DRKP_HEADER = 0x3a805837  # DRKP
         XPRV_HEADERS['standard'] = 0x04358394
         XPUB_HEADERS['standard'] = 0x043587cf
 
@@ -872,12 +876,35 @@ def deserialize_xkey(xkey, prv):
     K_or_k = xkey[13+n:]
     return xtype, depth, fingerprint, child_number, c, K_or_k
 
+def deserialize_drk(xkey, prv):
+    xkey = DecodeBase58Check(xkey)
+    if len(xkey) != 78:
+        raise BaseException('Invalid length')
+    depth = xkey[4]
+    fingerprint = xkey[5:9]
+    child_number = xkey[9:13]
+    c = xkey[13:13+32]
+    header = int('0x' + bh2u(xkey[0:4]), 16)
+    if prv and header != NetworkConstants.DRKV_HEADER:
+        raise BaseException('Invalid drkv format', hex(header))
+    if not prv and header != NetworkConstants.DRKP_HEADER:
+        raise BaseException('Invalid drkp format', hex(header))
+    xtype = 'standard'
+    n = 33 if prv else 32
+    K_or_k = xkey[13+n:]
+    return xtype, depth, fingerprint, child_number, c, K_or_k
 
 def deserialize_xpub(xkey):
     return deserialize_xkey(xkey, False)
 
 def deserialize_xprv(xkey):
     return deserialize_xkey(xkey, True)
+
+def deserialize_drkp(xkey):
+    return deserialize_drk(xkey, False)
+
+def deserialize_drkv(xkey):
+    return deserialize_drk(xkey, True)
 
 def xpub_type(x):
     return deserialize_xpub(x)[0]
@@ -894,6 +921,22 @@ def is_xpub(text):
 def is_xprv(text):
     try:
         deserialize_xprv(text)
+        return True
+    except:
+        return False
+
+
+def is_drkp(text):
+    try:
+        deserialize_drkp(text)
+        return True
+    except:
+        return False
+
+
+def is_drkv(text):
+    try:
+        deserialize_drkv(text)
         return True
     except:
         return False

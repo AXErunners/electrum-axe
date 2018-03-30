@@ -148,11 +148,11 @@ class BaseWizard(object):
 
     def restore_from_key(self):
         if self.wallet_type == 'standard':
-            v = keystore.is_master_key
+            v = keystore.is_master_key_plus_drk
             title = _("Create keystore from a master key")
             message = ' '.join([
-                _("To create a watching-only wallet, please enter your master public key (xpub)."),
-                _("To create a spending wallet, please enter a master private key (xprv).")
+                _("To create a watching-only wallet, please enter your master public key (xpub/drkp)."),
+                _("To create a spending wallet, please enter a master private key (xprv/drkv).")
             ])
             self.add_xpub_dialog(title=title, message=message, run_next=self.on_restore_from_key, is_valid=v)
         else:

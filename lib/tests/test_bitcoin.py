@@ -11,8 +11,10 @@ from lib.bitcoin import (
     var_int, op_push, address_to_script, regenerate_key,
     verify_message, deserialize_privkey, serialize_privkey,
     is_b58_address, address_to_scripthash, is_minikey, is_compressed, is_xpub,
-    xpub_type, is_xprv, is_bip32_derivation, seed_type, NetworkConstants)
-from lib.util import bfh
+    xpub_type, is_xprv, is_bip32_derivation, seed_type, NetworkConstants,
+    deserialize_xprv, deserialize_xpub, deserialize_drkv, deserialize_drkp)
+from lib.util import bfh, bh2u
+from lib.keystore import from_master_key
 
 try:
     import ecdsa
@@ -247,6 +249,67 @@ class Test_xprv_xpub(unittest.TestCase):
         self.assertFalse(is_bip32_derivation("n/"))
         self.assertFalse(is_bip32_derivation(""))
         self.assertFalse(is_bip32_derivation("m/q8462"))
+
+
+class Test_drk_import(unittest.TestCase):
+    """ The keys used in this class are TEST keys from
+        https://en.bitcoin.it/wiki/BIP_0032_TestVectors"""
+
+    xpub = 'xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw'
+    xprv = 'xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7'
+    drkp = 'drkpRv3MKBiuEwFtNSzj62Kwpj7Cd77NVUYAPoxBN8EL5rSn6EMWr3bD4RnwwbGrnQZStpYJ1iGZCiGKt9mR7aYNtaurGyTCQZuwVzqzAbX9znj'
+    drkv = 'drkvjLuVs1zJu2rKwexyhS5mYeVuNs2umm4bZMg8hv4Zy28xLX2tXbr6tzytFNsAsqjveLoFqSgcNhF4YoonH1y35REUMeSFJZ8ALdoFutwvbtw'
+    master_fpr = '3442193e'
+    sec_key = 'edb2e14f9ee77d26dd93b4ecede8d16ed408ce149b6cd80b0715a2d911a0afea'
+    pub_key = '035a784662a4a20a65bf6aab9ae98a6c068a81c52e4b032c0fb5400c706cfccc56'
+    child_num = '80000000'
+    chain_code = '47fdacbd0f1097043b78c63c20c34ef4ed9a111d980047ad16282c7ae6236141'
+    xtype = 'standard'
+
+    def check_deserialized(self, deserialized, prv):
+        xtype, depth, fpr, child_number, c, K = deserialized
+
+        self.assertEqual(self.xtype, xtype)
+        self.assertEqual(1, depth)
+        self.assertEqual(self.master_fpr, bh2u(fpr))
+        self.assertEqual(self.child_num, bh2u(child_number))
+        self.assertEqual(self.chain_code, bh2u(c))
+        if prv:
+            self.assertEqual(self.sec_key, bh2u(K))
+        else:
+            self.assertEqual(self.pub_key, bh2u(K))
+
+    def test_deserialize_xpub(self):
+        self.check_deserialized(deserialize_xpub(self.xpub), False)
+
+    def test_deserialize_xprv(self):
+        self.check_deserialized(deserialize_xprv(self.xprv), True)
+
+    def test_deserialize_drkp(self):
+        self.check_deserialized(deserialize_drkp(self.drkp), False)
+
+    def test_deserialize_drkv(self):
+        self.check_deserialized(deserialize_drkv(self.drkv), True)
+
+    def test_keystore_from_xpub(self):
+        keystore = from_master_key(self.xpub)
+        self.assertEqual(keystore.xpub, self.xpub)
+        self.assertEqual(keystore.xprv, None)
+
+    def test_keystore_from_xprv(self):
+        keystore = from_master_key(self.xprv)
+        self.assertEqual(keystore.xpub, self.xpub)
+        self.assertEqual(keystore.xprv, self.xprv)
+
+    def test_keystore_from_drkp(self):
+        keystore = from_master_key(self.drkp)
+        self.assertEqual(keystore.xpub, self.xpub)
+        self.assertEqual(keystore.xprv, None)
+
+    def test_keystore_from_drkv(self):
+        keystore = from_master_key(self.drkv)
+        self.assertEqual(keystore.xpub, self.xpub)
+        self.assertEqual(keystore.xprv, self.xprv)
 
 
 class Test_keyImport(unittest.TestCase):
