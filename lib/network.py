@@ -54,6 +54,8 @@ DEFAULT_PORTS = {'t':'50001', 's':'50002'}
 DEFAULT_SERVERS = {
     '198.143.186.117':DEFAULT_PORTS,
     '207.246.65.114':DEFAULT_PORTS,
+    '144.202.40.33':DEFAULT_PORTS,
+    
 }
 
 def set_testnet():
