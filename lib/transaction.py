@@ -45,6 +45,14 @@ class SerializationError(Exception):
     """ Thrown when there's a problem deserializing or serializing """
 
 
+class UnknownTxinType(Exception):
+    pass
+
+
+class NotRecognizedRedeemScript(Exception):
+    pass
+
+
 class BCDataStream(object):
     def __init__(self):
         self.input = None
@@ -306,7 +314,8 @@ def parse_scriptSig(d, _bytes):
     if match_decoded(decoded, match):
         item = decoded[0][1]
         if item[0] != 0:
-            # payto_pubkey
+            # assert item[0] == 0x30
+            # pay-to-pubkey
             d['type'] = 'p2pk'
             d['address'] = "(pubkey)"
             d['signatures'] = [bh2u(item)]
@@ -362,7 +371,7 @@ def parse_redeemScript(s):
     match_multisig = [ op_m ] + [opcodes.OP_PUSHDATA4]*n + [ op_n, opcodes.OP_CHECKMULTISIG ]
     if not match_decoded(dec2, match_multisig):
         print_error("cannot find address in input script", bh2u(s))
-        return
+        raise NotRecognizedRedeemScript()
     x_pubkeys = [bh2u(x[1]) for x in dec2[1:-2]]
     pubkeys = [safe_parse_pubkey(x) for x in x_pubkeys]
     redeemScript = multisig_script(pubkeys, m)
