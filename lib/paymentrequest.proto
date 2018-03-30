@@ -1,3 +1,4 @@
+syntax = "proto2";
 //
 // Simple Bitcoin Payment Protocol messages
 //
