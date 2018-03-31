@@ -206,6 +206,8 @@ class Network(util.DaemonThread):
             os.mkdir(dir_path)
             os.chmod(dir_path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
 
+        # Servers that have invalid versions.
+        self.invalid_version_servers = set()
         # subscriptions and requests
         self.subscribed_addresses = set()
         self.h2addr = {}
@@ -386,6 +388,7 @@ class Network(util.DaemonThread):
 
     def start_random_interface(self):
         exclude_set = self.disconnected_servers.union(set(self.interfaces))
+        exclude_set = self.invalid_version_servers.union(exclude_set)
         server = pick_random_server(self.get_servers(), self.protocol, exclude_set)
         if server:
             self.start_interface(server)
@@ -532,7 +535,8 @@ class Network(util.DaemonThread):
 
         # We handle some responses; return the rest to the client.
         if method == 'server.version':
-            interface.server_version = result
+            if error is None:
+                self.on_version(interface, result)
         elif method == 'blockchain.headers.subscribe':
             if error is None:
                 self.on_notify_header(interface, result)
@@ -689,6 +693,11 @@ class Network(util.DaemonThread):
                 if callback in v:
                     v.remove(callback)
 
+    def invalid_version(self, server):
+        '''A server has an incompatible version.'''
+        self.invalid_version_servers.add(server)
+        self.connection_down(server)
+
     def connection_down(self, server):
         '''A connection to server either went down, or was never made.
         We distinguish by whether it is in self.interfaces.'''
@@ -712,6 +721,8 @@ class Network(util.DaemonThread):
         interface.mode = 'default'
         interface.request = None
         self.interfaces[server] = interface
+        self.queue_request('server.version',
+                           [ELECTRUM_VERSION, PROTOCOL_VERSION], interface)
         self.queue_request('blockchain.headers.subscribe', [], interface)
         if server == self.default_server:
             self.switch_to_interface(server)
@@ -985,6 +996,27 @@ class Network(util.DaemonThread):
             self.process_pending_sends()
         self.stop_network()
         self.on_stop()
+
+    def on_version(self, i, version):
+        """Check the version of an interface."""
+        # If the response is not parsable, disconnect.
+        try:
+            i.server_version = version
+            if not isinstance(version, (list, tuple)) or len(version) < 2:
+                raise Exception('Server version is not server/proto tuple')
+
+            server_version, protocol_version = version
+            if not server_version.startswith('ElectrumX '):
+                raise Exception('Not ElectrumX server')
+
+            if protocol_version != PROTOCOL_VERSION:
+                raise Exception('Electrum protocol not equals %s' % PROTOCOL_VERSION)
+
+        except Exception as e:
+            self.print_error(
+                'Disconnecting %s with version %s (parse version error: %s)' %
+                (i.server, i.server_version, e))
+            self.invalid_version(i.server)
 
     def on_notify_header(self, interface, header):
         height = header.get('block_height')

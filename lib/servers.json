@@ -1,5 +1,5 @@
 {
-    "localhost": {
+    "electrum.dash.siampm.com": {
         "pruning": "-",
         "s": "50002",
         "t": "50001",
