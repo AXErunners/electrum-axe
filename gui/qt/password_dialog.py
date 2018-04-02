@@ -103,7 +103,8 @@ class PasswordLayout(object):
                 lockfile = ":icons/lock.png"
             else:
                 lockfile = ":icons/unlock.png"
-            logo.setPixmap(QPixmap(lockfile).scaledToWidth(36))
+            logo.setPixmap(QPixmap(lockfile)
+                               .scaledToWidth(36, Qt.SmoothTransformation))
 
         grid.addWidget(QLabel(msgs[0]), 1, 0)
         grid.addWidget(self.new_pw, 1, 1)
