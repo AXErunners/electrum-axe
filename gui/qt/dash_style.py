@@ -3,10 +3,6 @@
 dash_stylesheet = """
 
 /* Lite Mode -- cloned from "CleanLook" theme */
-#main_window
-{
-    /*border-image: url(:/icons/bg.png) 0 0 0 0 stretch stretch;*/
-}
 
 MiniWindow QPushButton {
     color: #777;
@@ -360,6 +356,10 @@ QPushButton:disabled
 stop: 0 #A5CFFA, stop: 1 #72B2F8);
 }
 
+QStatusBar::item {
+    border: none;
+}
+
 QComboBox { /* Dropdown Menus */
     border:1px solid #82C3E6;
     padding: 3px 5px 3px 5px;
@@ -600,6 +600,10 @@ QTreeWidget::item {
 
 QDialog {
     background:qradialgradient(cx:0.5, cy:0.5, radius: 0.5, fx:0.5, fy:0.5, stop:0 rgba(255, 255, 255, 255), stop: 1 rgba(233, 233, 233, 255));
+}
+
+QDialog QAbstractScrollArea {
+    background: transparent;
 }
 
 QDialog QTabWidget {
