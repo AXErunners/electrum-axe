@@ -538,11 +538,6 @@ QTreeWidget {
     background-color:rgba(255,255,255,128);
 }
 
-QTreeWidget::item {
-    color:#333;
-}
-
-
 /**********************/
 /* 9. Dialog Boxes */
 
