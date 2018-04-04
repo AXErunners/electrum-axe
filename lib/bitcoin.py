@@ -49,6 +49,8 @@ ADDRTYPE_P2SH = 16
 WIF = 204
 XPRV_HEADER = 0x0488ade4
 XPUB_HEADER = 0x0488b21e
+DRKP_HEADER = 0x02fe52cc
+DRKV_HEADER = 0x02fe52f8
 HEADERS_URL = ''  # TODO headers bootstrap
 GENESIS = '00000c33631ca6f2f61368991ce2dc03306b5bb50bf7cede5cfbba6db38e52e6'
 
@@ -57,13 +59,15 @@ def set_testnet():
     global ADDRTYPE_P2PKH, ADDRTYPE_P2SH, WIF
     global XPRV_HEADER, XPUB_HEADER
     global TESTNET, HEADERS_URL
-    global GENESIS
+    global GENESIS, DRKP_HEADER, DRKV_HEADER
     TESTNET = True
     ADDRTYPE_P2PKH = 140
     ADDRTYPE_P2SH = 19
     WIF = 239
     XPRV_HEADER = 0x04358394
     XPUB_HEADER = 0x043587cf
+    DRKP_HEADER = 0x3a805837
+    DRKV_HEADER = 0x3a8061a0
     HEADERS_URL = ''  # TODO headers bootstrap
     GENESIS = '0000' + \
               '0bafbc94add76cb75e2ec92894837288a481e5c005f6563d91623bf8bc2c'
@@ -768,11 +772,34 @@ def deserialize_xkey(xkey, prv):
     K_or_k = xkey[13+n:]
     return xtype, depth, fingerprint, child_number, c, K_or_k
 
+def deserialize_drk(xkey, prv):
+    xkey = DecodeBase58Check(xkey)
+    if len(xkey) != 78:
+        raise BaseException('Invalid length')
+    depth = ord(xkey[4])
+    fingerprint = xkey[5:9]
+    child_number = xkey[9:13]
+    c = xkey[13:13+32]
+    header = DRKV_HEADER if prv else DRKP_HEADER
+    xtype = int('0x' + xkey[0:4].encode('hex'), 16) - header
+    if xtype != 0:
+        raise BaseException('Invalid header')
+    n = 33 if prv else 32
+    K_or_k = xkey[13+n:]
+    return xtype, depth, fingerprint, child_number, c, K_or_k
+
 def deserialize_xpub(xkey):
     return deserialize_xkey(xkey, False)
 
 def deserialize_xprv(xkey):
     return deserialize_xkey(xkey, True)
+
+def deserialize_drkp(xkey):
+    return deserialize_drk(xkey, False)
+
+def deserialize_drkv(xkey):
+    return deserialize_drk(xkey, True)
+
 
 def is_xpub(text):
     try:
@@ -788,6 +815,19 @@ def is_xprv(text):
     except:
         return False
 
+def is_drkp(text):
+    try:
+        deserialize_drkp(text)
+        return True
+    except:
+        return False
+
+def is_drkv(text):
+    try:
+        deserialize_drkv(text)
+        return True
+    except:
+        return False
 
 def xpub_from_xprv(xprv):
     xtype, depth, fingerprint, child_number, c, k = deserialize_xprv(xprv)

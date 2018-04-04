@@ -142,7 +142,7 @@ class BaseWizard(object):
 
     def restore_from_key(self):
         if self.wallet_type == 'standard':
-            v = keystore.is_any_key
+            v = keystore.is_any_key_plus_drk
             title = _("Create keystore from keys")
             message = ' '.join([
                 _("To create a watching-only wallet, please enter your master public key (xpub)."),
