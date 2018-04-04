@@ -241,7 +241,7 @@ def android_data_dir():
     return PythonActivity.mActivity.getFilesDir().getPath() + '/data'
 
 def android_headers_dir():
-    d = android_ext_dir() + '/org.electrum-dash.electrum-dash-develop'
+    d = android_ext_dir() + '/org.electrum-dash.electrum-dash'
     if not os.path.exists(d):
         os.mkdir(d)
     return d
@@ -250,7 +250,7 @@ def android_check_data_dir():
     """ if needed, move old directory to sandbox """
     ext_dir = android_ext_dir()
     data_dir = android_data_dir()
-    old_electrum_dir = ext_dir + '/electrum-dash-develop'
+    old_electrum_dir = ext_dir + '/electrum-dash'
     if not os.path.exists(data_dir) and os.path.exists(old_electrum_dir):
         import shutil
         new_headers_path = android_headers_dir() + android_headers_file_name()
@@ -331,11 +331,11 @@ def user_dir():
     if 'ANDROID_DATA' in os.environ:
         return android_check_data_dir()
     elif os.name == 'posix':
-        return os.path.join(os.environ["HOME"], ".electrum-dash-develop")
+        return os.path.join(os.environ["HOME"], ".electrum-dash")
     elif "APPDATA" in os.environ:
-        return os.path.join(os.environ["APPDATA"], "Electrum-DASH-develop")
+        return os.path.join(os.environ["APPDATA"], "Electrum-DASH")
     elif "LOCALAPPDATA" in os.environ:
-        return os.path.join(os.environ["LOCALAPPDATA"], "Electrum-DASH-develop")
+        return os.path.join(os.environ["LOCALAPPDATA"], "Electrum-DASH")
     else:
         #raise Exception("No home directory found in environment variables.")
         return
