@@ -545,7 +545,7 @@ QDialog {
     background:qradialgradient(cx:0.5, cy:0.5, radius: 0.5, fx:0.5, fy:0.5, stop:0 rgba(255, 255, 255, 255), stop: 1 rgba(233, 233, 233, 255));
 }
 
-QDialog QAbstractScrollArea {
+QDialog QScrollArea {
     background: transparent;
 }
 
