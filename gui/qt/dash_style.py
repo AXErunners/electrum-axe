@@ -57,7 +57,6 @@ QGroupBox::title {
     color: #fff;
 }
 
-
 #main_window_nav_bar QTabBar{
     color: #fff;
     border:0;
@@ -112,22 +111,23 @@ QCheckBox:hover {
 
 QValidatedLineEdit, QLineEdit, PayToEdit { /* Text Entry Fields */
     border: 1px solid #82C3E6;
-    min-height:25px;
     outline:0;
     padding:3px;
     background-color:#fcfcfc;
     color: #333;
 }
 
+PayToEdit QScrollBar::vertical {
+    width: 0;
+}
+
 ButtonsLineEdit {
     color: #333;
-    min-height:25px;
     background: #fff;
 }
 
 QLabel {
     color: #333;
-    min-height:25px;
 }
 
 
@@ -301,6 +301,10 @@ QPushButton:disabled
 stop: 0 #A5CFFA, stop: 1 #72B2F8);
 }
 
+QStatusBar {
+    color: #fff;
+}
+
 QStatusBar::item {
     border: none;
 }
@@ -309,7 +313,6 @@ QComboBox { /* Dropdown Menus */
     border:1px solid #82C3E6;
     padding: 3px 5px 3px 5px;
     background:#fcfcfc;
-    min-height:25px;
     color:#818181;
 }
 
