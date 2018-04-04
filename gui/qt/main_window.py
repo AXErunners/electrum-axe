@@ -1586,13 +1586,14 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         w.setLayout(vbox)
         vbox.setContentsMargins(0, 0, 0, 0)
         vbox.setSpacing(0)
+        vbox.addWidget(l)
         if list_header:
+            w.setObjectName("list_header")
             hbox = QHBoxLayout()
             for b in list_header:
                 hbox.addWidget(b)
             hbox.addStretch()
             vbox.addLayout(hbox)
-        vbox.addWidget(l)
         return w
 
     def create_addresses_tab(self):
@@ -1604,6 +1605,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
     def create_utxo_tab(self):
         from .utxo_list import UTXOList
         self.utxo_list = l = UTXOList(self)
+        l.setObjectName("utxo_container")
         return self.create_list_tab(l)
 
     def create_contacts_tab(self):

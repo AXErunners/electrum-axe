@@ -101,6 +101,23 @@ QGroupBox::title {
     border:0;
 }
 
+#main_window_nav_bar QStackedWidget {
+    border-top: 2px solid #FF0000;
+    background-color:#FF0000;
+    background:qradialgradient(cx:0.5, cy:0.5, radius: 0.5, fx:0.5, fy:0.5, stop:0 rgba(255, 255, 255, 255), stop: 1 rgba(246, 246, 246, 255));
+}
+
+#list_header {
+    background-color:#1e75b4;
+    background-color:qlineargradient(x1: 0, y1: 0, x2: 0, y2: 0.25, stop: 0 #64A3D0, stop: 1 #68A8D6);
+}
+
+#list_header > QLabel {
+    padding: 1px 0px;
+    color: #fff;
+}
+
+
 #main_window_nav_bar QTabBar{
     color: #fff;
     border:0;
@@ -187,19 +204,13 @@ QLabel {
 
 /* History Container */
 #history_container {
-    border-top: 2px solid #FF0000;
     margin-top: 0;
-    background-color:#FF0000;
-    background:qradialgradient(cx:0.5, cy:0.5, radius: 0.5, fx:0.5, fy:0.5, stop:0 rgba(255, 255, 255, 255), stop: 1 rgba(246, 246, 246, 255));
 }
 
 
 /* Send Container */
 #send_container {
-    border-top: 2px solid #FF0000;
     margin-top: 0;
-    background-color:#FF0000;
-    background:qradialgradient(cx:0.5, cy:0.5, radius: 0.5, fx:0.5, fy:0.5, stop:0 rgba(255, 255, 255, 255), stop: 1 rgba(246, 246, 246, 255));
 }
 
 #send_container QLabel {
@@ -210,10 +221,7 @@ QLabel {
 
 /* Receive Container */
 #receive_container {
-    border-top: 2px solid #FF0000;
     margin-top: 0;
-    background-color:#FF0000;
-    background:qradialgradient(cx:0.5, cy:0.5, radius: 0.5, fx:0.5, fy:0.5, stop:0 rgba(255, 255, 255, 255), stop: 1 rgba(246, 246, 246, 255));
 }
 
 #receive_container QLabel {
@@ -224,23 +232,20 @@ QLabel {
 
 /* Addressses Container */
 #addresses_container {
-    border-top: 2px solid #FF0000;
     margin-top: 0;
+    background-color:#FF0000;
     background:qradialgradient(cx:0.5, cy:0.5, radius: 0.5, fx:0.5, fy:0.5, stop:0 rgba(255, 255, 255, 255), stop: 1 rgba(246, 246, 246, 255));
 }
 
 
 /* Contacts Container */
-#contacts_container {
-    border-top: 2px solid #FF0000;
+#contacts_container, #utxo_container {
     margin-top: 0;
-    background:qradialgradient(cx:0.5, cy:0.5, radius: 0.5, fx:0.5, fy:0.5, stop:0 rgba(255, 255, 255, 255), stop: 1 rgba(233, 233, 233, 255));
 }
 
 
 /* Console Container */
 #console_container {
-    border-top: 2px solid #FF0000;
     margin-top: 0;
 }
 
