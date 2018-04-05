@@ -112,9 +112,12 @@ QCheckBox:hover {
 QValidatedLineEdit, QLineEdit, PayToEdit { /* Text Entry Fields */
     border: 1px solid #82C3E6;
     outline:0;
-    padding:3px;
     background-color:#fcfcfc;
     color: #333;
+}
+
+QValidatedLineEdit, QLineEdit {
+    padding:3px;
 }
 
 PayToEdit QScrollBar::vertical {
