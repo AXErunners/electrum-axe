@@ -24,7 +24,6 @@
 # SOFTWARE.
 
 import os
-import sys
 import hmac
 import math
 import hashlib

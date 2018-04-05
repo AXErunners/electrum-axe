@@ -1,5 +1,5 @@
 from digitalbitbox import DigitalBitboxPlugin
-from electrum_dash.util import print_msg
+from electrum.util import print_msg
 
 class DigitalBitboxCmdLineHandler:
     def stop(self):

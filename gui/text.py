@@ -3,9 +3,9 @@ import curses, datetime, locale
 from decimal import Decimal
 import getpass
 
-from electrum_dash.util import format_satoshis, set_verbosity
-from electrum_dash.bitcoin import is_valid, COIN, TYPE_ADDRESS
-from electrum_dash import Wallet, WalletStorage
+from electrum.util import format_satoshis, set_verbosity
+from electrum.bitcoin import is_valid, COIN, TYPE_ADDRESS
+from electrum import Wallet, WalletStorage
 
 _ = lambda x:x
 
@@ -19,7 +19,7 @@ class ElectrumGui:
         self.network = daemon.network
         storage = WalletStorage(config.get_wallet_path())
         if not storage.file_exists:
-            print "Wallet not found. try 'electrum-dash create'"
+            print "Wallet not found. try 'electrum create'"
             exit()
         if storage.is_encrypted():
             password = getpass.getpass('Password:', stream=None)
@@ -310,7 +310,7 @@ class ElectrumGui:
 
     def do_send(self):
         if not is_valid(self.str_recipient):
-            self.show_message(_('Invalid Dash address'))
+            self.show_message(_('Invalid Bitcoin address'))
             return
         try:
             amount = int(Decimal(self.str_amount) * COIN)

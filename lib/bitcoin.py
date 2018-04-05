@@ -36,46 +36,51 @@ from util import print_error, InvalidPassword
 import ecdsa
 import pyaes
 
-import x11_hash
-
-
-# Dash and bip32, bip44 constants
-# https://github.com/dashpay/dash/blob/master/src/chainparams.cpp
-# https://github.com/dashpay/dash/ 0.11.0 Release notes for drkp/drkv/DRKP/DRKV
-# https://github.com/satoshilabs/slips/blob/master/slip-0044.md
+# Bitcoin network constants
 TESTNET = False
-ADDRTYPE_P2PKH = 76
-ADDRTYPE_P2SH = 16
-WIF = 204
+NOLNET = False
+ADDRTYPE_P2PKH = 0
+ADDRTYPE_P2SH = 5
+ADDRTYPE_P2WPKH = 6
 XPRV_HEADER = 0x0488ade4
 XPUB_HEADER = 0x0488b21e
-DRKP_HEADER = 0x02fe52cc
-DRKV_HEADER = 0x02fe52f8
-HEADERS_URL = ''  # TODO headers bootstrap
-GENESIS = '00000ffd590b1485b3caadc19b22e6379c733355108f107a430458cdf3407ab6'
-
+HEADERS_URL = "https://headers.electrum.org/blockchain_headers"
+GENESIS = "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"
 
 def set_testnet():
-    global ADDRTYPE_P2PKH, ADDRTYPE_P2SH, WIF
+    global ADDRTYPE_P2PKH, ADDRTYPE_P2SH, ADDRTYPE_P2WPKH
     global XPRV_HEADER, XPUB_HEADER
     global TESTNET, HEADERS_URL
-    global GENESIS, DRKP_HEADER, DRKV_HEADER
+    global GENESIS
     TESTNET = True
-    ADDRTYPE_P2PKH = 140
-    ADDRTYPE_P2SH = 19
-    WIF = 239
+    ADDRTYPE_P2PKH = 111
+    ADDRTYPE_P2SH = 196
+    ADDRTYPE_P2WPKH = 3
     XPRV_HEADER = 0x04358394
     XPUB_HEADER = 0x043587cf
-    DRKP_HEADER = 0x3a805837
-    DRKV_HEADER = 0x3a8061a0
-    HEADERS_URL = ''  # TODO headers bootstrap
-    GENESIS = '0000' + \
-              '0bafbc94add76cb75e2ec92894837288a481e5c005f6563d91623bf8bc2c'
+    HEADERS_URL = "https://headers.electrum.org/testnet_headers"
+    GENESIS = "000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943"
+
+def set_nolnet():
+    global ADDRTYPE_P2PKH, ADDRTYPE_P2SH, ADDRTYPE_P2WPKH
+    global XPRV_HEADER, XPUB_HEADER
+    global NOLNET, HEADERS_URL
+    global GENESIS
+    TESTNET = True
+    ADDRTYPE_P2PKH = 0
+    ADDRTYPE_P2SH = 5
+    ADDRTYPE_P2WPKH = 6
+    XPRV_HEADER = 0x0488ade4
+    XPUB_HEADER = 0x0488b21e
+    HEADERS_URL = "https://headers.electrum.org/nolnet_headers"
+    GENESIS = "663c88be18d07c45f87f910b93a1a71ed9ef1946cad50eb6a6f3af4c424625c6"
+
 
 
 ################################## transactions
 
-MAX_FEE_RATE = 10000
+FEE_STEP = 10000
+MAX_FEE_RATE = 300000
 FEE_TARGETS = [25, 10, 5, 2]
 
 COINBASE_MATURITY = 100
@@ -193,12 +198,6 @@ def Hash(x):
     if type(x) is unicode: x=x.encode('utf-8')
     return sha256(sha256(x))
 
-
-def PoWHash(x):
-    if type(x) is unicode: x=x.encode('utf-8')
-    return x11_hash.getPoWHash(x)
-
-
 hash_encode = lambda x: x[::-1].encode('hex')
 hash_decode = lambda x: x.decode('hex')[::-1]
 hmac_sha_512 = lambda x,y: hmac.new(x, y, hashlib.sha512).digest()
@@ -231,6 +230,10 @@ def seed_type(x):
         return 'old'
     elif is_new_seed(x):
         return 'standard'
+    elif TESTNET and is_new_seed(x, version.SEED_PREFIX_SW):
+        return 'segwit'
+    elif is_new_seed(x, version.SEED_PREFIX_2FA):
+        return '2fa'
     return ''
 
 is_seed = lambda x: bool(seed_type(x))
@@ -269,8 +272,10 @@ def hash_160(public_key):
     md.update(sha256(public_key))
     return md.digest()
 
-def hash_160_to_bc_address(h160, addrtype):
+def hash_160_to_bc_address(h160, addrtype, witness_program_version=1):
     s = chr(addrtype)
+    if addrtype == ADDRTYPE_P2WPKH:
+        s += chr(witness_program_version) + chr(0)
     s += h160
     return base_encode(s+Hash(s)[0:4], base=58)
 
@@ -286,6 +291,9 @@ def hash160_to_p2sh(h160):
 
 def public_key_to_p2pkh(public_key):
     return hash160_to_p2pkh(hash_160(public_key))
+
+def public_key_to_p2wpkh(public_key):
+    return hash160_to_bc_address(hash_160(public_key), ADDRTYPE_P2WPKH)
 
 
 
@@ -368,13 +376,15 @@ def PrivKeyToSecret(privkey):
 
 
 def SecretToASecret(secret, compressed=False):
-    vchIn = chr(WIF) + secret
+    addrtype = ADDRTYPE_P2PKH
+    vchIn = chr((addrtype+128)&255) + secret
     if compressed: vchIn += '\01'
     return EncodeBase58Check(vchIn)
 
 def ASecretToSecret(key):
+    addrtype = ADDRTYPE_P2PKH
     vch = DecodeBase58Check(key)
-    if vch and vch[0] == chr(WIF):
+    if vch and vch[0] == chr((addrtype+128)&255):
         return vch[1:]
     elif is_minikey(key):
         return minikey_to_private_key(key)
@@ -471,7 +481,7 @@ from ecdsa.util import string_to_number, number_to_string
 def msg_magic(message):
     varint = var_int(len(message))
     encoded_varint = "".join([chr(int(varint[i:i+2], 16)) for i in xrange(0, len(varint), 2)])
-    return "\x19DarkCoin Signed Message:\n" + encoded_varint + message
+    return "\x18Bitcoin Signed Message:\n" + encoded_varint + message
 
 
 def verify_message(address, sig, message):
@@ -482,8 +492,7 @@ def verify_message(address, sig, message):
         pubkey = point_to_ser(public_key.pubkey.point, compressed)
         addr = public_key_to_p2pkh(pubkey)
         if address != addr:
-            raise Exception("Bad signature for %s, sig is for %s" % (address,
-                                                                     addr))
+            raise Exception("Bad signature")
         # check message
         public_key.verify_digest(sig[1:], h, sigdecode = ecdsa.util.sigdecode_string)
         return True
@@ -619,9 +628,7 @@ class EC_KEY(object):
             try:
                 self.verify_message(sig, message)
                 return sig
-            except Exception as e:
-                print_error('Error for verifying with "%s": %s' % (
-                    chr(27 + i + (4 if is_compressed else 0)), str(e)))
+            except Exception:
                 continue
         else:
             raise Exception("error: cannot sign message")
@@ -772,33 +779,11 @@ def deserialize_xkey(xkey, prv):
     K_or_k = xkey[13+n:]
     return xtype, depth, fingerprint, child_number, c, K_or_k
 
-def deserialize_drk(xkey, prv):
-    xkey = DecodeBase58Check(xkey)
-    if len(xkey) != 78:
-        raise BaseException('Invalid length')
-    depth = ord(xkey[4])
-    fingerprint = xkey[5:9]
-    child_number = xkey[9:13]
-    c = xkey[13:13+32]
-    header = DRKV_HEADER if prv else DRKP_HEADER
-    xtype = int('0x' + xkey[0:4].encode('hex'), 16) - header
-    if xtype != 0:
-        raise BaseException('Invalid header')
-    n = 33 if prv else 32
-    K_or_k = xkey[13+n:]
-    return xtype, depth, fingerprint, child_number, c, K_or_k
-
 def deserialize_xpub(xkey):
     return deserialize_xkey(xkey, False)
 
 def deserialize_xprv(xkey):
     return deserialize_xkey(xkey, True)
-
-def deserialize_drkp(xkey):
-    return deserialize_drk(xkey, False)
-
-def deserialize_drkv(xkey):
-    return deserialize_drk(xkey, True)
 
 def is_xpub(text):
     try:
@@ -810,20 +795,6 @@ def is_xpub(text):
 def is_xprv(text):
     try:
         deserialize_xprv(text)
-        return True
-    except:
-        return False
-
-def is_drkp(text):
-    try:
-        deserialize_drkp(text)
-        return True
-    except:
-        return False
-
-def is_drkv(text):
-    try:
-        deserialize_drkv(text)
         return True
     except:
         return False

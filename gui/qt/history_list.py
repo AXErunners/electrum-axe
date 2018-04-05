@@ -27,10 +27,10 @@
 import webbrowser
 
 from util import *
-from electrum_dash.i18n import _
-from electrum_dash.util import block_explorer_URL, format_satoshis, format_time
-from electrum_dash.plugins import run_hook
-from electrum_dash.util import timestamp_to_datetime, profiler
+from electrum.i18n import _
+from electrum.util import block_explorer_URL, format_satoshis, format_time
+from electrum.plugins import run_hook
+from electrum.util import timestamp_to_datetime, profiler
 
 
 TX_ICONS = [
@@ -166,6 +166,14 @@ class HistoryList(MyTreeWidget):
             menu.addAction(_("Edit %s")%column_title, lambda: self.editItem(item, column))
 
         menu.addAction(_("Details"), lambda: self.parent.show_transaction(tx))
+        if is_unconfirmed and tx:
+            rbf = is_mine and not tx.is_final()
+            if rbf:
+                menu.addAction(_("Increase fee"), lambda: self.parent.bump_fee_dialog(tx))
+            else:
+                child_tx = self.wallet.cpfp(tx, 0)
+                if child_tx:
+                    menu.addAction(_("Child pays for parent"), lambda: self.parent.cpfp(tx, child_tx))
         if pr_key:
             menu.addAction(QIcon(":icons/seal"), _("View invoice"), lambda: self.parent.show_invoice(pr_key))
         if tx_URL:

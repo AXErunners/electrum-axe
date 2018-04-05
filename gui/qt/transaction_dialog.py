@@ -32,10 +32,10 @@ from PyQt4.QtGui import *
 from PyQt4.QtCore import *
 import PyQt4.QtCore as QtCore
 
-from electrum_dash import transaction
-from electrum_dash.bitcoin import base_encode
-from electrum_dash.i18n import _
-from electrum_dash.plugins import run_hook
+from electrum import transaction
+from electrum.bitcoin import base_encode
+from electrum.i18n import _
+from electrum.plugins import run_hook
 
 from util import *
 
@@ -178,7 +178,7 @@ class TxDialog(QDialog, MessageBoxMixin):
         desc = self.desc
         base_unit = self.main_window.base_unit()
         format_amount = self.main_window.format_amount
-        tx_hash, status, label, can_broadcast, amount, fee, height, conf, timestamp, exp_n = self.wallet.get_tx_info(self.tx)
+        tx_hash, status, label, can_broadcast, can_rbf, amount, fee, height, conf, timestamp, exp_n = self.wallet.get_tx_info(self.tx)
         size = self.tx.estimated_size()
         self.broadcast_button.setEnabled(can_broadcast)
         self.sign_button.setEnabled(self.wallet.can_sign(self.tx))

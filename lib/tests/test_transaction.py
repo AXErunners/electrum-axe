@@ -56,7 +56,7 @@ class TestTransaction(unittest.TestCase):
         expected = {
             'inputs': [{
                 'type': 'p2pkh',
-                'address': 'XdjwdihsyoLpoCHFUpd8x3iH1rsMsS2q5P',
+                'address': '1446oU3z268EeFgfcwJv6X2VBXHfoYxfuD',
                 'num_sig': 1,
                 'prevout_hash': '3140eb24b43386f35ba69e3875eb6c93130ac66201d01c58f598defc949a5c2a',
                 'prevout_n': 0,
@@ -67,7 +67,7 @@ class TestTransaction(unittest.TestCase):
                 'x_pubkeys': ['ff0488b21e03ef2afea18000000089689bff23e1e7fb2f161daa37270a97a3d8c2e537584b2d304ecb47b86d21fc021b010d3bd425f8cf2e04824bfdf1f1f5ff1d51fadd9a41f9e3fb8dd3403b1bfe00000000']}],
             'lockTime': 0,
             'outputs': [{
-                'address': 'Xdt8NqE5wSX9ytfP958t4tKdXoZDo6Bm6T',
+                'address': '14CHYaaByjJZpx4oHBpfDMdqhTyXnZ3kVs',
                 'prevout_n': 0,
                 'scriptPubKey': '76a914230ac37834073a42146f11ef8414ae929feaafc388ac',
                 'type': TYPE_ADDRESS,
@@ -79,12 +79,12 @@ class TestTransaction(unittest.TestCase):
         self.assertEquals(tx.deserialize(), None)
 
         self.assertEquals(tx.as_dict(), {'hex': unsigned_blob, 'complete': False, 'final': True})
-        self.assertEquals(tx.get_outputs(), [('Xdt8NqE5wSX9ytfP958t4tKdXoZDo6Bm6T', 1000000)])
-        self.assertEquals(tx.get_output_addresses(), ['Xdt8NqE5wSX9ytfP958t4tKdXoZDo6Bm6T'])
+        self.assertEquals(tx.get_outputs(), [('14CHYaaByjJZpx4oHBpfDMdqhTyXnZ3kVs', 1000000)])
+        self.assertEquals(tx.get_output_addresses(), ['14CHYaaByjJZpx4oHBpfDMdqhTyXnZ3kVs'])
 
-        self.assertTrue(tx.has_address('Xdt8NqE5wSX9ytfP958t4tKdXoZDo6Bm6T'))
-        self.assertTrue(tx.has_address('XdjwdihsyoLpoCHFUpd8x3iH1rsMsS2q5P'))
-        self.assertFalse(tx.has_address('Xn6ZqLcuKpYoSkiXKmLMWKtoF2sNExHwjT'))
+        self.assertTrue(tx.has_address('14CHYaaByjJZpx4oHBpfDMdqhTyXnZ3kVs'))
+        self.assertTrue(tx.has_address('1446oU3z268EeFgfcwJv6X2VBXHfoYxfuD'))
+        self.assertFalse(tx.has_address('1CQj15y1N7LDHp7wTt28eoD1QhHgFgxECH'))
 
         self.assertEquals(tx.serialize(), unsigned_blob)
 
@@ -100,7 +100,7 @@ class TestTransaction(unittest.TestCase):
         expected = {
             'inputs': [{
                 'type': 'p2pkh',
-                'address': 'XdjwdihsyoLpoCHFUpd8x3iH1rsMsS2q5P',
+                'address': '1446oU3z268EeFgfcwJv6X2VBXHfoYxfuD',
                 'num_sig': 1,
                 'prevout_hash': '3140eb24b43386f35ba69e3875eb6c93130ac66201d01c58f598defc949a5c2a',
                 'prevout_n': 0,
@@ -111,7 +111,7 @@ class TestTransaction(unittest.TestCase):
                 'x_pubkeys': ['02e61d176da16edd1d258a200ad9759ef63adf8e14cd97f53227bae35cdb84d2f6']}],
             'lockTime': 0,
             'outputs': [{
-                'address': 'Xdt8NqE5wSX9ytfP958t4tKdXoZDo6Bm6T',
+                'address': '14CHYaaByjJZpx4oHBpfDMdqhTyXnZ3kVs',
                 'prevout_n': 0,
                 'scriptPubKey': '76a914230ac37834073a42146f11ef8414ae929feaafc388ac',
                 'type': TYPE_ADDRESS,
@@ -136,10 +136,10 @@ class TestTransaction(unittest.TestCase):
 
     def test_parse_xpub(self):
         res = xpubkey_to_address('fe4e13b0f311a55b8a5db9a32e959da9f011b131019d4cebe6141b9e2c93edcbfc0954c358b062a9f94111548e50bde5847a3096b8b7872dcffadb0e9579b9017b01000200')
-        self.assertEquals(res, ('04ee98d63800824486a1cf5b4376f2f574d86e0a3009a6448105703453f3368e8e1d8d090aaecdd626a45cc49876709a3bbb6dc96a4311b3cac03e225df5f63dfc', 'XjNytJHxbRZCF4s7MzaKvw4Rrf6bPRuPnW'))
+        self.assertEquals(res, ('04ee98d63800824486a1cf5b4376f2f574d86e0a3009a6448105703453f3368e8e1d8d090aaecdd626a45cc49876709a3bbb6dc96a4311b3cac03e225df5f63dfc', '19h943e4diLc68GXW7G75QNe2KWuMu7BaJ'))
 
-        res = xpubkey_to_address('fd4c7d260305ef27224bbcf6cf5238d2b3638b5a78d5')
-        self.assertEquals(res, ('fd4c7d260305ef27224bbcf6cf5238d2b3638b5a78d5', 'Xn6ZqLcuKpYoSkiXKmLMWKtoF2sNExHwjT'))
+        res = xpubkey_to_address('fd007d260305ef27224bbcf6cf5238d2b3638b5a78d5')
+        self.assertEquals(res, ('fd007d260305ef27224bbcf6cf5238d2b3638b5a78d5', '1CQj15y1N7LDHp7wTt28eoD1QhHgFgxECH'))
 
     def test_version_field(self):
         tx = transaction.Transaction(v2_blob)

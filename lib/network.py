@@ -42,7 +42,6 @@ from bitcoin import *
 from interface import Connection, Interface
 import blockchain
 from version import ELECTRUM_VERSION, PROTOCOL_VERSION
-import masternode_manager
 
 DEFAULT_PORTS = {'t':'50001', 's':'50002'}
 
@@ -52,22 +51,49 @@ DEFAULT_PORTS = {'t':'50001', 's':'50002'}
 #then gradually switch remaining nodes to e-x nodes
 
 DEFAULT_SERVERS = {
-    'electrum.dash.siampm.com':DEFAULT_PORTS,  # thelazier
-    # cert verify failed 'electrum-drk.club':DEFAULT_PORTS,         # duffman
+    'erbium1.sytes.net':DEFAULT_PORTS,                  # core, e-x
+    'ecdsa.net':{'t':'50001', 's':'110'},               # core, e-x
+    'gh05.geekhosters.com':DEFAULT_PORTS,               # core, e-s
+    'VPS.hsmiths.com':DEFAULT_PORTS,                    # core, e-x
+    'electrum.anduck.net':DEFAULT_PORTS,                # core, e-s; banner with version pending
+    'electrum.no-ip.org':DEFAULT_PORTS,                 # core, e-s
+    'electrum.be':DEFAULT_PORTS,                        # core, e-x
+    'helicarrier.bauerj.eu':DEFAULT_PORTS,              # core, e-x
+    'elex01.blackpole.online':DEFAULT_PORTS,            # core, e-x
+    'electrumx.not.fyi':DEFAULT_PORTS,                  # core, e-x
+    'node.xbt.eu':DEFAULT_PORTS,                        # core, e-x
+    'kirsche.emzy.de':DEFAULT_PORTS,                    # core, e-x
+    'electrum.villocq.com':DEFAULT_PORTS,               # core?, e-s; banner with version recommended
+    'us11.einfachmalnettsein.de':DEFAULT_PORTS,         # core, e-x
+    'electrum.trouth.net':DEFAULT_PORTS,                # BU, e-s
+    'Electrum.hsmiths.com':{'t':'8080', 's':'995'},     # core, e-x
+    'electrum3.hachre.de':DEFAULT_PORTS,                # core, e-x
+    'b.1209k.com':DEFAULT_PORTS,                        # XT, jelectrum
+    'elec.luggs.co':{ 's':'443'},                       # core, e-x
+    'btc.smsys.me':{'t':'110', 's':'995'},              # BU, e-x
 }
 
 def set_testnet():
     global DEFAULT_PORTS, DEFAULT_SERVERS
     DEFAULT_PORTS = {'t':'51001', 's':'51002'}
     DEFAULT_SERVERS = {
-        'localhost': DEFAULT_PORTS,
+        'testnetnode.arihanc.com': DEFAULT_PORTS,
+        'testnet1.bauerj.eu': DEFAULT_PORTS,
+        '14.3.140.101': DEFAULT_PORTS,
+        'testnet.hsmiths.com': {'t':'53011', 's':'53012'},
+        'electrum.akinbo.org': DEFAULT_PORTS,
+        'ELEX05.blackpole.online': {'t':'52011', 's':'52002'},
     }
 
+def set_nolnet():
+    global DEFAULT_PORTS, DEFAULT_SERVERS
+    DEFAULT_PORTS = {'t':'52001', 's':'52002'}
+    DEFAULT_SERVERS = {
+        '14.3.140.101': DEFAULT_PORTS,
+    }
 
 NODES_RETRY_INTERVAL = 60
 SERVER_RETRY_INTERVAL = 10
-MIN_SERVER_VERSION = 1.0
-MIN_ELECTRUMX_VERSION = '1.0.11'
 
 
 def parse_servers(result):
@@ -205,8 +231,6 @@ class Network(util.DaemonThread):
         self.banner = ''
         self.donation_address = ''
         self.relay_fee = None
-        # List of all proposals on the network.
-        self.all_proposals = []
         # callbacks passed with subscriptions
         self.subscriptions = defaultdict(list)
         self.sub_cache = {}
@@ -217,8 +241,6 @@ class Network(util.DaemonThread):
         if not os.path.exists(dir_path):
             os.mkdir(dir_path)
 
-        # Servers that have invalid versions.
-        self.invalid_version_servers = set()
         # subscriptions and requests
         self.subscribed_addresses = set()
         # Requests from client we've not seen a response to
@@ -331,8 +353,6 @@ class Network(util.DaemonThread):
         self.queue_request('blockchain.relayfee', [])
         for addr in self.subscribed_addresses:
             self.queue_request('blockchain.address.subscribe', [addr])
-        # Disabled until API is stable.
-        # self.queue_request('masternode.proposals.subscribe', [])
 
     def get_status_value(self, key):
         if key == 'status':
@@ -392,7 +412,6 @@ class Network(util.DaemonThread):
 
     def start_random_interface(self):
         exclude_set = self.disconnected_servers.union(set(self.interfaces))
-        exclude_set = self.invalid_version_servers.union(exclude_set)
         server = pick_random_server(self.get_servers(), self.protocol, exclude_set)
         if server:
             self.start_interface(server)
@@ -535,8 +554,7 @@ class Network(util.DaemonThread):
 
         # We handle some responses; return the rest to the client.
         if method == 'server.version':
-            if error is None:
-                self.on_version(interface, result)
+            interface.server_version = result
         elif method == 'blockchain.headers.subscribe':
             if error is None:
                 self.on_notify_header(interface, result)
@@ -544,9 +562,6 @@ class Network(util.DaemonThread):
             if error is None:
                 self.irc_servers = parse_servers(result)
                 self.notify('servers')
-#        elif method == 'masternode.proposals.subscribe':
-#            if error is None:
-#                self.on_proposals(result)
         elif method == 'server.banner':
             if error is None:
                 self.banner = result
@@ -668,11 +683,6 @@ class Network(util.DaemonThread):
                 if callback in v:
                     v.remove(callback)
 
-    def invalid_version(self, server):
-        '''A server has an incompatible version.'''
-        self.invalid_version_servers.add(server)
-        self.connection_down(server)
-
     def connection_down(self, server):
         '''A connection to server either went down, or was never made.
         We distinguish by whether it is in self.interfaces.'''
@@ -696,8 +706,6 @@ class Network(util.DaemonThread):
         interface.mode = 'default'
         interface.request = None
         self.interfaces[server] = interface
-        self.queue_request('server.version',
-                           [ELECTRUM_VERSION, PROTOCOL_VERSION], interface)
         self.queue_request('blockchain.headers.subscribe', [], interface)
         if server == self.default_server:
             self.switch_to_interface(server)
@@ -976,33 +984,6 @@ class Network(util.DaemonThread):
         self.stop_network()
         self.on_stop()
 
-    def on_version(self, i, version):
-        """Check the version of an interface."""
-        # If the response is not parsable, disconnect.
-        try:
-            if version.startswith('ElectrumX '):
-                i.server_version = version
-                electrumx_version = util.normalize_version(version.split()[1])
-                min_version = util.normalize_version(MIN_ELECTRUMX_VERSION)
-                if electrumx_version < min_version:
-                    self.print_error(
-                        'Disconnecting %s with %s (minimum: %s)' %
-                        (i.server, version, MIN_ELECTRUMX_VERSION))
-                    self.invalid_version(i.server)
-
-            else:
-                i.server_version = float(version)
-                if i.server_version < MIN_SERVER_VERSION:
-                    self.print_error(
-                        'Disconnecting %s with version %s (minimum: %s)' %
-                        (i.server, i.server_version, MIN_SERVER_VERSION))
-                    self.invalid_version(i.server)
-        except Exception as e:
-            self.print_error(
-                'Disconnecting %s with version %s (parse version error: %s)' %
-                (i.server, i.server_version, e))
-            self.invalid_version(i.server)
-
     def on_notify_header(self, interface, header):
         height = header.get('block_height')
         if not height:
@@ -1094,9 +1075,3 @@ class Network(util.DaemonThread):
         if out != tx_hash:
             return False, "error: " + out
         return True, out
-
-#    def on_proposals(self, result):
-#        """Handle new information on all budget proposals."""
-#        all_proposals = masternode_manager.parse_proposals_subscription_result(result)
-#        self.all_proposals = all_proposals
-#        self.trigger_callback('proposals')

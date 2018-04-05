@@ -92,7 +92,7 @@ class Contacts(dict):
                 'type': 'openalias',
                 'validated': validated
             }
-        raise Exception("Invalid Dash address or alias", k)
+        raise Exception("Invalid Bitcoin address or alias", k)
 
     def resolve_openalias(self, url):
         # support email-style addresses, per the OA standard
@@ -128,3 +128,4 @@ class Contacts(dict):
                 if _type != 'address':
                     data.pop(k)
         return data
+

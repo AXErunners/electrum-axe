@@ -1,18 +1,6 @@
-# Release 2.9.4 (security update)
-  * Incorporate electrum 2.9.4 changes
-# Release 2.9.3.2 (Security update)
-  * The JSONRPC interface is password protected
-  * JSONRPC commands are disabled if the GUI is running, except 'ping',
-    which is used to determine if a GUI is already running
-  * Fix hardware wallets supoort for Windows/OSX builds
-# Release 2.9.3.1 (Security update)
-  * Fix a vulnerability caused by Cross-Origin Resource Sharing (CORS)
-    in the JSONRPC interface. Previous versions of Electrum are
-    vulnerable to port scanning and deanonimization attacks from
-    malicious websites. Wallets that are not password-protected are
-    vulnerable to theft.
 # Release 2.9.3
   * fix configuration file issue #2719
+  * fix ledger signing of non-RBF transactions
   * disable 'spend confirmed only' option by default
 
 # Release 2.9.2
@@ -34,7 +22,8 @@
     classical SPV model.
   * The desired branch of a blockchain fork can be selected using the
     network dialog. Branches are identified by the hash and height of
-    the diverging block.
+    the diverging block. Coin splitting is possible using RBF
+    transaction (a tutorial will be added).
   * Multibit support: If the user enters a BIP39 seed (or uses a
     hardware wallet), the full derivation path is configurable in the
     install wizard.
@@ -57,6 +46,7 @@
 
 # Release 2.8.2
   * show paid invoices in history tab
+  * improve CPFP dialog
   * fixes for trezor, keepkey
   * other minor bugfixes
 
@@ -79,6 +69,9 @@
     contacts files may be imported from the menu.
   * Fees improvements:
     - Dynamic fees are enabled by default.
+    - Child Pays For Parent (CPFP) dialog in the GUI.
+    - RBF is automatically proposed for low fee transactions.
+  * Support for Segregated Witness (testnet only).
   * Support for Digital Bitbox hardware wallet.
   * The GUI shows a blue icon when connected using a proxy.
 
@@ -100,6 +93,7 @@
 
 # Release 2.7.15
   * Use fee slider for both static and dynamic fees.
+  * Add fee slider to RBF dialog (fix #2083).
   * Simplify fee preferences.
   * Critical: Fix password update issue (#2097). This bug prevents
     password updates in multisig and 2FA wallets. It may also cause
@@ -127,6 +121,7 @@
 
 # Release 2.7.10
   * various fixes for hardware wallets
+  * improve fee bumping
   * separate sign and broadcast buttons in Qt tx dialog
   * allow spaces in private keys
 
@@ -137,6 +132,7 @@
   * Fix hardware wallet issues #1975, #1976
 
 # Release 2.7.8
+  * Fix a bug with fee bumping
   * Fix crash when parsing request (issue #1969)
 
 # Release 2.7.7
@@ -200,6 +196,10 @@
    - Multiple hardware cosigners can be used in the same multisig
      wallet. One icon per keystore is displayed in the satus bar. Each
      connected device will co-sign the transaction.
+ * Replace-By-Fee: RBF transactions are supported in both Qt and
+   Android. A warning is displayed in the history for transactions
+   that are replaceable, have unconfirmed parents, or that have very
+   low fees.
  * Dynamic fees: Dynamic fees are enabled by default. A slider allows
    the user to select the expected confirmation time of their
    transaction. The expected confirmation times of incoming

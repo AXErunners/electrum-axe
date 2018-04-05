@@ -29,7 +29,7 @@ from qrtextedit import ScanQRTextEdit
 
 import re
 from decimal import Decimal
-from electrum_dash import bitcoin
+from electrum import bitcoin
 
 import util
 
@@ -87,7 +87,7 @@ class PayToEdit(ScanQRTextEdit):
             return bitcoin.TYPE_SCRIPT, script
 
     def parse_script(self, x):
-        from electrum_dash.transaction import opcodes, push_script
+        from electrum.transaction import opcodes, push_script
         script = ''
         for word in x.split():
             if word[0:3] == 'OP_':
@@ -121,7 +121,7 @@ class PayToEdit(ScanQRTextEdit):
         self.payto_address = None
         if len(lines) == 1:
             data = lines[0]
-            if data.startswith("dash:"):
+            if data.startswith("bitcoin:"):
                 self.scan_f(data)
                 return
             try:
@@ -259,7 +259,7 @@ class PayToEdit(ScanQRTextEdit):
 
     def qr_input(self):
         data = super(PayToEdit,self).qr_input()
-        if data.startswith("dash:"):
+        if data.startswith("bitcoin:"):
             self.scan_f(data)
             # TODO: update fee
 

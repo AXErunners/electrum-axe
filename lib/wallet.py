@@ -45,8 +45,7 @@ from functools import partial
 from collections import namedtuple, defaultdict
 
 from i18n import _
-from util import (AlreadyHaveAddress, NotEnoughFunds, PrintError,
-                  UserCancelled, profiler)
+from util import NotEnoughFunds, PrintError, UserCancelled, profiler
 
 from bitcoin import *
 from version import *
@@ -101,9 +100,6 @@ class Abstract_Wallet(PrintError):
         self.frozen_addresses      = set(storage.get('frozen_addresses',[]))
         self.stored_height         = storage.get('stored_height', 0)       # last known height (for offline mode)
         self.history               = storage.get('addr_history',{})        # address -> list(txid, height)
-
-        # Delegate keys for signing Masternode Pings.
-        self.masternode_delegates = storage.get('masternode_delegates', {})
 
         self.load_keystore()
         self.load_addresses()
@@ -440,6 +436,7 @@ class Abstract_Wallet(PrintError):
         is_relevant, is_mine, v, fee = self.get_wallet_delta(tx)
         exp_n = None
         can_broadcast = False
+        can_bump = False
         label = ''
         height = conf = timestamp = None
         tx_hash = tx.txid()
@@ -460,6 +457,7 @@ class Abstract_Wallet(PrintError):
                         size = tx.estimated_size()
                         fee_per_kb = fee * 1000 / size
                         exp_n = self.network.config.reverse_dynfee(fee_per_kb)
+                    can_bump = is_mine and not tx.is_final()
             else:
                 status = _("Signed")
                 can_broadcast = self.network is not None
@@ -478,7 +476,7 @@ class Abstract_Wallet(PrintError):
         else:
             amount = None
 
-        return tx_hash, status, label, can_broadcast, amount, fee, height, conf, timestamp, exp_n
+        return tx_hash, status, label, can_broadcast, can_bump, amount, fee, height, conf, timestamp, exp_n
 
 
     def get_addr_io(self, address):
@@ -793,8 +791,8 @@ class Abstract_Wallet(PrintError):
         return status, status_str
 
     def relayfee(self):
-        RELAY_FEE = 1000
-        MAX_RELAY_FEE = 10000
+        RELAY_FEE = 5000
+        MAX_RELAY_FEE = 50000
         f = self.network.relay_fee if self.network and self.network.relay_fee else RELAY_FEE
         return min(f, MAX_RELAY_FEE)
 
@@ -1027,6 +1025,61 @@ class Abstract_Wallet(PrintError):
                 age = tx_age
         return age > age_limit
 
+    def bump_fee(self, tx, delta):
+        if tx.is_final():
+            raise BaseException(_("Cannot bump fee: transaction is final"))
+        inputs = copy.deepcopy(tx.inputs())
+        outputs = copy.deepcopy(tx.outputs())
+        for txin in inputs:
+            txin['signatures'] = [None] * len(txin['signatures'])
+            self.add_input_info(txin)
+        # use own outputs
+        s = filter(lambda x: self.is_mine(x[1]), outputs)
+        # ... unless there is none
+        if not s:
+            s = outputs
+            x_fee = run_hook('get_tx_extra_fee', self, tx)
+            if x_fee:
+                x_fee_address, x_fee_amount = x_fee
+                s = filter(lambda x: x[1]!=x_fee_address, s)
+
+        # prioritize low value outputs, to get rid of dust
+        s = sorted(s, key=lambda x: x[2])
+        for o in s:
+            i = outputs.index(o)
+            otype, address, value = o
+            if value - delta >= self.dust_threshold():
+                outputs[i] = otype, address, value - delta
+                delta = 0
+                break
+            else:
+                del outputs[i]
+                delta -= value
+                if delta > 0:
+                    continue
+        if delta > 0:
+            raise BaseException(_('Cannot bump fee: cound not find suitable outputs'))
+        return Transaction.from_io(inputs, outputs)
+
+    def cpfp(self, tx, fee):
+        txid = tx.txid()
+        for i, o in enumerate(tx.outputs()):
+            otype, address, value = o
+            if otype == TYPE_ADDRESS and self.is_mine(address):
+                break
+        else:
+            return
+        coins = self.get_addr_utxo(address)
+        for item in coins:
+            if item['prevout_hash'] == txid and item['prevout_n'] == i:
+                break
+        else:
+            return
+        self.add_input_info(item)
+        inputs = [item]
+        outputs = [(TYPE_ADDRESS, address, value - fee)]
+        return Transaction.from_io(inputs, outputs)
+
     def add_input_info(self, txin):
         txin['type'] = self.txin_type
         # Add address for utxo that are in wallet
@@ -1141,7 +1194,7 @@ class Abstract_Wallet(PrintError):
         if not r:
             return
         out = copy.copy(r)
-        out['URI'] = 'dash:' + addr + '?amount=' + util.format_satoshis(out.get('amount'))
+        out['URI'] = 'bitcoin:' + addr + '?amount=' + util.format_satoshis(out.get('amount'))
         status, conf = self.get_request_status(addr)
         out['status'] = status
         if conf is not None:
@@ -1284,46 +1337,6 @@ class Abstract_Wallet(PrintError):
 
     def has_password(self):
         return self.storage.get('use_encryption', False)
-
-    # Dash Abstract_Wallet additions
-    def get_delegate_private_key(self, pubkey):
-        """Get the private delegate key for pubkey."""
-        return self.masternode_delegates.get(pubkey, '')
-
-    def import_masternode_delegate(self, sec):
-        """Import the private key for a masternode."""
-        try:
-            pubkey = public_key_from_private_key(sec)
-            address = public_key_to_p2pkh(pubkey.decode('hex'))
-        except Exception:
-            raise Exception('Invalid private key')
-
-        if self.masternode_delegates.get(pubkey):
-            raise AlreadyHaveAddress('Masternode key already in wallet',
-                                     address)
-
-        self.masternode_delegates[pubkey] = sec
-        self.storage.put('masternode_delegates', self.masternode_delegates)
-
-    def delete_masternode_delegate(self, pubkey):
-        if self.masternode_delegates.get(pubkey):
-            del self.masternode_delegates[pubkey]
-            self.storage.put('masternode_delegates', self.masternode_delegates)
-
-    def sign_masternode_ping(self, ping, pubkey):
-        """Sign a Masternode Ping for address."""
-        sec = self.masternode_delegates.get(pubkey)
-        if not sec:
-            raise Exception('Private key not known for public key %s' % pubkey)
-        ping.sign(sec)
-        return True
-
-    def sign_budget_vote(self, vote, pubkey):
-        """Sign a Budget Vote for address."""
-        sec = self.masternode_delegates.get(pubkey)
-        if not sec:
-            raise Exception('Private key not known for public key %s' % pubkey)
-        return vote.sign(sec)
 
 
 class Imported_Wallet(Abstract_Wallet):
@@ -1540,7 +1553,8 @@ class Simple_Wallet(Abstract_Wallet):
 
     def load_keystore(self):
         self.keystore = load_keystore(self.storage, 'keystore')
-        self.txin_type = 'p2pkh'
+        self.is_segwit = self.keystore.is_segwit()
+        self.txin_type = 'p2wpkh-p2sh' if self.is_segwit else 'p2pkh'
 
     def get_pubkey(self, c, i):
         return self.derive_pubkeys(c, i)
@@ -1644,10 +1658,20 @@ class Standard_Wallet(Simple_Deterministic_Wallet):
     wallet_type = 'standard'
 
     def pubkeys_to_redeem_script(self, pubkey):
-        raise NotImplementedError()
+        if self.is_segwit:
+            return transaction.segwit_script(pubkey)
 
     def pubkeys_to_address(self, pubkey):
-        return bitcoin.public_key_to_p2pkh(pubkey.decode('hex'))
+        if not self.is_segwit:
+            return bitcoin.public_key_to_p2pkh(pubkey.decode('hex'))
+        elif bitcoin.TESTNET:
+            redeem_script = self.pubkeys_to_redeem_script(pubkey)
+            return bitcoin.hash160_to_p2sh(hash_160(redeem_script.decode('hex')))
+        else:
+            raise NotImplementedError()
+
+
+
 
 
 class Multisig_Wallet(Deterministic_Wallet, P2SH):
@@ -1775,3 +1799,4 @@ class Wallet(object):
         if wallet_type in wallet_constructors:
             return wallet_constructors[wallet_type]
         raise RuntimeError("Unknown wallet type: " + wallet_type)
+

@@ -28,9 +28,9 @@ from PyQt4.QtGui import *
 from PyQt4.QtCore import *
 import PyQt4.QtCore as QtCore
 
-from electrum_dash.i18n import _
-from electrum_dash.network import DEFAULT_PORTS
-from electrum_dash.network import serialize_server, deserialize_server
+from electrum.i18n import _
+from electrum.network import DEFAULT_PORTS
+from electrum.network import serialize_server, deserialize_server
 
 from util import *
 
@@ -269,7 +269,7 @@ class NetworkChoiceLayout(object):
         # Blockchain Tab
         grid = QGridLayout(blockchain_tab)
         msg =  ' '.join([
-            _("Electrum-DASH connects to several nodes in order to download block headers and find out the longest blockchain."),
+            _("Electrum connects to several nodes in order to download block headers and find out the longest blockchain."),
             _("This blockchain is used to verify the transactions sent by your transaction server.")
         ])
         self.status_label = QLabel('')
@@ -278,7 +278,7 @@ class NetworkChoiceLayout(object):
         grid.addWidget(HelpButton(msg), 0, 4)
 
         self.server_label = QLabel('')
-        msg = _("Electrum-DASH sends your wallet addresses to a single server, in order to receive your transaction history.")
+        msg = _("Electrum sends your wallet addresses to a single server, in order to receive your transaction history.")
         grid.addWidget(QLabel(_('Server') + ':'), 1, 0)
         grid.addWidget(self.server_label, 1, 1, 1, 3)
         grid.addWidget(HelpButton(msg), 1, 4)
@@ -293,8 +293,8 @@ class NetworkChoiceLayout(object):
         grid.addWidget(self.split_label, 3, 0, 1, 3)
 
         msg = ' '.join([
-            _("If auto-connect is enabled, Electrum-DASH will always use a server that is on the longest blockchain."),
-            _("If it is disabled, you have to choose a server you want to use. Electrum-DASH will warn you if your server is lagging.")
+            _("If auto-connect is enabled, Electrum will always use a server that is on the longest blockchain."),
+            _("If it is disabled, you have to choose a server you want to use. Electrum will warn you if your server is lagging.")
         ])
         grid.addWidget(self.autoconnect_cb, 4, 0, 1, 3)
         grid.addWidget(HelpButton(msg), 4, 4)

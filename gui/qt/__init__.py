@@ -36,22 +36,21 @@ from PyQt4.QtGui import *
 from PyQt4.QtCore import *
 import PyQt4.QtCore as QtCore
 
-from electrum_dash.i18n import _, set_language
-from electrum_dash.plugins import run_hook
-from electrum_dash import SimpleConfig, Wallet, WalletStorage
-from electrum_dash.synchronizer import Synchronizer
-from electrum_dash.verifier import SPV
-from electrum_dash.util import DebugMem, UserCancelled, InvalidPassword
-from electrum_dash.wallet import Abstract_Wallet
+from electrum.i18n import _, set_language
+from electrum.plugins import run_hook
+from electrum import SimpleConfig, Wallet, WalletStorage
+from electrum.synchronizer import Synchronizer
+from electrum.verifier import SPV
+from electrum.util import DebugMem, UserCancelled, InvalidPassword
+from electrum.wallet import Abstract_Wallet
 from installwizard import InstallWizard, GoBack
-from dash_style import dash_stylesheet
 
 
 try:
     import icons_rc
 except Exception:
     print "Error: Could not find icons file."
-    print "Please run 'pyrcc4 icons.qrc -o gui/qt/icons_rc.py', and reinstall Electrum-DASH"
+    print "Please run 'pyrcc4 icons.qrc -o gui/qt/icons_rc.py', and reinstall Electrum"
     sys.exit(1)
 
 from util import *   # * needed for plugins
@@ -87,13 +86,12 @@ class ElectrumGui:
         self.efilter = OpenFileEventFilter(self.windows)
         self.app = QApplication(sys.argv)
         self.app.installEventFilter(self.efilter)
-        self.app.setStyleSheet(dash_stylesheet)
         self.timer = Timer()
         self.nd = None
         # init tray
         self.dark_icon = self.config.get("dark_icon", False)
         self.tray = QSystemTrayIcon(self.tray_icon(), None)
-        self.tray.setToolTip('Electrum-DASH')
+        self.tray.setToolTip('Electrum')
         self.tray.activated.connect(self.tray_activated)
         self.build_tray_menu()
         self.tray.show()
@@ -110,7 +108,7 @@ class ElectrumGui:
             submenu.addAction(_("Close"), window.close)
         m.addAction(_("Dark/Light"), self.toggle_tray_icon)
         m.addSeparator()
-        m.addAction(_("Exit Electrum-DASH"), self.close)
+        m.addAction(_("Exit Electrum"), self.close)
         self.tray.setContextMenu(m)
 
     def tray_icon(self):
@@ -170,12 +168,7 @@ class ElectrumGui:
                 w.bring_to_top()
                 break
         else:
-            try:
-                wallet = self.daemon.load_wallet(path, None)
-            except  BaseException as e:
-                d = QMessageBox(QMessageBox.Warning, _('Error'), 'Cannot load wallet:\n' + str(e))
-                d.exec_()
-                return
+            wallet = self.daemon.load_wallet(path, None)
             if not wallet:
                 storage = WalletStorage(path)
                 wizard = InstallWizard(self.config, self.app, self.plugins, storage)

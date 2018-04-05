@@ -89,22 +89,22 @@ def check_imports():
 if not is_android:
     check_imports()
 
-# load local module as electrum_dash
+# load local module as electrum
 if is_bundle or is_local or is_android:
     import imp
-    imp.load_module('electrum_dash', *imp.find_module('lib'))
-    imp.load_module('electrum_dash_gui', *imp.find_module('gui'))
+    imp.load_module('electrum', *imp.find_module('lib'))
+    imp.load_module('electrum_gui', *imp.find_module('gui'))
 
-from electrum_dash import bitcoin, network
-from electrum_dash import SimpleConfig, Network
-from electrum_dash.wallet import Wallet, Imported_Wallet
-from electrum_dash.storage import WalletStorage
-from electrum_dash.util import print_msg, print_stderr, json_encode, json_decode
-from electrum_dash.util import set_verbosity, InvalidPassword, check_www_dir
-from electrum_dash.commands import get_parser, known_commands, Commands, config_variables
-from electrum_dash import daemon
-from electrum_dash import keystore
-from electrum_dash.mnemonic import Mnemonic
+from electrum import bitcoin, network
+from electrum import SimpleConfig, Network
+from electrum.wallet import Wallet, Imported_Wallet
+from electrum.storage import WalletStorage
+from electrum.util import print_msg, print_stderr, json_encode, json_decode
+from electrum.util import set_verbosity, InvalidPassword, check_www_dir
+from electrum.commands import get_parser, known_commands, Commands, config_variables
+from electrum import daemon
+from electrum import keystore
+from electrum.mnemonic import Mnemonic
 
 # get password routine
 def prompt_password(prompt, confirm=True):
@@ -189,7 +189,7 @@ def init_daemon(config_options):
     storage = WalletStorage(config.get_wallet_path())
     if not storage.file_exists():
         print_msg("Error: Wallet file not found.")
-        print_msg("Type 'electrum-dash create' to create a new wallet, or provide a path to a wallet with the -w option")
+        print_msg("Type 'electrum create' to create a new wallet, or provide a path to a wallet with the -w option")
         sys.exit(0)
     if storage.is_encrypted():
         if config.get('password'):
@@ -224,7 +224,7 @@ def init_cmdline(config_options, server):
 
     if cmd.requires_wallet and not storage.file_exists():
         print_msg("Error: Wallet file not found.")
-        print_msg("Type 'electrum-dash create' to create a new wallet, or provide a path to a wallet with the -w option")
+        print_msg("Type 'electrum create' to create a new wallet, or provide a path to a wallet with the -w option")
         sys.exit(0)
 
     # important warning
@@ -278,8 +278,7 @@ def run_offline_command(config, config_options):
     # arguments passed to function
     args = map(lambda x: config.get(x), cmd.params)
     # decode json arguments
-    if cmdname not in ('setconfig',):
-        args = list(map(json_decode, args))
+    args = map(json_decode, args)
     # options
     args += map(lambda x: (config_options.get(x) if x in ['password', 'new_password'] else config.get(x)), cmd.options)
     cmd_runner = Commands(config, wallet, None)
@@ -291,7 +290,7 @@ def run_offline_command(config, config_options):
     return result
 
 def init_plugins(config, gui_name):
-    from electrum_dash.plugins import Plugins
+    from electrum.plugins import Plugins
     return Plugins(config, is_bundle or is_local or is_android, gui_name)
 
 if __name__ == '__main__':
@@ -360,6 +359,10 @@ if __name__ == '__main__':
         bitcoin.set_testnet()
         network.set_testnet()
 
+    if config.get('nolnet'):
+        bitcoin.set_nolnet()
+        network.set_nolnet()
+
     # run non-RPC commands separately
     if cmdname in ['create', 'restore']:
         run_non_RPC(config)
@@ -369,7 +372,7 @@ if __name__ == '__main__':
         fd, server = daemon.get_fd_or_server(config)
         if fd is not None:
             plugins = init_plugins(config, config.get('gui', 'qt'))
-            d = daemon.Daemon(config, fd, True)
+            d = daemon.Daemon(config, fd)
             d.start()
             d.init_gui(config, plugins)
             sys.exit(0)
@@ -390,10 +393,10 @@ if __name__ == '__main__':
                         print_stderr("starting daemon (PID %d)" % pid)
                         sys.exit(0)
                 init_plugins(config, 'cmdline')
-                d = daemon.Daemon(config, fd, False)
+                d = daemon.Daemon(config, fd)
                 d.start()
                 if config.get('websocket_server'):
-                    from electrum_dash import websockets
+                    from electrum import websockets
                     websockets.WebSocketServer(config, d.network).start()
                 if config.get('requests_dir'):
                     check_www_dir(config.get('requests_dir'))
@@ -417,11 +420,12 @@ if __name__ == '__main__':
         else:
             cmd = known_commands[cmdname]
             if cmd.requires_network:
-                print_msg("Daemon not running; try 'electrum-dash daemon start'")
+                print_msg("Daemon not running; try 'electrum daemon start'")
                 sys.exit(1)
             else:
                 init_plugins(config, 'cmdline')
                 result = run_offline_command(config, config_options)
+
     # print result
     if type(result) in [str, unicode]:
         print_msg(result)

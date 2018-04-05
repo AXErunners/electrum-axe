@@ -4,29 +4,29 @@ import threading
 from PyQt4.Qt import Qt
 from PyQt4.Qt import QGridLayout, QInputDialog, QPushButton
 from PyQt4.Qt import QVBoxLayout, QLabel, SIGNAL
-from electrum_dash_gui.qt.util import *
+from electrum_gui.qt.util import *
 from .plugin import TIM_NEW, TIM_RECOVER, TIM_MNEMONIC
 from ..hw_wallet.qt import QtHandlerBase, QtPluginBase
 
-from electrum_dash.i18n import _
-from electrum_dash.plugins import hook, DeviceMgr
-from electrum_dash.util import PrintError, UserCancelled
-from electrum_dash.wallet import Wallet, Standard_Wallet
+from electrum.i18n import _
+from electrum.plugins import hook, DeviceMgr
+from electrum.util import PrintError, UserCancelled
+from electrum.wallet import Wallet, Standard_Wallet
 
 PASSPHRASE_HELP_SHORT =_(
     "Passphrases allow you to access new wallets, each "
     "hidden behind a particular case-sensitive passphrase.")
 PASSPHRASE_HELP = PASSPHRASE_HELP_SHORT + "  " + _(
-    "You need to create a separate Electrum-DASH wallet for each passphrase "
+    "You need to create a separate Electrum wallet for each passphrase "
     "you use as they each generate different addresses.  Changing "
     "your passphrase does not lose other wallets, each is still "
     "accessible behind its own passphrase.")
 RECOMMEND_PIN = _(
     "You should enable PIN protection.  Your PIN is the only protection "
-    "for your Dash if your device is lost or stolen.")
+    "for your bitcoins if your device is lost or stolen.")
 PASSPHRASE_NOT_PIN = _(
     "If you forget a passphrase you will be unable to access any "
-    "Dash in the wallet behind it.  A passphrase is not a PIN. "
+    "bitcoins in the wallet behind it.  A passphrase is not a PIN. "
     "Only change this if you are sure you understand it.")
 CHARACTER_RECOVERY = (
     "Use the recovery cipher shown on your device to input your seed words.  "
@@ -242,7 +242,7 @@ class QtPlugin(QtPluginBase):
             else:
                 msg = _("Enter the master private key beginning with xprv:")
                 def set_enabled():
-                    from electrum_dash.keystore import is_xprv
+                    from electrum.keystore import is_xprv
                     wizard.next_button.setEnabled(is_xprv(clean_text(text)))
                 text.textChanged.connect(set_enabled)
                 next_enabled = False
@@ -359,13 +359,13 @@ class SettingsDialog(WindowModalDialog):
             currently_enabled = self.features.passphrase_protection
             if currently_enabled:
                 msg = _("After disabling passphrases, you can only pair this "
-                        "Electrum-DASH wallet if it had an empty passphrase.  "
+                        "Electrum wallet if it had an empty passphrase.  "
                         "If its passphrase was not empty, you will need to "
                         "create a new wallet with the install wizard.  You "
                         "can use this wallet again at any time by re-enabling "
                         "passphrases and entering its passphrase.")
             else:
-                msg = _("Your current Electrum-DASH wallet can only be used with "
+                msg = _("Your current Electrum wallet can only be used with "
                         "an empty passphrase.  You must create a separate "
                         "wallet with the install wizard for other passphrases "
                         "as each one generates a new set of addresses.")
@@ -406,7 +406,7 @@ class SettingsDialog(WindowModalDialog):
             if wallet and sum(wallet.get_balance()):
                 title = _("Confirm Device Wipe")
                 msg = _("Are you SURE you want to wipe the device?\n"
-                        "Your wallet still has Dash in it!")
+                        "Your wallet still has bitcoins in it!")
                 if not self.question(msg, title=title,
                                      icon=QMessageBox.Critical):
                     return
@@ -481,7 +481,7 @@ class SettingsDialog(WindowModalDialog):
         settings_glayout.addWidget(pin_button, 2, 1)
         pin_msg = QLabel(_("PIN protection is strongly recommended.  "
                            "A PIN is your only protection against someone "
-                           "stealing your Dash if they obtain physical "
+                           "stealing your bitcoins if they obtain physical "
                            "access to your %s.") % plugin.device)
         pin_msg.setWordWrap(True)
         pin_msg.setStyleSheet("color: red")
@@ -541,7 +541,7 @@ class SettingsDialog(WindowModalDialog):
         clear_pin_button.clicked.connect(clear_pin)
         clear_pin_warning = QLabel(
             _("If you disable your PIN, anyone with physical access to your "
-              "%s device can spend your Dash.") % plugin.device)
+              "%s device can spend your bitcoins.") % plugin.device)
         clear_pin_warning.setWordWrap(True)
         clear_pin_warning.setStyleSheet("color: red")
         advanced_glayout.addWidget(clear_pin_button, 0, 2)
@@ -566,7 +566,7 @@ class SettingsDialog(WindowModalDialog):
         wipe_device_msg.setWordWrap(True)
         wipe_device_warning = QLabel(
             _("Only wipe a device if you have the recovery seed written down "
-              "and the device wallet(s) are empty, otherwise the Dash "
+              "and the device wallet(s) are empty, otherwise the bitcoins "
               "will be lost forever."))
         wipe_device_warning.setWordWrap(True)
         wipe_device_warning.setStyleSheet("color: red")

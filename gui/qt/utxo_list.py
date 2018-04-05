@@ -24,8 +24,8 @@
 # SOFTWARE.
 
 from util import *
-from electrum_dash.i18n import _
-from electrum_dash.bitcoin import is_address
+from electrum.i18n import _
+from electrum.bitcoin import is_address
 
 
 class UTXOList(MyTreeWidget):

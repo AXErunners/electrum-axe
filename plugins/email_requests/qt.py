@@ -42,11 +42,11 @@ from PyQt4.QtCore import *
 import PyQt4.QtCore as QtCore
 import PyQt4.QtGui as QtGui
 
-from electrum_dash.plugins import BasePlugin, hook
-from electrum_dash.paymentrequest import PaymentRequest
-from electrum_dash.i18n import _
-from electrum_dash_gui.qt.util import EnterButton, Buttons, CloseButton
-from electrum_dash_gui.qt.util import OkButton, WindowModalDialog
+from electrum.plugins import BasePlugin, hook
+from electrum.paymentrequest import PaymentRequest
+from electrum.i18n import _
+from electrum_gui.qt.util import EnterButton, Buttons, CloseButton
+from electrum_gui.qt.util import OkButton, WindowModalDialog
 
 
 
@@ -75,7 +75,7 @@ class Processor(threading.Thread):
                 p = [p]
                 continue
             for item in p:
-                if item.get_content_type() == "application/dash-paymentrequest":
+                if item.get_content_type() == "application/bitcoin-paymentrequest":
                     pr_str = item.get_payload()
                     pr_str = base64.b64decode(pr_str)
                     self.on_receive(pr_str)
@@ -94,10 +94,10 @@ class Processor(threading.Thread):
         msg['Subject'] = message
         msg['To'] = recipient
         msg['From'] = self.username
-        part = MIMEBase('application', "dash-paymentrequest")
+        part = MIMEBase('application', "bitcoin-paymentrequest")
         part.set_payload(payment_request)
         Encoders.encode_base64(part)
-        part.add_header('Content-Disposition', 'attachment; filename="payreq.dash"')
+        part.add_header('Content-Disposition', 'attachment; filename="payreq.btc"')
         msg.attach(part)
         s = smtplib.SMTP_SSL(self.imap_server, timeout=2)
         s.login(self.username, self.password)
@@ -142,7 +142,7 @@ class Plugin(BasePlugin):
         menu.addAction(_("Send via e-mail"), lambda: self.send(window, addr))
 
     def send(self, window, addr):
-        from electrum_dash import paymentrequest
+        from electrum import paymentrequest
         r = window.wallet.receive_requests.get(addr)
         message = r.get('memo', '')
         if r.get('signature'):

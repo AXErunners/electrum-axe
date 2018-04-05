@@ -33,22 +33,13 @@ import traceback
 import urlparse
 import urllib
 import threading
-import hmac
 from i18n import _
 
-base_units = {'DASH':8, 'mDASH':5, 'uDASH':2}
+base_units = {'BTC':8, 'mBTC':5, 'uBTC':2}
 fee_levels = [_('Within 25 blocks'), _('Within 10 blocks'), _('Within 5 blocks'), _('Within 2 blocks'), _('In the next block')]
 
 def normalize_version(v):
     return [int(x) for x in re.sub(r'(\.0+)*$','', v).split(".")]
-
-
-# Raised when importing a key that's already in the wallet.
-class AlreadyHaveAddress(Exception):
-    def __init__(self, msg, addr):
-        super(AlreadyHaveAddress, self).__init__(msg)
-        self.addr = addr
-
 
 class NotEnoughFunds(Exception): pass
 
@@ -200,60 +191,6 @@ def json_decode(x):
     except:
         return x
 
-
-def to_string(x, enc):
-    if isinstance(x, (bytes, bytearray)):
-        return x.decode(enc)
-    if isinstance(x, str):
-        return x
-    else:
-        raise TypeError("Not a string or bytes like object")
-
-
-def to_bytes(something, encoding='utf8'):
-    """
-    cast string to bytes() like object, but for python2 support it's bytearray copy
-    """
-    if isinstance(something, (str, bytes)):
-        return something
-    if isinstance(something, unicode):
-        return something.encode(encoding)
-    elif isinstance(something, bytearray):
-        return bytes(something)
-    else:
-        raise TypeError("Not a string or bytes like object")
-
-
-# constant_time_compare taken from Django Source Code
-if hasattr(hmac, "compare_digest"):
-    # Prefer the stdlib implementation, when available.
-    def constant_time_compare(val1, val2):
-        return hmac.compare_digest(to_bytes(val1, 'utf8'), to_bytes(val2, 'utf8'))
-else:
-    import six
-    def constant_time_compare(val1, val2):
-        """
-        Returns True if the two strings are equal, False otherwise.
-
-        The time taken is independent of the number of characters that match.
-
-        For the sake of simplicity, this function executes in constant time only
-        when the two strings have the same length. It short-circuits when they
-        have different lengths. Since Django only uses it to compare hashes of
-        known expected length, this is acceptable.
-        """
-        if len(val1) != len(val2):
-            return False
-        result = 0
-        if six.PY3 and isinstance(val1, bytes) and isinstance(val2, bytes):
-            for x, y in zip(val1, val2):
-                result |= x ^ y
-        else:
-            for x, y in zip(val1, val2):
-                result |= ord(x) ^ ord(y)
-        return result == 0
-
-
 # decorator that prints execution time
 def profiler(func):
     def do_profile(func, args, kw_args):
@@ -264,14 +201,6 @@ def profiler(func):
         print_error("[profiler]", n, "%.4f"%t)
         return o
     return lambda *args, **kw_args: do_profile(func, args, kw_args)
-
-
-def headers_file_name():
-    from bitcoin import TESTNET
-    s = 'blockchain_headers'
-    if TESTNET:
-        s += '_testnet'
-    return s
 
 
 def android_ext_dir():
@@ -285,7 +214,7 @@ def android_data_dir():
     return PythonActivity.mActivity.getFilesDir().getPath() + '/data'
 
 def android_headers_dir():
-    d = android_ext_dir() + '/org.electrum_dash.electrum_dash'
+    d = android_ext_dir() + '/org.electrum.electrum'
     if not os.path.exists(d):
         os.mkdir(d)
     return d
@@ -294,11 +223,11 @@ def android_check_data_dir():
     """ if needed, move old directory to sandbox """
     ext_dir = android_ext_dir()
     data_dir = android_data_dir()
-    old_electrum_dir = ext_dir + '/electrum-dash'
+    old_electrum_dir = ext_dir + '/electrum'
     if not os.path.exists(data_dir) and os.path.exists(old_electrum_dir):
         import shutil
-        new_headers_path = android_headers_dir() + headers_file_name()
-        old_headers_path = old_electrum_dir + headers_file_name()
+        new_headers_path = android_headers_dir() + '/blockchain_headers'
+        old_headers_path = old_electrum_dir + '/blockchain_headers'
         if not os.path.exists(new_headers_path) and os.path.exists(old_headers_path):
             print_error("Moving headers file to", new_headers_path)
             shutil.move(old_headers_path, new_headers_path)
@@ -313,11 +242,11 @@ def user_dir():
     if 'ANDROID_DATA' in os.environ:
         return android_check_data_dir()
     elif os.name == 'posix':
-        return os.path.join(os.environ["HOME"], ".electrum-dash")
+        return os.path.join(os.environ["HOME"], ".electrum")
     elif "APPDATA" in os.environ:
-        return os.path.join(os.environ["APPDATA"], "Electrum-DASH")
+        return os.path.join(os.environ["APPDATA"], "Electrum")
     elif "LOCALAPPDATA" in os.environ:
-        return os.path.join(os.environ["LOCALAPPDATA"], "Electrum-DASH")
+        return os.path.join(os.environ["LOCALAPPDATA"], "Electrum")
     else:
         #raise Exception("No home directory found in environment variables.")
         return
@@ -414,18 +343,37 @@ def time_difference(distance_in_time, include_seconds):
     else:
         return "over %d years" % (round(distance_in_minutes / 525600))
 
-
 mainnet_block_explorers = {
-    'Dash.org': ('https://explorer.dash.org',
-                       {'tx': 'tx', 'addr': 'address'}),
-    'Bchain.info': ('https://bchain.info/DASH',
-                       {'tx': 'tx', 'addr': 'addr'}),
+    'Biteasy.com': ('https://www.biteasy.com/blockchain',
+                        {'tx': 'transactions', 'addr': 'addresses'}),
+    'Bitflyer.jp': ('https://chainflyer.bitflyer.jp',
+                        {'tx': 'Transaction', 'addr': 'Address'}),
+    'Blockchain.info': ('https://blockchain.info',
+                        {'tx': 'tx', 'addr': 'address'}),
+    'blockchainbdgpzk.onion': ('https://blockchainbdgpzk.onion',
+                        {'tx': 'tx', 'addr': 'address'}),
+    'Blockr.io': ('https://btc.blockr.io',
+                        {'tx': 'tx/info', 'addr': 'address/info'}),
+    'Blocktrail.com': ('https://www.blocktrail.com/BTC',
+                        {'tx': 'tx', 'addr': 'address'}),
+    'BTC.com': ('https://chain.btc.com',
+                        {'tx': 'tx', 'addr': 'address'}),
+    'Chain.so': ('https://www.chain.so',
+                        {'tx': 'tx/BTC', 'addr': 'address/BTC'}),
+    'Insight.is': ('https://insight.bitpay.com',
+                        {'tx': 'tx', 'addr': 'address'}),
+    'TradeBlock.com': ('https://tradeblock.com/blockchain',
+                        {'tx': 'tx', 'addr': 'address'}),
+    'BlockCypher.com': ('https://live.blockcypher.com/btc',
+                        {'tx': 'tx', 'addr': 'address'}),
+    'Blockchair.com': ('https://blockchair.com/bitcoin',
+                        {'tx': 'transaction', 'addr': 'address'}),
     'system default': ('blockchain:',
-                       {'tx': 'tx', 'addr': 'address'}),
+                        {'tx': 'tx', 'addr': 'address'}),
 }
 
 testnet_block_explorers = {
-    'Dash.org': ('https://test.explorer.dash.org',
+    'Blocktrail.com': ('https://www.blocktrail.com/tBTC',
                        {'tx': 'tx', 'addr': 'address'}),
     'system default': ('blockchain:',
                        {'tx': 'tx', 'addr': 'address'}),
@@ -436,7 +384,7 @@ def block_explorer_info():
     return testnet_block_explorers if bitcoin.TESTNET else mainnet_block_explorers
 
 def block_explorer(config):
-    return config.get('block_explorer', 'Dash.org')
+    return config.get('block_explorer', 'Blocktrail.com')
 
 def block_explorer_tuple(config):
     return block_explorer_info().get(block_explorer(config))
@@ -461,12 +409,12 @@ def parse_URI(uri, on_pr=None):
 
     if ':' not in uri:
         if not bitcoin.is_address(uri):
-            raise BaseException("Not a Dash address")
+            raise BaseException("Not a bitcoin address")
         return {'address': uri}
 
     u = urlparse.urlparse(uri)
-    if u.scheme != 'dash':
-        raise BaseException("Not a Dash URI")
+    if u.scheme != 'bitcoin':
+        raise BaseException("Not a bitcoin URI")
     address = u.path
 
     # python for android fails to parse query
@@ -483,7 +431,7 @@ def parse_URI(uri, on_pr=None):
     out = {k: v[0] for k, v in pq.items()}
     if address:
         if not bitcoin.is_address(address):
-            raise BaseException("Invalid Dash address:" + address)
+            raise BaseException("Invalid bitcoin address:" + address)
         out['address'] = address
     if 'amount' in out:
         am = out['amount']
@@ -534,8 +482,7 @@ def create_URI(addr, amount, message):
         if type(message) == unicode:
             message = message.encode('utf8')
         query.append('message=%s'%urllib.quote(message))
-    p = urlparse.ParseResult(scheme='dash', netloc='', path=addr, params='',
-                             query='&'.join(query), fragment='')
+    p = urlparse.ParseResult(scheme='bitcoin', netloc='', path=addr, params='', query='&'.join(query), fragment='')
     return urlparse.urlunparse(p)
 
 
@@ -562,18 +509,6 @@ def parse_json(message):
     return j, message[n+1:]
 
 
-def utfify(arg):
-    """Convert unicode argument to UTF-8.
-
-    Used when loading things that must be serialized.
-    """
-    if isinstance(arg, dict):
-        return {utfify(k): utfify(v) for k, v in arg.iteritems()}
-    elif isinstance(arg, list):
-        return map(utfify, arg)
-    elif isinstance(arg, unicode):
-        return arg.encode('utf-8')
-    return arg
 
 
 class timeout(Exception):

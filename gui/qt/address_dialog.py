@@ -23,7 +23,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from electrum_dash.i18n import _
+from electrum.i18n import _
 
 import PyQt4
 from PyQt4.QtGui import *

@@ -5,14 +5,14 @@ import threading
 from binascii import hexlify, unhexlify
 from functools import partial
 
-from electrum_dash.bitcoin import (bc_address_to_hash_160, xpub_from_pubkey,
+from electrum.bitcoin import (bc_address_to_hash_160, xpub_from_pubkey,
                               public_key_to_p2pkh, EncodeBase58Check,
                               TYPE_ADDRESS, TYPE_SCRIPT,
                               TESTNET, ADDRTYPE_P2PKH, ADDRTYPE_P2SH)
-from electrum_dash.i18n import _
-from electrum_dash.plugins import BasePlugin, hook
-from electrum_dash.transaction import deserialize, Transaction
-from electrum_dash.keystore import Hardware_KeyStore, is_xpubkey, parse_xpubkey
+from electrum.i18n import _
+from electrum.plugins import BasePlugin, hook
+from electrum.transaction import deserialize, Transaction
+from electrum.keystore import Hardware_KeyStore, is_xpubkey, parse_xpubkey
 
 from ..hw_wallet import HW_PluginBase
 
@@ -29,7 +29,14 @@ class TrezorCompatibleKeyStore(Hardware_KeyStore):
         return self.plugin.get_client(self, force_pair)
 
     def decrypt_message(self, sequence, message, password):
-        raise RuntimeError(_('Encryption and decryption are not implemented by %s') % self.device)
+        raise RuntimeError(_('Electrum and %s encryption and decryption are currently incompatible') % self.device)
+        client = self.get_client()
+        address_path = self.get_derivation() + "/%d/%d"%sequence
+        address_n = client.expand_path(address_path)
+        payload = base64.b64decode(message)
+        nonce, message, msg_hmac = payload[:33], payload[33:-8], payload[-8:]
+        result = client.decrypt_message(address_n, nonce, message, msg_hmac)
+        return result.message
 
     def sign_message(self, sequence, message, password):
         client = self.get_client()
@@ -85,6 +92,8 @@ class TrezorCompatiblePlugin(HW_PluginBase):
         try:
             return self.hid_transport(pair)
         except BaseException as e:
+            # see fdb810ba622dc7dbe1259cbafb5b28e19d2ab114
+            # raise
             self.print_error("cannot connect at", device.path, str(e))
             return None
  
@@ -97,6 +106,8 @@ class TrezorCompatiblePlugin(HW_PluginBase):
             return None
 
     def create_client(self, device, handler):
+        # disable bridge because it seems to never returns if keepkey is plugged
+        #transport = self._try_bridge(device) or self._try_hid(device)
         transport = self._try_hid(device)
         if not transport:
             self.print_error("cannot connect to device")
@@ -136,7 +147,7 @@ class TrezorCompatiblePlugin(HW_PluginBase):
         return client
 
     def get_coin_name(self):
-        return "Dash Testnet" if TESTNET else "Dash"
+        return "Testnet" if TESTNET else "Bitcoin"
 
     def initialize_device(self, device_id, wizard, handler):
         # Initialization method
@@ -182,11 +193,8 @@ class TrezorCompatiblePlugin(HW_PluginBase):
 
         if method == TIM_NEW:
             strength = 64 * (item + 2)  # 128, 192 or 256
-            u2f_counter = 0
-            skip_backup = False
             client.reset_device(True, strength, passphrase_protection,
-                                pin_protection, label, language,
-                                u2f_counter, skip_backup)
+                                    pin_protection, label, language)
         elif method == TIM_RECOVER:
             word_count = 6 * (item + 2)  # 12, 18 or 24
             client.step = 0

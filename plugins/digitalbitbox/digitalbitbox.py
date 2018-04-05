@@ -4,12 +4,12 @@
 #
 
 try:
-    import electrum_dash
-    from electrum_dash.bitcoin import TYPE_ADDRESS, var_int, msg_magic, Hash, verify_message, pubkey_from_signature, point_to_ser, public_key_to_p2pkh, EncodeAES, DecodeAES, MyVerifyingKey
-    from electrum_dash.i18n import _
-    from electrum_dash.keystore import Hardware_KeyStore
+    import electrum
+    from electrum.bitcoin import TYPE_ADDRESS, var_int, msg_magic, Hash, verify_message, pubkey_from_signature, point_to_ser, public_key_to_p2pkh, EncodeAES, DecodeAES, MyVerifyingKey
+    from electrum.i18n import _
+    from electrum.keystore import Hardware_KeyStore
     from ..hw_wallet import HW_PluginBase
-    from electrum_dash.util import print_error
+    from electrum.util import print_error
 
     import time
     import hid
@@ -577,7 +577,7 @@ class DigitalBitboxPlugin(HW_PluginBase):
         client = devmgr.client_by_id(device_id)
         client.handler = self.create_handler(wizard)
         client.setupRunning = True
-        client.get_xpub("m/44'/5'")
+        client.get_xpub("m/44'/0'")
 
 
     def get_xpub(self, device_id, derivation, wizard):

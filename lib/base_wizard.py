@@ -79,11 +79,17 @@ class BaseWizard(object):
         ])
         wallet_kinds = [
             ('standard',  _("Standard wallet")),
+            ('2fa', _("Wallet with two-factor authentication")),
             ('multisig',  _("Multi-signature wallet")),
-            ('imported',  _("Watch Dash addresses")),
+            ('imported',  _("Watch Bitcoin addresses")),
         ]
         choices = [pair for pair in wallet_kinds if pair[0] in wallet_types]
         self.choice_dialog(title=title, message=message, choices=choices, run_next=self.on_wallet_type)
+
+    def load_2fa(self):
+        self.storage.put('wallet_type', '2fa')
+        self.storage.put('use_trustedcoin', True)
+        self.plugin = self.plugins.load_plugin('trustedcoin')
 
     def on_wallet_type(self, choice):
         self.wallet_type = choice
@@ -91,6 +97,9 @@ class BaseWizard(object):
             action = 'choose_keystore'
         elif choice == 'multisig':
             action = 'choose_multisig'
+        elif choice == '2fa':
+            self.load_2fa()
+            action = self.storage.get_action()
         elif choice == 'imported':
             action = 'import_addresses'
         self.run(action)
@@ -129,8 +138,8 @@ class BaseWizard(object):
 
     def import_addresses(self):
         v = keystore.is_address_list
-        title = _("Import Dash Addresses")
-        message = _("Enter a list of Dash addresses. This will create a watching-only wallet.")
+        title = _("Import Bitcoin Addresses")
+        message = _("Enter a list of Bitcoin addresses. This will create a watching-only wallet.")
         self.add_xpub_dialog(title=title, message=message, run_next=self.on_import_addresses, is_valid=v)
 
     def on_import_addresses(self, text):
@@ -142,11 +151,11 @@ class BaseWizard(object):
 
     def restore_from_key(self):
         if self.wallet_type == 'standard':
-            v = keystore.is_any_key_plus_drk
+            v = keystore.is_any_key
             title = _("Create keystore from keys")
             message = ' '.join([
                 _("To create a watching-only wallet, please enter your master public key (xpub)."),
-                _("To create a spending wallet, please enter a master private key (xprv), or a list of Dash private keys.")
+                _("To create a spending wallet, please enter a master private key (xprv), or a list of Bitcoin private keys.")
             ])
             self.add_xpub_dialog(title=title, message=message, run_next=self.on_restore_from_key, is_valid=v)
         else:
@@ -263,11 +272,18 @@ class BaseWizard(object):
         if self.seed_type == 'bip39':
             f = lambda passphrase: self.on_restore_bip39(seed, passphrase)
             self.passphrase_dialog(run_next=f) if is_ext else f('')
-        elif self.seed_type in ['standard']:
+        elif self.seed_type in ['standard', 'segwit']:
             f = lambda passphrase: self.run('create_keystore', seed, passphrase)
             self.passphrase_dialog(run_next=f) if is_ext else f('')
         elif self.seed_type == 'old':
             self.run('create_keystore', seed, '')
+        elif self.seed_type == '2fa':
+            if self.is_kivy:
+                self.show_error('2FA seeds are not supported in this version')
+                self.run('restore_from_seed')
+            else:
+                self.load_2fa()
+                self.run('on_restore_seed', seed, is_ext)
         else:
             raise BaseException('Unknown seed type', seed_type)
 
@@ -339,7 +355,7 @@ class BaseWizard(object):
 
     def create_seed(self):
         import mnemonic
-        self.seed_type = 'standard'
+        self.seed_type = 'segwit' if bitcoin.TESTNET and self.config.get('segwit') else 'standard'
         seed = mnemonic.Mnemonic('en').make_seed(self.seed_type)
         self.opt_bip39 = False
         f = lambda x: self.request_passphrase(seed, x)
@@ -373,5 +389,5 @@ class BaseWizard(object):
             self.wallet.synchronize()
             self.wallet.storage.write()
             self.terminate()
-        msg = _("Electrum-DASH is generating your addresses, please wait.")
+        msg = _("Electrum is generating your addresses, please wait.")
         self.waiting_dialog(task, msg)

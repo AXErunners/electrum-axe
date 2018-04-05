@@ -1,4 +1,4 @@
-Electrum-DASH - Lightweight Dash client
+Electrum - Lightweight Bitcoin client
 =====================================
 
 ::
@@ -6,11 +6,11 @@ Electrum-DASH - Lightweight Dash client
   Licence: MIT Licence
   Author: Thomas Voegtlin
   Language: Python
-  Homepage: https://electrum-dash.org/
+  Homepage: https://electrum.org/
 
 
-.. image:: https://travis-ci.org/akhavr/electrum-dash.svg?branch=develop
-    :target: https://travis-ci.org/akhavr/electrum-dash
+.. image:: https://travis-ci.org/spesmilo/electrum.svg?branch=master
+    :target: https://travis-ci.org/spesmilo/electrum
     :alt: Build Status
 
 
@@ -20,27 +20,27 @@ Electrum-DASH - Lightweight Dash client
 Getting started
 ===============
 
-Electrum-DASH is a pure python application. If you want to use the
+Electrum is a pure python application. If you want to use the
 Qt interface, install the Qt dependencies::
 
     sudo apt-get install python-qt4
 
 If you downloaded the official package (tar.gz), you can run
-Electrum-DASH from its root directory, without installing it on your
+Electrum from its root directory, without installing it on your
 system; all the python dependencies are included in the 'packages'
-directory. To run Electrum-DASH from its root directory, just do::
+directory. To run Electrum from its root directory, just do::
 
-    ./electrum-dash
+    ./electrum
 
-You can also install Electrum-DASH on your system, by running this command::
+You can also install Electrum on your system, by running this command::
 
     python setup.py install
 
 This will download and install the Python dependencies used by
-Electrum-DASH, instead of using the 'packages' directory.
+Electrum, instead of using the 'packages' directory.
 
 If you cloned the git repository, you need to compile extra files
-before you can run Electrum-DASH. Read the next section, "Development
+before you can run Electrum. Read the next section, "Development
 Version".
 
 
@@ -50,8 +50,8 @@ Development version
 
 Check out the code from Github::
 
-    git clone https://github.com/akhavr/electrum-dash
-    cd electrum-dash
+    git clone git://github.com/spesmilo/electrum.git
+    cd electrum
 
 Run install (this should install dependencies)::
 
@@ -90,12 +90,12 @@ Mac OS X
 
 ::
 
-    # On MacPorts installs:
+    # On MacPorts installs: 
     sudo python setup-release.py py2app
-
-    # On Homebrew installs:
+    
+    # On Homebrew installs: 
     ARCHFLAGS="-arch i386 -arch x86_64" sudo python setup-release.py py2app --includes sip
-
+    
     sudo hdiutil create -fs HFS+ -volname "Electrum" -srcfolder dist/Electrum.app dist/electrum-VERSION-macosx.dmg
 
 Windows

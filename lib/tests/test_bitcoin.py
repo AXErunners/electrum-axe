@@ -5,28 +5,14 @@ from ecdsa.util import number_to_string
 from lib.bitcoin import (
     generator_secp256k1, point_to_ser, public_key_to_p2pkh, EC_KEY,
     bip32_root, bip32_public_derivation, bip32_private_derivation, pw_encode,
-    pw_decode, Hash, PoWHash, rev_hex, public_key_from_private_key,
-    address_from_private_key,
+    pw_decode, Hash, public_key_from_private_key, address_from_private_key,
     is_valid, is_private_key, xpub_from_xprv, is_new_seed, is_old_seed,
-    var_int, op_push, deserialize_xpub, deserialize_xprv,
-    deserialize_drkp, deserialize_drkv)
-
-from lib.keystore import from_keys
+    var_int, op_push)
 
 try:
     import ecdsa
 except ImportError:
     sys.exit("Error: python-ecdsa does not seem to be installed. Try 'sudo pip install ecdsa'")
-
-
-class Test_hash(unittest.TestCase):
-    """ The block used here was arbitrarily chosen.
-        Block height: 339142."""
-
-    def test_hash_block(self):
-        raw_header = '030000001a12ed8fe3b2abe61161c3171f20a4dff83e721298934943ff86170000000000972b51909e1911b9d4462a448cfb14b6d3d2e25151eb75b3e0f252f39a84d22ac4d2fd55e85b1d1b116e56de'
-        header_hash = rev_hex(PoWHash(raw_header.decode('hex')).encode('hex'))
-        self.assertEqual('000000000008aba1c6b076ba5f147b39007cb1f9c34398960edc7c9d1edf8ad7', header_hash)
 
 
 class Test_bitcoin(unittest.TestCase):
@@ -168,9 +154,9 @@ class Test_keyImport(unittest.TestCase):
     """ The keys used in this class are TEST keys from
         https://en.bitcoin.it/wiki/BIP_0032_TestVectors"""
 
-    private_key = "XK6TSbQyfRvQuHBuTjEhHcbaBW8dM8KaQzLv47Vpc5xXPNqesKTt"
+    private_key = "L52XzL2cMkHxqxBXRyEpnPQZGUs3uKiL3R11XbAdHigRzDozKZeW"
     public_key_hex = "0339a36013301597daef41fbe593a02cc513d0b55527ec2df1050e2e8ff49c85c2"
-    main_address = "XfTA9qgYmaEHfWhUakwcoTtyquez8SowY1"
+    main_address = "15mKKb2eos1hWa6tisdPwwDC1a5J1y9nma"
 
     def test_public_key_from_private_key(self):
         result = public_key_from_private_key(self.private_key)
@@ -187,81 +173,6 @@ class Test_keyImport(unittest.TestCase):
     def test_is_private_key(self):
         self.assertTrue(is_private_key(self.private_key))
         self.assertFalse(is_private_key(self.public_key_hex))
-
-
-class Test_xkey_import(unittest.TestCase):
-    """ The keys used in this class are TEST keys from
-        https://en.bitcoin.it/wiki/BIP_0032_TestVectors"""
-
-    xpub = 'xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw'
-    xprv = 'xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7'
-    drkp = 'drkpRv3MKBiuEwFtNSzj62Kwpj7Cd77NVUYAPoxBN8EL5rSn6EMWr3bD4RnwwbGrnQZStpYJ1iGZCiGKt9mR7aYNtaurGyTCQZuwVzqzAbX9znj'
-    drkv = 'drkvjLuVs1zJu2rKwexyhS5mYeVuNs2umm4bZMg8hv4Zy28xLX2tXbr6tzytFNsAsqjveLoFqSgcNhF4YoonH1y35REUMeSFJZ8ALdoFutwvbtw'
-    master_fpr = '3442193e'
-    sec_key = 'edb2e14f9ee77d26dd93b4ecede8d16ed408ce149b6cd80b0715a2d911a0afea'
-    pub_key = '035a784662a4a20a65bf6aab9ae98a6c068a81c52e4b032c0fb5400c706cfccc56'
-    child_num = '80000000'
-    chain_code = '47fdacbd0f1097043b78c63c20c34ef4ed9a111d980047ad16282c7ae6236141'
-
-    def test_deserialize_xpub(self):
-        xtype, depth, fpr, child_number, c, K = deserialize_xpub(self.xpub)
-
-        self.assertEqual(0, xtype)
-        self.assertEqual(1, depth)
-        self.assertEqual(self.master_fpr, fpr.encode('hex'))
-        self.assertEqual(self.child_num, child_number.encode('hex'))
-        self.assertEqual(self.chain_code, c.encode('hex'))
-        self.assertEqual(self.pub_key, K.encode('hex'))
-
-    def test_deserialize_xprv(self):
-        xtype, depth, fpr, child_number, c, k = deserialize_xprv(self.xprv)
-
-        self.assertEqual(0, xtype)
-        self.assertEqual(1, depth)
-        self.assertEqual(self.master_fpr, fpr.encode('hex'))
-        self.assertEqual(self.child_num, child_number.encode('hex'))
-        self.assertEqual(self.chain_code, c.encode('hex'))
-        self.assertEqual(self.sec_key, k.encode('hex'))
-
-    def test_deserialize_drkp(self):
-        xtype, depth, fpr, child_number, c, K = deserialize_drkp(self.drkp)
-
-        self.assertEqual(0, xtype)
-        self.assertEqual(1, depth)
-        self.assertEqual(self.master_fpr, fpr.encode('hex'))
-        self.assertEqual(self.child_num, child_number.encode('hex'))
-        self.assertEqual(self.chain_code, c.encode('hex'))
-        self.assertEqual(self.pub_key, K.encode('hex'))
-
-    def test_deserialize_drkv(self):
-        xtype, depth, fpr, child_number, c, k = deserialize_drkv(self.drkv)
-
-        self.assertEqual(0, xtype)
-        self.assertEqual(1, depth)
-        self.assertEqual(self.master_fpr, fpr.encode('hex'))
-        self.assertEqual(self.child_num, child_number.encode('hex'))
-        self.assertEqual(self.chain_code, c.encode('hex'))
-        self.assertEqual(self.sec_key, k.encode('hex'))
-
-    def test_keystore_from_xpub(self):
-        keystore = from_keys(self.xpub)
-        self.assertEqual(keystore.xpub, self.xpub)
-        self.assertEqual(keystore.xprv, None)
-
-    def test_keystore_from_xprv(self):
-        keystore = from_keys(self.xprv)
-        self.assertEqual(keystore.xpub, self.xpub)
-        self.assertEqual(keystore.xprv, self.xprv)
-
-    def test_keystore_from_drkp(self):
-        keystore = from_keys(self.drkp)
-        self.assertEqual(keystore.xpub, self.xpub)
-        self.assertEqual(keystore.xprv, None)
-
-    def test_keystore_from_drkv(self):
-        keystore = from_keys(self.drkv)
-        self.assertEqual(keystore.xpub, self.xpub)
-        self.assertEqual(keystore.xprv, self.xprv)
 
 
 class Test_seeds(unittest.TestCase):
