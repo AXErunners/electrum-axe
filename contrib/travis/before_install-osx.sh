@@ -8,11 +8,10 @@ fi
 cd build
 
 brew update
-export PATH="/usr/local/opt/python@3/bin:$PATH"
-export PATH="/usr/local/opt/python@3/libexec/bin:$PATH"
+brew install zebra-lucky/qt5/python3
+brew install zebra-lucky/qt5/qt5
 
-brew install pyqt5
-sudo pip3 install Cython
-
-# https://github.com/pyinstaller/pyinstaller/issues/3359#issuecomment-370276763
-sudo pip3 install git+https://github.com/bjones1/pyinstaller.git@pyqt5_fix
+sudo pip3 install SIP==4.19.8
+sudo pip3 install PyQt5==5.7.1
+sudo pip3 install Cython==0.28.1
+sudo pip3 install PyInstaller==3.2.1
