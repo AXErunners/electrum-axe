@@ -187,6 +187,8 @@ def run_non_RPC(config):
 def init_daemon(config_options):
     config = SimpleConfig(config_options)
     storage = WalletStorage(config.get_wallet_path())
+    if getattr(storage, 'backup_file', None):
+        print_msg('Info: %s' % storage.backup_message)
     if not storage.file_exists():
         print_msg("Error: Wallet file not found.")
         print_msg("Type 'electrum-dash create' to create a new wallet, or provide a path to a wallet with the -w option")
@@ -221,6 +223,8 @@ def init_cmdline(config_options, server):
 
     # instanciate wallet for command-line
     storage = WalletStorage(config.get_wallet_path())
+    if getattr(storage, 'backup_file', None):
+        print_msg('Info: %s' % storage.backup_message)
 
     if cmd.requires_wallet and not storage.file_exists():
         print_msg("Error: Wallet file not found.")
