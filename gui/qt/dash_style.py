@@ -120,7 +120,7 @@ QValidatedLineEdit, QLineEdit {
     padding:3px;
 }
 
-PayToEdit QScrollBar::vertical {
+ScanQRTextEdit QScrollBar::vertical, ShowQRTextEdit QScrollBar::vertical {
     width: 0;
 }
 
@@ -131,6 +131,10 @@ ButtonsLineEdit {
 
 QLabel {
     color: #333;
+}
+
+ScanQRTextEdit QToolButton, ShowQRTextEdit QToolButton, ButtonsLineEdit QToolButton {
+    max-width: 16px; max-height: 16px;
 }
 
 
