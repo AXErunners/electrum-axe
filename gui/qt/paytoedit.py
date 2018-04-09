@@ -25,7 +25,7 @@
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
-from PyQt5.QtWidgets import QCompleter, QPlainTextEdit
+from PyQt5.QtWidgets import QCompleter, QPlainTextEdit, QLineEdit
 from .qrtextedit import ScanQRTextEdit
 
 import re
@@ -188,7 +188,8 @@ class PayToEdit(ScanQRTextEdit):
     def update_size(self):
         lineHeight = QFontMetrics(self.document().defaultFont()).height()
         docHeight = self.document().size().height()
-        h = docHeight * lineHeight + 11
+        lineEditHeight = QLineEdit().sizeHint().height()
+        h = docHeight * lineHeight + (lineEditHeight - lineHeight)
         if self.heightMin <= h <= self.heightMax:
             self.setMinimumHeight(h)
             self.setMaximumHeight(h)

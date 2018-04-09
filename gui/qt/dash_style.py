@@ -111,7 +111,9 @@ QCheckBox:hover {
 
 QValidatedLineEdit, QLineEdit, PayToEdit { /* Text Entry Fields */
     border: 1px solid #82C3E6;
+    min-height:25px;
     outline:0;
+    padding:3px;
     background-color:#fcfcfc;
     color: #333;
 }
@@ -126,15 +128,12 @@ ScanQRTextEdit QScrollBar::vertical, ShowQRTextEdit QScrollBar::vertical {
 
 ButtonsLineEdit {
     color: #333;
+    min-height:25px;
     background: #fff;
 }
 
 QLabel {
     color: #333;
-}
-
-ScanQRTextEdit QToolButton, ShowQRTextEdit QToolButton, ButtonsLineEdit QToolButton {
-    max-width: 16px; max-height: 16px;
 }
 
 
@@ -320,6 +319,7 @@ QComboBox { /* Dropdown Menus */
     border:1px solid #82C3E6;
     padding: 3px 5px 3px 5px;
     background:#fcfcfc;
+    min-height:25px;
     color:#818181;
 }
 
