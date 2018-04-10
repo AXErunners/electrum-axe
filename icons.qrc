@@ -51,7 +51,9 @@
     <file>icons/navlogo.png</file>
     <file>icons/dash_downArrow.png</file>
     <file>icons/dash_upArrow_small.png</file>
+    <file>icons/dash_upArrow_small_disabled.png</file>
     <file>icons/dash_downArrow_small.png</file>
+    <file>icons/dash_downArrow_small_disabled.png</file>
     <file>icons/dash_leftArrow_small.png</file>
     <file>icons/dash_rightArrow_small.png</file>
     <file>icons/checkbox/checked.png</file>

@@ -488,6 +488,25 @@ QAbstractSpinBox::down-button {
     padding-bottom:2px;
 }
 
+QAbstractSpinBox::up-arrow {
+    image: url(:/icons/dash_upArrow_small.png);
+    width: 10px;
+    height: 10px;
+}
+
+QAbstractSpinBox::up-arrow:disabled, QSpinBox::up-arrow:off {
+    image: url(:/icons/dash_upArrow_small_disabled.png);
+}
+
+QAbstractSpinBox::down-arrow {
+    image: url(:/icons/dash_downArrow_small.png);
+    width: 10px;
+    height: 10px;
+}
+
+QAbstractSpinBox::down-arrow:disabled, QSpinBox::down-arrow:off {
+    image: url(:/icons/dash_downArrow_small_disabled.png);
+}
 
 /**********************/
 /* 6. Table Headers */
