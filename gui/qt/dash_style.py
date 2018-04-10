@@ -109,6 +109,86 @@ QCheckBox:hover {
     background-color:transparent;
 }
 
+QCheckBox {
+    spacing: 5px;
+}
+
+QCheckBox::indicator {
+    width: 16px;
+    height: 16px;
+}
+
+QCheckBox::indicator:unchecked {
+    image:url(':icons/checkbox/unchecked.png');
+}
+
+QCheckBox::indicator:unchecked:disabled {
+    image:url(':icons/checkbox/unchecked_disabled.png');
+}
+
+QCheckBox::indicator:unchecked:pressed {
+    image:url(':icons/checkbox/checked.png');
+}
+
+QCheckBox::indicator:checked {
+    image:url(':icons/checkbox/checked.png');
+}
+
+QCheckBox::indicator:checked:disabled {
+    image:url(':icons/checkbox/checked_disabled.png');
+}
+
+QCheckBox::indicator:checked:pressed {
+    image:url(':icons/checkbox/unchecked.png');
+}
+
+QCheckBox::indicator:indeterminate {
+    image:url(':icons/checkbox/indeterminate.png');
+}
+
+QCheckBox::indicator:indeterminate:disabled {
+    image:url(':icons/checkbox/indeterminate_disabled.png');
+}
+
+QCheckBox::indicator:indeterminate:pressed {
+    image:url(':icons/checkbox/checked.png');
+}
+
+QRadioButton {
+    padding: 2px;
+    spacing: 5px;
+}
+
+QRadioButton::indicator {
+    width: 16px;
+    height: 16px;
+}
+
+QRadioButton::indicator::unchecked {
+    image:url(':icons/radio/unchecked.png');
+}
+
+QRadioButton::indicator:unchecked:disabled {
+    image:url(':icons/radio/unchecked_disabled.png');
+}
+
+QRadioButton::indicator:unchecked:pressed {
+    image:url(':icons/radio/checked.png');
+}
+
+QRadioButton::indicator::checked {
+    image:url(':icons/radio/checked.png');
+}
+
+QRadioButton::indicator:checked:disabled {
+    image:url(':icons/radio/checked_disabled.png');
+}
+
+QRadioButton::indicator:checked:pressed {
+    image:url(':icons/radio/checked.png');
+}
+
+
 QValidatedLineEdit, QLineEdit, PayToEdit { /* Text Entry Fields */
     border: 1px solid #82C3E6;
     min-height:25px;

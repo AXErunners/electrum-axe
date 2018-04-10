@@ -54,5 +54,15 @@
     <file>icons/dash_downArrow_small.png</file>
     <file>icons/dash_leftArrow_small.png</file>
     <file>icons/dash_rightArrow_small.png</file>
+    <file>icons/checkbox/checked.png</file>
+    <file>icons/checkbox/unchecked.png</file>
+    <file>icons/checkbox/indeterminate_disabled.png</file>
+    <file>icons/checkbox/checked_disabled.png</file>
+    <file>icons/checkbox/unchecked_disabled.png</file>
+    <file>icons/checkbox/indeterminate.png</file>
+    <file>icons/radio/checked.png</file>
+    <file>icons/radio/unchecked.png</file>
+    <file>icons/radio/checked_disabled.png</file>
+    <file>icons/radio/unchecked_disabled.png</file>
   </qresource>
 </RCC>
