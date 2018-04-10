@@ -84,7 +84,7 @@ QTabWidget#main_window_nav_bar::pane {
 
 #main_window_nav_bar QTabBar::tab:first {
     border-left: 0 solid #fff;
-    margin-left:200px;
+    margin-left:180px;
 }
 
 #main_window_nav_bar QTabBar::tab:last {
@@ -190,7 +190,7 @@ QRadioButton::indicator:checked:pressed {
 
 
 QValidatedLineEdit, QLineEdit, PayToEdit { /* Text Entry Fields */
-    border: 1px solid #82C3E6;
+    border: 1px solid #1c75bc;
     min-height:25px;
     outline:0;
     padding:3px;
@@ -383,8 +383,7 @@ QPushButton:pressed {
 QPushButton:disabled
 {
     color: #D3E8FE;
-    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-stop: 0 #A5CFFA, stop: 1 #72B2F8);
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #A5CFFA, stop: 1 #72B2F8);
 }
 
 QStatusBar {
@@ -396,7 +395,7 @@ QStatusBar::item {
 }
 
 QComboBox { /* Dropdown Menus */
-    border:1px solid #82C3E6;
+    border:1px solid #1c75bc;
     padding: 3px 5px 3px 5px;
     background:#fcfcfc;
     min-height:25px;
@@ -452,7 +451,7 @@ QComboBox::indicator {
 }
 
 QAbstractSpinBox {
-    border:1px solid #82C3E6;
+    border:1px solid #1c75bc;
     padding: 3px 5px 3px 5px;
     background:#fcfcfc;
     min-height:25px;
@@ -465,8 +464,8 @@ QAbstractSpinBox::up-button {
     width:21px;
     background:#fcfcfc;
     border-left:0px;
-    border-right:1px solid #82C3E6;
-    border-top:1px solid #82C3E6;
+    border-right:1px solid #1c75bc;
+    border-top:1px solid #1c75bc;
     border-bottom:0px;
     padding-right:1px;
     padding-left:5px;
@@ -481,8 +480,8 @@ QAbstractSpinBox::down-button {
     background:#fcfcfc;
     border-top:0px;
     border-left:0px;
-    border-right:1px solid #82C3E6;
-    border-bottom:1px solid #82C3E6;
+    border-right:1px solid #1c75bc;
+    border-bottom:1px solid #1c75bc;
     padding-right:1px;
     padding-left:5px;
     padding-bottom:2px;
@@ -506,6 +505,33 @@ QAbstractSpinBox::down-arrow {
 
 QAbstractSpinBox::down-arrow:disabled, QSpinBox::down-arrow:off {
     image: url(:/icons/dash_downArrow_small_disabled.png);
+}
+
+QSlider::groove:horizontal {
+    border: 1px solid #1c75bc;
+    background: white;
+    height: 10px;
+}
+
+QSlider::sub-page:horizontal {
+    background-color: #ccc;
+    border: 1px solid #1c75bc;
+    height: 10px;
+}
+
+QSlider::add-page:horizontal {
+    background: #fff;
+    border: 1px solid #1c75bc;
+    height: 10px;
+}
+
+QSlider::handle:horizontal {
+    background-color: #1c75bc;
+    border: 1px solid #1c75bc;
+    width: 13px;
+    margin-top: -2px;
+    margin-bottom: -2px;
+    border-radius: 2px;
 }
 
 /**********************/
