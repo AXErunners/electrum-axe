@@ -1,4 +1,6 @@
 # -*- mode: python -*-
+import os
+import os.path
 import sys
 
 
@@ -8,6 +10,8 @@ for i, x in enumerate(sys.argv):
         break
 else:
     raise BaseException('no name')
+
+PY36BINDIR =  os.environ.get('PY36BINDIR')
 
 hiddenimports = [
     'lib',
@@ -80,7 +84,7 @@ exe = EXE(pyz,
           name=os.path.join('build/electrum-dash/electrum-dash', cmdline_name))
 
 # trezorctl separate bin
-tctl_a = Analysis(['/usr/local/bin/trezorctl'],
+tctl_a = Analysis([os.path.join(PY36BINDIR, 'trezorctl')],
                   hiddenimports=['pkgutil'],
                   excludes=excludes,
                   runtime_hooks=['pyi_tctl_runtimehook.py'])

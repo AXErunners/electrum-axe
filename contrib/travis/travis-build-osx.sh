@@ -11,6 +11,8 @@ fi
 
 cd electrum-dash
 
+export PY36BINDIR=/Library/Frameworks/Python.framework/Versions/3.6/bin/
+export PATH=$PATH:$PY36BINDIR
 source ./contrib/travis/electrum_dash_version_env.sh;
 echo wine build version is $ELECTRUM_DASH_VERSION
 
