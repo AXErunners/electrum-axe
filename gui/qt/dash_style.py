@@ -239,9 +239,9 @@ QLabel {
     margin-top: 0;
 }
 
-#send_container QLabel {
+#send_container > QLabel {
     margin-left:10px;
-    min-width:140px;
+    min-width:150px;
 }
 
 
@@ -250,9 +250,9 @@ QLabel {
     margin-top: 0;
 }
 
-#receive_container QLabel {
+#receive_container > QLabel {
     margin-left:10px;
-    min-width:142px;
+    min-width:150px;
 }
 
 
@@ -354,7 +354,7 @@ QLabel { /* Base Text Size & Color */
 /* 5. Buttons, Spinners, Dropdown */
 
 QPushButton { /* Global Button Style */
-    background-color:qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: .01 #64ACD2, stop: .1 #3398CC, stop: .95 #3398CC, stop: 1 #1D80B5);
+    background-color:qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: .01 #4ca5dc, stop: .1 #2c85cc, stop: .95 #2c85cc, stop: 1 #1D80B5);
     border:0;
     border-radius:3px;
     color:#ffffff;
@@ -368,7 +368,7 @@ QPushButton { /* Global Button Style */
 }
 
 QPushButton:hover {
-    background-color:qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: .01 #64ACD2, stop: .1 #46AADE, stop: .95 #46AADE, stop: 1 #1D80B5);
+    background-color:qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: .01 #4ca5dc, stop: .1 #4ca5dc, stop: .95 #4ca5dc, stop: 1 #1D80B5);
 }
 
 QPushButton:focus {
@@ -712,8 +712,8 @@ QDialog QTabWidget QTabBar::tab:selected, QDialog QTabWidget QTabBar::tab:hover 
     color:#333;
 }
 
-QDialog QTabWidget QWidget {
-    background-color:#fff;
+QDialog HelpButton {
+    background-color: transparent;
     color:#333;
 }
 
