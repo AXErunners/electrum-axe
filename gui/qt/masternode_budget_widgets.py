@@ -292,8 +292,8 @@ class ProposalsTab(QWidget):
         self.unsubmitted_proposals = []
         for p in self.parent.masternode_manager.proposals:
             if p.fee_txid and not p.submitted and not p.rejected:
-                confirmations, timestamp = self.parent.wallet.get_confirmations(p.fee_txid)
-                if confirmations < BUDGET_FEE_CONFIRMATIONS:
+                height, conf, timestamp = self.wallet.get_tx_height(p.fee_txid)
+                if conf < BUDGET_FEE_CONFIRMATIONS:
                     continue
 
                 item = (p.proposal_name, p.fee_txid)
@@ -334,7 +334,7 @@ class ProposalsTab(QWidget):
             return QMessageBox.critical(self, _('Error'), _(str(e)))
 
         pw = None
-        if manager.wallet.use_encryption:
+        if manager.wallet.has_password():
             pw = self.parent.password_dialog(msg=_('Please enter your password to create a budget proposal.'))
             if pw is None:
                 return

@@ -69,10 +69,17 @@ class MasternodePing(object):
         kwargs = {}
         for key in ['vin', 'block_hash', 'sig_time', 'sig']:
             kwargs[key] = d.get(key)
+
         if kwargs.get('vin'):
-            kwargs['vin'] = util.utfify(kwargs['vin'])
+            kwargs['vin'] = kwargs['vin']
+        else:
+            kwargs['vin'] = {}
+
         if kwargs.get('sig'):
             kwargs['sig'] = base64.b64decode(kwargs['sig'])
+        else:
+            kwargs['sig'] = ''
+
         return cls(**kwargs)
 
     def __init__(self, vin=None, block_hash='', sig_time=0, sig=''):
@@ -122,7 +129,7 @@ class MasternodePing(object):
         return self.sig
 
     def dump(self):
-        sig = base64.b64encode(self.sig).decode('utf-8')
+        sig = base64.b64encode(to_bytes(self.sig)).decode('utf-8')
         return {'vin': self.vin, 'block_hash': self.block_hash, 'sig_time': self.sig_time, 'sig': sig}
 
 
@@ -255,6 +262,8 @@ class MasternodeAnnounce(object):
         """Get the collateral as a string used to identify this masternode."""
         if not self.vin:
             return
+        if not 'prevout_hash' in self.vin or not 'prevout_hash' in self.vin:
+            return
         return '%s-%d' % (self.vin['prevout_hash'], self.vin['prevout_n'])
 
     @classmethod
@@ -266,16 +275,27 @@ class MasternodeAnnounce(object):
 
         vin = kwargs.get('vin')
         if vin:
-            kwargs['vin'] = util.utfify(vin)
+            kwargs['vin'] = vin
+        else:
+            kwargs['vin'] = {}
+
         sig = kwargs.get('sig')
         if sig:
             kwargs['sig'] = base64.b64decode(sig)
+        else:
+            kwargs['sig'] = ''
+
         addr = d.get('addr')
         if addr:
             kwargs['addr'] = NetworkAddress.from_dict(addr)
+        else:
+            kwargs['addr'] = NetworkAddress.from_dict({})
+
         last_ping = d.get('last_ping')
         if last_ping:
             kwargs['last_ping'] = MasternodePing.from_dict(last_ping)
+        else:
+            kwargs['last_ping'] = MasternodePing.from_dict({})
 
         return cls(**kwargs)
 
@@ -286,7 +306,7 @@ class MasternodeAnnounce(object):
             kwargs[key] = getattr(self, key)
 
         if self.sig:
-            kwargs['sig'] = base64.b64encode(self.sig).decode('utf-8')
+            kwargs['sig'] = base64.b64encode(to_bytes(self.sig)).decode('utf-8')
         if self.addr:
             kwargs['addr'] = self.addr.dump()
         if self.last_ping:

@@ -587,7 +587,7 @@ def utfify(arg):
     Used when loading things that must be serialized.
     """
     if isinstance(arg, dict):
-        return {utfify(k): utfify(v) for k, v in arg.iteritems()}
+        return {utfify(k): utfify(v) for k, v in arg.items()}
     elif isinstance(arg, list):
         return map(utfify, arg)
     elif isinstance(arg, str):

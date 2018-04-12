@@ -1320,6 +1320,7 @@ class Abstract_Wallet(PrintError):
 
         self.masternode_delegates[pubkey] = sec
         self.storage.put('masternode_delegates', self.masternode_delegates)
+        return pubkey
 
     def delete_masternode_delegate(self, pubkey):
         if self.masternode_delegates.get(pubkey):

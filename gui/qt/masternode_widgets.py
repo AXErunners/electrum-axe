@@ -232,7 +232,7 @@ class MasternodeOutputsWidget(QListWidget):
         self.addItem(item)
 
     def add_outputs(self, outputs):
-        map(self.add_output, outputs)
+        list(map(self.add_output, outputs))
         self.setCurrentRow(0)
 
     def clear(self):
@@ -274,7 +274,7 @@ class MasternodeOutputsTab(QWidget):
         self.mapper.setModel(self.dialog.masternodes_widget.proxy_model)
 
         model = self.dialog.masternodes_widget.model
-        self.mapper.addMapping(self.collateral_edit, model.VIN, 'string')
+        self.mapper.addMapping(self.collateral_edit, model.VIN, b'string')
 
         self.save_output_button = QPushButton(_('Save'))
         self.save_output_button.setEnabled(False)
@@ -314,8 +314,7 @@ class MasternodeOutputsTab(QWidget):
         """
         self.valid_outputs_list.clear()
         exclude_frozen = not include_frozen
-
-        coins = self.manager.get_masternode_outputs(exclude_frozen=exclude_frozen)
+        coins = list(self.manager.get_masternode_outputs(exclude_frozen=exclude_frozen))
 
         if len(coins) > 0:
             self.valid_outputs_list.add_outputs(coins)
@@ -379,7 +378,7 @@ class SignAnnounceWidget(QWidget):
 
         model = self.dialog.masternodes_widget.model
         self.mapper.addMapping(self.alias_edit, model.ALIAS)
-        self.mapper.addMapping(self.collateral_edit, model.VIN, 'string')
+        self.mapper.addMapping(self.collateral_edit, model.VIN, b'string')
         self.mapper.addMapping(self.delegate_edit, model.DELEGATE)
 
         self.sign_button = QPushButton(_('Activate Masternode'))
