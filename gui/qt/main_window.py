@@ -2480,6 +2480,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         d = WindowModalDialog(self, _('Preferences'))
         vbox = QVBoxLayout()
         tabs = QTabWidget()
+        tabs.setObjectName("settings_tab")
         gui_widgets = []
         fee_widgets = []
         tx_widgets = []

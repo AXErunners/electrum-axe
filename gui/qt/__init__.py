@@ -100,6 +100,7 @@ class ElectrumGui:
         self.efilter = OpenFileEventFilter(self.windows)
         self.app = QElectrumApplication(sys.argv)
         self.app.installEventFilter(self.efilter)
+        self.app.setStyle('Fusion')
         self.app.setStyleSheet(dash_stylesheet)
         self.timer = Timer()
         self.nd = None

@@ -24,10 +24,13 @@ dash_stylesheet = """
 
 QWidget { /* Set default style for QWidget, override in following statements */
     border: 0;
+    selection-color: #fff;
+    selection-background-color: #818181;
 }
 
 QGroupBox {
     margin-top: 1em;
+    color:#333;
 }
 
 QGroupBox::title {
@@ -43,7 +46,6 @@ QGroupBox::title {
 
 #main_window_nav_bar QStackedWidget {
     border-top: 2px solid #FF0000;
-    background-color:#FF0000;
     background:qradialgradient(cx:0.5, cy:0.5, radius: 0.5, fx:0.5, fy:0.5, stop:0 rgba(255, 255, 255, 255), stop: 1 rgba(246, 246, 246, 255));
 }
 
@@ -157,6 +159,7 @@ QCheckBox::indicator:indeterminate:pressed {
 QRadioButton {
     padding: 2px;
     spacing: 5px;
+    color: #333;
 }
 
 QRadioButton::indicator {
@@ -195,19 +198,21 @@ QValidatedLineEdit, QLineEdit, PayToEdit { /* Text Entry Fields */
     outline:0;
     padding:3px;
     background-color:#fcfcfc;
-    color: #333;
+    color:#818181;
 }
 
 QValidatedLineEdit, QLineEdit {
     padding:3px;
 }
 
-ScanQRTextEdit QScrollBar::vertical, ShowQRTextEdit QScrollBar::vertical {
-    width: 0;
+ScanQRTextEdit, ShowQRTextEdit {
+    color:#333;
+    background-color:#FFFFFF;
+    border: 1px solid #1c75bc;
 }
 
 ButtonsLineEdit {
-    color: #333;
+    color:#818181;
     min-height:25px;
     background: #fff;
 }
@@ -259,7 +264,6 @@ QLabel {
 /* Addressses Container */
 #addresses_container {
     margin-top: 0;
-    background-color:#FF0000;
     background:qradialgradient(cx:0.5, cy:0.5, radius: 0.5, fx:0.5, fy:0.5, stop:0 rgba(255, 255, 255, 255), stop: 1 rgba(246, 246, 246, 255));
 }
 
@@ -273,6 +277,8 @@ QLabel {
 /* Console Container */
 #console_container {
     margin-top: 0;
+    color:#818181;
+    background:qradialgradient(cx:0.5, cy:0.5, radius: 0.5, fx:0.5, fy:0.5, stop:0 rgba(255, 255, 255, 255), stop: 1 rgba(246, 246, 246, 255));
 }
 
 
@@ -400,16 +406,7 @@ QComboBox { /* Dropdown Menus */
     background:#fcfcfc;
     min-height:25px;
     color:#818181;
-}
-
-QComboBox:checked {
-    background:#f2f2f2;
-}
-
-QComboBox:editable {
-    background: #3398CC;
-    color:#616161;
-    border:0px solid transparent;
+    combobox-popup: 0;
 }
 
 QComboBox::drop-down {
@@ -422,37 +419,16 @@ QComboBox::down-arrow {
 }
 
 QComboBox QListView {
-    background:#fff;
-    border:1px solid #333;
-    padding-right:1px;
-    padding-left:1px;
-}
-
-QComboBox QAbstractItemView::item { margin:4px; }
-
-QComboBox::item {
-    color:#818181;
-}
-
-QComboBox::item:alternate {
-    background:#fff;
-}
-
-QComboBox::item:selected {
-    border:0px solid transparent;
-    background:#f2f2f2;
-}
-
-QComboBox::indicator {
-    background-color:transparent;
-    selection-background-color:transparent;
-    color:transparent;
-    selection-color:transparent;
+    border: 1px solid #1c75bc;
+    color: #818181;
+    background-color: #fff;
+    selection-color: #fff;
+    selection-background-color: #818181;
 }
 
 QAbstractSpinBox {
     border:1px solid #1c75bc;
-    padding: 3px 5px 3px 5px;
+    padding: 3px;
     background:#fcfcfc;
     min-height:25px;
     color:#818181;
@@ -493,7 +469,7 @@ QAbstractSpinBox::up-arrow {
     height: 10px;
 }
 
-QAbstractSpinBox::up-arrow:disabled, QSpinBox::up-arrow:off {
+QAbstractSpinBox::up-arrow:disabled, QAbstractSpinBox::up-arrow:off {
     image: url(:/icons/dash_upArrow_small_disabled.png);
 }
 
@@ -503,7 +479,7 @@ QAbstractSpinBox::down-arrow {
     height: 10px;
 }
 
-QAbstractSpinBox::down-arrow:disabled, QSpinBox::down-arrow:off {
+QAbstractSpinBox::down-arrow:disabled, QAbstractSpinBox::down-arrow:off {
     image: url(:/icons/dash_downArrow_small_disabled.png);
 }
 
@@ -514,7 +490,7 @@ QSlider::groove:horizontal {
 }
 
 QSlider::sub-page:horizontal {
-    background-color: #ccc;
+    background-color: #818181;
     border: 1px solid #1c75bc;
     height: 10px;
 }
@@ -576,8 +552,12 @@ QHeaderView::section:last {
 /**********************/
 /* 7. Scroll Bar */
 
-QScrollBar { /* Scroll Bar */
+QAbstractScrollArea::corner {
+    background: none;
+    border: none;
+}
 
+QScrollBar { /* Scroll Bar */
 }
 
 QScrollBar:vertical { /* Vertical Scroll Bar Attributes */
@@ -665,9 +645,37 @@ QScrollBar:right-arrow {
 /**********************/
 /* 8. Tree Widget */
 
-QTreeWidget {
-    border: 0;
-    background-color:rgba(255,255,255,128);
+QTreeWidget, QListWidget, QTableView, QTextEdit  {
+    border: 0px;
+    color:#818181;
+    background:qradialgradient(cx:0.5, cy:0.5, radius: 0.5, fx:0.5, fy:0.5, stop:0 rgba(255, 255, 255, 255), stop: 1 rgba(246, 246, 246, 255));
+}
+
+QTreeWidget QLineEdit {
+    min-height: 0;
+    padding: 0;
+}
+
+QListWidget, QTableView, QTextEdit, QDialog QTreeWidget {
+    border: 1px solid #1c75bc;
+}
+
+QTableView {
+    background-color: #fff;
+}
+
+QTreeView::branch {
+    color: #818181;
+    background-color: transparent;
+}
+
+QTreeView::branch:selected {
+    background-color:#808080;
+}
+
+QTreeView::item:selected, QTreeView::item:selected:active {
+    color: #fff;
+    background-color:#808080;
 }
 
 /**********************/
@@ -687,6 +695,8 @@ QDialog QTabWidget {
 
 QDialog QTabWidget::pane {
     border: 1px solid #d7d7d7;
+    color:#818181;
+    background:qradialgradient(cx:0.5, cy:0.5, radius: 0.5, fx:0.5, fy:0.5, stop:0 rgba(255, 255, 255, 255), stop: 1 rgba(246, 246, 246, 255));
 }
 
 QDialog QTabWidget QTabBar::tab {
@@ -717,23 +727,15 @@ QDialog HelpButton {
     color:#333;
 }
 
-QDialog QTabWidget QWidget QAbstractSpinBox {
-    min-height:15px;
-}
-
-QDialog QTabWidget QWidget QAbstractSpinBox::down-button {
-    width:15px;
-}
-
-QDialog QTabWidget QWidget QAbstractSpinBox::up-button {
-    width:15px;
-}
-
-QDialog QTabWidget QWidget QComboBox {
-    min-height:15px;
-}
-
 QDialog QWidget { /* Remove Annoying Focus Rectangle */
     outline: 0;
+}
+
+QDialog #settings_tab {
+    min-width: 600px;
+}
+
+MasternodeDialog {
+    min-height: 650px;
 }
 """

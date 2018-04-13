@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import (QLineEdit, QStyle, QStyleOptionFrame)
 
 from decimal import Decimal
 from electrum_dash.util import format_satoshis_plain
+from .util import ColorScheme
 
 
 class MyLineEdit(QLineEdit):
@@ -60,7 +61,7 @@ class AmountEdit(MyLineEdit):
             textRect = self.style().subElementRect(QStyle.SE_LineEditContents, panel, self)
             textRect.adjust(2, 0, -10, 0)
             painter = QPainter(self)
-            painter.setPen(self.help_palette.brush(QPalette.Disabled, QPalette.Text).color())
+            painter.setPen(QColor(ColorScheme.DEFAULT.as_color()))
             painter.drawText(textRect, Qt.AlignRight | Qt.AlignVCenter, self.base_unit())
 
     def get_amount(self):

@@ -40,7 +40,7 @@ class CosignWidget(QWidget):
 
     def __init__(self, m, n):
         QWidget.__init__(self)
-        self.R = QRect(0, 0, self.size, self.size)
+        self.R = QRect(4, 4, self.size-8, self.size-8)
         self.setGeometry(self.R)
         self.setMinimumHeight(self.size)
         self.setMaximumHeight(self.size)
@@ -57,7 +57,7 @@ class CosignWidget(QWidget):
 
     def paintEvent(self, event):
         bgcolor = self.palette().color(QPalette.Background)
-        pen = QPen(bgcolor, 7, Qt.SolidLine)
+        pen = QPen(bgcolor, 8, Qt.SolidLine)
         qp = QPainter()
         qp.begin(self)
         qp.setPen(pen)

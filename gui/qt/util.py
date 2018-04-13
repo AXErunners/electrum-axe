@@ -523,7 +523,7 @@ class ButtonsWidget(QWidget):
     def addButton(self, icon_name, on_click, tooltip):
         button = QToolButton(self)
         button.setIcon(QIcon(icon_name))
-        iconSize = self.fontMetrics().height() + 8
+        iconSize = self.fontMetrics().height()
         button.setIconSize(QSize(iconSize, iconSize))
         button.setStyleSheet("QToolButton { border: none; hover {border: 1px} pressed {border: 1px} padding: 0px; }")
         button.setVisible(True)
@@ -626,7 +626,7 @@ class ColorScheme:
     GREEN = ColorSchemeItem("#117c11", "#8af296")
     RED = ColorSchemeItem("#7c1111", "#f18c8c")
     BLUE = ColorSchemeItem("#123b7c", "#8cb3f2")
-    DEFAULT = ColorSchemeItem("black", "white")
+    DEFAULT = ColorSchemeItem("#818181", "white")
 
     @staticmethod
     def has_dark_background(widget):
@@ -636,7 +636,7 @@ class ColorScheme:
     @staticmethod
     def update_from_widget(widget):
         if ColorScheme.has_dark_background(widget):
-            ColorScheme.dark_scheme = True
+            ColorScheme.dark_scheme = False
 
 if __name__ == "__main__":
     app = QApplication([])

@@ -1311,7 +1311,7 @@ class Abstract_Wallet(PrintError):
             txin_type, key, is_compressed = bitcoin.deserialize_privkey(sec)
             pubkey = public_key_from_private_key(key, is_compressed)
             address = public_key_to_p2pkh(pubkey)
-        except Exception:
+        except BaseException:
             raise Exception('Invalid private key')
 
         if self.masternode_delegates.get(pubkey):
