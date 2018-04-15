@@ -191,29 +191,26 @@ QRadioButton::indicator:checked:pressed {
     image:url(':icons/radio/checked.png');
 }
 
-
-QValidatedLineEdit, QLineEdit, PayToEdit { /* Text Entry Fields */
-    border: 1px solid #1c75bc;
-    min-height:25px;
-    outline:0;
-    padding:3px;
-    background-color:#fcfcfc;
-    color:#818181;
-}
-
-QValidatedLineEdit, QLineEdit {
-    padding:3px;
-}
-
 ScanQRTextEdit, ShowQRTextEdit {
     color:#333;
     background-color:#FFFFFF;
     border: 1px solid #1c75bc;
 }
 
+QValidatedLineEdit, QLineEdit, PayToEdit { /* Text Entry Fields */
+    border: 1px solid #1c75bc;
+    outline:0;
+    padding: 5px 3px;
+    background-color:#fcfcfc;
+    color:#818181;
+}
+
+PayToEdit {
+    padding: 6px;
+}
+
 ButtonsLineEdit {
     color:#818181;
-    min-height:25px;
     background: #fff;
 }
 
@@ -366,11 +363,7 @@ QPushButton { /* Global Button Style */
     color:#ffffff;
     /* font-size:12px; */
     font-weight:bold;
-    padding-left:25px;
-    padding-right:25px;
-    padding-top:5px;
-    padding-bottom:5px;
-    min-height:25px;
+    padding: 7px 25px;
 }
 
 QPushButton:hover {
@@ -383,7 +376,7 @@ QPushButton:focus {
 }
 
 QPushButton:pressed {
-    border:1px solid #333;
+    border:1px solid #f8f8f8;
 }
 
 QPushButton:disabled
@@ -396,15 +389,18 @@ QStatusBar {
     color: #fff;
 }
 
+QStatusBar QPushButton:pressed {
+    border:1px solid #1c75bc;
+}
+
 QStatusBar::item {
     border: none;
 }
 
 QComboBox { /* Dropdown Menus */
     border:1px solid #1c75bc;
-    padding: 3px 5px 3px 5px;
+    padding: 5px;
     background:#fcfcfc;
-    min-height:25px;
     color:#818181;
     combobox-popup: 0;
 }
@@ -421,6 +417,7 @@ QComboBox::down-arrow {
 QComboBox QListView {
     border: 1px solid #1c75bc;
     color: #818181;
+    padding: 3px;
     background-color: #fff;
     selection-color: #fff;
     selection-background-color: #818181;
@@ -428,9 +425,8 @@ QComboBox QListView {
 
 QAbstractSpinBox {
     border:1px solid #1c75bc;
-    padding: 3px;
+    padding: 5px 3px;
     background:#fcfcfc;
-    min-height:25px;
     color:#818181;
 }
 

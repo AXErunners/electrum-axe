@@ -48,7 +48,8 @@ class PayToEdit(ScanQRTextEdit):
         self.amount_edit = win.amount_e
         self.document().contentsChanged.connect(self.update_size)
         self.heightMin = 0
-        self.heightMax = 150
+        self.heightMax = 250
+        self.document().setDocumentMargin(0)
         self.c = None
         self.textChanged.connect(self.check_text)
         self.outputs = []
@@ -186,10 +187,10 @@ class PayToEdit(ScanQRTextEdit):
         self.update_size()
 
     def update_size(self):
-        lineHeight = QFontMetrics(self.document().defaultFont()).height()
         docHeight = self.document().size().height()
         lineEditHeight = QLineEdit().sizeHint().height()
-        h = docHeight * lineHeight + (lineEditHeight - lineHeight)
+        lineHeight = self.fontMetrics().height()
+        h = lineEditHeight + lineHeight * (docHeight - 1)
         if self.heightMin <= h <= self.heightMax:
             self.setMinimumHeight(h)
             self.setMaximumHeight(h)
