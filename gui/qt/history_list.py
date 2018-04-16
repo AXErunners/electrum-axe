@@ -96,8 +96,7 @@ class HistoryList(MyTreeWidget):
             for i in range(len(entry)):
                 if i>3:
                     item.setTextAlignment(i, Qt.AlignRight)
-                if i!=2:
-                    item.setFont(i, QFont(MONOSPACE_FONT))
+                item.setFont(i, QFont(MONOSPACE_FONT))
             if value and value < 0:
                 item.setForeground(3, QBrush(QColor("#BC1E1E")))
                 item.setForeground(4, QBrush(QColor("#BC1E1E")))

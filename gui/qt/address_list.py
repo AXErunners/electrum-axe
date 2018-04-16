@@ -97,11 +97,16 @@ class AddressList(MyTreeWidget):
                 rate = fx.exchange_rate()
                 fiat_balance = fx.value_str(balance, rate)
                 address_item = QTreeWidgetItem([address, label, balance_text, fiat_balance, "%d"%num])
-                address_item.setTextAlignment(3, Qt.AlignRight)
+                for i in range(5):
+                    if i > 1:
+                        address_item.setTextAlignment(i, Qt.AlignRight)
+                    address_item.setFont(i, QFont(MONOSPACE_FONT))
             else:
                 address_item = QTreeWidgetItem([address, label, balance_text, "%d"%num])
-                address_item.setTextAlignment(2, Qt.AlignRight)
-            address_item.setFont(0, QFont(MONOSPACE_FONT))
+                for i in range(4):
+                    if i > 1:
+                        address_item.setTextAlignment(i, Qt.AlignRight)
+                    address_item.setFont(i, QFont(MONOSPACE_FONT))
             address_item.setData(0, Qt.UserRole, address)
             address_item.setData(0, Qt.UserRole+1, True) # label can be edited
             if self.wallet.is_frozen(address):

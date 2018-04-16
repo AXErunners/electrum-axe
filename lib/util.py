@@ -444,7 +444,7 @@ mainnet_block_explorers = {
 }
 
 testnet_block_explorers = {
-    'Dash.org': ('https://test.explorer.dash.org',
+    'Dash.org': ('https://test.insight.dash.siampm.com',
                        {'tx': 'tx', 'addr': 'address'}),
     'system default': ('blockchain:',
                        {'tx': 'tx', 'addr': 'address'}),
