@@ -6,7 +6,7 @@ Electrum-DASH - Lightweight Dashpay client
   Licence: MIT Licence
   Author: Thomas Voegtlin
   Language: Python
-  Homepage: https://electrum-dash.org/
+  Homepage: https://electrum.dash.org/
 
 
 .. image:: https://travis-ci.org/akhavr/electrum-dash.svg?branch=master

@@ -84,6 +84,6 @@ setup(
     maintainer="akhavr",
     maintainer_email="akhavr@khavr.com",
     license="MIT License",
-    url="https://electrum-dash.org",
+    url="https://electrum.dash.org",
     long_description="""Lightweight Dashpay Wallet"""
 )
