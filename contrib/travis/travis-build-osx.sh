@@ -1,6 +1,8 @@
 #!/bin/bash
 BUILD_REPO_URL=https://github.com/akhavr/electrum-dash.git
 
+set -e
+
 cd build
 
 if [[ -z $TRAVIS_TAG ]]; then

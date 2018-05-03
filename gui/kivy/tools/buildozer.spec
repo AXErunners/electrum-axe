@@ -4,10 +4,10 @@
 title = Electrum-DASH
 
 # (str) Package name
-package.name = Electrum-DASH
+package.name = Electrum_DASH
 
 # (str) Package domain (needed for android/ios packaging)
-package.domain = org.electrum-dash
+package.domain = org.dash.electrum
 
 # (str) Source code where the main.py live
 source.dir = .
@@ -31,14 +31,14 @@ version.filename = %(source.dir)s/contrib/versions.py
 #version = 1.9.8
 
 # (list) Application requirements
-requirements = python3crystax, android, openssl, plyer, kivy==master
+requirements = python3crystax, android, openssl, plyer, kivy==1.10.0, x11_hash
 
 # (str) Presplash of the application
 #presplash.filename = %(source.dir)s/gui/kivy/theming/splash.png
 presplash.filename = %(source.dir)s/icons/electrum_presplash.png
 
 # (str) Icon of the application
-icon.filename = %(source.dir)s/icons/electrum_launcher.png
+icon.filename = %(source.dir)s/icons/electrum-dash.png
 
 # (str) Supported orientation (one of landscape, portrait or all)
 orientation = portrait
@@ -73,7 +73,9 @@ android.private_storage = True
 android.ndk_path = /opt/crystax-ndk-10.3.2
 
 # (str) Android SDK directory (if empty, it will be automatically downloaded.)
-#android.sdk_path =
+android.sdk_path = /opt/android-sdk-linux
+android.ant_path = /opt/apache-ant-1.9.11
+android.skip_update = True
 
 # (str) Android entry point, default is ok for Kivy-based app
 #android.entrypoint = org.renpy.android.PythonActivity
@@ -91,7 +93,7 @@ android.add_src = gui/kivy/data/java-classes/
 
 android.gradle_dependencies = me.dm7.barcodescanner:zxing:1.9.8
 
-android.add_activities = org.electrum.qr.SimpleScannerActivity
+android.add_activities = org.dash.electrum.qr.SimpleScannerActivity
 
 # (str) python-for-android branch to use, if not master, useful to try
 # not yet merged features.
@@ -125,6 +127,7 @@ android.whitelist = lib-dynload/_csv.so
 
 # local version that merges branch 866
 p4a.source_dir = /opt/python-for-android
+p4a.local_recipes = %(source.dir)s/contrib/p4a
 
 #
 # iOS specific
