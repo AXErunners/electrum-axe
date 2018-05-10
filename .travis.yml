@@ -5,7 +5,7 @@ matrix:
     osx_image: xcode7.3
   - os: linux
     language: python
-    python: 2.7
+    python: "3.4"
     sudo: required
     services:
     - docker
@@ -17,19 +17,14 @@ matrix:
 before_install:
 - source contrib/travis/electrum_dash_version_env.sh
 - echo electrum-dash version is $ELECTRUM_DASH_VERSION
-- mkdir -p build && cp contrib/travis/* ./build/ && if [[ $TRAVIS_OS_NAME == 'osx'
-  ]]; then ./build/before_install-osx.sh ; else ./build/before_install-linux.sh ;
-  fi
+- mkdir -p build && cp contrib/travis/* ./build/ && if [[ $TRAVIS_OS_NAME == 'osx' ]]; then ./build/before_install-osx.sh; else ./build/before_install-linux.sh; fi
 install:
-- if [[ -z $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]]; then pip install tox;
-  fi
+- if [[ -z $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]]; then pip install tox; pip install tox-travis; fi
 script:
 - if [[ -z $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]]; then tox; fi
-- if [[ $TRAVIS_OS_NAME == 'osx' ]]; then ./build/travis-build-osx.sh ; else ./build/travis-build-linux.sh;
-  fi
+- if [[ $TRAVIS_OS_NAME == 'osx' ]]; then ./build/travis-build-osx.sh ; else ./build/travis-build-linux.sh; fi
 after_success:
-- if [ "$TRAVIS_BRANCH" = "master" ] && [[ -z $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME
-  == 'linux' ]]; then pip install pycurl requests && contrib/make_locale; fi
+- if [ "$TRAVIS_BRANCH" = "master" ] && [[ -z $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]]; then pip install pycurl requests && contrib/make_locale; fi
 deploy:
 - provider: releases
   api_key:
@@ -45,7 +40,8 @@ deploy:
     secure: uzEWbVBDu/KZLtWmNWbdD/m9FHzMSiHEogEzTiRcxf/zJ/41mrRyJb13j4VK7TCfxyDC3LjPVR65/VKTaGSl5bXKq8RBBT03fOQqV511fwLkTIdz5vgWbqNNZQJAp4JyCgTLqJaklvE41winMFJzyrI1Ukkq/PKpA+c88xz6NR5fl9EJpnm7JrtIkQAs5P4aGMijUft0hGYpBgd+jMSG1WssRFFaWsg99i3EEn8vkVqPLpCal1WxcfQMUPG9cv8MV6m1jfoPExi/pwFzsD93ZVgjlqnPyqyRrfmZj1tilx2p3xZIjVvwTrDaYsYiVfIfiAPBw2cb4nSBRWVsGD0tITXJ7yzetagnJZoC4Jo8koiU4sfRttlj4XU2cFP4ameF3KhlWXF0NoHcqZ3bC+94QAhh/7T4cE9qi8lhrbcsTy0XAPf93377vH6ZFL1hTe9J9NHtDf5PSH01xVIP0NNaWoAUdDkaso5PL3U1v2D0C9ISco2suALHOby7WJ9PjjGiHq8B1cojUCEdExaXormaYu/khJxgT1p2JouhC8NFYdTYXSsylBqBhdHu9subjuwmst61CXem2wNkTdtCAfMdHx6474bmPyHxxS7WYuYbIcuvIK/Mk2kDnURdPuDBF4o8EF2CqEGCkp2Ue63GpJDH6xB1OgKdPxHcwKGwhfxJulc=
   file:
   - build/electrum-dash/dist/Electrum-DASH-$ELECTRUM_DASH_VERSION.tar.gz
-  - build/electrum-dash/dist/electrum-dash-$ELECTRUM_DASH_VERSION-setup.exe
+  - build/electrum-dash/dist/electrum-dash-$ELECTRUM_DASH_VERSION-setup-win32.exe
+  - build/electrum-dash/dist/electrum-dash-$ELECTRUM_DASH_VERSION-setup-win64.exe
   on:
     repo: akhavr/electrum-dash
     tags: true

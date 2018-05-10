@@ -1,20 +1,22 @@
-import sys
+
 import os
+import sys
+import threading
+import traceback
 
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
-import PyQt4.QtCore as QtCore
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
 
-import electrum_dash
 from electrum_dash import Wallet, WalletStorage
 from electrum_dash.util import UserCancelled, InvalidPassword
 from electrum_dash.base_wizard import BaseWizard
 from electrum_dash.i18n import _
 
-from seed_dialog import SeedLayout, KeysLayout
-from network_dialog import NetworkChoiceLayout
-from util import *
-from password_dialog import PasswordLayout, PW_NEW
+from .seed_dialog import SeedLayout, KeysLayout
+from .network_dialog import NetworkChoiceLayout
+from .util import *
+from .password_dialog import PasswordLayout, PW_NEW
 
 
 class GoBack(Exception):
@@ -38,7 +40,7 @@ class CosignWidget(QWidget):
 
     def __init__(self, m, n):
         QWidget.__init__(self)
-        self.R = QRect(0, 0, self.size, self.size)
+        self.R = QRect(4, 4, self.size-8, self.size-8)
         self.setGeometry(self.R)
         self.setMinimumHeight(self.size)
         self.setMaximumHeight(self.size)
@@ -54,9 +56,8 @@ class CosignWidget(QWidget):
         self.update()
 
     def paintEvent(self, event):
-        import math
         bgcolor = self.palette().color(QPalette.Background)
-        pen = QPen(bgcolor, 7, QtCore.Qt.SolidLine)
+        pen = QPen(bgcolor, 8, Qt.SolidLine)
         qp = QPainter()
         qp.begin(self)
         qp.setPen(pen)
@@ -95,6 +96,9 @@ def wizard_dialog(func):
 # WindowModalDialog must come first as it overrides show_error
 class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
 
+    accept_signal = pyqtSignal()
+    synchronized_signal = pyqtSignal(str)
+
     def __init__(self, config, app, plugins, storage):
         BaseWizard.__init__(self, config, storage)
         QDialog.__init__(self, None)
@@ -105,7 +109,7 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
         self.plugins = plugins
         self.language_for_seed = config.get('language')
         self.setMinimumSize(600, 400)
-        self.connect(self, QtCore.SIGNAL('accept'), self.accept)
+        self.accept_signal.connect(self.accept)
         self.title = QLabel()
         self.main_widget = QWidget()
         self.back_button = QPushButton(_("Back"), self)
@@ -122,20 +126,25 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
         self.next_button.clicked.connect(lambda: self.loop.exit(2))
         outer_vbox = QVBoxLayout(self)
         inner_vbox = QVBoxLayout()
-        inner_vbox = QVBoxLayout()
         inner_vbox.addWidget(self.title)
         inner_vbox.addWidget(self.main_widget)
         inner_vbox.addStretch(1)
         inner_vbox.addWidget(self.please_wait)
         inner_vbox.addStretch(1)
+        scroll_widget = QWidget()
+        scroll_widget.setLayout(inner_vbox)
+        scroll = QScrollArea()
+        scroll.setWidget(scroll_widget)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setWidgetResizable(True)
         icon_vbox = QVBoxLayout()
         icon_vbox.addWidget(self.logo)
         icon_vbox.addStretch(1)
         hbox = QHBoxLayout()
         hbox.addLayout(icon_vbox)
         hbox.addSpacing(5)
-        hbox.addLayout(inner_vbox)
-        hbox.setStretchFactor(inner_vbox, 1)
+        hbox.addWidget(scroll)
+        hbox.setStretchFactor(scroll, 1)
         outer_vbox.addLayout(hbox)
         outer_vbox.addLayout(Buttons(self.back_button, self.next_button))
         self.set_icon(':icons/electrum-dash.png')
@@ -170,17 +179,18 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
         wallet_folder = os.path.dirname(self.storage.path)
 
         def on_choose():
-            path = unicode(QFileDialog.getOpenFileName(self, "Select your wallet file", wallet_folder))
+            path, __ = QFileDialog.getOpenFileName(self, "Select your wallet file", wallet_folder)
             if path:
                 self.name_e.setText(path)
 
         def on_filename(filename):
-            filename = unicode(filename)
-            path = os.path.join(wallet_folder, filename.encode('utf8'))
+            path = os.path.join(wallet_folder, filename)
             try:
-                self.storage = WalletStorage(path)
+                self.storage = WalletStorage(path, manual_upgrades=True)
+                self.next_button.setEnabled(True)
             except IOError:
                 self.storage = None
+                self.next_button.setEnabled(False)
             if self.storage:
                 if not self.storage.file_exists():
                     msg =_("This file does not exist.") + '\n' \
@@ -207,7 +217,7 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
         button.clicked.connect(on_choose)
         self.name_e.textChanged.connect(on_filename)
         n = os.path.basename(self.storage.path)
-        self.name_e.setText(n.decode('utf8'))
+        self.name_e.setText(n)
 
         while True:
             if self.storage.file_exists() and not self.storage.is_encrypted():
@@ -217,22 +227,22 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
             if not self.storage.file_exists():
                 break
             if self.storage.file_exists() and self.storage.is_encrypted():
-                password = unicode(self.pw_e.text())
+                password = self.pw_e.text()
                 try:
                     self.storage.decrypt(password)
                     break
                 except InvalidPassword as e:
-                    QMessageBox.information(None, _('Error'), str(e), _('OK'))
+                    QMessageBox.information(None, _('Error'), str(e))
                     continue
                 except BaseException as e:
                     traceback.print_exc(file=sys.stdout)
-                    QMessageBox.information(None, _('Error'), str(e), _('OK'))
+                    QMessageBox.information(None, _('Error'), str(e))
                     return
 
         path = self.storage.path
         if self.storage.requires_split():
             self.hide()
-            msg = _("The wallet '%s' contains multiple accounts, which are no longer supported in Electrum-DASH 2.7.\n\n"
+            msg = _("The wallet '%s' contains multiple accounts, which are no longer supported since Electrum-DASH 2.7.\n\n"
                     "Do you want to split your wallet into multiple files?"%path)
             if not self.question(msg):
                 return
@@ -244,12 +254,7 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
             return
 
         if self.storage.requires_upgrade():
-            self.hide()
-            msg = _("The format of your wallet '%s' must be upgraded for Electrum-DASH. This change will not be backward compatible"%path)
-            if not self.question(msg):
-                return
             self.storage.upgrade()
-            self.show_warning(_('Your wallet was upgraded successfully'))
             self.wallet = Wallet(self.storage)
             return self.wallet
 
@@ -285,7 +290,8 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
 
     def set_icon(self, filename):
         prior_filename, self.icon_filename = self.icon_filename, filename
-        self.logo.setPixmap(QPixmap(filename).scaledToWidth(60))
+        self.logo.setPixmap(QPixmap(filename)
+                                .scaledToWidth(60, Qt.SmoothTransformation))
         return prior_filename
 
     def set_layout(self, layout, title=None, next_enabled=True):
@@ -403,8 +409,8 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
                     msg = _("Recovery successful")
                 else:
                     msg = _("No transactions found for this seed")
-                self.emit(QtCore.SIGNAL('synchronized'), msg)
-            self.connect(self, QtCore.SIGNAL('synchronized'), self.show_message)
+                self.synchronized_signal.emit(msg)
+            self.synchronized_signal.connect(self.show_message)
             t = threading.Thread(target = task)
             t.daemon = True
             t.start()
@@ -418,8 +424,9 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
         self.confirm(message, title)
 
     def confirm(self, message, title):
+        label = WWLabel(message)
         vbox = QVBoxLayout()
-        vbox.addWidget(WWLabel(message))
+        vbox.addWidget(label)
         self.exec_layout(vbox, title)
 
     @wizard_dialog
@@ -427,7 +434,7 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
         self.run(action)
 
     def terminate(self):
-        self.emit(QtCore.SIGNAL('accept'))
+        self.accept_signal.emit()
 
     def waiting_dialog(self, task, msg):
         self.please_wait.setText(MSG_GENERATING_WAIT)
@@ -438,8 +445,8 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
 
     @wizard_dialog
     def choice_dialog(self, title, message, choices, run_next):
-        c_values = map(lambda x: x[0], choices)
-        c_titles = map(lambda x: x[1], choices)
+        c_values = [x[0] for x in choices]
+        c_titles = [x[1] for x in choices]
         clayout = ChoicesLayout(message, c_titles)
         vbox = QVBoxLayout()
         vbox.addLayout(clayout.layout())
@@ -462,12 +469,12 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
         line = QLineEdit()
         line.setText(default)
         def f(text):
-            self.next_button.setEnabled(test(unicode(text)))
+            self.next_button.setEnabled(test(text))
         line.textEdited.connect(f)
         vbox.addWidget(line)
         vbox.addWidget(WWLabel(warning))
         self.exec_layout(vbox, title, next_enabled=test(default))
-        return ' '.join(unicode(line.text()).split())
+        return ' '.join(line.text().split())
 
     @wizard_dialog
     def show_xpub_dialog(self, xpub, run_next):
@@ -484,7 +491,7 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
     def init_network(self, network):
         message = _("Electrum-DASH communicates with remote servers to get "
                   "information about your transactions and addresses. The "
-                  "servers all fulfil the same purpose only differing in "
+                  "servers all fulfill the same purpose only differing in "
                   "hardware. In most cases you simply want to let Electrum-DASH "
                   "pick one at random.  However if you prefer feel free to "
                   "select a server manually.")
@@ -521,10 +528,10 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
         grid.addWidget(m_label, 1, 0)
         grid.addWidget(m_edit, 1, 1)
         def on_m(m):
-            m_label.setText(_('Require %d signatures')%m)
+            m_label.setText(_('Require {0} signatures').format(m))
             cw.set_m(m)
         def on_n(n):
-            n_label.setText(_('From %d cosigners')%n)
+            n_label.setText(_('From {0} cosigners').format(n))
             cw.set_n(n)
             m_edit.setMaximum(n)
         n_edit.valueChanged.connect(on_n)

@@ -1,15 +1,18 @@
 #!/bin/bash
 
-# You probably need to update only this link
-ELECTRUM_GIT_URL=git://github.com/spesmilo/electrum.git
-BRANCH=master
 NAME_ROOT=electrum
+PYTHON_VERSION=3.5.4
 
+if [ "$#" -gt 0 ]; then
+    BRANCH="$1"
+fi
 
 # These settings probably don't need any change
 export WINEPREFIX=/opt/wine64
+export PYTHONDONTWRITEBYTECODE=1
+export PYTHONHASHSEED=22
 
-PYHOME=c:/python27
+PYHOME=c:/python$PYTHON_VERSION
 PYTHON="wine $PYHOME/python.exe -OO -B"
 
 
@@ -19,45 +22,57 @@ set -e
 
 cd tmp
 
-if [ -d "electrum-git" ]; then
-    # GIT repository found, update it
-    echo "Pull"
-    cd electrum-git
-    git pull
-    git checkout $BRANCH
-    cd ..
-else
-    # GIT repository not found, clone it
-    echo "Clone"
-    git clone -b $BRANCH $ELECTRUM_GIT_URL electrum-git
-fi
+for repo in electrum electrum-locale electrum-icons; do
+    if [ -d $repo ]; then
+	cd $repo
+	git pull
+	git checkout master
+	cd ..
+    else
+	URL=https://github.com/spesmilo/$repo.git
+	git clone -b master $URL $repo
+    fi
+done
 
-cd electrum-git
+pushd electrum-locale
+for i in ./locale/*; do
+    dir=$i/LC_MESSAGES
+    mkdir -p $dir
+    msgfmt --output-file=$dir/electrum.mo $i/electrum.po || true
+done
+popd
+
+pushd electrum
+git checkout $BRANCH
 VERSION=`git describe --tags`
 echo "Last commit: $VERSION"
-
-cd ..
+find -exec touch -d '2000-11-11T11:11:11+00:00' {} +
+popd
 
 rm -rf $WINEPREFIX/drive_c/electrum
-cp -r electrum-git $WINEPREFIX/drive_c/electrum
-cp electrum-git/LICENCE .
+cp -r electrum $WINEPREFIX/drive_c/electrum
+cp electrum/LICENCE .
+cp -r electrum-locale/locale $WINEPREFIX/drive_c/electrum/lib/
+cp electrum-icons/icons_rc.py $WINEPREFIX/drive_c/electrum/gui/qt/
 
-# add python packages (built with make_packages)
-cp -r ../../../packages $WINEPREFIX/drive_c/electrum/
+# Install frozen dependencies
+$PYTHON -m pip install -r ../../requirements.txt
 
-# add locale dir
-cp -r ../../../lib/locale $WINEPREFIX/drive_c/electrum/lib/
-
-# Build Qt resources
-wine $WINEPREFIX/drive_c/Python27/Lib/site-packages/PyQt4/pyrcc4.exe C:/electrum/icons.qrc -o C:/electrum/lib/icons_rc.py
-wine $WINEPREFIX/drive_c/Python27/Lib/site-packages/PyQt4/pyrcc4.exe C:/electrum/icons.qrc -o C:/electrum/gui/qt/icons_rc.py
+pushd $WINEPREFIX/drive_c/electrum
+$PYTHON setup.py install
+popd
 
 cd ..
 
 rm -rf dist/
 
-# build standalone version
-$PYTHON "C:/pyinstaller/pyinstaller.py" --noconfirm --ascii --name $NAME_ROOT-$VERSION.exe -w deterministic.spec
+# build standalone and portable versions
+wine "C:/python$PYTHON_VERSION/scripts/pyinstaller.exe" --noconfirm --ascii --name $NAME_ROOT-$VERSION -w deterministic.spec
+
+# set timestamps in dist, in order to make the installer reproducible
+pushd dist
+find -exec touch -d '2000-11-11T11:11:11+00:00' {} +
+popd
 
 # build NSIS installer
 # $VERSION could be passed to the electrum.nsi script, but this would require some rewriting in the script iself.
@@ -67,11 +82,5 @@ cd dist
 mv electrum-setup.exe $NAME_ROOT-$VERSION-setup.exe
 cd ..
 
-# build portable version
-cp portable.patch $WINEPREFIX/drive_c/electrum
-pushd $WINEPREFIX/drive_c/electrum
-patch < portable.patch 
-popd
-$PYTHON "C:/pyinstaller/pyinstaller.py" --noconfirm --ascii --name $NAME_ROOT-$VERSION-portable.exe -w deterministic.spec
-
 echo "Done."
+md5sum dist/electrum*exe

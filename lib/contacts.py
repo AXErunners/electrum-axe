@@ -20,17 +20,12 @@
 # ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-
-import sys
 import re
 import dns
-import os
 import json
 
-import bitcoin
-import dnssec
-from util import print_error
-from i18n import _
+from . import bitcoin
+from . import dnssec
 
 
 class Contacts(dict):
@@ -98,7 +93,7 @@ class Contacts(dict):
         # support email-style addresses, per the OA standard
         url = url.replace('@', '.')
         records, validated = dnssec.query(url, dns.rdatatype.TXT)
-        prefix = 'btc'
+        prefix = 'dash'
         for record in records:
             string = record.strings[0]
             if string.startswith('oa1:' + prefix):
@@ -118,7 +113,7 @@ class Contacts(dict):
             return None
             
     def _validate(self, data):
-        for k,v in data.items():
+        for k,v in list(data.items()):
             if k == 'contacts':
                 return self._validate(v)
             if not bitcoin.is_address(k):
@@ -128,3 +123,4 @@ class Contacts(dict):
                 if _type != 'address':
                     data.pop(k)
         return data
+

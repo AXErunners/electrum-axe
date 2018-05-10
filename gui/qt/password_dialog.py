@@ -23,10 +23,11 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
 from electrum_dash.i18n import _
-from util import *
+from .util import *
 import re
 import math
 
@@ -39,7 +40,7 @@ def check_password_strength(password):
     :param password: password entered by user in New Password
     :return: password strength Weak or Medium or Strong
     '''
-    password = unicode(password)
+    password = password
     n = math.log(len(set(password)))
     num = re.search("[0-9]", password) is not None and re.match("^[0-9]*$", password) is None
     caps = password != password.upper() and password != password.lower()
@@ -102,7 +103,8 @@ class PasswordLayout(object):
                 lockfile = ":icons/lock.png"
             else:
                 lockfile = ":icons/unlock.png"
-            logo.setPixmap(QPixmap(lockfile).scaledToWidth(36))
+            logo.setPixmap(QPixmap(lockfile)
+                               .scaledToWidth(36, Qt.SmoothTransformation))
 
         grid.addWidget(QLabel(msgs[0]), 1, 0)
         grid.addWidget(self.new_pw, 1, 1)
@@ -151,11 +153,11 @@ class PasswordLayout(object):
 
     def old_password(self):
         if self.kind == PW_CHANGE:
-            return unicode(self.pw.text()) or None
+            return self.pw.text() or None
         return None
 
     def new_password(self):
-        pw = unicode(self.new_pw.text())
+        pw = self.new_pw.text()
         # Empty passphrases are fine and returned empty.
         if pw == "" and self.kind != PW_PASSPHRASE:
             pw = None
@@ -172,7 +174,7 @@ class ChangePasswordDialog(WindowModalDialog):
             msg += ' ' + _('Use this dialog to add a password to your wallet.')
         else:
             if not is_encrypted:
-                msg = _('Your Dash are password protected. However, your wallet file is not encrypted.')
+                msg = _('Your Dash coins are password protected. However, your wallet file is not encrypted.')
             else:
                 msg = _('Your wallet is password protected and encrypted.')
             msg += ' ' + _('Use this dialog to change your password.')
@@ -212,4 +214,4 @@ class PasswordDialog(WindowModalDialog):
     def run(self):
         if not self.exec_():
             return
-        return unicode(self.pw.text())
+        return self.pw.text()

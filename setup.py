@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 # python setup.py sdist --format=zip,gztar
 
@@ -11,8 +11,8 @@ import argparse
 
 version = imp.load_source('version', 'lib/version.py')
 
-if sys.version_info[:3] < (2, 7, 0):
-    sys.exit("Error: Electrum-DASH requires Python version >= 2.7.0...")
+if sys.version_info[:3] < (3, 4, 0):
+    sys.exit("Error: Electrum-DASH requires Python version >= 3.4.0...")
 
 data_files = []
 
@@ -36,21 +36,16 @@ setup(
     name="Electrum-DASH",
     version=version.ELECTRUM_VERSION,
     install_requires=[
-        'pyaes',
+        'pyaes>=0.1a1',
         'ecdsa>=0.9',
         'pbkdf2',
         'requests',
         'qrcode',
         'protobuf',
         'dnspython',
-        'jsonrpclib',
+        'jsonrpclib-pelix',
         'PySocks>=1.6.6',
-        'trezor>=0.6.3',
         'x11_hash>=1.4',
-    ],
-    dependency_links=[
-        'git+https://github.com/akhavr/x11_hash@1.4#egg=x11_hash-1.4',
-        'git+https://github.com/electrum-dash/python-trezor@v0.6.13#egg=trezor',
     ],
     packages=[
         'electrum_dash',
@@ -75,6 +70,8 @@ setup(
     },
     package_data={
         'electrum_dash': [
+            'servers.json',
+            'servers_testnet.json',
             'currencies.json',
             'www/index.html',
             'wordlist/*.txt',
@@ -84,7 +81,8 @@ setup(
     scripts=['electrum-dash'],
     data_files=data_files,
     description="Lightweight Dashpay Wallet",
-    author="akhavr",
+    maintainer="akhavr",
+    maintainer_email="akhavr@khavr.com",
     license="MIT License",
     url="https://electrum-dash.org",
     long_description="""Lightweight Dashpay Wallet"""

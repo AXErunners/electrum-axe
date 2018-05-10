@@ -1,14 +1,15 @@
 """Masternode-related widgets."""
 
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5.QtWidgets import *
 
 from electrum_dash import bitcoin
 from electrum_dash.bitcoin import COIN
 from electrum_dash.i18n import _
 from electrum_dash.masternode import NetworkAddress, MasternodeAnnounce
 
-import util
+from . import util
 
 def masternode_status(status):
     """Get a human-friendly representation of status.
@@ -231,7 +232,7 @@ class MasternodeOutputsWidget(QListWidget):
         self.addItem(item)
 
     def add_outputs(self, outputs):
-        map(self.add_output, outputs)
+        list(map(self.add_output, outputs))
         self.setCurrentRow(0)
 
     def clear(self):
@@ -273,7 +274,7 @@ class MasternodeOutputsTab(QWidget):
         self.mapper.setModel(self.dialog.masternodes_widget.proxy_model)
 
         model = self.dialog.masternodes_widget.model
-        self.mapper.addMapping(self.collateral_edit, model.VIN, 'string')
+        self.mapper.addMapping(self.collateral_edit, model.VIN, b'string')
 
         self.save_output_button = QPushButton(_('Save'))
         self.save_output_button.setEnabled(False)
@@ -313,14 +314,13 @@ class MasternodeOutputsTab(QWidget):
         """
         self.valid_outputs_list.clear()
         exclude_frozen = not include_frozen
-
-        coins = self.manager.get_masternode_outputs(exclude_frozen=exclude_frozen)
+        coins = list(self.manager.get_masternode_outputs(exclude_frozen=exclude_frozen))
 
         if len(coins) > 0:
             self.valid_outputs_list.add_outputs(coins)
         else:
             self.status_edit.setText(_('No 1000 DASH outputs were found.'))
-            self.status_edit.setStyleSheet(util.RED_FG)
+            self.status_edit.setStyleSheet(util.ColorScheme.RED.as_stylesheet())
 
     def set_output(self, vin):
         """Set the selected output."""
@@ -337,7 +337,7 @@ class MasternodeOutputsTab(QWidget):
         """Set the row that the data widget mapper should use."""
         self.valid_outputs_list.clear()
         self.status_edit.clear()
-        self.status_edit.setStyleSheet(util.BLACK_FG)
+        self.status_edit.setStyleSheet(util.ColorScheme.DEFAULT.as_stylesheet())
         self.mapper.setCurrentIndex(row)
         mn = self.dialog.masternodes_widget.masternode_for_row(row)
 
@@ -378,7 +378,7 @@ class SignAnnounceWidget(QWidget):
 
         model = self.dialog.masternodes_widget.model
         self.mapper.addMapping(self.alias_edit, model.ALIAS)
-        self.mapper.addMapping(self.collateral_edit, model.VIN, 'string')
+        self.mapper.addMapping(self.collateral_edit, model.VIN, b'string')
         self.mapper.addMapping(self.delegate_edit, model.DELEGATE)
 
         self.sign_button = QPushButton(_('Activate Masternode'))
@@ -404,7 +404,7 @@ class SignAnnounceWidget(QWidget):
     def set_mapper_index(self, row):
         """Set the row that the data widget mapper should use."""
         self.status_edit.clear()
-        self.status_edit.setStyleSheet(util.BLACK_FG)
+        self.status_edit.setStyleSheet(util.ColorScheme.DEFAULT.as_stylesheet())
         self.mapper.setCurrentIndex(row)
         mn = self.dialog.masternodes_widget.masternode_for_row(row)
 

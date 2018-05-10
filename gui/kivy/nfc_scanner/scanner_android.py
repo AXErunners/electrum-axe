@@ -123,7 +123,7 @@ class ScannerAndroid(NFCBase):
 
             details['recTypes'] = recTypes
         except Exception as err:
-            print str(err)
+            print(str(err))
 
         return details
 
@@ -141,7 +141,7 @@ class ScannerAndroid(NFCBase):
         #details = self.get_ndef_details(tag)
 
         if intent.getAction() not in action_list:
-            print 'unknow action, avoid.'
+            print('unknow action, avoid.')
             return
 
         rawmsgs = intent.getParcelableArrayExtra(NfcAdapter.EXTRA_NDEF_MESSAGES)
@@ -150,7 +150,7 @@ class ScannerAndroid(NFCBase):
         for message in rawmsgs:
             message = cast(NdefMessage, message)
             payload = message.getRecords()[0].getPayload()
-            print 'payload: {}'.format(''.join(map(chr, payload)))
+            print('payload: {}'.format(''.join(map(chr, payload))))
 
     def nfc_disable(self):
         '''Disable app from handling tags.
@@ -165,21 +165,20 @@ class ScannerAndroid(NFCBase):
     def create_AAR(self):
         '''Create the record responsible for linking our application to the tag.
         '''
-        return NdefRecord.createApplicationRecord(
-            JString("org.electrum_dash.electrum_dash_develop.kivy"))
+        return NdefRecord.createApplicationRecord(JString("org.electrum-dash.kivy"))
 
     def create_TNF_EXTERNAL(self, data):
         '''Create our actual payload record.
         '''
         if BUILDVERSION >= 14:
-            domain = "org.electrum_dash.electrum_dash_develop"
+            domain = "org.electrum-dash"
             stype = "externalType"
             extRecord = NdefRecord.createExternal(domain, stype, data)
         else:
             # Creating the NdefRecord manually:
             extRecord = NdefRecord(
                 NdefRecord.TNF_EXTERNAL_TYPE,
-                "org.electrum_dash_electrum_dash.electrum_dash_develop:externalType",
+                "org.electrum-dash:externalType",
                 '',
                 data)
         return extRecord
@@ -214,7 +213,7 @@ class ScannerAndroid(NFCBase):
         # Create record
         ndef_record = NdefRecord(
                 NdefRecord.TNF_MIME_MEDIA,
-                'org.electrum_dash.electrum_dash_develop.kivy', '', data)
+                'org.electrum-dash.kivy', '', data)
         
         # Create message
         ndef_message = NdefMessage([ndef_record])

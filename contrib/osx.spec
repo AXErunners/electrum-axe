@@ -1,4 +1,6 @@
 # -*- mode: python -*-
+import os
+import os.path
 import sys
 
 
@@ -9,6 +11,8 @@ for i, x in enumerate(sys.argv):
 else:
     raise BaseException('no name')
 
+PY36BINDIR =  os.environ.get('PY36BINDIR')
+
 hiddenimports = [
     'lib',
     'lib.base_wizard',
@@ -17,7 +21,7 @@ hiddenimports = [
     'lib.websockets',
     'gui.qt',
 
-    'memonic',  # required by python-trezor
+    'mnemonic',  # required by python-trezor
 
     'plugins',
 
@@ -35,7 +39,8 @@ hiddenimports = [
 ]
 
 datas = [
-    ('packages/requests/cacert.pem', 'packages/requests'),
+    ('lib/servers.json', 'electrum_dash'),
+    ('lib/servers_testnet.json', 'electrum_dash'),
     ('lib/currencies.json', 'electrum_dash'),
     ('lib/wordlist', 'electrum_dash/wordlist'),
 ]
@@ -79,7 +84,7 @@ exe = EXE(pyz,
           name=os.path.join('build/electrum-dash/electrum-dash', cmdline_name))
 
 # trezorctl separate bin
-tctl_a = Analysis(['/usr/local/bin/trezorctl'],
+tctl_a = Analysis([os.path.join(PY36BINDIR, 'trezorctl')],
                   hiddenimports=['pkgutil'],
                   excludes=excludes,
                   runtime_hooks=['pyi_tctl_runtimehook.py'])

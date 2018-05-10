@@ -3,18 +3,18 @@ from datetime import datetime
 import os
 import traceback
 
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
 
 from electrum_dash import bitcoin
 from electrum_dash.i18n import _
 from electrum_dash.masternode import MasternodeAnnounce
 from electrum_dash.masternode_manager import parse_masternode_conf
-from electrum_dash.util import PrintError
+from electrum_dash.util import PrintError, bfh
 
-from masternode_widgets import *
-from masternode_budget_widgets import *
-import util
+from .masternode_widgets import *
+from .masternode_budget_widgets import *
+from . import util
 
 # Background color for enabled masternodes.
 ENABLED_MASTERNODE_BG = '#80ff80'
@@ -127,7 +127,7 @@ class MasternodesModel(QAbstractTableModel):
         elif i == self.COLLATERAL:
             data = mn.collateral_key
             if role in [Qt.EditRole, Qt.DisplayRole, Qt.ToolTipRole] and data:
-                data = bitcoin.public_key_to_p2pkh(data.decode('hex'))
+                data = bitcoin.public_key_to_p2pkh(bfh(data))
             elif role == Qt.FontRole:
                 data = util.MONOSPACE_FONT
         elif i == self.DELEGATE:
@@ -152,11 +152,11 @@ class MasternodesModel(QAbstractTableModel):
         i = index.column()
 
         if i == self.ALIAS:
-            mn.alias = str(value.toString())
+            mn.alias = value
         elif i == self.STATUS:
             return True
         elif i == self.VIN:
-            s = str(value.toString()).split(':')
+            s = value.split(':')
             mn.vin['prevout_hash'] = s[0]
             mn.vin['prevout_n'] = int(s[1]) if s[1] else 0
             mn.vin['address'] = s[2]
@@ -165,24 +165,24 @@ class MasternodesModel(QAbstractTableModel):
         elif i == self.COLLATERAL:
             return True
         elif i == self.DELEGATE:
-            privkey = str(value.toString())
+            privkey = value
             pubkey = ''
             try:
                 # Import the key if it isn't already imported.
-                self.manager.import_masternode_delegate(privkey)
-                pubkey = bitcoin.public_key_from_private_key(privkey)
+                pubkey = self.manager.import_masternode_delegate(privkey)
             except Exception:
                 # Don't fail if the key is invalid.
                 pass
 
             mn.delegate_key = pubkey
         elif i == self.ADDR:
-            s = str(value.toString()).split(':')
+            s = value.split(':')
             mn.addr.ip = s[0]
             mn.addr.port = int(s[1])
         elif i == self.PROTOCOL_VERSION:
-            version, ok = value.toInt()
-            if not ok:
+            try:
+                version = int(value)
+            except ValueError:
                 return False
             mn.protocol_version = version
         else:
@@ -205,10 +205,10 @@ class MasternodesWidget(QWidget):
             header.setHighlightSections(False)
 
         header = self.view.horizontalHeader()
-        header.setResizeMode(MasternodesModel.ALIAS, QHeaderView.ResizeToContents)
-        header.setResizeMode(MasternodesModel.VIN, QHeaderView.Stretch)
-        header.setResizeMode(MasternodesModel.COLLATERAL, QHeaderView.ResizeToContents)
-        header.setResizeMode(MasternodesModel.DELEGATE, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(MasternodesModel.ALIAS, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(MasternodesModel.VIN, QHeaderView.Stretch)
+        header.setSectionResizeMode(MasternodesModel.COLLATERAL, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(MasternodesModel.DELEGATE, QHeaderView.ResizeToContents)
         self.view.verticalHeader().setVisible(False)
 
         self.view.setSelectionMode(QAbstractItemView.SingleSelection)
@@ -226,7 +226,7 @@ class MasternodesWidget(QWidget):
         self.view.clearSelection()
         for i in range(self.proxy_model.rowCount()):
             idx = self.proxy_model.index(i, 0)
-            mn_alias = str(self.proxy_model.data(idx).toString())
+            mn_alias = str(self.proxy_model.data(idx))
             if mn_alias == alias:
                 self.view.selectRow(i)
                 break
@@ -320,9 +320,9 @@ class MasternodeDialog(QDialog, PrintError):
         mapper.addMapping(editor.status_edit, MasternodesModel.STATUS)
 
         editor.vin_edit.setReadOnly(True)
-        mapper.addMapping(editor.vin_edit, MasternodesModel.VIN, 'string')
+        mapper.addMapping(editor.vin_edit, MasternodesModel.VIN, b'string')
 
-        mapper.addMapping(editor.addr_edit, MasternodesModel.ADDR, 'string')
+        mapper.addMapping(editor.addr_edit, MasternodesModel.ADDR, b'string')
         mapper.addMapping(editor.delegate_key_edit, MasternodesModel.DELEGATE)
         mapper.addMapping(editor.protocol_version_edit, MasternodesModel.PROTOCOL_VERSION)
 
@@ -369,8 +369,8 @@ class MasternodeDialog(QDialog, PrintError):
 
         def select_import_file():
             text = QFileDialog.getOpenFileName(None, _('Select a file to import'), '', '*.conf')
-            if text:
-                import_filename_edit.setText(text)
+            if text and len(text) == 2:
+                import_filename_edit.setText(text[0])
         import_select_file.clicked.connect(select_import_file)
 
         def do_import_file():
@@ -385,7 +385,7 @@ class MasternodeDialog(QDialog, PrintError):
     def import_masternode_conf(self, filename):
         """Import a masternode.conf file."""
         pw = None
-        if self.manager.wallet.use_encryption:
+        if self.manager.wallet.has_password():
             pw = self.gui.password_dialog(msg=_('Please enter your password to import Masternode information.'))
             if pw is None:
                 return
@@ -434,9 +434,12 @@ class MasternodeDialog(QDialog, PrintError):
         If as_new is True, a new masternode will be created.
         """
         delegate_privkey = str(self.masternode_editor.delegate_key_edit.text())
+        if not delegate_privkey:
+            QMessageBox.warning(self, _('Warning'), _('Delegate private key is empty.'))
+            return
+
         try:
-            self.manager.import_masternode_delegate(delegate_privkey)
-            delegate_pubkey = bitcoin.public_key_from_private_key(delegate_privkey)
+            delegate_pubkey = self.manager.import_masternode_delegate(delegate_privkey)
         except Exception:
             # Show an error if the private key is invalid and not an empty string.
             if delegate_privkey:
@@ -511,7 +514,7 @@ class MasternodeDialog(QDialog, PrintError):
     def sign_announce(self, alias):
         """Sign an announce for alias. This is called by SignAnnounceWidget."""
         pw = None
-        if self.manager.wallet.use_encryption:
+        if self.manager.wallet.has_password():
             pw = self.gui.password_dialog(msg=_('Please enter your password to activate masternode "%s".' % alias))
             if pw is None:
                 return

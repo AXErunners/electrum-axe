@@ -1,12 +1,13 @@
-import ast
 import json
 import threading
+import time
 import os
+import stat
 
 from copy import deepcopy
-from util import user_dir, print_error, print_msg, print_stderr, PrintError
+from .util import user_dir, print_error, print_stderr, PrintError
 
-from bitcoin import MAX_FEE_RATE, FEE_TARGETS
+from .bitcoin import MAX_FEE_RATE, FEE_TARGETS
 
 SYSTEM_CONFIG_PATH = "/etc/electrum-dash.conf"
 
@@ -35,6 +36,8 @@ class SimpleConfig(PrintError):
     They are taken in order (1. overrides config options set in 2., that
     override config set in 3.)
     """
+    fee_rates = [150, 300, 500, 1000, 1500, 2500, 3500, 5000, 7500, 10000]
+
     def __init__(self, options={}, read_system_config_function=None,
                  read_user_config_function=None, read_user_dir_function=None):
 
@@ -43,6 +46,8 @@ class SimpleConfig(PrintError):
         self.lock = threading.RLock()
 
         self.fee_estimates = {}
+        self.fee_estimates_last_updated = {}
+        self.last_time_fee_estimates_requested = 0  # zero ensures immediate fees
 
         # The following two functions are there for dependency injection when
         # testing.
@@ -88,13 +93,14 @@ class SimpleConfig(PrintError):
             if os.path.islink(path):
                 raise BaseException('Dangling link: ' + path)
             os.makedirs(path)
+            os.chmod(path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
 
         self.print_error("electrum-dash directory", path)
         return path
 
     def fixup_config_keys(self, config, keypairs):
         updated = False
-        for old_key, new_key in keypairs.iteritems():
+        for old_key, new_key in keypairs.items():
             if old_key in config:
                 if not new_key in config:
                     config[new_key] = config[old_key]
@@ -115,8 +121,6 @@ class SimpleConfig(PrintError):
             return
 
         with self.lock:
-            if key in self.user_config and self.user_config[key] == value:
-                return
             self.user_config[key] = value
             if save:
                 self.save_user_config()
@@ -139,12 +143,9 @@ class SimpleConfig(PrintError):
             return
         path = os.path.join(self.path, "config")
         s = json.dumps(self.user_config, indent=4, sort_keys=True)
-        f = open(path, "w")
-        f.write(s)
-        f.close()
-        if 'ANDROID_DATA' not in os.environ:
-            import stat
-            os.chmod(path, stat.S_IREAD | stat.S_IWRITE)
+        with open(path, "w") as f:
+            f.write(s)
+        os.chmod(path, stat.S_IREAD | stat.S_IWRITE)
 
     def get_wallet_path(self):
         """Set the path of the wallet."""
@@ -164,6 +165,7 @@ class SimpleConfig(PrintError):
             if os.path.islink(dirpath):
                 raise BaseException('Dangling link: ' + dirpath)
             os.mkdir(dirpath)
+            os.chmod(dirpath, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
 
         new_path = os.path.join(self.path, "wallets", "default_wallet")
 
@@ -219,12 +221,19 @@ class SimpleConfig(PrintError):
 
     def reverse_dynfee(self, fee_per_kb):
         import operator
-        l = self.fee_estimates.items() + [(1, self.dynfee(4))]
+        l = list(self.fee_estimates.items()) + [(1, self.dynfee(4))]
         dist = map(lambda x: (x[0], abs(x[1] - fee_per_kb)), l)
         min_target, min_value = min(dist, key=operator.itemgetter(1))
         if fee_per_kb < self.fee_estimates.get(25)/2:
             min_target = -1
         return min_target
+
+    def static_fee(self, i):
+        return self.fee_rates[i]
+
+    def static_fee_index(self, value):
+        dist = list(map(lambda x: abs(x - value), self.fee_rates))
+        return min(range(len(dist)), key=dist.__getitem__)
 
     def has_fee_estimates(self):
         return len(self.fee_estimates)==4
@@ -240,6 +249,27 @@ class SimpleConfig(PrintError):
             fee_rate = self.get('fee_per_kb', self.max_fee_rate()/2)
         return fee_rate
 
+    def estimate_fee(self, size):
+        return int(self.fee_per_kb() * size / 1000.)
+
+    def update_fee_estimates(self, key, value):
+        self.fee_estimates[key] = value
+        self.fee_estimates_last_updated[key] = time.time()
+
+    def is_fee_estimates_update_required(self):
+        """Checks time since last requested and updated fee estimates.
+        Returns True if an update should be requested.
+        """
+        now = time.time()
+        prev_updates = self.fee_estimates_last_updated.values()
+        oldest_fee_time = min(prev_updates) if prev_updates else 0
+        stale_fees = now - oldest_fee_time > 7200
+        old_request = now - self.last_time_fee_estimates_requested > 60
+        return stale_fees and old_request
+
+    def requested_fee_estimates(self):
+        self.last_time_fee_estimates_requested = time.time()
+
     def get_video_device(self):
         device = self.get("video_device", "default")
         if device == 'default':
@@ -251,18 +281,13 @@ def read_system_config(path=SYSTEM_CONFIG_PATH):
     """Parse and return the system config settings in /etc/electrum-dash.conf."""
     result = {}
     if os.path.exists(path):
-        try:
-            import ConfigParser
-        except ImportError:
-            print "cannot parse electrum-dash.conf. please install ConfigParser"
-            return
-
-        p = ConfigParser.ConfigParser()
+        import configparser
+        p = configparser.ConfigParser()
         try:
             p.read(path)
             for k, v in p.items('client'):
                 result[k] = v
-        except (ConfigParser.NoSectionError, ConfigParser.MissingSectionHeaderError):
+        except (configparser.NoSectionError, configparser.MissingSectionHeaderError):
             pass
 
     return result

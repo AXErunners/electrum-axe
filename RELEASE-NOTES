@@ -1,3 +1,68 @@
+# Release 3.0.6 :
+
+ * Integrate changes from Electrum-3.0.6
+
+# Release 3.0.5 : (Security update)
+
+This is a follow-up to the 3.0.4 release, which did not completely fix
+issue #3374. Users should upgrade to 3.0.5.
+
+ * The JSONRPC interface is password protected
+ * JSONRPC commands are disabled if the GUI is running, except 'ping',
+   which is used to determine if a GUI is already running
+
+
+# Release 3.0.4 : (Security update)
+
+ * Fix a vulnerability caused by Cross-Origin Resource Sharing (CORS)
+   in the JSONRPC interface. Previous versions of Electrum are
+   vulnerable to port scanning and deanonimization attacks from
+   malicious websites. Wallets that are not password-protected are
+   vulnerable to theft.
+ * Bundle QR scanner with Android app
+ * Minor bug fixes
+
+# Release 3.0.3
+  * Qt GUI: sweeping now uses the Send tab, allowing fees to be set
+  * Windows: if using the installer binary, there is now a separate shortcut
+    for "Electrum Testnet"
+  * OS notifications for incoming transactions
+  * better transaction size estimation:
+    - some multisig txns were underestimated
+    - handle uncompressed pubkeys
+  * fix #3321: testnet for Windows binaries
+  * fix #3264: Ledger/dbb signing on some platforms
+  * fix #3407: KeepKey sending to p2sh output
+  * other minor fixes and usability improvements
+
+# Release 3.0.2
+  * Android: replace requests tab with address tab, with access to
+    private keys
+  * sweeping minikeys: search for both compressed and uncompressed
+    pubkeys
+  * fix wizard crash when attempting to reset Google Authenticator
+  * fix #3262: fix SSL payment request signing
+  * other minor fixes.
+
+# Release 3.0.1
+  * minor bug and usability fixes
+
+# Release 3.0 - Uncanny Valley (November 1st, 2017)
+
+  * The project was migrated to Python3 and Qt5. Python2 is no longer
+    supported. If you cloned the source repository, you will need to
+    run "python3 setup.py install" in order to install the new
+    dependencies.
+
+  * A new version of the Electrum protocol is required by the client
+    (version 1.1). Servers using older versions of the protocol will
+    not be displayed in the GUI.
+
+  * By default, transactions are time-locked to the height of the
+    current block. Other values of locktime may be passed using the
+    command line.
+
+
 # Release 2.9.4 (security update)
   * Incorporate electrum 2.9.4 changes
 # Release 2.9.3.2 (Security update)

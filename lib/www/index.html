@@ -34,7 +34,7 @@ if (id) {
             $("<p />").text(data.memo).appendTo($("p#reason"));
             $("<p />").text(data.amount/100000000 + "DASH").appendTo($("p#amount"));
 	    $("a").attr("href", data.URI);
-            $("<p />").text("Powered by Electrum").appendTo($("p#powered"));
+            $("<p />").text("Powered by Electrum-DASH").appendTo($("p#powered"));
             var websocket_server = data.websocket_server;
             var websocket_port = data.websocket_port;
 	    $(function () {
@@ -86,8 +86,8 @@ if (id) {
 // See http://stackoverflow.com/questions/29186154/chrome-clicking-mailto-links-closes-websocket-connection
 $(document).on('click', 'a[href^="dash:"]', function (e) {
     e.preventDefault();
-    var btcWindow = window.open($(e.currentTarget).attr('href'));
-    btcWindow.close();
+    var dashWindow = window.open($(e.currentTarget).attr('href'));
+    dashWindow.close();
     return false;
 });
 

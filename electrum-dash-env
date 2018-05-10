@@ -12,12 +12,12 @@
 if [ -e ./env/bin/activate ]; then
     source ./env/bin/activate
 else
-    virtualenv env
+    virtualenv env -p `which python3`
     source ./env/bin/activate
-    python setup.py install
+    python3 setup.py install
 fi
 
-export PYTHONPATH="/usr/local/lib/python2.7/site-packages:$PYTHONPATH"
+export PYTHONPATH="/usr/local/lib/python3.5/site-packages:$PYTHONPATH"
 
 ./electrum-dash "$@"
 

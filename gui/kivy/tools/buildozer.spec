@@ -7,7 +7,7 @@ title = Electrum-DASH
 package.name = Electrum-DASH
 
 # (str) Package domain (needed for android/ios packaging)
-package.domain = org.electrum_dash.electrum_dash_develop
+package.domain = org.electrum-dash
 
 # (str) Source code where the main.py live
 source.dir = .
@@ -31,14 +31,13 @@ version.filename = %(source.dir)s/contrib/versions.py
 #version = 1.9.8
 
 # (list) Application requirements
-requirements = hostpython2, android, openssl, pycrypto, pil, plyer, kivy==master
+requirements = python3crystax, android, openssl, plyer, kivy==master
 
 # (str) Presplash of the application
 #presplash.filename = %(source.dir)s/gui/kivy/theming/splash.png
 presplash.filename = %(source.dir)s/icons/electrum_presplash.png
 
 # (str) Icon of the application
-#icon.filename = %(source.dir)s/icons/electrum_android_launcher_icon.png
 icon.filename = %(source.dir)s/icons/electrum_launcher.png
 
 # (str) Supported orientation (one of landscape, portrait or all)
@@ -53,7 +52,8 @@ fullscreen = False
 #
 
 # (list) Permissions
-android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE
+android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, CAMERA
+
 # (int) Android API to use
 #android.api = 14
 
@@ -70,7 +70,7 @@ android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE
 android.private_storage = True
 
 # (str) Android NDK directory (if empty, it will be automatically downloaded.)
-#android.ndk_path =
+android.ndk_path = /opt/crystax-ndk-10.3.2
 
 # (str) Android SDK directory (if empty, it will be automatically downloaded.)
 #android.sdk_path =
@@ -87,7 +87,11 @@ android.private_storage = True
 
 # (list) List of Java files to add to the android project (can be java or a
 # directory containing the files)
-#android.add_src =
+android.add_src = gui/kivy/data/java-classes/
+
+android.gradle_dependencies = me.dm7.barcodescanner:zxing:1.9.8
+
+android.add_activities = org.electrum.qr.SimpleScannerActivity
 
 # (str) python-for-android branch to use, if not master, useful to try
 # not yet merged features.

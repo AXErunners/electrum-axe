@@ -4,6 +4,7 @@ import base64
 from lib.masternode import MasternodeAnnounce, MasternodePing, NetworkAddress
 from lib.masternode_manager import parse_masternode_conf, MasternodeConfLine
 from lib import bitcoin
+from lib.util import bfh, to_bytes
 
 
 raw_announce = '108d6bcba250fef7fc6dfaa5747092f6a1d00651fdb997233d94e0fd3cc4c7270000000000ffffffff00000000000000000000ffffc0a801654e1f2102d3879cdf9afcc59c42d8d858e44ba0e3d51df7792c6c0bbb6dd5e9de41f5580e4104431873cf0a6ae3f6903e72ed915f0e21029e59c1c279358f98e3d4136250c774a4b14bbd8a1ffb800c85310a8379869f05a24a6b99ce3d79f6194881ed7091d6411fabe342d726678ae2139c5e56870803111f9ce00c0df8b48d4d3aa7ef0c95f9567923bb53dce7b3a1ea694111abbf956f84ff1719922e08dbd0530fca23ce144400e70b5700000000d7110100108d6bcba250fef7fc6dfaa5747092f6a1d00651fdb997233d94e0fd3cc4c7270000000000ffffffff9fe612de60e895d900acee8387ede352f438b6a7318615c4a43ef4849700000000e70b5700000000411b5c4e56329362b83dfcbbaa70397c8c49cb7e69edf85b0e8232d2798b7196ec705036069ddc91126df98db4f6755b2ec01577ca417dfaa2e90a0382bd667e410d0000000000000000'
@@ -20,7 +21,7 @@ class TestMasternode(unittest.TestCase):
 
         self.assertEqual('02d3879cdf9afcc59c42d8d858e44ba0e3d51df7792c6c0bbb6dd5e9de41f5580e', announce.collateral_key)
         self.assertEqual('04431873cf0a6ae3f6903e72ed915f0e21029e59c1c279358f98e3d4136250c774a4b14bbd8a1ffb800c85310a8379869f05a24a6b99ce3d79f6194881ed7091d6', announce.delegate_key)
-        self.assertEqual('H6vjQtcmZ4riE5xeVocIAxEfnOAMDfi0jU06p+8MlflWeSO7U9zns6HqaUERq7+Vb4T/FxmSLgjb0FMPyiPOFEQ=', base64.b64encode(announce.sig))
+        self.assertEqual('H6vjQtcmZ4riE5xeVocIAxEfnOAMDfi0jU06p+8MlflWeSO7U9zns6HqaUERq7+Vb4T/FxmSLgjb0FMPyiPOFEQ=', base64.b64encode(announce.sig).decode('utf-8'))
         self.assertEqual(1460397824, announce.sig_time)
         self.assertEqual(70103, announce.protocol_version)
 
@@ -30,7 +31,7 @@ class TestMasternode(unittest.TestCase):
         self.assertEqual(0xffffffff, announce.last_ping.vin['sequence'])
         self.assertEqual('0000009784f43ea4c4158631a7b638f452e3ed8783eeac00d995e860de12e69f', announce.last_ping.block_hash)
         self.assertEqual(1460397824, announce.last_ping.sig_time)
-        self.assertEqual('G1xOVjKTYrg9/LuqcDl8jEnLfmnt+FsOgjLSeYtxluxwUDYGndyREm35jbT2dVsuwBV3ykF9+qLpCgOCvWZ+QQ0=', base64.b64encode(announce.last_ping.sig))
+        self.assertEqual('G1xOVjKTYrg9/LuqcDl8jEnLfmnt+FsOgjLSeYtxluxwUDYGndyREm35jbT2dVsuwBV3ykF9+qLpCgOCvWZ+QQ0=', base64.b64encode(announce.last_ping.sig).decode('utf-8'))
 
         self.assertEqual(0, announce.last_dsq)
 
@@ -55,7 +56,7 @@ class TestMasternode(unittest.TestCase):
         announce = MasternodeAnnounce.deserialize(raw_announce)
         message = announce.serialize_for_sig()
 
-        pk = bitcoin.public_key_to_p2pkh(announce.collateral_key.decode('hex'))
+        pk = bitcoin.public_key_to_p2pkh(bfh(announce.collateral_key))
         self.assertTrue(announce.verify())
 
 
@@ -63,7 +64,7 @@ class TestMasternode(unittest.TestCase):
         announce = MasternodeAnnounce.deserialize(raw)
         msg = announce.serialize_for_sig()
 
-        pk = bitcoin.public_key_to_p2pkh(announce.collateral_key.decode('hex'))
+        pk = bitcoin.public_key_to_p2pkh(bfh(announce.collateral_key))
         self.assertTrue(announce.verify(pk))
 
     def test_serialize_protocol_version_70201(self):
@@ -71,13 +72,15 @@ class TestMasternode(unittest.TestCase):
         announce = MasternodeAnnounce.deserialize(raw)
         announce.sig_time = 1465161129
         msg = announce.serialize_for_sig()
-        expected = ''.join([
+        expected = to_bytes(''.join([
             '127.0.0.1:19999',
             '1465161129',
-            bitcoin.hash_encode(bitcoin.hash_160('0269e1abb1ffe231ea045068272a06f0fae231d11b11a54225867d89267faa4e23'.decode('hex'))),
-            bitcoin.hash_encode(bitcoin.hash_160('0269e1abb1ffe231ea045068272a06f0fae231d11b11a54225867d89267faa4e23'.decode('hex'))),
+            bitcoin.hash_encode(bitcoin.hash_160(bfh('0269e1abb1ffe231ea045068272a06f0fae231d11b11a54225867d89267faa4e23'))),
+            bitcoin.hash_encode(bitcoin.hash_160(bfh('0269e1abb1ffe231ea045068272a06f0fae231d11b11a54225867d89267faa4e23'))),
             '70201',
-        ])
+        ]))
+        print('7'*50, expected)
+        print('8'*50, msg)
 
         self.assertEqual(expected, msg)
 
@@ -99,7 +102,7 @@ class TestMasternode(unittest.TestCase):
 
         collateral_wif = 'XJqCcyfnLYK4Y7ZDVjLrgPnsrq2cWMF6MX9cyhKgfMajwqrCwZaS'
         delegate_wif = 'XCbhXBc2N9q8kxqBF41rSuLWVpVVbDm7P1oPv9GxcrS9QXYBWZkB'
-        announce.last_ping.sign(delegate_wif, delegate_pub.decode('hex'), 1461858375)
+        announce.last_ping.sign(delegate_wif, bfh(delegate_pub), 1461858375)
         sig = announce.sign(collateral_wif, 1461858375)
 
         address = 'XahPxwmCuKjPq69hzVxP18V1eASwDWbUrn'
@@ -120,7 +123,7 @@ class TestMasternodePing(unittest.TestCase):
         sig_time = 1460397824
         ping = MasternodePing(vin=vin, block_hash=block_hash, sig_time=sig_time)
 
-        expected = 'CTxIn(COutPoint(27c7c43cfde0943d2397b9fd5106d0a1f6927074a5fa6dfcf7fe50a2cb6b8d10, 0), scriptSig=)0000009784f43ea4c4158631a7b638f452e3ed8783eeac00d995e860de12e69f1460397824'
+        expected = b'CTxIn(COutPoint(27c7c43cfde0943d2397b9fd5106d0a1f6927074a5fa6dfcf7fe50a2cb6b8d10, 0), scriptSig=)0000009784f43ea4c4158631a7b638f452e3ed8783eeac00d995e860de12e69f1460397824'
         self.assertEqual(expected, ping.serialize_for_sig())
 
     def test_sign(self):
@@ -134,7 +137,7 @@ class TestMasternodePing(unittest.TestCase):
         sig = ping.sign(wif, current_time = current_time)
         address = bitcoin.address_from_private_key(wif)
         self.assertTrue(bitcoin.verify_message(address, sig, ping.serialize_for_sig()))
-        self.assertEqual(expected_sig, base64.b64encode(sig))
+        self.assertEqual(expected_sig, base64.b64encode(sig).decode('utf-8'))
 
 class TestNetworkAddr(unittest.TestCase):
     def test_serialize(self):

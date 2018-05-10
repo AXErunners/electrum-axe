@@ -17,13 +17,12 @@ from kivy.lang import Builder
 from kivy.factory import Factory
 from kivy.utils import platform
 
-from electrum_dash.util import (profiler, parse_URI, format_time,
-                                InvalidPassword, NotEnoughFunds)
+from electrum_dash.util import profiler, parse_URI, format_time, InvalidPassword, NotEnoughFunds
 from electrum_dash import bitcoin
 from electrum_dash.util import timestamp_to_datetime
 from electrum_dash.paymentrequest import PR_UNPAID, PR_PAID, PR_UNKNOWN, PR_EXPIRED
 
-from context_menu import ContextMenu
+from .context_menu import ContextMenu
 
 
 from electrum_dash_gui.kivy.i18n import _
@@ -121,7 +120,7 @@ class HistoryScreen(CScreen):
         self.app.tx_dialog(tx)
 
     def label_dialog(self, obj):
-        from dialogs.label_dialog import LabelDialog
+        from .dialogs.label_dialog import LabelDialog
         key = obj.tx_hash
         text = self.app.wallet.get_label(key)
         def callback(text):
@@ -236,7 +235,7 @@ class SendScreen(CScreen):
             self.payment_request = None
 
     def do_paste(self):
-        contents = unicode(self.app._clipboard.paste())
+        contents = self.app._clipboard.paste()
         if not contents:
             self.app.show_info(_("Clipboard is empty"))
             return
@@ -262,7 +261,7 @@ class SendScreen(CScreen):
                 self.app.show_error(_('Invalid amount') + ':\n' + self.screen.amount)
                 return
             outputs = [(bitcoin.TYPE_ADDRESS, address, amount)]
-        message = unicode(self.screen.message)
+        message = self.screen.message
         amount = sum(map(lambda x:x[2], outputs))
         self._do_send(amount, message, outputs)
 
@@ -290,6 +289,8 @@ class SendScreen(CScreen):
         self.app.protected('\n'.join(msg), self.send_tx, (tx, message))
 
     def send_tx(self, tx, message, password):
+        if self.app.wallet.has_password() and password is None:
+            return
         def on_success(tx):
             if tx.is_complete():
                 self.app.broadcast(tx, self.payment_request)
@@ -338,7 +339,7 @@ class ReceiveScreen(CScreen):
         req = self.app.wallet.get_payment_request(addr, self.app.electrum_config)
         self.screen.status = ''
         if req:
-            self.screen.message = unicode(req.get('memo', ''))
+            self.screen.message = req.get('memo', '')
             amount = req.get('amount')
             self.screen.amount = self.app.format_amount_and_units(amount) if amount else ''
             status = req.get('status', PR_UNKNOWN)
@@ -370,9 +371,9 @@ class ReceiveScreen(CScreen):
         self.app.show_info(_('Request copied to clipboard'))
 
     def save_request(self):
-        addr = str(self.screen.address)
-        amount = str(self.screen.amount)
-        message = unicode(self.screen.message)
+        addr = self.screen.address
+        amount = self.screen.amount
+        message = self.screen.message
         amount = self.app.get_amount(amount) if amount else 0
         req = self.app.wallet.make_payment_request(addr, amount, message, None)
         self.app.wallet.add_payment_request(req, self.app.electrum_config)
@@ -461,7 +462,7 @@ class InvoicesScreen(CScreen):
         self.app.show_pr_details(pr.get_dict(), obj.status, True)
 
     def do_delete(self, obj):
-        from dialogs.question import Question
+        from .dialogs.question import Question
         def cb(result):
             if result:
                 self.app.wallet.invoices.remove(obj.key)
@@ -470,74 +471,114 @@ class InvoicesScreen(CScreen):
         d.open()
 
 
-class RequestsScreen(CScreen):
-    kvname = 'requests'
+address_icon = {
+    'Pending' : 'atlas://gui/kivy/theming/light/important',
+    'Paid' : 'atlas://gui/kivy/theming/light/confirmed'
+}
+ 
+class AddressScreen(CScreen):
+    kvname = 'address'
     cards = {}
 
-    def get_card(self, req):
-        address = req['address']
-        timestamp = req.get('time', 0)
-        amount = req.get('amount')
-        expiration = req.get('exp', None)
-        status = req.get('status')
-        signature = req.get('sig')
-
-        ci = self.cards.get(address)
+    def get_card(self, addr, balance, is_used, label):
+        ci = self.cards.get(addr)
         if ci is None:
-            ci = Factory.RequestItem()
+            ci = Factory.AddressItem()
             ci.screen = self
-            ci.address = address
-            self.cards[address] = ci
+            ci.address = addr
+            self.cards[addr] = ci
 
-        ci.memo = self.app.wallet.get_label(address)
-        if amount:
-            status = req.get('status')
-            ci.status = request_text[status]
+        ci.memo = label
+        ci.amount = self.app.format_amount_and_units(balance)
+        request = self.app.wallet.get_payment_request(addr, self.app.electrum_config)
+        if is_used:
+            ci.status = _('Used')
+        elif request:
+            status, conf = self.app.wallet.get_request_status(addr)
+            requested_amount = request.get('amount')
+            # make sure that requested amount is > 0
+            if status == PR_PAID:
+                s = _('Request paid')
+            elif status == PR_UNPAID:
+                s = _('Request pending')
+            elif status == PR_EXPIRED:
+                s = _('Request expired')
+            else:
+                s = ''
+            ci.status = s + ': ' + self.app.format_amount_and_units(requested_amount)
         else:
-            received = self.app.wallet.get_addr_received(address)
-            ci.status = self.app.format_amount_and_units(amount)
-        ci.icon = pr_icon[status]
-        ci.amount = self.app.format_amount_and_units(amount) if amount else _('No Amount')
-        ci.date = format_time(timestamp)
+            ci.status = _('Funded') if balance>0 else _('Unused')
         return ci
 
+
     def update(self):
-        self.menu_actions = [('Show', self.do_show), ('Details', self.do_view), ('Delete', self.do_delete)]
-        requests_list = self.screen.ids.requests_container
-        requests_list.clear_widgets()
-        _list = self.app.wallet.get_sorted_requests(self.app.electrum_config) if self.app.wallet else []
-        for req in _list:
-            ci = self.get_card(req)
-            requests_list.add_widget(ci)
-        if not _list:
-            msg = _('This screen shows the list of payment requests you made.')
-            requests_list.add_widget(EmptyLabel(text=msg))
+        self.menu_actions = [('Receive', self.do_show), ('Details', self.do_view)]
+        wallet = self.app.wallet
+        _list = wallet.get_change_addresses() if self.screen.show_change else wallet.get_receiving_addresses()
+        search = self.screen.message
+        container = self.screen.ids.search_container
+        container.clear_widgets()
+        n = 0
+        for address in _list:
+            label = wallet.labels.get(address, '')
+            balance = sum(wallet.get_addr_balance(address))
+            is_used = wallet.is_used(address)
+            if self.screen.show_used == 1 and (balance or is_used):
+                continue
+            if self.screen.show_used == 2 and balance == 0:
+                continue
+            if self.screen.show_used == 3 and not is_used:
+                continue
+            card = self.get_card(address, balance, is_used, label)
+            if search and not self.ext_search(card, search):
+                continue
+            container.add_widget(card)
+            n += 1
+        if not n:
+            msg = _('No address matching your search')
+            container.add_widget(EmptyLabel(text=msg))
 
     def do_show(self, obj):
         self.app.show_request(obj.address)
 
     def do_view(self, obj):
         req = self.app.wallet.get_payment_request(obj.address, self.app.electrum_config)
-        status = req.get('status')
-        amount = req.get('amount')
-        address = req['address']
-        if amount:
+        if req:
+            c, u, x = self.app.wallet.get_addr_balance(obj.address)
+            balance = c + u + x
+            if balance > 0:
+                req['fund'] = balance
             status = req.get('status')
-            status = request_text[status]
-        else:
-            received_amount = self.app.wallet.get_addr_received(address)
-            status = self.app.format_amount_and_units(received_amount)
+            amount = req.get('amount')
+            address = req['address']
+            if amount:
+                status = req.get('status')
+                status = request_text[status]
+            else:
+                received_amount = self.app.wallet.get_addr_received(address)
+                status = self.app.format_amount_and_units(received_amount)
+            self.app.show_pr_details(req, status, False)
 
-        self.app.show_pr_details(req, status, False)
+        else:
+            req = { 'address': obj.address, 'status' : obj.status }
+            status = obj.status
+            c, u, x = self.app.wallet.get_addr_balance(obj.address)
+            balance = c + u + x
+            if balance > 0:
+                req['fund'] = balance
+            self.app.show_addr_details(req, status)
 
     def do_delete(self, obj):
-        from dialogs.question import Question
+        from .dialogs.question import Question
         def cb(result):
             if result:
                 self.app.wallet.remove_payment_request(obj.address, self.app.electrum_config)
                 self.update()
         d = Question(_('Delete request?'), cb)
         d.open()
+
+    def ext_search(self, card, search):
+        return card.memo.find(search) >= 0 or card.amount.find(search) >= 0
 
 
 

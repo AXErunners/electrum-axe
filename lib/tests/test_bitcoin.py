@@ -1,3 +1,4 @@
+import base64
 import unittest
 import sys
 from ecdsa.util import number_to_string
@@ -5,13 +6,15 @@ from ecdsa.util import number_to_string
 from lib.bitcoin import (
     generator_secp256k1, point_to_ser, public_key_to_p2pkh, EC_KEY,
     bip32_root, bip32_public_derivation, bip32_private_derivation, pw_encode,
-    pw_decode, Hash, PoWHash, rev_hex, public_key_from_private_key,
-    address_from_private_key,
-    is_valid, is_private_key, xpub_from_xprv, is_new_seed, is_old_seed,
-    var_int, op_push, deserialize_xpub, deserialize_xprv,
-    deserialize_drkp, deserialize_drkv)
-
-from lib.keystore import from_keys
+    pw_decode, Hash, public_key_from_private_key, address_from_private_key,
+    is_address, is_private_key, xpub_from_xprv, is_new_seed, is_old_seed,
+    var_int, op_push, address_to_script, regenerate_key,
+    verify_message, deserialize_privkey, serialize_privkey,
+    is_b58_address, address_to_scripthash, is_minikey, is_compressed, is_xpub,
+    xpub_type, is_xprv, is_bip32_derivation, seed_type, NetworkConstants,
+    deserialize_xprv, deserialize_xpub, deserialize_drkv, deserialize_drkp)
+from lib.util import bfh, bh2u
+from lib.keystore import from_master_key
 
 try:
     import ecdsa
@@ -19,20 +22,10 @@ except ImportError:
     sys.exit("Error: python-ecdsa does not seem to be installed. Try 'sudo pip install ecdsa'")
 
 
-class Test_hash(unittest.TestCase):
-    """ The block used here was arbitrarily chosen.
-        Block height: 339142."""
-
-    def test_hash_block(self):
-        raw_header = '030000001a12ed8fe3b2abe61161c3171f20a4dff83e721298934943ff86170000000000972b51909e1911b9d4462a448cfb14b6d3d2e25151eb75b3e0f252f39a84d22ac4d2fd55e85b1d1b116e56de'
-        header_hash = rev_hex(PoWHash(raw_header.decode('hex')).encode('hex'))
-        self.assertEqual('000000000008aba1c6b076ba5f147b39007cb1f9c34398960edc7c9d1edf8ad7', header_hash)
-
-
 class Test_bitcoin(unittest.TestCase):
 
     def test_crypto(self):
-        for message in ["Chancellor on brink of second bailout for banks", chr(255)*512]:
+        for message in [b"Chancellor on brink of second bailout for banks", b'\xff'*512]:
             self._do_test_crypto(message)
 
     def _do_test_crypto(self, message):
@@ -44,7 +37,6 @@ class Test_bitcoin(unittest.TestCase):
         pubkey_c = point_to_ser(Pub,True)
         #pubkey_u = point_to_ser(Pub,False)
         addr_c = public_key_to_p2pkh(pubkey_c)
-        #addr_u = public_key_to_bc_address(pubkey_u)
 
         #print "Private key            ", '%064x'%pvk
         eck = EC_KEY(number_to_string(pvk,_r))
@@ -52,42 +44,44 @@ class Test_bitcoin(unittest.TestCase):
         #print "Compressed public key  ", pubkey_c.encode('hex')
         enc = EC_KEY.encrypt_message(message, pubkey_c)
         dec = eck.decrypt_message(enc)
-        assert dec == message
+        self.assertEqual(message, dec)
 
         #print "Uncompressed public key", pubkey_u.encode('hex')
         #enc2 = EC_KEY.encrypt_message(message, pubkey_u)
         dec2 = eck.decrypt_message(enc)
-        assert dec2 == message
+        self.assertEqual(message, dec2)
 
         signature = eck.sign_message(message, True)
         #print signature
         EC_KEY.verify_message(eck, signature, message)
 
-    def test_bip32(self):
-        # see https://en.bitcoin.it/wiki/BIP_0032_TestVectors
-        xpub, xprv = self._do_test_bip32("000102030405060708090a0b0c0d0e0f", "m/0'/1/2'/2/1000000000")
-        assert xpub == "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
-        assert xprv == "xprvA41z7zogVVwxVSgdKUHDy1SKmdb533PjDz7J6N6mV6uS3ze1ai8FHa8kmHScGpWmj4WggLyQjgPie1rFSruoUihUZREPSL39UNdE3BBDu76"
+    def test_msg_signing(self):
+        msg1 = b'Chancellor on brink of second bailout for banks'
+        msg2 = b'Electrum'
 
-        xpub, xprv = self._do_test_bip32("fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542","m/0/2147483647'/1/2147483646'/2")
-        assert xpub == "xpub6FnCn6nSzZAw5Tw7cgR9bi15UV96gLZhjDstkXXxvCLsUXBGXPdSnLFbdpq8p9HmGsApME5hQTZ3emM2rnY5agb9rXpVGyy3bdW6EEgAtqt"
-        assert xprv == "xprvA2nrNbFZABcdryreWet9Ea4LvTJcGsqrMzxHx98MMrotbir7yrKCEXw7nadnHM8Dq38EGfSh6dqA9QWTyefMLEcBYJUuekgW4BYPJcr9E7j"
+        def sign_message_with_wif_privkey(wif_privkey, msg):
+            txin_type, privkey, compressed = deserialize_privkey(wif_privkey)
+            key = regenerate_key(privkey)
+            return key.sign_message(msg, compressed)
 
-    def _do_test_bip32(self, seed, sequence):
-        xprv, xpub = bip32_root(seed.decode('hex'), 0)
-        assert sequence[0:2] == "m/"
-        path = 'm'
-        sequence = sequence[2:]
-        for n in sequence.split('/'):
-            child_path = path + '/' + n
-            if n[-1] != "'":
-                xpub2 = bip32_public_derivation(xpub, path, child_path)
-            xprv, xpub = bip32_private_derivation(xprv, path, child_path)
-            if n[-1] != "'":
-                assert xpub == xpub2
-            path = child_path
+        sig1 = sign_message_with_wif_privkey(
+            'XFXhvJNxgFoHR8W57qCrRzokud8JVot7XHoF92w1cZe5Bh55unMK', msg1)
+        addr1 = 'XfP5HuY7jKkMAhwej7yLKZ1K2VGuPwGCye'
+        sig2 = sign_message_with_wif_privkey(
+            '7qhMUpAsBF7hLzFd44Xq49AJF5nRjmkStUvwQUJx1szezCkAb7s', msg2)
+        addr2 = 'Xr58KiC2RvNN83LZExCoszE6mpAudBqQwK'
 
-        return xpub, xprv
+        sig1_b64 = base64.b64encode(sig1)
+        sig2_b64 = base64.b64encode(sig2)
+
+        self.assertEqual(sig1_b64, b'Hziq9TTbuJcXyg3BC7kkUqxTOqYjHJLix6lTi5cum4plBFq7BwJvCqAba9yD6K/2OKpu9ZuLAktzqaAPzvsdEa0=')
+        self.assertEqual(sig2_b64, b'G3G4u7v0VYtbNRxGJ+elKL0udQGIGby47677kKwyaw+xE2Z0xeZnQBSBDpR3Ekr+ycHlCPE3FHSZRN+vL8Nl/x4=')
+
+        self.assertTrue(verify_message(addr1, sig1, msg1))
+        self.assertTrue(verify_message(addr2, sig2, msg2))
+
+        self.assertFalse(verify_message(addr1, b'wrong', msg1))
+        self.assertFalse(verify_message(addr1, sig2, msg1))
 
     def test_aes_homomorphic(self):
         """Make sure AES is homomorphic."""
@@ -120,19 +114,10 @@ class Test_bitcoin(unittest.TestCase):
     def test_hash(self):
         """Make sure the Hash function does sha256 twice"""
         payload = u"test"
-        expected = '\x95MZI\xfdp\xd9\xb8\xbc\xdb5\xd2R&x)\x95\x7f~\xf7\xfalt\xf8\x84\x19\xbd\xc5\xe8"\t\xf4'
+        expected = b'\x95MZI\xfdp\xd9\xb8\xbc\xdb5\xd2R&x)\x95\x7f~\xf7\xfalt\xf8\x84\x19\xbd\xc5\xe8"\t\xf4'
 
         result = Hash(payload)
         self.assertEqual(expected, result)
-
-    def test_xpub_from_xprv(self):
-        """We can derive the xpub key from a xprv."""
-        # Taken from test vectors in https://en.bitcoin.it/wiki/BIP_0032_TestVectors
-        xpub = "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
-        xprv = "xprvA41z7zogVVwxVSgdKUHDy1SKmdb533PjDz7J6N6mV6uS3ze1ai8FHa8kmHScGpWmj4WggLyQjgPie1rFSruoUihUZREPSL39UNdE3BBDu76"
-
-        result = xpub_from_xprv(xprv)
-        self.assertEqual(result, xpub)
 
     def test_var_int(self):
         for i in range(0xfd):
@@ -163,33 +148,110 @@ class Test_bitcoin(unittest.TestCase):
         self.assertEqual(op_push(0x10000), '4e00000100')
         self.assertEqual(op_push(0x12345678), '4e78563412')
 
+    def test_address_to_script(self):
+        # base58 P2PKH
+        self.assertEqual(address_to_script('XeNTG4aihv1ru8xmaoiQnToSi8hLiTTNbh'), '76a91428662c67561b95c79d2257d2a93d9d151c977e9188ac')
+        self.assertEqual(address_to_script('XkvgWFLxVmDaVkUF8bFE2QXP4f5C2KKWEg'), '76a914704f4b81cadb7bf7e68c08cd3657220f680f863c88ac')
 
-class Test_keyImport(unittest.TestCase):
-    """ The keys used in this class are TEST keys from
-        https://en.bitcoin.it/wiki/BIP_0032_TestVectors"""
-
-    private_key = "XK6TSbQyfRvQuHBuTjEhHcbaBW8dM8KaQzLv47Vpc5xXPNqesKTt"
-    public_key_hex = "0339a36013301597daef41fbe593a02cc513d0b55527ec2df1050e2e8ff49c85c2"
-    main_address = "XfTA9qgYmaEHfWhUakwcoTtyquez8SowY1"
-
-    def test_public_key_from_private_key(self):
-        result = public_key_from_private_key(self.private_key)
-        self.assertEqual(self.public_key_hex, result)
-
-    def test_address_from_private_key(self):
-        result = address_from_private_key(self.private_key)
-        self.assertEqual(self.main_address, result)
-
-    def test_is_valid_address(self):
-        self.assertTrue(is_valid(self.main_address))
-        self.assertFalse(is_valid("not an address"))
-
-    def test_is_private_key(self):
-        self.assertTrue(is_private_key(self.private_key))
-        self.assertFalse(is_private_key(self.public_key_hex))
+        # base58 P2SH
+        self.assertEqual(address_to_script('7WHUEVtMDLeereT5r4ZoNKjr3MXr4gqfon'), 'a9142a84cf00d47f699ee7bbc1dea5ec1bdecb4ac15487')
+        self.assertEqual(address_to_script('7phNpVKta6kkbP24HfvvQVeHEmgBQYiJCB'), 'a914f47c8954e421031ad04ecd8e7752c9479206b9d387')
 
 
-class Test_xkey_import(unittest.TestCase):
+class Test_bitcoin_testnet(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        NetworkConstants.set_testnet()
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        NetworkConstants.set_mainnet()
+
+    def test_address_to_script(self):
+        # base58 P2PKH
+        self.assertEqual(address_to_script('yah2ARXMnY5A9VaR5Cd43fjiQnsu2vZ5a8'), '76a9149da64e300c5e4eb4aaffc9c2fd465348d5618ad488ac')
+        self.assertEqual(address_to_script('yPeP8a774GuYaZyqJPxC7K24hcbcsqz1Au'), '76a914247d2d5b6334bdfa2038e85b20fc15264f8e5d2788ac')
+
+        # base58 P2SH
+        self.assertEqual(address_to_script('8pWgedHiF9DQswwXdR59ATSQe9pxyBZqbv'), 'a9146eae23d8c4a941316017946fc761a7a6c85561fb87')
+        self.assertEqual(address_to_script('91EoMZCG6Yfs9NGZLYQcrJcUa55TLnvVxz'), 'a914e4567743d378957cd2ee7072da74b1203c1a7a0b87')
+
+
+class Test_xprv_xpub(unittest.TestCase):
+
+    xprv_xpub = (
+        # Taken from test vectors in https://en.bitcoin.it/wiki/BIP_0032_TestVectors
+        {'xprv': 'xprvA41z7zogVVwxVSgdKUHDy1SKmdb533PjDz7J6N6mV6uS3ze1ai8FHa8kmHScGpWmj4WggLyQjgPie1rFSruoUihUZREPSL39UNdE3BBDu76',
+         'xpub': 'xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy',
+         'xtype': 'standard'},
+    )
+
+    def _do_test_bip32(self, seed, sequence):
+        xprv, xpub = bip32_root(bfh(seed), 'standard')
+        self.assertEqual("m/", sequence[0:2])
+        path = 'm'
+        sequence = sequence[2:]
+        for n in sequence.split('/'):
+            child_path = path + '/' + n
+            if n[-1] != "'":
+                xpub2 = bip32_public_derivation(xpub, path, child_path)
+            xprv, xpub = bip32_private_derivation(xprv, path, child_path)
+            if n[-1] != "'":
+                self.assertEqual(xpub, xpub2)
+            path = child_path
+
+        return xpub, xprv
+
+    def test_bip32(self):
+        # see https://en.bitcoin.it/wiki/BIP_0032_TestVectors
+        xpub, xprv = self._do_test_bip32("000102030405060708090a0b0c0d0e0f", "m/0'/1/2'/2/1000000000")
+        self.assertEqual("xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy", xpub)
+        self.assertEqual("xprvA41z7zogVVwxVSgdKUHDy1SKmdb533PjDz7J6N6mV6uS3ze1ai8FHa8kmHScGpWmj4WggLyQjgPie1rFSruoUihUZREPSL39UNdE3BBDu76", xprv)
+
+        xpub, xprv = self._do_test_bip32("fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542","m/0/2147483647'/1/2147483646'/2")
+        self.assertEqual("xpub6FnCn6nSzZAw5Tw7cgR9bi15UV96gLZhjDstkXXxvCLsUXBGXPdSnLFbdpq8p9HmGsApME5hQTZ3emM2rnY5agb9rXpVGyy3bdW6EEgAtqt", xpub)
+        self.assertEqual("xprvA2nrNbFZABcdryreWet9Ea4LvTJcGsqrMzxHx98MMrotbir7yrKCEXw7nadnHM8Dq38EGfSh6dqA9QWTyefMLEcBYJUuekgW4BYPJcr9E7j", xprv)
+
+    def test_xpub_from_xprv(self):
+        """We can derive the xpub key from a xprv."""
+        for xprv_details in self.xprv_xpub:
+            result = xpub_from_xprv(xprv_details['xprv'])
+            self.assertEqual(result, xprv_details['xpub'])
+
+    def test_is_xpub(self):
+        for xprv_details in self.xprv_xpub:
+            xpub = xprv_details['xpub']
+            self.assertTrue(is_xpub(xpub))
+        self.assertFalse(is_xpub('xpub1nval1d'))
+        self.assertFalse(is_xpub('xpub661MyMwAqRbcFWohJWt7PHsFEJfZAvw9ZxwQoDa4SoMgsDDM1T7WK3u9E4edkC4ugRnZ8E4xDZRpk8Rnts3Nbt97dPwT52WRONGBADWRONG'))
+
+    def test_xpub_type(self):
+        for xprv_details in self.xprv_xpub:
+            xpub = xprv_details['xpub']
+            self.assertEqual(xprv_details['xtype'], xpub_type(xpub))
+
+    def test_is_xprv(self):
+        for xprv_details in self.xprv_xpub:
+            xprv = xprv_details['xprv']
+            self.assertTrue(is_xprv(xprv))
+        self.assertFalse(is_xprv('xprv1nval1d'))
+        self.assertFalse(is_xprv('xprv661MyMwAqRbcFWohJWt7PHsFEJfZAvw9ZxwQoDa4SoMgsDDM1T7WK3u9E4edkC4ugRnZ8E4xDZRpk8Rnts3Nbt97dPwT52WRONGBADWRONG'))
+
+    def test_is_bip32_derivation(self):
+        self.assertTrue(is_bip32_derivation("m/0'/1"))
+        self.assertTrue(is_bip32_derivation("m/0'/0'"))
+        self.assertTrue(is_bip32_derivation("m/44'/0'/0'/0/0"))
+        self.assertTrue(is_bip32_derivation("m/49'/0'/0'/0/0"))
+        self.assertFalse(is_bip32_derivation("mmmmmm"))
+        self.assertFalse(is_bip32_derivation("n/"))
+        self.assertFalse(is_bip32_derivation(""))
+        self.assertFalse(is_bip32_derivation("m/q8462"))
+
+
+class Test_drk_import(unittest.TestCase):
     """ The keys used in this class are TEST keys from
         https://en.bitcoin.it/wiki/BIP_0032_TestVectors"""
 
@@ -202,70 +264,159 @@ class Test_xkey_import(unittest.TestCase):
     pub_key = '035a784662a4a20a65bf6aab9ae98a6c068a81c52e4b032c0fb5400c706cfccc56'
     child_num = '80000000'
     chain_code = '47fdacbd0f1097043b78c63c20c34ef4ed9a111d980047ad16282c7ae6236141'
+    xtype = 'standard'
+
+    def check_deserialized(self, deserialized, prv):
+        xtype, depth, fpr, child_number, c, K = deserialized
+
+        self.assertEqual(self.xtype, xtype)
+        self.assertEqual(1, depth)
+        self.assertEqual(self.master_fpr, bh2u(fpr))
+        self.assertEqual(self.child_num, bh2u(child_number))
+        self.assertEqual(self.chain_code, bh2u(c))
+        if prv:
+            self.assertEqual(self.sec_key, bh2u(K))
+        else:
+            self.assertEqual(self.pub_key, bh2u(K))
 
     def test_deserialize_xpub(self):
-        xtype, depth, fpr, child_number, c, K = deserialize_xpub(self.xpub)
-
-        self.assertEqual(0, xtype)
-        self.assertEqual(1, depth)
-        self.assertEqual(self.master_fpr, fpr.encode('hex'))
-        self.assertEqual(self.child_num, child_number.encode('hex'))
-        self.assertEqual(self.chain_code, c.encode('hex'))
-        self.assertEqual(self.pub_key, K.encode('hex'))
+        self.check_deserialized(deserialize_xpub(self.xpub), False)
 
     def test_deserialize_xprv(self):
-        xtype, depth, fpr, child_number, c, k = deserialize_xprv(self.xprv)
-
-        self.assertEqual(0, xtype)
-        self.assertEqual(1, depth)
-        self.assertEqual(self.master_fpr, fpr.encode('hex'))
-        self.assertEqual(self.child_num, child_number.encode('hex'))
-        self.assertEqual(self.chain_code, c.encode('hex'))
-        self.assertEqual(self.sec_key, k.encode('hex'))
+        self.check_deserialized(deserialize_xprv(self.xprv), True)
 
     def test_deserialize_drkp(self):
-        xtype, depth, fpr, child_number, c, K = deserialize_drkp(self.drkp)
-
-        self.assertEqual(0, xtype)
-        self.assertEqual(1, depth)
-        self.assertEqual(self.master_fpr, fpr.encode('hex'))
-        self.assertEqual(self.child_num, child_number.encode('hex'))
-        self.assertEqual(self.chain_code, c.encode('hex'))
-        self.assertEqual(self.pub_key, K.encode('hex'))
+        self.check_deserialized(deserialize_drkp(self.drkp), False)
 
     def test_deserialize_drkv(self):
-        xtype, depth, fpr, child_number, c, k = deserialize_drkv(self.drkv)
-
-        self.assertEqual(0, xtype)
-        self.assertEqual(1, depth)
-        self.assertEqual(self.master_fpr, fpr.encode('hex'))
-        self.assertEqual(self.child_num, child_number.encode('hex'))
-        self.assertEqual(self.chain_code, c.encode('hex'))
-        self.assertEqual(self.sec_key, k.encode('hex'))
+        self.check_deserialized(deserialize_drkv(self.drkv), True)
 
     def test_keystore_from_xpub(self):
-        keystore = from_keys(self.xpub)
+        keystore = from_master_key(self.xpub)
         self.assertEqual(keystore.xpub, self.xpub)
         self.assertEqual(keystore.xprv, None)
 
     def test_keystore_from_xprv(self):
-        keystore = from_keys(self.xprv)
+        keystore = from_master_key(self.xprv)
         self.assertEqual(keystore.xpub, self.xpub)
         self.assertEqual(keystore.xprv, self.xprv)
 
     def test_keystore_from_drkp(self):
-        keystore = from_keys(self.drkp)
+        keystore = from_master_key(self.drkp)
         self.assertEqual(keystore.xpub, self.xpub)
         self.assertEqual(keystore.xprv, None)
 
     def test_keystore_from_drkv(self):
-        keystore = from_keys(self.drkv)
+        keystore = from_master_key(self.drkv)
         self.assertEqual(keystore.xpub, self.xpub)
         self.assertEqual(keystore.xprv, self.xprv)
 
 
+class Test_keyImport(unittest.TestCase):
+
+    priv_pub_addr = (
+           {'priv': 'XERBBcaPf5D5oFXTEP7TdPWLem5ktc2Zr3AhhQhHVQaF49fDP6tN',
+            'pub': '02c6467b7e621144105ed3e4835b0b4ab7e35266a2ae1c4f8baa19e9ca93452997',
+            'address': 'XhGqfhnLxoqPai6uQ93GLGg6kJJErGb7b1',
+            'minikey' : False,
+            'txin_type': 'p2pkh',
+            'compressed': True,
+            'addr_encoding': 'base58',
+            'scripthash': 'c9aecd1fef8d661a42c560bf75c8163e337099800b8face5ca3d1393a30508a7'},
+           {'priv': '7qhMUpAsBF7hLzFd44Xq49AJF5nRjmkStUvwQUJx1szezCkAb7s',
+            'pub': '04e5fe91a20fac945845a5518450d23405ff3e3e1ce39827b47ee6d5db020a9075422d56a59195ada0035e4a52a238849f68e7a325ba5b2247013e0481c5c7cb3f',
+            'address': 'Xr58KiC2RvNN83LZExCoszE6mpAudBqQwK',
+            'minikey': False,
+            'txin_type': 'p2pkh',
+            'compressed': False,
+            'addr_encoding': 'base58',
+            'scripthash': 'f5914651408417e1166f725a5829ff9576d0dbf05237055bf13abd2af7f79473'},
+           # from http://bitscan.com/articles/security/spotlight-on-mini-private-keys
+           {'priv': 'SzavMBLoXU6kDrqtUVmffv',
+            'pub': '02588d202afcc1ee4ab5254c7847ec25b9a135bbda0f2bc69ee1a714749fd77dc9',
+            'address': 'XixkkUaFKBmj5mieoLRNXTUiXhCmM87ZSj',
+            'minikey': True,
+            'txin_type': 'p2pkh',
+            'compressed': True,  # this is actually ambiguous... issue #2748
+            'addr_encoding': 'base58',
+            'scripthash': '60ad5a8b922f758cd7884403e90ee7e6f093f8d21a0ff24c9a865e695ccefdf1'},
+    )
+
+    def test_public_key_from_private_key(self):
+        for priv_details in self.priv_pub_addr:
+            txin_type, privkey, compressed = deserialize_privkey(priv_details['priv'])
+            result = public_key_from_private_key(privkey, compressed)
+            self.assertEqual(priv_details['pub'], result)
+            self.assertEqual(priv_details['txin_type'], txin_type)
+            self.assertEqual(priv_details['compressed'], compressed)
+
+    def test_address_from_private_key(self):
+        for priv_details in self.priv_pub_addr:
+            addr2 = address_from_private_key(priv_details['priv'])
+            self.assertEqual(priv_details['address'], addr2)
+
+    def test_is_valid_address(self):
+        for priv_details in self.priv_pub_addr:
+            addr = priv_details['address']
+            self.assertFalse(is_address(priv_details['priv']))
+            self.assertFalse(is_address(priv_details['pub']))
+            self.assertTrue(is_address(addr))
+
+            is_enc_b58 = priv_details['addr_encoding'] == 'base58'
+            self.assertEqual(is_enc_b58, is_b58_address(addr))
+
+        self.assertFalse(is_address("not an address"))
+
+    def test_is_private_key(self):
+        for priv_details in self.priv_pub_addr:
+            self.assertTrue(is_private_key(priv_details['priv']))
+            self.assertFalse(is_private_key(priv_details['pub']))
+            self.assertFalse(is_private_key(priv_details['address']))
+        self.assertFalse(is_private_key("not a privkey"))
+
+    def test_serialize_privkey(self):
+        for priv_details in self.priv_pub_addr:
+            txin_type, privkey, compressed = deserialize_privkey(priv_details['priv'])
+            priv2 = serialize_privkey(privkey, compressed, txin_type)
+            if not priv_details['minikey']:
+                self.assertEqual(priv_details['priv'], priv2)
+
+    def test_address_to_scripthash(self):
+        for priv_details in self.priv_pub_addr:
+            sh = address_to_scripthash(priv_details['address'])
+            self.assertEqual(priv_details['scripthash'], sh)
+
+    def test_is_minikey(self):
+        for priv_details in self.priv_pub_addr:
+            minikey = priv_details['minikey']
+            priv = priv_details['priv']
+            self.assertEqual(minikey, is_minikey(priv))
+
+    def test_is_compressed(self):
+        for priv_details in self.priv_pub_addr:
+            self.assertEqual(priv_details['compressed'],
+                             is_compressed(priv_details['priv']))
+
+
 class Test_seeds(unittest.TestCase):
     """ Test old and new seeds. """
+
+    mnemonics = {
+        ('cell dumb heartbeat north boom tease ship baby bright kingdom rare squeeze', 'old'),
+        ('cell dumb heartbeat north boom tease ' * 4, 'old'),
+        ('cell dumb heartbeat north boom tease ship baby bright kingdom rare badword', ''),
+        ('cElL DuMb hEaRtBeAt nOrTh bOoM TeAsE ShIp bAbY BrIgHt kInGdOm rArE SqUeEzE', 'old'),
+        ('   cElL  DuMb hEaRtBeAt nOrTh bOoM  TeAsE ShIp    bAbY BrIgHt kInGdOm rArE SqUeEzE   ', 'old'),
+        # below seed is actually 'invalid old' as it maps to 33 hex chars
+        ('hurry idiot prefer sunset mention mist jaw inhale impossible kingdom rare squeeze', 'old'),
+        ('cram swing cover prefer miss modify ritual silly deliver chunk behind inform able', 'standard'),
+        ('cram swing cover prefer miss modify ritual silly deliver chunk behind inform', ''),
+        ('ostrich security deer aunt climb inner alpha arm mutual marble solid task', 'standard'),
+        ('OSTRICH SECURITY DEER AUNT CLIMB INNER ALPHA ARM MUTUAL MARBLE SOLID TASK', 'standard'),
+        ('   oStRiCh sEcUrItY DeEr aUnT ClImB       InNeR AlPhA ArM MuTuAl mArBlE   SoLiD TaSk  ', 'standard'),
+        ('x8', 'standard'),
+        ('science dawn member doll dutch real ca brick knife deny drive list', ''),
+    }
     
     def test_new_seed(self):
         seed = "cram swing cover prefer miss modify ritual silly deliver chunk behind inform able"
@@ -282,3 +433,7 @@ class Test_seeds(unittest.TestCase):
 
         self.assertTrue(is_old_seed("0123456789ABCDEF" * 2))
         self.assertTrue(is_old_seed("0123456789ABCDEF" * 4))
+
+    def test_seed_type(self):
+        for seed_words, _type in self.mnemonics:
+            self.assertEqual(_type, seed_type(seed_words), msg=seed_words)

@@ -1,3 +1,4 @@
+
 # Electrum - Lightweight Bitcoin Client
 # Copyright (c) 2011-2016 Thomas Voegtlin
 #
@@ -20,59 +21,36 @@
 # ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-
 import time
-import Queue
+import queue
 import os
+import stat
 import errno
-import sys
 import random
+import re
 import select
-import traceback
-from collections import defaultdict, deque
+from collections import defaultdict
 import threading
-
-import socks
 import socket
 import json
 
-import util
-import bitcoin
-from bitcoin import *
-from interface import Connection, Interface
-import blockchain
-from version import ELECTRUM_VERSION, PROTOCOL_VERSION
-import masternode_manager
-
-DEFAULT_PORTS = {'t':'50001', 's':'50002'}
-
-#There is a schedule to move the default list to e-x (electrumx) by Jan 2018
-#Schedule is as follows:
-#move ~3/4 to e-x by 1.4.17
-#then gradually switch remaining nodes to e-x nodes
-
-DEFAULT_SERVERS = {
-    'electrum.dash.siampm.com':DEFAULT_PORTS,  # thelazier
-    # cert verify failed 'electrum-drk.club':DEFAULT_PORTS,         # duffman
-}
-
-def set_testnet():
-    global DEFAULT_PORTS, DEFAULT_SERVERS
-    DEFAULT_PORTS = {'t':'51001', 's':'51002'}
-    DEFAULT_SERVERS = {
-        'localhost': DEFAULT_PORTS,
-    }
+import socks
+from . import util
+from . import bitcoin
+from .bitcoin import *
+from .interface import Connection, Interface
+from . import blockchain
+from .version import ELECTRUM_VERSION, PROTOCOL_VERSION
+from . import masternode_manager
 
 
 NODES_RETRY_INTERVAL = 60
 SERVER_RETRY_INTERVAL = 10
-MIN_SERVER_VERSION = 1.0
-MIN_ELECTRUMX_VERSION = '1.0.11'
 
 
 def parse_servers(result):
     """ parse servers list into dict format"""
-    from version import PROTOCOL_VERSION
+    from .version import PROTOCOL_VERSION
     servers = {}
     for item in result:
         host = item[1]
@@ -83,23 +61,27 @@ def parse_servers(result):
             for v in item[2]:
                 if re.match("[st]\d*", v):
                     protocol, port = v[0], v[1:]
-                    if port == '': port = DEFAULT_PORTS[protocol]
+                    if port == '': port = bitcoin.NetworkConstants.DEFAULT_PORTS[protocol]
                     out[protocol] = port
                 elif re.match("v(.?)+", v):
                     version = v[1:]
                 elif re.match("p\d*", v):
                     pruning_level = v[1:]
                 if pruning_level == '': pruning_level = '0'
-        try:
-            is_recent = cmp(util.normalize_version(version), util.normalize_version(PROTOCOL_VERSION)) >= 0
-        except Exception:
-            is_recent = False
-
-        if out and is_recent:
+        if out:
             out['pruning'] = pruning_level
+            out['version'] = version
             servers[host] = out
-
     return servers
+
+def filter_version(servers):
+    def is_recent(version):
+        try:
+            return util.normalize_version(version) >= util.normalize_version(PROTOCOL_VERSION)
+        except Exception as e:
+            return False
+    return {k: v for k, v in servers.items() if is_recent(v.get('version'))}
+
 
 def filter_protocol(hostmap, protocol = 's'):
     '''Filters the hostmap for those implementing protocol.
@@ -113,21 +95,24 @@ def filter_protocol(hostmap, protocol = 's'):
 
 def pick_random_server(hostmap = None, protocol = 's', exclude_set = set()):
     if hostmap is None:
-        hostmap = DEFAULT_SERVERS
+        hostmap = bitcoin.NetworkConstants.DEFAULT_SERVERS
     eligible = list(set(filter_protocol(hostmap, protocol)) - exclude_set)
     return random.choice(eligible) if eligible else None
 
-from simple_config import SimpleConfig
+from .simple_config import SimpleConfig
 
 proxy_modes = ['socks4', 'socks5', 'http']
 
+
 def serialize_proxy(p):
-    if type(p) != dict:
+    if not isinstance(p, dict):
         return None
-    return ':'.join([p.get('mode'),p.get('host'), p.get('port'), p.get('user'), p.get('password')])
+    return ':'.join([p.get('mode'), p.get('host'), p.get('port'),
+                     p.get('user', ''), p.get('password', '')])
+
 
 def deserialize_proxy(s):
-    if type(s) not in [str, unicode]:
+    if not isinstance(s, str):
         return None
     if s.lower() == 'none':
         return None
@@ -152,14 +137,17 @@ def deserialize_proxy(s):
         proxy["password"] = args[n]
     return proxy
 
+
 def deserialize_server(server_str):
     host, port, protocol = str(server_str).split(':')
     assert protocol in 'st'
     int(port)    # Throw if cannot be converted to int
     return host, port, protocol
 
+
 def serialize_server(host, port, protocol):
     return str(':'.join([host, port, protocol]))
+
 
 class Network(util.DaemonThread):
     """The Network class manages a set of connections to remote electrum
@@ -178,7 +166,7 @@ class Network(util.DaemonThread):
         if config is None:
             config = {}  # Do not use mutables as default values!
         util.DaemonThread.__init__(self)
-        self.config = SimpleConfig(config) if type(config) == type({}) else config
+        self.config = SimpleConfig(config) if isinstance(config, dict) else config
         self.num_server = 10 if not self.config.get('oneserver') else 0
         self.blockchains = blockchain.read_blockchains(self.config)
         self.print_error("blockchains", self.blockchains.keys())
@@ -216,11 +204,13 @@ class Network(util.DaemonThread):
         dir_path = os.path.join( self.config.path, 'certs')
         if not os.path.exists(dir_path):
             os.mkdir(dir_path)
+            os.chmod(dir_path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
 
         # Servers that have invalid versions.
         self.invalid_version_servers = set()
         # subscriptions and requests
         self.subscribed_addresses = set()
+        self.h2addr = {}
         # Requests from client we've not seen a response to
         self.unanswered_requests = {}
         # retry times
@@ -233,7 +223,7 @@ class Network(util.DaemonThread):
         self.interfaces = {}
         self.auto_connect = self.config.get('auto_connect', True)
         self.connecting = set()
-        self.socket_queue = Queue.Queue()
+        self.socket_queue = queue.Queue()
         self.start_network(deserialize_server(self.default_server)[2],
                            deserialize_proxy(self.config.get('proxy')))
 
@@ -326,13 +316,20 @@ class Network(util.DaemonThread):
         self.queue_request('server.banner', [])
         self.queue_request('server.donation_address', [])
         self.queue_request('server.peers.subscribe', [])
-        for i in bitcoin.FEE_TARGETS:
-            self.queue_request('blockchain.estimatefee', [i])
+        self.request_fee_estimates()
         self.queue_request('blockchain.relayfee', [])
-        for addr in self.subscribed_addresses:
-            self.queue_request('blockchain.address.subscribe', [addr])
+        if self.interface.ping_required():
+            params = [ELECTRUM_VERSION, PROTOCOL_VERSION]
+            self.queue_request('server.version', params, self.interface)
+        for h in self.subscribed_addresses:
+            self.queue_request('blockchain.scripthash.subscribe', [h])
         # Disabled until API is stable.
         # self.queue_request('masternode.proposals.subscribe', [])
+
+    def request_fee_estimates(self):
+        self.config.requested_fee_estimates()
+        for i in bitcoin.FEE_TARGETS:
+            self.queue_request('blockchain.estimatefee', [i])
 
     def get_status_value(self, key):
         if key == 'status':
@@ -365,14 +362,13 @@ class Network(util.DaemonThread):
 
     def get_interfaces(self):
         '''The interfaces that are in connected state'''
-        return self.interfaces.keys()
+        return list(self.interfaces.keys())
 
     def get_servers(self):
+        out = bitcoin.NetworkConstants.DEFAULT_SERVERS
         if self.irc_servers:
-            out = self.irc_servers.copy()
-            out.update(DEFAULT_SERVERS)
+            out.update(filter_version(self.irc_servers.copy()))
         else:
-            out = DEFAULT_SERVERS
             for s in self.recent_servers:
                 try:
                     host, port, protocol = deserialize_server(s)
@@ -404,6 +400,10 @@ class Network(util.DaemonThread):
 
     def set_proxy(self, proxy):
         self.proxy = proxy
+        # Store these somewhere so we can un-monkey-patch
+        if not hasattr(socket, "_socketobject"):
+            socket._socketobject = socket.socket
+            socket._getaddrinfo = socket.getaddrinfo
         if proxy:
             self.print_error('setting proxy', proxy)
             proxy_mode = proxy_modes.index(proxy["mode"]) + 1
@@ -418,7 +418,7 @@ class Network(util.DaemonThread):
             socket.getaddrinfo = lambda *args: [(socket.AF_INET, socket.SOCK_STREAM, 6, '', (args[0], args[1]))]
         else:
             socket.socket = socket._socketobject
-            socket.getaddrinfo = socket._socket.getaddrinfo
+            socket.getaddrinfo = socket._getaddrinfo
 
     def start_network(self, protocol, proxy):
         assert not self.interface and not self.interfaces
@@ -431,7 +431,7 @@ class Network(util.DaemonThread):
 
     def stop_network(self):
         self.print_error("stopping network")
-        for interface in self.interfaces.values():
+        for interface in list(self.interfaces.values()):
             self.close_interface(interface)
         if self.interface:
             self.close_interface(self.interface)
@@ -439,7 +439,7 @@ class Network(util.DaemonThread):
         assert not self.interfaces
         self.connecting = set()
         # Get a new queue - no old pending connections thanks!
-        self.socket_queue = Queue.Queue()
+        self.socket_queue = queue.Queue()
 
     def set_parameters(self, host, port, protocol, proxy, auto_connect):
         proxy_str = serialize_proxy(proxy)
@@ -483,7 +483,7 @@ class Network(util.DaemonThread):
         if self.server_is_lagging() and self.auto_connect:
             # switch to one that has the correct header (not height)
             header = self.blockchain().read_header(self.get_local_height())
-            filtered = map(lambda x:x[0], filter(lambda x: x[1].tip_header==header, self.interfaces.items()))
+            filtered = list(map(lambda x:x[0], filter(lambda x: x[1].tip_header==header, self.interfaces.items())))
             if filtered:
                 choice = random.choice(filtered)
                 self.switch_to_interface(choice)
@@ -558,7 +558,7 @@ class Network(util.DaemonThread):
             if error is None and result > 0:
                 i = params[0]
                 fee = int(result*COIN)
-                self.config.fee_estimates[i] = fee
+                self.config.update_fee_estimates(i, fee)
                 self.print_error("fee_estimates[%d]" % i, fee)
                 self.notify('fee')
         elif method == 'blockchain.relayfee':
@@ -575,7 +575,7 @@ class Network(util.DaemonThread):
 
     def get_index(self, method, params):
         """ hashable index for subscriptions and cache"""
-        return str(method) + (':' + str(params[0]) if params  else '')
+        return str(method) + (':' + str(params[0]) if params else '')
 
     def process_responses(self, interface):
         responses = interface.get_responses()
@@ -600,7 +600,7 @@ class Network(util.DaemonThread):
                 response['params'] = params
                 # Only once we've received a response to an addr subscription
                 # add it to the list; avoids double-sends on reconnection
-                if method == 'blockchain.address.subscribe':
+                if method == 'blockchain.scripthash.subscribe':
                     self.subscribed_addresses.add(params[0])
             else:
                 if not response:  # Closed remotely / misbehaving
@@ -613,7 +613,7 @@ class Network(util.DaemonThread):
                 if method == 'blockchain.headers.subscribe':
                     response['result'] = params[0]
                     response['params'] = []
-                elif method == 'blockchain.address.subscribe':
+                elif method == 'blockchain.scripthash.subscribe':
                     response['params'] = [params[0]]  # addr
                     response['result'] = params[1]
                 callbacks = self.subscriptions.get(k, [])
@@ -624,8 +624,33 @@ class Network(util.DaemonThread):
             # Response is now in canonical form
             self.process_response(interface, response, callbacks)
 
+    def addr_to_scripthash(self, addr):
+        h = bitcoin.address_to_scripthash(addr)
+        if h not in self.h2addr:
+            self.h2addr[h] = addr
+        return h
+
+    def overload_cb(self, callback):
+        def cb2(x):
+            x2 = x.copy()
+            p = x2.pop('params')
+            addr = self.h2addr[p[0]]
+            x2['params'] = [addr]
+            callback(x2)
+        return cb2
+
+    def subscribe_to_addresses(self, addresses, callback):
+        hashes = [self.addr_to_scripthash(addr) for addr in addresses]
+        msgs = [('blockchain.scripthash.subscribe', [x]) for x in hashes]
+        self.send(msgs, self.overload_cb(callback))
+
+    def request_address_history(self, address, callback):
+        h = self.addr_to_scripthash(address)
+        self.send([('blockchain.scripthash.get_history', [h])], self.overload_cb(callback))
+
     def send(self, messages, callback):
         '''Messages is a list of (method, params) tuples'''
+        messages = list(messages)
         with self.lock:
             self.pending_sends.append((messages, callback))
 
@@ -716,7 +741,8 @@ class Network(util.DaemonThread):
                 self.connection_down(server)
 
         # Send pings and shut down stale interfaces
-        for interface in self.interfaces.values():
+        # must use copy of values
+        for interface in list(self.interfaces.values()):
             if interface.has_timed_out():
                 self.connection_down(interface.server)
             elif interface.ping_required():
@@ -744,6 +770,9 @@ class Network(util.DaemonThread):
                         self.server_retry_time = now
                 else:
                     self.switch_to_interface(self.default_server)
+        else:
+            if self.config.is_fee_estimates_update_required():
+                self.request_fee_estimates()
 
     def request_chunk(self, interface, idx):
         interface.print_error("requesting chunk %d" % idx)
@@ -886,16 +915,6 @@ class Network(util.DaemonThread):
                 self.switch_lagging_interface()
                 self.notify('updated')
 
-        elif interface.mode == 'default':
-            if not ok:
-                interface.print_error("default: cannot connect %d"% height)
-                interface.mode = 'backward'
-                interface.bad = height
-                interface.bad_header = header
-                next_height = height - 1
-            else:
-                interface.print_error("we are ok", height, interface.request)
-                next_height = None
         else:
             raise BaseException(interface.mode)
         # If not finished, get the next header
@@ -912,7 +931,7 @@ class Network(util.DaemonThread):
         self.notify('interfaces')
 
     def maintain_requests(self):
-        for interface in self.interfaces.values():
+        for interface in list(self.interfaces.values()):
             if interface.request and time.time() - interface.request_time > 20:
                 interface.print_error("blockchain request timed out")
                 self.connection_down(interface.server)
@@ -928,7 +947,9 @@ class Network(util.DaemonThread):
         win = [i for i in self.interfaces.values() if i.num_requests()]
         try:
             rout, wout, xout = select.select(rin, win, [], 0.1)
-        except socket.error as (code, msg):
+        except socket.error as e:
+            # TODO: py3, get code from e
+            code = None
             if code == errno.EINTR:
                 return
             raise
@@ -940,16 +961,16 @@ class Network(util.DaemonThread):
 
     def init_headers_file(self):
         b = self.blockchains[0]
-        if b.get_hash(0) == bitcoin.GENESIS:
+        if b.get_hash(0) == bitcoin.NetworkConstants.GENESIS:
             self.downloading_headers = False
             return
         filename = b.path()
         def download_thread():
             try:
-                import urllib, socket
+                import urllib.request, socket
                 socket.setdefaulttimeout(30)
-                self.print_error("downloading ", bitcoin.HEADERS_URL)
-                urllib.urlretrieve(bitcoin.HEADERS_URL, filename + '.tmp')
+                self.print_error("downloading ", bitcoin.NetworkConstants.HEADERS_URL)
+                urllib.request.urlretrieve(bitcoin.NetworkConstants.HEADERS_URL, filename + '.tmp')
                 os.rename(filename + '.tmp', filename)
                 self.print_error("done.")
             except Exception:
@@ -980,23 +1001,17 @@ class Network(util.DaemonThread):
         """Check the version of an interface."""
         # If the response is not parsable, disconnect.
         try:
-            if version.startswith('ElectrumX '):
-                i.server_version = version
-                electrumx_version = util.normalize_version(version.split()[1])
-                min_version = util.normalize_version(MIN_ELECTRUMX_VERSION)
-                if electrumx_version < min_version:
-                    self.print_error(
-                        'Disconnecting %s with %s (minimum: %s)' %
-                        (i.server, version, MIN_ELECTRUMX_VERSION))
-                    self.invalid_version(i.server)
+            i.server_version = version
+            if not isinstance(version, (list, tuple)) or len(version) < 2:
+                raise Exception('Server version is not server/proto tuple')
 
-            else:
-                i.server_version = float(version)
-                if i.server_version < MIN_SERVER_VERSION:
-                    self.print_error(
-                        'Disconnecting %s with version %s (minimum: %s)' %
-                        (i.server, i.server_version, MIN_SERVER_VERSION))
-                    self.invalid_version(i.server)
+            server_version, protocol_version = version
+            if not server_version.startswith('ElectrumX '):
+                raise Exception('Not ElectrumX server')
+
+            if protocol_version != PROTOCOL_VERSION:
+                raise Exception('Electrum protocol not equals %s' % PROTOCOL_VERSION)
+
         except Exception as e:
             self.print_error(
                 'Disconnecting %s with version %s (parse version error: %s)' %
@@ -1015,6 +1030,7 @@ class Network(util.DaemonThread):
         if b:
             interface.blockchain = b
             self.switch_lagging_interface()
+            self.notify('updated')
             self.notify('interfaces')
             return
         b = blockchain.can_connect(header)
@@ -1047,7 +1063,7 @@ class Network(util.DaemonThread):
     def get_blockchains(self):
         out = {}
         for k, b in self.blockchains.items():
-            r = filter(lambda i: i.blockchain==b, self.interfaces.values())
+            r = list(filter(lambda i: i.blockchain==b, list(self.interfaces.values())))
             if r:
                 out[k] = r
         return out
@@ -1070,16 +1086,15 @@ class Network(util.DaemonThread):
             host, port, protocol = server.split(':')
             self.set_parameters(host, port, protocol, proxy, auto_connect)
 
-
     def get_local_height(self):
         return self.blockchain().height()
 
     def synchronous_get(self, request, timeout=30):
-        queue = Queue.Queue()
-        self.send([request], queue.put)
+        q = queue.Queue()
+        self.send([request], q.put)
         try:
-            r = queue.get(True, timeout)
-        except Queue.Empty:
+            r = q.get(True, timeout)
+        except queue.Empty:
             raise BaseException('Server did not answer')
         if r.get('error'):
             raise BaseException(r.get('error'))

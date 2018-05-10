@@ -1,15 +1,13 @@
 import threading
 
-from PyQt4.Qt import (QDialog, QInputDialog, QLineEdit,
-                      QVBoxLayout, QLabel, SIGNAL)
-import PyQt4.QtCore as QtCore
+from PyQt5.Qt import QInputDialog, QLineEdit, QVBoxLayout, QLabel
 
 from electrum_dash.i18n import _
 from .ledger import LedgerPlugin
 from ..hw_wallet.qt import QtHandlerBase, QtPluginBase
 from electrum_dash_gui.qt.util import *
 
-from btchip.btchipPersoWizard import StartBTChipPersoDialog
+#from btchip.btchipPersoWizard import StartBTChipPersoDialog
 
 class Plugin(LedgerPlugin, QtPluginBase):
     icon_unpaired = ":icons/ledger_unpaired.png"

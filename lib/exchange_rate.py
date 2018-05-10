@@ -4,14 +4,13 @@ import requests
 import sys
 from threading import Thread
 import time
-import traceback
 import csv
+import decimal
 from decimal import Decimal
 
-from bitcoin import COIN
-from i18n import _
-from util import PrintError, ThreadJob
-from util import format_satoshis
+from .bitcoin import COIN
+from .i18n import _
+from .util import PrintError, ThreadJob
 
 
 # See https://en.wikipedia.org/wiki/ISO_4217
@@ -50,7 +49,7 @@ class ExchangeBase(PrintError):
         response = requests.request('GET', url, headers={
             'User-Agent': 'Electrum-DASH'
         })
-        reader = csv.DictReader(response.content.split('\n'))
+        reader = csv.DictReader(response.content.decode().split('\n'))
         return list(reader)
 
     def name(self):
@@ -95,7 +94,7 @@ class ExchangeBase(PrintError):
 
     def get_currencies(self):
         rates = self.get_rates('')
-        return sorted([str(a) for (a, b) in rates.iteritems() if b is not None and len(a)==3])
+        return sorted([str(a) for (a, b) in rates.items() if b is not None and len(a)==3])
 
 
 class Bittrex(ExchangeBase):
@@ -136,7 +135,7 @@ class CoinMarketCap(ExchangeBase):
 
 def dictinvert(d):
     inv = {}
-    for k, vlist in d.iteritems():
+    for k, vlist in d.items():
         for v in vlist:
             keys = inv.setdefault(v, [])
             keys.append(k)
@@ -146,7 +145,8 @@ def get_exchanges_and_currencies():
     import os, json
     path = os.path.join(os.path.dirname(__file__), 'currencies.json')
     try:
-        return json.loads(open(path, 'r').read())
+        with open(path, 'r') as f:
+            return json.loads(f.read())
     except:
         pass
     d = {}
@@ -202,7 +202,11 @@ class FxThread(ThreadJob):
     def ccy_amount_str(self, amount, commas):
         prec = CCY_PRECISIONS.get(self.ccy, 2)
         fmt_str = "{:%s.%df}" % ("," if commas else "", max(0, prec))
-        return fmt_str.format(round(amount, prec))
+        try:
+            rounded_amount = round(amount, prec)
+        except decimal.InvalidOperation:
+            rounded_amount = amount
+        return fmt_str.format(rounded_amount)
 
     def run(self):
         # This runs from the plugins thread which catches exceptions
@@ -224,6 +228,12 @@ class FxThread(ThreadJob):
 
     def set_history_config(self, b):
         self.config.set_key('history_rates', bool(b))
+
+    def get_fiat_address_config(self):
+        return bool(self.config.get('fiat_address'))
+
+    def set_fiat_address_config(self, b):
+        self.config.set_key('fiat_address', bool(b))
 
     def get_currency(self):
         '''Use when dynamic fetching is needed'''

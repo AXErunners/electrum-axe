@@ -23,6 +23,7 @@
     <file>icons/microphone.png</file>
     <file>icons/network.png</file>
     <file>icons/qrcode.png</file>
+    <file>icons/qrcode_white.png</file>
     <file>icons/preferences.png</file>
     <file>icons/seed.png</file>
     <file>icons/status_connected.png</file>
@@ -50,8 +51,20 @@
     <file>icons/navlogo.png</file>
     <file>icons/dash_downArrow.png</file>
     <file>icons/dash_upArrow_small.png</file>
+    <file>icons/dash_upArrow_small_disabled.png</file>
     <file>icons/dash_downArrow_small.png</file>
+    <file>icons/dash_downArrow_small_disabled.png</file>
     <file>icons/dash_leftArrow_small.png</file>
     <file>icons/dash_rightArrow_small.png</file>
+    <file>icons/checkbox/checked.png</file>
+    <file>icons/checkbox/unchecked.png</file>
+    <file>icons/checkbox/indeterminate_disabled.png</file>
+    <file>icons/checkbox/checked_disabled.png</file>
+    <file>icons/checkbox/unchecked_disabled.png</file>
+    <file>icons/checkbox/indeterminate.png</file>
+    <file>icons/radio/checked.png</file>
+    <file>icons/radio/unchecked.png</file>
+    <file>icons/radio/checked_disabled.png</file>
+    <file>icons/radio/unchecked_disabled.png</file>
   </qresource>
 </RCC>

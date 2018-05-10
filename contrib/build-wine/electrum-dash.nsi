@@ -2,21 +2,23 @@
 ;Include Modern UI
   !include "TextFunc.nsh" ;Needed for the $GetSize fuction. I know, doesn't sound logical, it isn't.
   !include "MUI2.nsh"
+  !include "x64.nsh"
   
 ;--------------------------------
 ;Variables
 
   !define PRODUCT_NAME "Electrum-DASH"
-  !define PRODUCT_WEB_SITE "https://github.com/spesmilo/electrum"
+  !define PRODUCT_WEB_SITE "https://github.com/akhavr/electrum-dash"
   !define PRODUCT_PUBLISHER "Electrum Technologies GmbH"
   !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
+  !define BUILD_ARCH "${WINEARCH}"
 
 ;--------------------------------
 ;General
 
   ;Name and file
   Name "${PRODUCT_NAME}"
-  OutFile "dist/electrum-dash-${PRODUCT_VERSION}-setup.exe"
+  OutFile "dist/electrum-dash-${PRODUCT_VERSION}-setup-${BUILD_ARCH}.exe"
 
   ;Default installation folder
   InstallDir "$PROGRAMFILES\${PRODUCT_NAME}"
@@ -99,6 +101,16 @@ Function .onInit
 		SetErrorLevel 740 ;ERROR_ELEVATION_REQUIRED
 		Quit
 	${EndIf}
+
+    ${If} ${RunningX64}
+        SetRegView 64
+        StrCpy $INSTDIR "$PROGRAMFILES64\${PRODUCT_NAME}"
+    ${Else}
+        ${If} ${BUILD_ARCH} == "win64"
+            MessageBox MB_OK|MB_ICONSTOP "Can not Install 64-bit App On 32-bit OS!"
+            Abort
+        ${EndIf}
+    ${EndIf}
 FunctionEnd
 
 Section
@@ -129,6 +141,8 @@ Section
   CreateDirectory "$SMPROGRAMS\${PRODUCT_NAME}"
   CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\Uninstall.lnk" "$INSTDIR\Uninstall.exe" "" "$INSTDIR\Uninstall.exe" 0
   CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME}.lnk" "$INSTDIR\electrum-dash-${PRODUCT_VERSION}.exe" "" "$INSTDIR\electrum-dash-${PRODUCT_VERSION}.exe" 0
+  CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME} Testnet.lnk" "$INSTDIR\electrum-dash-${PRODUCT_VERSION}.exe" "--testnet" "$INSTDIR\electrum-dash-${PRODUCT_VERSION}.exe" 0
+
 
   ;Links dash: URI's to Electrum
   WriteRegStr HKCU "Software\Classes\dash" "" "URL:dash Protocol"
@@ -165,7 +179,7 @@ Section "Uninstall"
   Delete "$SMPROGRAMS\${PRODUCT_NAME}\*.*"
   RMDir  "$SMPROGRAMS\${PRODUCT_NAME}"
   
-  DeleteRegKey HKCU "Software\Classes\bitcoin"
+  DeleteRegKey HKCU "Software\Classes\dash"
   DeleteRegKey HKCU "Software\${PRODUCT_NAME}"
   DeleteRegKey HKCU "${PRODUCT_UNINST_KEY}"
 SectionEnd

@@ -3,9 +3,8 @@ _ = lambda x:x
 #from i18n import _
 from electrum_dash import WalletStorage, Wallet
 from electrum_dash.util import format_satoshis, set_verbosity
-from electrum_dash.bitcoin import is_valid, COIN, TYPE_ADDRESS
-from electrum_dash.network import filter_protocol
-import sys, getpass, datetime
+from electrum_dash.bitcoin import is_address, COIN, TYPE_ADDRESS
+import getpass, datetime
 
 # minimal fdisk like gui for console usage
 # written by rofl0r, with some bits stolen from the text gui (ncurses)
@@ -17,7 +16,7 @@ class ElectrumGui:
         self.network = daemon.network
         storage = WalletStorage(config.get_wallet_path())
         if not storage.file_exists:
-            print "Wallet not found. try 'electrum-dash create'"
+            print("Wallet not found. try 'electrum-dash create'")
             exit()
         if storage.is_encrypted():
             password = getpass.getpass('Password:', stream=None)
@@ -57,8 +56,8 @@ class ElectrumGui:
 
     def main_command(self):
         self.print_balance()
-        c = raw_input("enter command: ")
-        if   c == "h" : self.print_commands()
+        c = input("enter command: ")
+        if c == "h" : self.print_commands()
         elif c == "i" : self.print_history()
         elif c == "o" : self.enter_order()
         elif c == "p" : self.print_order()
@@ -86,12 +85,11 @@ class ElectrumGui:
         delta = (80 - sum(width) - 4)/3
         format_str = "%"+"%d"%width[0]+"s"+"%"+"%d"%(width[1]+delta)+"s"+"%" \
         + "%d"%(width[2]+delta)+"s"+"%"+"%d"%(width[3]+delta)+"s"
-        b = 0
         messages = []
 
         for item in self.wallet.get_history():
-            tx_hash, confirmations, value, timestamp, balance = item
-            if confirmations:
+            tx_hash, height, conf, timestamp, delta, balance = item
+            if conf:
                 try:
                     time_str = datetime.datetime.fromtimestamp(timestamp).isoformat(' ')[:-3]
                 except Exception:
@@ -100,7 +98,7 @@ class ElectrumGui:
                 time_str = 'unconfirmed'
 
             label = self.wallet.get_label(tx_hash)
-            messages.append( format_str%( time_str, label, format_satoshis(value, whitespaces=True), format_satoshis(balance, whitespaces=True) ) )
+            messages.append( format_str%( time_str, label, format_satoshis(delta, whitespaces=True), format_satoshis(balance, whitespaces=True) ) )
 
         self.print_list(messages[::-1], format_str%( _("Date"), _("Description"), _("Amount"), _("Balance")))
 
@@ -138,10 +136,10 @@ class ElectrumGui:
               + "\nfee: " + self.str_fee + ", desc: " + self.str_description)
 
     def enter_order(self):
-        self.str_recipient = raw_input("Pay to: ")
-        self.str_description = raw_input("Description : ")
-        self.str_amount = raw_input("Amount: ")
-        self.str_fee = raw_input("Fee: ")
+        self.str_recipient = input("Pay to: ")
+        self.str_description = input("Description : ")
+        self.str_amount = input("Amount: ")
+        self.str_fee = input("Fee: ")
 
     def send_order(self):
         self.do_send()
@@ -150,12 +148,13 @@ class ElectrumGui:
         for i, x in enumerate( self.wallet.network.banner.split('\n') ):
             print( x )
 
-    def print_list(self, list, firstline):
-        self.maxpos = len(list)
+    def print_list(self, lst, firstline):
+        lst = list(lst)
+        self.maxpos = len(lst)
         if not self.maxpos: return
         print(firstline)
         for i in range(self.maxpos):
-            msg = list[i] if i < len(list) else ""
+            msg = lst[i] if i < len(lst) else ""
             print(msg)
 
 
@@ -163,7 +162,7 @@ class ElectrumGui:
         while self.done == 0: self.main_command()
 
     def do_send(self):
-        if not is_valid(self.str_recipient):
+        if not is_address(self.str_recipient):
             print(_('Invalid Dash address'))
             return
         try:
@@ -177,7 +176,7 @@ class ElectrumGui:
             print(_('Invalid Fee'))
             return
 
-        if self.wallet.use_encryption:
+        if self.wallet.has_password():
             password = self.password_dialog()
             if not password:
                 return
@@ -186,7 +185,7 @@ class ElectrumGui:
 
         c = ""
         while c != "y":
-            c = raw_input("ok to send (y/n)?")
+            c = input("ok to send (y/n)?")
             if c == "n": return
 
         try:

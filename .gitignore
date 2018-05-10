@@ -19,6 +19,7 @@ bin/
 
 # tox files
 .cache/
+.pytest_cache/
 .coverage
 
 electrum_data/

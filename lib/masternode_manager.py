@@ -3,12 +3,12 @@ import base64
 import threading
 from decimal import Decimal
 
-import bitcoin
-from blockchain import Blockchain
-from masternode import MasternodeAnnounce, NetworkAddress
-from masternode_budget import BudgetProposal, BudgetVote
-from electrum_dash.util import AlreadyHaveAddress, print_error
-from electrum_dash.util import format_satoshis_plain
+from . import bitcoin
+from .blockchain import hash_header
+from .masternode import MasternodeAnnounce, NetworkAddress
+from .masternode_budget import BudgetProposal, BudgetVote
+from .util import AlreadyHaveAddress, print_error, bfh
+from .util import format_satoshis_plain
 
 BUDGET_FEE_CONFIRMATIONS = 6
 BUDGET_FEE_TX = 5 * bitcoin.COIN
@@ -37,8 +37,8 @@ def parse_masternode_conf(lines):
 
         # Validate input.
         try:
-            key_valid = bitcoin.ASecretToSecret(masternode_wif)
-            assert key_valid
+            txin_type, key, is_compressed = bitcoin.deserialize_privkey(masternode_wif)
+            assert key
         except Exception:
             raise ValueError('Invalid masternode private key of alias "%s"' % alias)
 
@@ -98,7 +98,7 @@ class MasternodeManager(object):
         self.budget_votes = [BudgetVote.from_dict(d) for d in self.wallet.storage.get('budget_votes', [])]
 
     def send_subscriptions(self):
-        if not self.wallet.network:
+        if not self.wallet.network.is_connected():
             return
         self.subscribe_to_masternodes()
 
@@ -175,7 +175,8 @@ class MasternodeManager(object):
 
     def get_masternode_outputs(self, domain = None, exclude_frozen = True):
         """Get spendable coins that can be used as masternode collateral."""
-        coins = self.wallet.get_spendable_coins(domain = domain, exclude_frozen = exclude_frozen)
+        coins = self.wallet.get_utxos(domain, exclude_frozen,
+                                      mature=True, confirmed_only=True)
 
         used_vins = map(lambda mn: '%s:%d' % (mn.vin.get('prevout_hash'), mn.vin.get('prevout_n', 0xffffffff)), self.masternodes)
         unused = lambda d: '%s:%d' % (d['prevout_hash'], d['prevout_n']) not in used_vins
@@ -207,9 +208,9 @@ class MasternodeManager(object):
             raise Exception('Masternode has no IP address')
 
         # Ensure that the collateral payment has >= MASTERNODE_MIN_CONFIRMATIONS.
-        confirmations, _ = self.wallet.get_confirmations(mn.vin['prevout_hash'])
-        if confirmations < MASTERNODE_MIN_CONFIRMATIONS:
-            raise Exception('Collateral payment must have at least %d confirmations (current: %d)' % (MASTERNODE_MIN_CONFIRMATIONS, confirmations))
+        height, conf, timestamp = self.wallet.get_tx_height(mn.vin['prevout_hash'])
+        if conf < MASTERNODE_MIN_CONFIRMATIONS:
+            raise Exception('Collateral payment must have at least %d confirmations (current: %d)' % (MASTERNODE_MIN_CONFIRMATIONS, conf))
         # Ensure that the masternode's vin is valid.
         if mn.vin.get('value', 0) != bitcoin.COIN * 1000:
             raise Exception('Masternode requires a collateral 1000 DASH output.')
@@ -243,15 +244,16 @@ class MasternodeManager(object):
             mn.vin['sequence'] = 0xffffffff
         # Ensure that the masternode's last_ping is current.
         height = self.wallet.get_local_height() - 12
-        header = self.wallet.network.get_header(height)
-        mn.last_ping.block_hash = Blockchain.hash_header(header)
+        blockchain = self.wallet.network.blockchain()
+        header = blockchain.read_header(height)
+        mn.last_ping.block_hash = hash_header(header)
         mn.last_ping.vin = mn.vin
 
         # Sign ping with delegate key.
         self.wallet.sign_masternode_ping(mn.last_ping, mn.delegate_key)
 
         # After creating the Masternode Ping, sign the Masternode Announce.
-        address = bitcoin.public_key_to_p2pkh(mn.collateral_key.decode('hex'))
+        address = bitcoin.public_key_to_p2pkh(bfh(mn.collateral_key))
         mn.sig = self.wallet.sign_message(address, mn.serialize_for_sig(update_time=True), password)
 
         return mn
@@ -261,7 +263,7 @@ class MasternodeManager(object):
 
         Returns a 2-tuple of (error_message, was_announced).
         """
-        if not self.wallet.network:
+        if not self.wallet.network.is_connected():
             raise Exception('Not connected')
 
         mn = self.get_masternode(alias)
@@ -314,10 +316,11 @@ class MasternodeManager(object):
         An exception will not be raised if the key is already imported.
         """
         try:
-            self.wallet.import_masternode_delegate(sec)
+            pubkey = self.wallet.import_masternode_delegate(sec)
         except AlreadyHaveAddress:
-            pass
-        return True
+            txin_type, key, is_compressed = bitcoin.deserialize_privkey(sec)
+            pubkey = bitcoin.public_key_from_private_key(key, is_compressed)
+        return pubkey
 
     def import_masternode_conf_lines(self, conf_lines, password):
         """Import a list of MasternodeConfLine."""
@@ -336,8 +339,7 @@ class MasternodeManager(object):
             if already_have(conf_line):
                 continue
             # Import delegate WIF key for signing last_ping.
-            self.import_masternode_delegate(conf_line.wif)
-            public_key = bitcoin.public_key_from_private_key(conf_line.wif)
+            public_key = self.import_masternode_delegate(conf_line.wif)
 
             addr = conf_line.addr.split(':')
             addr = NetworkAddress(ip=addr[0], port=int(addr[1]))
@@ -364,7 +366,7 @@ class MasternodeManager(object):
 
     def check_can_vote(self, alias, proposal_name):
         """Raise an exception if alias can't vote for proposal name."""
-        if not self.wallet.network:
+        if not self.wallet.network.is_connected():
             raise Exception('Not connected')
         # Get the proposal that proposal_name identifies.
         proposal = None
@@ -463,9 +465,9 @@ class MasternodeManager(object):
         if proposal.submitted:
             raise Exception('Proposal has already been submitted')
 
-        h = bitcoin.hash_decode(proposal.get_hash()).encode('hex')
+        h = bfh(bitcoin.hash_decode(proposal.get_hash()))
         script = '6a20' + h # OP_RETURN hash
-        outputs = [(bitcoin.TYPE_SCRIPT, script.decode('hex'), BUDGET_FEE_TX)]
+        outputs = [(bitcoin.TYPE_SCRIPT, bfh(script), BUDGET_FEE_TX)]
         tx = self.wallet.mktx(outputs, password, self.config)
         proposal.fee_txid = tx.hash()
         if save:
@@ -480,11 +482,11 @@ class MasternodeManager(object):
         if proposal.submitted:
             raise Exception('Proposal has already been submitted')
 
-        if not self.wallet.network:
+        if not self.wallet.network.is_connected():
             raise Exception('Not connected')
 
-        confirmations, _ = self.wallet.get_confirmations(proposal.fee_txid)
-        if confirmations < BUDGET_FEE_CONFIRMATIONS:
+        height, conf, timestamp = self.wallet.get_tx_height(proposal.fee_txid)
+        if conf < BUDGET_FEE_CONFIRMATIONS:
             raise Exception('Collateral requires at least %d confirmations' % BUDGET_FEE_CONFIRMATIONS)
 
         payments_count = proposal.get_payments_count()

@@ -23,11 +23,10 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-
-from util import *
+from .util import *
 from electrum_dash.i18n import _
-from electrum_dash.util import block_explorer_URL, format_satoshis, format_time
-from electrum_dash.plugins import run_hook
+from electrum_dash.util import format_time
+
 
 class InvoiceList(MyTreeWidget):
     filter_columns = [0, 1, 2, 3]  # Date, Requestor, Description, Amount
@@ -35,7 +34,7 @@ class InvoiceList(MyTreeWidget):
     def __init__(self, parent):
         MyTreeWidget.__init__(self, parent, self.create_menu, [_('Expires'), _('Requestor'), _('Description'), _('Amount'), _('Status')], 2)
         self.setSortingEnabled(True)
-        self.header().setResizeMode(1, QHeaderView.Interactive)
+        self.header().setSectionResizeMode(1, QHeaderView.Interactive)
         self.setColumnWidth(1, 200)
 
     def on_update(self):
@@ -59,7 +58,7 @@ class InvoiceList(MyTreeWidget):
 
     def import_invoices(self):
         wallet_folder = self.parent.get_wallet_folder()
-        filename = unicode(QFileDialog.getOpenFileName(self.parent, "Select your wallet file", wallet_folder))
+        filename, __ = QFileDialog.getOpenFileName(self.parent, "Select your wallet file", wallet_folder)
         if not filename:
             return
         self.parent.invoices.import_file(filename)
@@ -68,7 +67,9 @@ class InvoiceList(MyTreeWidget):
     def create_menu(self, position):
         menu = QMenu()
         item = self.itemAt(position)
-        key = str(item.data(0, 32).toString())
+        if not item:
+            return
+        key = item.data(0, Qt.UserRole)
         column = self.currentColumn()
         column_title = self.headerItem().text(column)
         column_data = item.text(column)

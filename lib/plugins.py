@@ -22,7 +22,6 @@
 # ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-
 from collections import namedtuple
 import traceback
 import sys
@@ -30,10 +29,12 @@ import os
 import imp
 import pkgutil
 import time
+import threading
 
-from util import *
-from i18n import _
-from util import profiler, PrintError, DaemonThread, UserCancelled
+from .util import print_error
+from .i18n import _
+from .util import profiler, PrintError, DaemonThread, UserCancelled, ThreadJob
+from . import bitcoin
 
 plugin_loaders = {}
 hook_names = set()
@@ -93,7 +94,7 @@ class Plugins(DaemonThread):
 
     def load_plugin(self, name):
         if name in self.plugins:
-            return
+            return self.plugins[name]
         full_name = 'electrum_dash_plugins.' + name + '.' + self.gui_name
         loader = pkgutil.find_loader(full_name)
         if not loader:
@@ -156,7 +157,7 @@ class Plugins(DaemonThread):
         return out
 
     def register_wallet_type(self, name, gui_good, wallet_type):
-        from wallet import register_wallet_type, register_constructor
+        from .wallet import register_wallet_type, register_constructor
         self.print_error("registering wallet type", (wallet_type, name))
         def loader():
             plugin = self.get_plugin(name)
@@ -165,7 +166,7 @@ class Plugins(DaemonThread):
         plugin_loaders[wallet_type] = loader
 
     def register_keystore(self, name, gui_good, details):
-        from keystore import register_keystore
+        from .keystore import register_keystore
         def dynamic_constructor(d):
             return self.get_plugin(name).keystore_class(d)
         if details[0] == 'hardware':
@@ -186,7 +187,7 @@ class Plugins(DaemonThread):
 
 
 def hook(func):
-    hook_names.add(func.func_name)
+    hook_names.add(func.__name__)
     return func
 
 def run_hook(name, *args):
@@ -253,6 +254,9 @@ class BasePlugin(PrintError):
     def is_available(self):
         return True
 
+    def can_user_disable(self):
+        return True
+
     def settings_dialog(self):
         pass
 
@@ -299,7 +303,7 @@ class DeviceMgr(ThreadJob, PrintError):
 
     def __init__(self, config):
         super(DeviceMgr, self).__init__()
-        # Keyed by xpub.  The value is the device id 
+        # Keyed by xpub.  The value is the device id
         # has been paired, and None otherwise.
         self.xpub_ids = {}
         # A list of clients.  The key is the client, the value is
@@ -388,6 +392,8 @@ class DeviceMgr(ThreadJob, PrintError):
 
     def client_for_keystore(self, plugin, handler, keystore, force_pair):
         self.print_error("getting client for keystore")
+        if handler is None:
+            raise BaseException(_("Handler not found for") + ' ' + plugin.name + '\n' + _("A library is probably missing."))
         handler.update_status(False)
         devices = self.scan_devices()
         xpub = keystore.xpub
@@ -418,14 +424,14 @@ class DeviceMgr(ThreadJob, PrintError):
     def force_pair_xpub(self, plugin, handler, info, xpub, derivation, devices):
         # The wallet has not been previously paired, so let the user
         # choose an unpaired device and compare its first address.
-
+        xtype = bitcoin.xpub_type(xpub)
         client = self.client_lookup(info.device.id_)
         if client and client.is_pairable():
             # See comment above for same code
             client.handler = handler
             # This will trigger a PIN/passphrase entry request
             try:
-                client_xpub = client.get_xpub(derivation)
+                client_xpub = client.get_xpub(derivation, xtype)
             except (UserCancelled, RuntimeError):
                  # Bad / cancelled PIN / passphrase
                 client_xpub = None
@@ -436,10 +442,10 @@ class DeviceMgr(ThreadJob, PrintError):
         # The user input has wrong PIN or passphrase, or cancelled input,
         # or it is not pairable
         raise DeviceUnpairableError(
-            _('Electrum cannot pair with your %s.\n\n'
-              'Before you request bitcoins to be sent to addresses in this '
+            _('Electrum-DASH cannot pair with your %s.\n\n'
+              'Before you request Dash coins to be sent to addresses in this '
               'wallet, ensure you can pair with your device, or that you have '
-              'its seed (and passphrase, if any).  Otherwise all bitcoins you '
+              'its seed (and passphrase, if any).  Otherwise all coins you '
               'receive will be unspendable.') % plugin.device)
 
     def unpaired_device_infos(self, handler, plugin, devices=None):
@@ -466,7 +472,7 @@ class DeviceMgr(ThreadJob, PrintError):
             infos = self.unpaired_device_infos(handler, plugin, devices)
             if infos:
                 break
-            msg = _('Could not connect to your %s.  Verify the cable is '
+            msg = _('Please insert your %s.  Verify the cable is '
                     'connected and that no other application is using it.\n\n'
                     'Try to connect again?') % plugin.device
             if not handler.yes_no_question(msg):
@@ -508,7 +514,7 @@ class DeviceMgr(ThreadJob, PrintError):
                 usage_page = d['usage_page']
                 id_ = d['serial_number']
                 if len(id_) == 0:
-                    id_ = d['path']
+                    id_ = str(d['path'])
                 id_ += str(interface_number) + str(usage_page)
                 devices.append(Device(d['path'], interface_number,
                                       id_, product_key, usage_page))
