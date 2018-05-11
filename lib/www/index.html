@@ -84,10 +84,10 @@ if (id) {
 };
 
 // See http://stackoverflow.com/questions/29186154/chrome-clicking-mailto-links-closes-websocket-connection
-$(document).on('click', 'a[href^="dash:"]', function (e) {
+$(document).on('click', 'a[href^="axe:"]', function (e) {
     e.preventDefault();
-    var dashWindow = window.open($(e.currentTarget).attr('href'));
-    dashWindow.close();
+    var axeWindow = window.open($(e.currentTarget).attr('href'));
+    axeWindow.close();
     return false;
 });
 
@@ -99,7 +99,7 @@ $(document).on('click', 'a[href^="dash:"]', function (e) {
             <p id="reason"></p>
             <p id="amount"></p>
 	    <div style="background-color:#7777aa; border-radius: 5px; padding:10px;">
-		<a style="color:#ffffff; text-decoration:none;" id="paylink" target="_blank">Pay with Dash</a>
+		<a style="color:#ffffff; text-decoration:none;" id="paylink" target="_blank">Pay with AXE</a>
 	    </div>
 	    <br/>
 	    <div id="qrcode" align="center"></div>

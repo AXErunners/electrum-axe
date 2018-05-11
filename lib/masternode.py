@@ -164,9 +164,9 @@ class MasternodeAnnounce(object):
 
     Attributes:
         - alias: Alias to help the user identify this masternode.
-        - vin: 1K Dash input.
+        - vin: 1K AXE input.
         - addr: Address that the masternode can be reached at.
-        - collateral_key: Key that can spend the 1K Dash input.
+        - collateral_key: Key that can spend the 1K AXE input.
         - delegate_key: Key that the masternode will sign messages with.
         - sig: Message signature.
         - sig_time: Message signature creation time.

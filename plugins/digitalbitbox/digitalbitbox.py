@@ -4,14 +4,14 @@
 #
 
 try:
-    import electrum_dash
-    from electrum_dash.bitcoin import TYPE_ADDRESS, push_script, var_int, msg_magic, Hash, verify_message, pubkey_from_signature, point_to_ser, public_key_to_p2pkh, EncodeAES, DecodeAES, MyVerifyingKey
-    from electrum_dash.bitcoin import serialize_xpub, deserialize_xpub
-    from electrum_dash.transaction import Transaction
-    from electrum_dash.i18n import _
-    from electrum_dash.keystore import Hardware_KeyStore
+    import electrum_axe
+    from electrum_axe.bitcoin import TYPE_ADDRESS, push_script, var_int, msg_magic, Hash, verify_message, pubkey_from_signature, point_to_ser, public_key_to_p2pkh, EncodeAES, DecodeAES, MyVerifyingKey
+    from electrum_axe.bitcoin import serialize_xpub, deserialize_xpub
+    from electrum_axe.transaction import Transaction
+    from electrum_axe.i18n import _
+    from electrum_axe.keystore import Hardware_KeyStore
     from ..hw_wallet import HW_PluginBase
-    from electrum_dash.util import print_error, to_string, UserCancelled
+    from electrum_axe.util import print_error, to_string, UserCancelled
 
     import time
     import hid

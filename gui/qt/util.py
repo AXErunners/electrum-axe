@@ -6,7 +6,7 @@ import queue
 from collections import namedtuple
 from functools import partial
 
-from electrum_dash.i18n import _
+from electrum_axe.i18n import _
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
@@ -24,7 +24,7 @@ else:
 
 dialogs = []
 
-from electrum_dash.paymentrequest import PR_UNPAID, PR_PAID, PR_EXPIRED
+from electrum_axe.paymentrequest import PR_UNPAID, PR_PAID, PR_EXPIRED
 
 pr_icons = {
     PR_UNPAID:":icons/unpaid.png",

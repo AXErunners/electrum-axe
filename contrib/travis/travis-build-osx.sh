@@ -1,19 +1,19 @@
 #!/bin/bash
-BUILD_REPO_URL=https://github.com/akhavr/electrum-dash.git
+BUILD_REPO_URL=https://github.com/akhavr/electrum-axe.git
 
 cd build
 
 if [[ -z $TRAVIS_TAG ]]; then
   exit 0
 else
-  git clone --branch $TRAVIS_TAG $BUILD_REPO_URL electrum-dash
+  git clone --branch $TRAVIS_TAG $BUILD_REPO_URL electrum-axe
 fi
 
-cd electrum-dash
+cd electrum-axe
 
 export PY36BINDIR=/Library/Frameworks/Python.framework/Versions/3.6/bin/
 export PATH=$PATH:$PY36BINDIR
-source ./contrib/travis/electrum_dash_version_env.sh;
+source ./contrib/travis/electrum_axe_version_env.sh;
 echo wine build version is $ELECTRUM_AXE_VERSION
 
 sudo pip3 install -r contrib/requirements.txt
@@ -31,9 +31,9 @@ cp contrib/pyi_tctl_runtimehook.py .
 
 pyinstaller \
     -y \
-    --name electrum-dash-$ELECTRUM_AXE_VERSION.bin \
+    --name electrum-axe-$ELECTRUM_AXE_VERSION.bin \
     osx.spec
 
 sudo hdiutil create -fs HFS+ -volname "Electrum-AXE" \
     -srcfolder dist/Electrum-AXE.app \
-    dist/electrum-dash-$ELECTRUM_AXE_VERSION-macosx.dmg
+    dist/electrum-axe-$ELECTRUM_AXE_VERSION-macosx.dmg

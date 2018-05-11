@@ -2,8 +2,8 @@
 
 import util
 
-from electrum_dash.network import filter_protocol
-from electrum_dash.blockchain import hash_header
+from electrum_axe.network import filter_protocol
+from electrum_axe.blockchain import hash_header
 
 peers = util.get_peers()
 peers = filter_protocol(peers, 's')

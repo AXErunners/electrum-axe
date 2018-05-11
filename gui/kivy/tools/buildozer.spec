@@ -7,7 +7,7 @@ title = Electrum-AXE
 package.name = Electrum-AXE
 
 # (str) Package domain (needed for android/ios packaging)
-package.domain = org.electrum-dash
+package.domain = org.electrum-axe
 
 # (str) Source code where the main.py live
 source.dir = .

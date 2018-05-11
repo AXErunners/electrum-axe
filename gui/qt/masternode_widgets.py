@@ -4,10 +4,10 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 
-from electrum_dash import bitcoin
-from electrum_dash.bitcoin import COIN
-from electrum_dash.i18n import _
-from electrum_dash.masternode import NetworkAddress, MasternodeAnnounce
+from electrum_axe import bitcoin
+from electrum_axe.bitcoin import COIN
+from electrum_axe.i18n import _
+from electrum_axe.masternode import NetworkAddress, MasternodeAnnounce
 
 from . import util
 

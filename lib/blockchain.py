@@ -28,8 +28,8 @@ from . import bitcoin
 from .bitcoin import *
 
 
-target_timespan = 24 * 60 * 60 # Dash: 1 day
-target_spacing = 2.5 * 60 # Dash: 2.5 minutes
+target_timespan = 24 * 60 * 60 # AXE: 1 day
+target_spacing = 2.5 * 60 # AXE: 2.5 minutes
 interval = target_timespan / target_spacing # 576
 max_target = 0x00000ffff0000000000000000000000000000000000000000000000000000000
 

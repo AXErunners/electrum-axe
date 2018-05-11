@@ -10,13 +10,13 @@ fi
 
 cd build
 
-BUILD_REPO_URL=https://github.com/akhavr/electrum-dash.git
-git clone --branch $TRAVIS_TAG $BUILD_REPO_URL electrum-dash
+BUILD_REPO_URL=https://github.com/akhavr/electrum-axe.git
+git clone --branch $TRAVIS_TAG $BUILD_REPO_URL electrum-axe
 
 docker run --rm \
     -v $(pwd):/opt \
-    -w /opt/electrum-dash \
-    -t zebralucky/electrum-dash-winebuild:Linux /opt/build_linux.sh
+    -w /opt/electrum-axe \
+    -t zebralucky/electrum-axe-winebuild:Linux /opt/build_linux.sh
 
 export WINEARCH=win32
 export WINEPREFIX=/root/.wine-32
@@ -27,9 +27,9 @@ docker run --rm \
     -e WINEPREFIX=$WINEPREFIX \
     -e PYHOME=$PYHOME \
     -v $(pwd):/opt \
-    -v $(pwd)/electrum-dash/:$WINEPREFIX/drive_c/electrum-dash \
-    -w /opt/electrum-dash \
-    -t zebralucky/electrum-dash-winebuild:Wine /opt/build_wine.sh
+    -v $(pwd)/electrum-axe/:$WINEPREFIX/drive_c/electrum-axe \
+    -w /opt/electrum-axe \
+    -t zebralucky/electrum-axe-winebuild:Wine /opt/build_wine.sh
 
 export WINEARCH=win64
 export WINEPREFIX=/root/.wine-64
@@ -40,6 +40,6 @@ docker run --rm \
     -e WINEPREFIX=$WINEPREFIX \
     -e PYHOME=$PYHOME \
     -v $(pwd):/opt \
-    -v $(pwd)/electrum-dash/:$WINEPREFIX/drive_c/electrum-dash \
-    -w /opt/electrum-dash \
-    -t zebralucky/electrum-dash-winebuild:Wine /opt/build_wine.sh
+    -v $(pwd)/electrum-axe/:$WINEPREFIX/drive_c/electrum-axe \
+    -w /opt/electrum-axe \
+    -t zebralucky/electrum-axe-winebuild:Wine /opt/build_wine.sh

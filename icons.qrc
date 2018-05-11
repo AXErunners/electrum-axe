@@ -1,6 +1,6 @@
 <RCC>
   <qresource prefix="/" >
-    <file>icons/electrum-dash.png</file>
+    <file>icons/electrum-axe.png</file>
     <file>icons/clock1.png</file>
     <file>icons/clock2.png</file>
     <file>icons/clock3.png</file>
@@ -49,13 +49,13 @@
     <file>icons/warning.png</file>
     <file>icons/zoom.png</file>
     <file>icons/navlogo.png</file>
-    <file>icons/dash_downArrow.png</file>
-    <file>icons/dash_upArrow_small.png</file>
-    <file>icons/dash_upArrow_small_disabled.png</file>
-    <file>icons/dash_downArrow_small.png</file>
-    <file>icons/dash_downArrow_small_disabled.png</file>
-    <file>icons/dash_leftArrow_small.png</file>
-    <file>icons/dash_rightArrow_small.png</file>
+    <file>icons/axe_downArrow.png</file>
+    <file>icons/axe_upArrow_small.png</file>
+    <file>icons/axe_upArrow_small_disabled.png</file>
+    <file>icons/axe_downArrow_small.png</file>
+    <file>icons/axe_downArrow_small_disabled.png</file>
+    <file>icons/axe_leftArrow_small.png</file>
+    <file>icons/axe_rightArrow_small.png</file>
     <file>icons/checkbox/checked.png</file>
     <file>icons/checkbox/unchecked.png</file>
     <file>icons/checkbox/indeterminate_disabled.png</file>

@@ -30,9 +30,9 @@ from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 import PyQt5.QtCore as QtCore
 
-from electrum_dash.i18n import _
-from electrum_dash.bitcoin import NetworkConstants
-from electrum_dash.util import print_error
+from electrum_axe.i18n import _
+from electrum_axe.bitcoin import NetworkConstants
+from electrum_axe.util import print_error
 
 from .util import *
 

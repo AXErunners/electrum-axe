@@ -5,7 +5,7 @@ from kivy.factory import Factory
 from kivy.properties import ObjectProperty
 from kivy.lang import Builder
 
-from electrum_dash.util import base_units
+from electrum_axe.util import base_units
 
 from ...i18n import _
 from .label_dialog import LabelDialog

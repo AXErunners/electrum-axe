@@ -4,10 +4,10 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 
-from electrum_dash.i18n import _
-from electrum_dash.masternode_budget import BudgetProposal, BudgetVote
-from electrum_dash.masternode_manager import BUDGET_FEE_CONFIRMATIONS
-from electrum_dash.util import block_explorer_URL, print_error, format_satoshis_plain
+from electrum_axe.i18n import _
+from electrum_axe.masternode_budget import BudgetProposal, BudgetVote
+from electrum_axe.masternode_manager import BUDGET_FEE_CONFIRMATIONS
+from electrum_axe.util import block_explorer_URL, print_error, format_satoshis_plain
 
 from .amountedit import BTCAmountEdit
 from . import util
@@ -20,7 +20,7 @@ MY_ADDRESS_COLOR = '#80ff80'
 def budget_explorer_url(item_type, identifier):
     """Get the URL for a budget proposal explorer."""
     if item_type == 'proposal':
-        return 'https://dashwhale.org/p/%s' % identifier
+        return 'https://axewhale.org/p/%s' % identifier
 
 class ProposalsModel(QAbstractTableModel):
     """Model of budget proposals."""

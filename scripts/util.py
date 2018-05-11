@@ -1,11 +1,11 @@
 import select, time, queue
-# import electrum_dash
-from electrum_dash import Connection, Interface, SimpleConfig
+# import electrum_axe
+from electrum_axe import Connection, Interface, SimpleConfig
 
-from electrum_dash.network import parse_servers
+from electrum_axe.network import parse_servers
 from collections import defaultdict
 
-# electrum_dash.util.set_verbosity(1)
+# electrum_axe.util.set_verbosity(1)
 def get_interfaces(servers, timeout=10):
     '''Returns a map of servers to connected interfaces.  If any
     connections fail or timeout, they will be missing from the map.

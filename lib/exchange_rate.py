@@ -113,14 +113,14 @@ class Poloniex(ExchangeBase):
     def get_rates(self, ccy):
         json = self.get_json('poloniex.com', '/public?command=returnTicker')
         quote_currencies = {}
-        dash_ticker = json.get('BTC_AXE')
-        quote_currencies['BTC'] = Decimal(dash_ticker['last'])
+        axe_ticker = json.get('BTC_AXE')
+        quote_currencies['BTC'] = Decimal(axe_ticker['last'])
         return quote_currencies
 
 
 class CoinMarketCap(ExchangeBase):
     def get_rates(self, ccy):
-        json = self.get_json('api.coinmarketcap.com', '/v1/ticker/dash/')
+        json = self.get_json('api.coinmarketcap.com', '/v1/ticker/axe/')
         quote_currencies = {}
         if not isinstance(json, list):
             return quote_currencies

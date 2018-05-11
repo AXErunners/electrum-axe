@@ -1,12 +1,12 @@
-# If you want electrum-dash to appear in a linux app launcher ("start menu"), install this by doing:
-# sudo desktop-file-install electrum_dash.desktop
+# If you want electrum-axe to appear in a linux app launcher ("start menu"), install this by doing:
+# sudo desktop-file-install electrum_axe.desktop
 
 [Desktop Entry]
 Comment=Lightweight AXE Client
-Exec=electrum-dash %u
+Exec=electrum-axe %u
 GenericName[en_US]=Electrum-AXE
 GenericName=Electrum-AXE
-Icon=electrum-dash
+Icon=electrum-axe
 Name[en_US]=Electrum AXE Wallet
 Name=Electrum AXE Wallet
 Categories=Network;

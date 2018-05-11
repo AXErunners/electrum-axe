@@ -1,9 +1,9 @@
 from decimal import Decimal
 _ = lambda x:x
 #from i18n import _
-from electrum_dash import WalletStorage, Wallet
-from electrum_dash.util import format_satoshis, set_verbosity
-from electrum_dash.bitcoin import is_address, COIN, TYPE_ADDRESS
+from electrum_axe import WalletStorage, Wallet
+from electrum_axe.util import format_satoshis, set_verbosity
+from electrum_axe.bitcoin import is_address, COIN, TYPE_ADDRESS
 import getpass, datetime
 
 # minimal fdisk like gui for console usage
@@ -16,7 +16,7 @@ class ElectrumGui:
         self.network = daemon.network
         storage = WalletStorage(config.get_wallet_path())
         if not storage.file_exists:
-            print("Wallet not found. try 'electrum-dash create'")
+            print("Wallet not found. try 'electrum-axe create'")
             exit()
         if storage.is_encrypted():
             password = getpass.getpass('Password:', stream=None)
@@ -163,7 +163,7 @@ class ElectrumGui:
 
     def do_send(self):
         if not is_address(self.str_recipient):
-            print(_('Invalid Dash address'))
+            print(_('Invalid AXE address'))
             return
         try:
             amount = int(Decimal(self.str_amount) * COIN)
@@ -208,12 +208,12 @@ class ElectrumGui:
             print(_('Error'))
 
     def network_dialog(self):
-        print("use 'electrum-dash setconfig server/proxy' to change your network settings")
+        print("use 'electrum-axe setconfig server/proxy' to change your network settings")
         return True
 
 
     def settings_dialog(self):
-        print("use 'electrum-dash setconfig' to change your settings")
+        print("use 'electrum-axe setconfig' to change your settings")
         return True
 
     def password_dialog(self):

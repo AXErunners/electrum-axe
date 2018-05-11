@@ -8,10 +8,10 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
-from electrum_dash import Wallet, WalletStorage
-from electrum_dash.util import UserCancelled, InvalidPassword
-from electrum_dash.base_wizard import BaseWizard
-from electrum_dash.i18n import _
+from electrum_axe import Wallet, WalletStorage
+from electrum_axe.util import UserCancelled, InvalidPassword
+from electrum_axe.base_wizard import BaseWizard
+from electrum_axe.i18n import _
 
 from .seed_dialog import SeedLayout, KeysLayout
 from .network_dialog import NetworkChoiceLayout
@@ -24,7 +24,7 @@ class GoBack(Exception):
 
 MSG_GENERATING_WAIT = _("Electrum-AXE is generating your addresses, please wait...")
 MSG_ENTER_ANYTHING = _("Please enter a seed phrase, a master key, a list of "
-                       "Dash addresses, or a list of private keys")
+                       "AXE addresses, or a list of private keys")
 MSG_ENTER_SEED_OR_MPK = _("Please enter a seed phrase or a master key (xpub or xprv):")
 MSG_COSIGNER = _("Please enter the master public key of cosigner #%d:")
 MSG_ENTER_PASSWORD = _("Choose a password to encrypt your wallet keys.") + '\n'\
@@ -147,7 +147,7 @@ class InstallWizard(QDialog, MessageBoxMixin, BaseWizard):
         hbox.setStretchFactor(scroll, 1)
         outer_vbox.addLayout(hbox)
         outer_vbox.addLayout(Buttons(self.back_button, self.next_button))
-        self.set_icon(':icons/electrum-dash.png')
+        self.set_icon(':icons/electrum-axe.png')
         self.show()
         self.raise_()
         self.refresh_gui()  # Need for QT on MacOSX.  Lame.

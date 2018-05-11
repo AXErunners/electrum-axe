@@ -1,6 +1,6 @@
-"""Dash look and feel."""
+"""AXE look and feel."""
 
-dash_stylesheet = """
+axe_stylesheet = """
 
 /**********************/
 /* AXE Evolution CSS */
@@ -411,7 +411,7 @@ QComboBox::drop-down {
 }
 
 QComboBox::down-arrow {
-    border-image: url(':/icons/dash_downArrow.png') 0 0 0 0 stretch stretch;
+    border-image: url(':/icons/axe_downArrow.png') 0 0 0 0 stretch stretch;
 }
 
 QComboBox QListView {
@@ -460,23 +460,23 @@ QAbstractSpinBox::down-button {
 }
 
 QAbstractSpinBox::up-arrow {
-    image: url(:/icons/dash_upArrow_small.png);
+    image: url(:/icons/axe_upArrow_small.png);
     width: 10px;
     height: 10px;
 }
 
 QAbstractSpinBox::up-arrow:disabled, QAbstractSpinBox::up-arrow:off {
-    image: url(:/icons/dash_upArrow_small_disabled.png);
+    image: url(:/icons/axe_upArrow_small_disabled.png);
 }
 
 QAbstractSpinBox::down-arrow {
-    image: url(:/icons/dash_downArrow_small.png);
+    image: url(:/icons/axe_downArrow_small.png);
     width: 10px;
     height: 10px;
 }
 
 QAbstractSpinBox::down-arrow:disabled, QAbstractSpinBox::down-arrow:off {
-    image: url(:/icons/dash_downArrow_small_disabled.png);
+    image: url(:/icons/axe_downArrow_small_disabled.png);
 }
 
 QSlider::groove:horizontal {
@@ -622,19 +622,19 @@ QScrollBar:up-arrow, QScrollBar:down-arrow, QScrollBar:left-arrow, QScrollBar:ri
 }
 
 QScrollBar:up-arrow {
-    background-image: url(':/icons/dash_upArrow_small.png');
+    background-image: url(':/icons/axe_upArrow_small.png');
 }
 
 QScrollBar:down-arrow {
-    background-image: url(':/icons/dash_downArrow_small.png');
+    background-image: url(':/icons/axe_downArrow_small.png');
 }
 
 QScrollBar:left-arrow {
-    background-image: url(':/icons/dash_leftArrow_small.png');
+    background-image: url(':/icons/axe_leftArrow_small.png');
 }
 
 QScrollBar:right-arrow {
-    background-image: url(':/icons/dash_rightArrow_small.png');
+    background-image: url(':/icons/axe_rightArrow_small.png');
 }
 
 

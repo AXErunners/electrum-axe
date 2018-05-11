@@ -46,8 +46,8 @@ from . import rsakey
 
 from .bitcoin import TYPE_ADDRESS
 
-REQUEST_HEADERS = {'Accept': 'application/dash-paymentrequest', 'User-Agent': 'Electrum-AXE'}
-ACK_HEADERS = {'Content-Type':'application/dash-payment','Accept':'application/dash-paymentack','User-Agent':'Electrum-AXE'}
+REQUEST_HEADERS = {'Accept': 'application/axe-paymentrequest', 'User-Agent': 'Electrum-AXE'}
+ACK_HEADERS = {'Content-Type':'application/axe-payment','Accept':'application/axe-paymentack','User-Agent':'Electrum-AXE'}
 
 ca_path = requests.certs.where()
 ca_list = None
@@ -75,9 +75,9 @@ def get_payment_request(url):
         try:
             response = requests.request('GET', url, headers=REQUEST_HEADERS)
             response.raise_for_status()
-            # Guard against `dash:`-URIs with invalid payment request URLs
+            # Guard against `axe:`-URIs with invalid payment request URLs
             if "Content-Type" not in response.headers \
-            or response.headers["Content-Type"] != "application/dash-paymentrequest":
+            or response.headers["Content-Type"] != "application/axe-paymentrequest":
                 data = None
                 error = "payment URL not pointing to a payment request handling server"
             else:

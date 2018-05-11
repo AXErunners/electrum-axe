@@ -6,7 +6,7 @@ Electrum-AXE - Lightweight AXE client
   Licence: MIT Licence
   Author: Thomas Voegtlin
   Language: Python
-  Homepage: https://electrum-dash.org/
+  Homepage: https://electrum-axe.org/
 
 
 .. image:: https://travis-ci.org/axerunners/electrum-axe.svg?branch=master
@@ -30,7 +30,7 @@ Electrum-AXE from its root directory, without installing it on your
 system; all the python dependencies are included in the 'packages'
 directory. To run Electrum-AXE from its root directory, just do::
 
-    ./electrum-dash
+    ./electrum-axe
 
 You can also install Electrum-AXE on your system, by running this command::
 
@@ -51,8 +51,8 @@ Development version
 
 Check out the code from Github::
 
-    git clone https://github.com/akhavr/electrum-dash.git
-    cd electrum-dash
+    git clone https://github.com/akhavr/electrum-axe.git
+    cd electrum-axe
 
 Run install (this should install dependencies)::
 

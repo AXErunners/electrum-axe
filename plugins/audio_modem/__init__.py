@@ -1,4 +1,4 @@
-from electrum_dash.i18n import _
+from electrum_axe.i18n import _
 
 fullname =  _('Audio MODEM')
 description = _('Provides support for air-gapped transaction signing.')

@@ -870,7 +870,7 @@ class Abstract_Wallet(PrintError):
             _type, data, value = o
             if _type == TYPE_ADDRESS:
                 if not is_address(data):
-                    raise BaseException("Invalid Dash address:" + data)
+                    raise BaseException("Invalid AXE address:" + data)
             if value == '!':
                 if i_max is not None:
                     raise BaseException("More than one output set to spend max")
@@ -1146,7 +1146,7 @@ class Abstract_Wallet(PrintError):
         if not r:
             return
         out = copy.copy(r)
-        out['URI'] = 'dash:' + addr + '?amount=' + format_satoshis(out.get('amount'))
+        out['URI'] = 'axe:' + addr + '?amount=' + format_satoshis(out.get('amount'))
         status, conf = self.get_request_status(addr)
         out['status'] = status
         if conf is not None:
@@ -1300,7 +1300,7 @@ class Abstract_Wallet(PrintError):
         index = self.get_address_index(addr)
         return self.keystore.decrypt_message(index, message, password)
 
-    # Dash Abstract_Wallet additions
+    # AXE Abstract_Wallet additions
     def get_delegate_private_key(self, pubkey):
         """Get the private delegate key for pubkey."""
         return self.masternode_delegates.get(pubkey, '')

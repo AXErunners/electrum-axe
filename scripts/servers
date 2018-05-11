@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-from electrum_dash import set_verbosity
-from electrum_dash.network import filter_version
+from electrum_axe import set_verbosity
+from electrum_axe.network import filter_version
 import util, json
 set_verbosity(False)
 

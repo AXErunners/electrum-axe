@@ -37,17 +37,17 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 import PyQt5.QtCore as QtCore
 
-from electrum_dash.i18n import _, set_language
-from electrum_dash.plugins import run_hook
-from electrum_dash import WalletStorage
-# from electrum_dash.synchronizer import Synchronizer
-# from electrum_dash.verifier import SPV
-# from electrum_dash.util import DebugMem
-from electrum_dash.util import UserCancelled, print_error
-# from electrum_dash.wallet import Abstract_Wallet
+from electrum_axe.i18n import _, set_language
+from electrum_axe.plugins import run_hook
+from electrum_axe import WalletStorage
+# from electrum_axe.synchronizer import Synchronizer
+# from electrum_axe.verifier import SPV
+# from electrum_axe.util import DebugMem
+from electrum_axe.util import UserCancelled, print_error
+# from electrum_axe.wallet import Abstract_Wallet
 
 from .installwizard import InstallWizard, GoBack
-from .dash_style import dash_stylesheet
+from .axe_style import axe_stylesheet
 
 
 try:
@@ -101,7 +101,7 @@ class ElectrumGui:
         self.app = QElectrumApplication(sys.argv)
         self.app.installEventFilter(self.efilter)
         self.app.setStyle('Fusion')
-        self.app.setStyleSheet(dash_stylesheet)
+        self.app.setStyleSheet(axe_stylesheet)
         self.timer = Timer()
         self.nd = None
         self.network_updated_signal_obj = QNetworkUpdatedSignalObject()

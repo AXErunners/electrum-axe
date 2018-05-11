@@ -3,16 +3,16 @@ import hashlib
 import sys
 import traceback
 
-from electrum_dash import bitcoin
-from electrum_dash.bitcoin import (TYPE_ADDRESS, int_to_hex, var_int,
+from electrum_axe import bitcoin
+from electrum_axe.bitcoin import (TYPE_ADDRESS, int_to_hex, var_int,
                                    b58_address_to_hash160,
                                    hash160_to_b58_address, NetworkConstants)
-from electrum_dash.i18n import _
-from electrum_dash.plugins import BasePlugin
-from electrum_dash.keystore import Hardware_KeyStore
-from electrum_dash.transaction import Transaction
+from electrum_axe.i18n import _
+from electrum_axe.plugins import BasePlugin
+from electrum_axe.keystore import Hardware_KeyStore
+from electrum_axe.transaction import Transaction
 from ..hw_wallet import HW_PluginBase
-from electrum_dash.util import print_error, is_verbose, bfh, bh2u
+from electrum_axe.util import print_error, is_verbose, bfh, bh2u
 
 
 def setAlternateCoinVersions(self, regular, p2sh):
@@ -173,7 +173,7 @@ class Ledger_Client():
                 self.perform_hw1_preflight()
             except BTChipException as e:
                 if (e.sw == 0x6d00):
-                    raise BaseException("Device not in Dash mode")
+                    raise BaseException("Device not in AXE mode")
                 raise e
             self.preflightDone = True
 

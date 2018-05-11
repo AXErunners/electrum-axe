@@ -3,10 +3,10 @@ import curses, datetime, locale
 from decimal import Decimal
 import getpass
 
-import electrum_dash
-from electrum_dash.util import format_satoshis, set_verbosity
-from electrum_dash.bitcoin import is_address, COIN, TYPE_ADDRESS
-from electrum_dash import Wallet, WalletStorage
+import electrum_axe
+from electrum_axe.util import format_satoshis, set_verbosity
+from electrum_axe.bitcoin import is_address, COIN, TYPE_ADDRESS
+from electrum_axe import Wallet, WalletStorage
 
 _ = lambda x:x
 
@@ -20,7 +20,7 @@ class ElectrumGui:
         self.network = daemon.network
         storage = WalletStorage(config.get_wallet_path())
         if not storage.file_exists():
-            print("Wallet not found. try 'electrum-dash create'")
+            print("Wallet not found. try 'electrum-axe create'")
             exit()
         if storage.is_encrypted():
             password = getpass.getpass('Password:', stream=None)
@@ -320,7 +320,7 @@ class ElectrumGui:
 
     def do_send(self):
         if not is_address(self.str_recipient):
-            self.show_message(_('Invalid Dash address'))
+            self.show_message(_('Invalid AXE address'))
             return
         try:
             amount = int(Decimal(self.str_amount) * COIN)
@@ -392,7 +392,7 @@ class ElectrumGui:
                         self.show_message("Error:" + server + "\nIn doubt, type \"auto-connect\"")
                         return False
             if out.get('server') or out.get('proxy'):
-                proxy = electrum_dash.network.deserialize_proxy(out.get('proxy')) if out.get('proxy') else proxy_config
+                proxy = electrum_axe.network.deserialize_proxy(out.get('proxy')) if out.get('proxy') else proxy_config
                 self.network.set_parameters(host, port, protocol, proxy, auto_connect)
 
     def settings_dialog(self):

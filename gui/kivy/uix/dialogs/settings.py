@@ -3,18 +3,18 @@ from kivy.factory import Factory
 from kivy.properties import ObjectProperty
 from kivy.lang import Builder
 
-from electrum_dash.util import base_units
-from electrum_dash.i18n import languages
-from electrum_dash_gui.kivy.i18n import _
-from electrum_dash.plugins import run_hook
-from electrum_dash import coinchooser
-from electrum_dash.util import fee_levels
+from electrum_axe.util import base_units
+from electrum_axe.i18n import languages
+from electrum_axe_gui.kivy.i18n import _
+from electrum_axe.plugins import run_hook
+from electrum_axe import coinchooser
+from electrum_axe.util import fee_levels
 
 from .choice_dialog import ChoiceDialog
 
 Builder.load_string('''
 #:import partial functools.partial
-#:import _ electrum_dash_gui.kivy.i18n._
+#:import _ electrum_axe_gui.kivy.i18n._
 
 <SettingsDialog@Popup>
     id: settings
@@ -46,13 +46,13 @@ Builder.load_string('''
                 SettingsItem:
                     bu: app.base_unit
                     title: _('Denomination') + ': ' + self.bu
-                    description: _("Base unit for Dash amounts.")
+                    description: _("Base unit for AXE amounts.")
                     action: partial(root.unit_dialog, self)
                 CardSeparator
                 SettingsItem:
                     status: root.fee_status()
                     title: _('Fees') + ': ' + self.status
-                    description: _("Fees paid to the Dash miners.")
+                    description: _("Fees paid to the AXE miners.")
                     action: partial(root.fee_dialog, self)
                 CardSeparator
                 SettingsItem:
