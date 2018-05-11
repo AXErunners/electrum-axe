@@ -150,7 +150,7 @@ class Test_bitcoin(unittest.TestCase):
 
     def test_address_to_script(self):
         # base58 P2PKH
-        self.assertEqual(address_to_script('PBenpocD6pDoAoFZP4qA2pLpNwrm6FAcVw'), '76a91428662c67561b95c79d2257d2a93d9d151c977e9188ac')
+        self.assertEqual(address_to_script('PBenpocD6pDoAoFZP4qA2pLpNwrm6FAcVw'), '76a9142197669050d01c6136181127ac8a0c631733da9688ac')
         self.assertEqual(address_to_script('P9h6zCz253jmc4TvqgKPRNpkx5qELdNWWT'), '76a914704f4b81cadb7bf7e68c08cd3657220f680f863c88ac')
 
         # base58 P2SH
