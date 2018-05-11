@@ -1,0 +1,12 @@
+{
+    "Bittrex": [
+        "BTC"
+    ],
+    "Poloniex": [
+        "BTC"
+    ],
+    "CoinMarketCap": [
+        "BTC",
+        "USD"
+    ]
+}
