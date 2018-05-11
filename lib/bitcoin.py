@@ -68,7 +68,7 @@ class NetworkConstants:
         cls.ADDRTYPE_P2PKH = 55
         cls.ADDRTYPE_P2SH = 16
         cls.HEADERS_URL = ''  # TODO headers bootstrap
-        cls.GENESIS = '00000ffd590b1485b3caadc19b22e6379c733355108f107a430458cdf3407ab6'
+        cls.GENESIS = '00000c33631ca6f2f61368991ce2dc03306b5bb50bf7cede5cfbba6db38e52e6'
         cls.DEFAULT_PORTS = {'t': '50001', 's': '50002'}
         cls.DEFAULT_SERVERS = read_json_dict('servers.json')
         cls.DRKV_HEADER = 0x02fe52f8  # drkv
