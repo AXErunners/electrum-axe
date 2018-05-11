@@ -9,8 +9,8 @@ Electrum-AXE - Lightweight AXE client
   Homepage: https://electrum-dash.org/
 
 
-.. image:: https://travis-ci.org/akhavr/electrum-dash.svg?branch=master
-    :target: https://travis-ci.org/akhavr/electrum-dash
+.. image:: https://travis-ci.org/axerunners/electrum-axe.svg?branch=master
+    :target: https://travis-ci.org/axerunners/electrum-axe
     :alt: Build Status
 
 
