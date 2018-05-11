@@ -65,7 +65,7 @@ class NetworkConstants:
     def set_mainnet(cls):
         cls.TESTNET = False
         cls.WIF_PREFIX = 204
-        cls.ADDRTYPE_P2PKH = 76
+        cls.ADDRTYPE_P2PKH = 55
         cls.ADDRTYPE_P2SH = 16
         cls.HEADERS_URL = ''  # TODO headers bootstrap
         cls.GENESIS = '00000ffd590b1485b3caadc19b22e6379c733355108f107a430458cdf3407ab6'
