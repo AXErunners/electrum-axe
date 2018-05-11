@@ -257,8 +257,8 @@ class Test_drk_import(unittest.TestCase):
 
     xpub = 'xpub6D29GbQPoG4HzDFJw8hp8vGVr1Awr3seNyBEzqrgV22JxBnYb8qg7nPhsKKc2T1MSJ5qV3oDZayG9GBHh8WWgp2ApSdY5sisH8kwuBCDRwS'
     xprv = 'xprv9z2ns5sVxtVzmjAqq7AomnKmHyLTSb9o1kFeCTT4vgVL5PTQ3bXRZz5E24RxdEUfLK8YjXeHptQkNQSHj7PUNZYjJMEybYDg2hHyzLfc2uV'
-    drkp = 'xpub6EHRtDWHdre31gHLGokZkfvFjFeDEvX998svq2Q1PBeS9KiAkRcLwP5r8SZsA9dwp6wTRoE9dhEp8vsgasQUGRMfDrJqG4ATbTj3N7JeQLX'
-    drkv = 'xprvA1J5UhyPoV5joCCsAnDZPXyXBDoiqToHmuxL2dzPpr7TGXP2CtJ6PamNH9YatsWH7DZB2DbLto18BTjd2hiDG39w26YCdpFKDtpMDAbg2JE'
+    drkp = 'drkpRv3MKBiuEwFtNSzj62Kwpj7Cd77NVUYAPoxBN8EL5rSn6EMWr3bD4RnwwbGrnQZStpYJ1iGZCiGKt9mR7aYNtaurGyTCQZuwVzqzAbX9znj'
+    drkv = 'drkvjLuVs1zJu2rKwexyhS5mYeVuNs2umm4bZMg8hv4Zy28xLX2tXbr6tzytFNsAsqjveLoFqSgcNhF4YoonH1y35REUMeSFJZ8ALdoFutwvbtw'
     master_fpr = '3442193e'
     sec_key = 'edb2e14f9ee77d26dd93b4ecede8d16ed408ce149b6cd80b0715a2d911a0afea'
     pub_key = '035a784662a4a20a65bf6aab9ae98a6c068a81c52e4b032c0fb5400c706cfccc56'
