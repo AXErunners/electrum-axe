@@ -1,20 +1,10 @@
 Electrum-AXE - Lightweight AXE client
 =====================================
 
-::
-
-  Licence: MIT Licence
-  Author: Thomas Voegtlin
-  Language: Python
-  Homepage: https://electrum-axe.org/
-
 
 .. image:: https://travis-ci.org/axerunners/electrum-axe.svg?branch=master
     :target: https://travis-ci.org/axerunners/electrum-axe
     :alt: Build Status
-
-
-
 
 
 Getting started
