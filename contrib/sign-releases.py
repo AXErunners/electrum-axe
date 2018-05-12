@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Sign releases on github
 
@@ -49,6 +49,7 @@ import hashlib
 import tempfile
 import json
 from subprocess import check_output, CalledProcessError
+from functools import cmp_to_key
 
 try:
     import click
@@ -58,11 +59,11 @@ try:
     from colorama import Fore, Style
     from github_release import (get_releases, gh_asset_download,
                                 gh_asset_upload, gh_asset_delete)
-except ImportError, e:
-    print 'Import error:', e
-    print 'To run script install required packages with the next command:\n\n'\
-          'pip install githubrelease python-gnupg pyOpenSSL cryptography idna'\
-          ' certifi python-dateutil click colorama'
+except ImportError as e:
+    print('Import error:', e)
+    print('To run script install required packages with the next command:\n\n'
+          'pip install githubrelease python-gnupg pyOpenSSL cryptography idna'
+          ' certifi python-dateutil click colorama')
     sys.exit(1)
 
 
@@ -115,8 +116,8 @@ def read_config():
         with open(config_path, 'r') as f:
             data = f.read()
             return json.loads(data)
-    except Exception, e:
-        print 'Error: Cannot read config file:', e
+    except Exception as e:
+        print('Error: Cannot read config file:', e)
         return {}
 
 
@@ -124,7 +125,7 @@ def check_github_repo(remote_name='origin'):
     """Try to determine and return 'username/repo' if current dir is git dir"""
     try:
         remotes = check_output(['git', 'remote', '-v'],
-                               stderr=open(os.devnull, 'w'))
+                               stderr=open(os.devnull, 'w')).decode('utf-8')
         remotes = remotes.splitlines()
     except CalledProcessError:
         remotes = []
@@ -201,14 +202,14 @@ class SignApp(object):
                 or self.config.get('sign_drafts', False)
 
         if not self.repo:
-            print 'no repo found, exit'
+            print('no repo found, exit')
             sys.exit(1)
 
         if self.token:
             os.environ['GITHUB_TOKEN'] = self.token
 
         if not os.environ.get('GITHUB_TOKEN', None):
-            print 'GITHUB_TOKEN environment var not set, exit'
+            print('GITHUB_TOKEN environment var not set, exit')
             sys.exit(1)
 
         if self.keyid:
@@ -218,12 +219,12 @@ class SignApp(object):
         self.gpg = gnupg.GPG()
 
         if not self.keyid:
-            print 'no keyid set, exit'
+            print('no keyid set, exit')
             sys.exit(1)
 
         keylist = self.gpg.list_keys(True, keys=[self.keyid])
         if not keylist:
-            print 'no key with keyid %s found, exit' % self.keyid
+            print('no key with keyid %s found, exit' % self.keyid)
             sys.exit(1)
 
         self.uid = ', '.join(keylist[0].get('uids', ['No uid found']))
@@ -251,7 +252,7 @@ class SignApp(object):
                                     keyid=self.keyid, passphrase=passphrase)
         if signed_data.data and self.gpg.verify(signed_data.data).valid:
             return True
-        print '%sWrong passphrase!%s' % (Fore.RED, Style.RESET_ALL)
+        print('%sWrong passphrase!%s' % (Fore.RED, Style.RESET_ALL))
         return False
 
     def sign_file_name(self, name, detach=True):
@@ -261,7 +262,7 @@ class SignApp(object):
                                              keyid=self.keyid,
                                              passphrase=self.passphrase,
                                              detach=detach)
-            with open('%s.asc' % name, 'w') as fdw:
+            with open('%s.asc' % name, 'wb') as fdw:
                 fdw.write(signed_data.data)
 
     def sign_release(self, release, other_names, asc_names):
@@ -272,7 +273,7 @@ class SignApp(object):
         repo = self.repo
         tag = release.get('tag_name', None)
         if not tag:
-            print 'Release have no tag name, skip release\n'
+            print('Release have no tag name, skip release\n')
             return
 
         with ChdirTemporaryDirectory():
@@ -307,8 +308,8 @@ class SignApp(object):
         """Search through last 'count' releases with assets without
         .asc counterparts or releases withouth SHA256SUMS.txt.asc
         """
-        print 'Sign releases on repo: %s' % self.repo
-        print '  With key: %s, %s\n' % (self.keyid, self.uid)
+        print('Sign releases on repo: %s' % self.repo)
+        print('  With key: %s, %s\n' % (self.keyid, self.uid))
         releases = get_releases(self.repo)
 
         if self.tag_name:
@@ -316,13 +317,13 @@ class SignApp(object):
                         if r.get('tag_name', None) == self.tag_name]
 
             if len(releases) == 0:
-                print 'No release with tag "%s" found, exit' % self.tag_name
+                print('No release with tag "%s" found, exit' % self.tag_name)
                 sys.exit(1)
         elif not self.sign_drafts:
             releases = [r for r in releases if not r.get('draft', False)]
 
         # cycle through releases sorted by by publication date
-        releases.sort(compare_published_times)
+        releases.sort(key=cmp_to_key(compare_published_times))
         for r in releases[:self.count]:
             tag_name = r.get('tag_name', 'No tag_name')
             is_draft = r.get('draft', False)
@@ -339,12 +340,12 @@ class SignApp(object):
             if not is_draft:
                 msg += ', published at: %s' % r.get('published_at', '')
 
-            print msg
+            print(msg)
 
             asset_names = [a['name'] for a in r['assets']]
 
             if not asset_names:
-                print '  No assets found, skip release\n'
+                print('  No assets found, skip release\n')
                 continue
 
             asc_names = [a for a in asset_names if a.endswith('.asc')]
@@ -366,7 +367,7 @@ class SignApp(object):
             if need_to_sign or self.force:
                 self.sign_release(r, other_names, asc_names)
             else:
-                print '  Seems already signed, skip release\n'
+                print('  Seems already signed, skip release\n')
 
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
@@ -399,7 +400,7 @@ def main(**kwargs):
 
     sleep = kwargs.pop('sleep', None)
     if (sleep):
-        print 'Sleep for %s seconds' % sleep
+        print('Sleep for %s seconds' % sleep)
         time.sleep(sleep)
 
     app.search_and_sign_unsinged()
