@@ -1,0 +1,5 @@
+electrum-dash (3.0.6~rc2-0ppa1~ubuntu18.04.1) bionic; urgency=medium
+
+  * Port to ppa
+
+ -- Andriy Khavryuchenko <akhavr@khavr.com>  Sun, 18 Mar 2018 00:09:53 +0200
