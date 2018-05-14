@@ -2,6 +2,10 @@
 # -*- coding: utf-8 -*-
 """Sign releases on github, make/upload ppa to launchpad.net
 
+NOTE: To build ppa need to install some packages. On ubuntu:
+     sudo apt-get install devscripts libssl-dev python3-dev \
+          debhelper python3-setuptools dh-python
+
 Settings is read from options, then if repo not set, repo is read from
 current dire 'git remote -v' output, filtered by 'origin', then config
 file is read.
