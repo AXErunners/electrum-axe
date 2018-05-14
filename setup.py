@@ -81,9 +81,9 @@ setup(
     scripts=['electrum-axe'],
     data_files=data_files,
     description="Lightweight AXE Wallet",
-    maintainer="akhavr",
-    maintainer_email="akhavr@khavr.com",
+    maintainer="ddude",
+    maintainer_email="ddude@axerunners.com",
     license="MIT License",
-    url="https://electrum-axe.org",
+    url="https://axerunners.com",
     long_description="""Lightweight AXE Wallet"""
 )
