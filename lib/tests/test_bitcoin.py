@@ -243,8 +243,8 @@ class Test_xprv_xpub(unittest.TestCase):
     def test_is_bip32_derivation(self):
         self.assertTrue(is_bip32_derivation("m/0'/1"))
         self.assertTrue(is_bip32_derivation("m/0'/0'"))
-        self.assertTrue(is_bip32_derivation("m/44'/0'/0'/0/0"))
-        self.assertTrue(is_bip32_derivation("m/49'/0'/0'/0/0"))
+        self.assertTrue(is_bip32_derivation("m/44'/4242'/0'/0/0"))
+        self.assertTrue(is_bip32_derivation("m/44'/4242'/0'/0/1"))
         self.assertFalse(is_bip32_derivation("mmmmmm"))
         self.assertFalse(is_bip32_derivation("n/"))
         self.assertFalse(is_bip32_derivation(""))
@@ -330,7 +330,7 @@ class Test_keyImport(unittest.TestCase):
             'txin_type': 'p2pkh',
             'compressed': False,
             'addr_encoding': 'base58',
-            'scripthash': 'f5914651408417e1166f725a5829ff9576d0dbf05237055bf13abd2af7f79473'},
+            'scripthash': '4b72a36e24dac8375220db482e44b04d350e3a6c05e6901bd15b251c6553eaca'},
            # from http://bitscan.com/articles/security/spotlight-on-mini-private-keys
            {'priv': 'SzavMBLoXU6kDrqtUVmffv',
             'pub': '02588d202afcc1ee4ab5254c7847ec25b9a135bbda0f2bc69ee1a714749fd77dc9',
