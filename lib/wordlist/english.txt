@@ -133,6 +133,7 @@ away
 awesome
 awful
 awkward
+axe
 axis
 baby
 bachelor
@@ -443,7 +444,7 @@ damp
 dance
 danger
 daring
-axe
+dash
 daughter
 dawn
 day
