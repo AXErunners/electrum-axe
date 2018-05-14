@@ -322,7 +322,7 @@ class Test_keyImport(unittest.TestCase):
             'txin_type': 'p2pkh',
             'compressed': True,
             'addr_encoding': 'base58',
-            'scripthash': 'c9aecd1fef8d661a42c560bf75c8163e337099800b8face5ca3d1393a30508a7'},
+            'scripthash': '33a07d5e4c49c5075ffdd6e018aa76adc6356cea32246af6cdd65d29acd6d36f'},
            {'priv': 'XFsDL1FgC4VWQWZQu1NZAs5ri1rUP8mu1CviQYBbXedBTK37uppF',
             'pub': '0329e04e958045a2866e59d13423772e16551cc1bedc50adb0e10b33ae28146cfc',
             'address': 'P9h6zCz253jmc4TvqgKPRNpkx5qELdNWWT',
@@ -334,7 +334,7 @@ class Test_keyImport(unittest.TestCase):
            # from http://bitscan.com/articles/security/spotlight-on-mini-private-keys
            {'priv': 'SzavMBLoXU6kDrqtUVmffv',
             'pub': '02588d202afcc1ee4ab5254c7847ec25b9a135bbda0f2bc69ee1a714749fd77dc9',
-            'address': 'XixkkUaFKBmj5mieoLRNXTUiXhCmM87ZSj',
+            'address': 'PGs65CKCQQ3KufnqHXRgLpmCK6nxTwLixp',
             'minikey': True,
             'txin_type': 'p2pkh',
             'compressed': True,  # this is actually ambiguous... issue #2748
