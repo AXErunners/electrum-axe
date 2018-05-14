@@ -58,7 +58,7 @@ class TestWalletKeystoreAddressIntegrity(unittest.TestCase):
         w = self._create_standard_wallet(ks)
 
         self.assertEqual(w.get_receiving_addresses()[0], 'PVxw3sArbqyTcfrGQTjdfpaKBhDA9k5EK7')
-        self.assertEqual(w.get_change_addresses()[0], 'Xu8Vpo1b81a6zCC574LXjEETvV4Wq58z24')
+        self.assertEqual(w.get_change_addresses()[0], 'PT2q9WkYDDqhp6GFbFLqYbWwhtehqh1bXh')
 
     @mock.patch.object(storage.WalletStorage, '_write')
     def test_electrum_seed_old(self, mock_write):
@@ -74,7 +74,7 @@ class TestWalletKeystoreAddressIntegrity(unittest.TestCase):
 
         w = self._create_standard_wallet(ks)
 
-        self.assertEqual(w.get_receiving_addresses()[0], 'Xpz54Rncf6aC9od2cE64teK5okqgWxVpTk')
+        self.assertEqual(w.get_receiving_addresses()[0], 'PNtQP9XZkJqnyhhD6R6Ni1bZbARsbmovBo')
         self.assertEqual(w.get_change_addresses()[0], 'Xu7Ly4vzExW9r4ijM79KWm1icCTTBoVCFE')
 
     @mock.patch.object(storage.WalletStorage, '_write')
@@ -82,16 +82,16 @@ class TestWalletKeystoreAddressIntegrity(unittest.TestCase):
         seed_words = 'nest board snow album extra author object patrol budget length mind guide'
         self.assertEqual(keystore.bip39_is_checksum_valid(seed_words), (True, True))
 
-        ks = keystore.from_bip39_seed(seed_words, '', "m/44'/0'/0'")
+        ks = keystore.from_bip39_seed(seed_words, '', "m/44'/4242'/0'")
 
         self.assertTrue(isinstance(ks, keystore.BIP32_KeyStore))
 
-        self.assertEqual(ks.xpub, 'xpub68eKyZceo1GdLcDegkwdZBe2FNwZct3B7ZXqYJsm1r6F1RV96Vwzx5m6F3XNqy24ikStaNHieHfiaA99P29CsgupYDCFVCJJyMWohNSdabE')
+        self.assertEqual(ks.xpub, 'xpub6EHRtDWHdre31gHLGokZkfvFjFeDEvX998svq2Q1PBeS9KiAkRcLwP5r8SZsA9dwp6wTRoE9dhEp8vsgasQUGRMfDrJqG4ATbTj3N7JeQLX')
 
         w = self._create_standard_wallet(ks)
 
-        self.assertEqual(w.get_receiving_addresses()[0], 'PNtQP9XZkJqnyhhD6R6Ni1bZbARsbmovBo')
-        self.assertEqual(w.get_change_addresses()[0], 'PAXaycHBoaQSGrjgurCnuihGRozuWbzors')
+        self.assertEqual(w.get_receiving_addresses()[0], 'PBenpocD6pDoAoFZP4qA2pLpNwrm6FAcVw')
+        self.assertEqual(w.get_change_addresses()[0], 'P9h6zCz253jmc4TvqgKPRNpkx5qELdNWWT')
 
     @mock.patch.object(storage.WalletStorage, '_write')
     def test_electrum_multisig_seed_standard(self, mock_write):
