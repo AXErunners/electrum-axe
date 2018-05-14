@@ -74,8 +74,8 @@ class Test_bitcoin(unittest.TestCase):
         sig1_b64 = base64.b64encode(sig1)
         sig2_b64 = base64.b64encode(sig2)
 
-        self.assertEqual(sig1_b64, b'Hziq9TTbuJcXyg3BC7kkUqxTOqYjHJLix6lTi5cum4plBFq7BwJvCqAba9yD6K/2OKpu9ZuLAktzqaAPzvsdEa0=')
-        self.assertEqual(sig2_b64, b'G3G4u7v0VYtbNRxGJ+elKL0udQGIGby47677kKwyaw+xE2Z0xeZnQBSBDpR3Ekr+ycHlCPE3FHSZRN+vL8Nl/x4=')
+        self.assertEqual(sig1_b64, b'HxotOszC5f11BXHmUCedMJiMMIm1LJjq99MXXydPB5xjOAYgS0Nu6Aa2dPsxzxBAXJIVrpXGwlXHuzlI17Q+IxQ=')
+        self.assertEqual(sig2_b64, b'IPTzdPgV0VAO/XS5H4K/qFC8I18KYPtysrzLnYIBwh8YHBtUUXS2kv9yhwKRi9Ii0xHUfLW1BNp8P6hENgH13SY=')
 
         self.assertTrue(verify_message(addr1, sig1, msg1))
         self.assertTrue(verify_message(addr2, sig2, msg2))
