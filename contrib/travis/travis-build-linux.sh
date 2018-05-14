@@ -10,7 +10,7 @@ fi
 
 cd build
 
-BUILD_REPO_URL=https://github.com/akhavr/electrum-axe.git
+BUILD_REPO_URL=https://github.com/axerunners/electrum-axe.git
 git clone --branch $TRAVIS_TAG $BUILD_REPO_URL electrum-axe
 
 docker run --rm \

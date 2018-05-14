@@ -1,5 +1,5 @@
 #!/bin/bash
-BUILD_REPO_URL=https://github.com/akhavr/electrum-axe.git
+BUILD_REPO_URL=https://github.com/axerunners/electrum-axe.git
 
 cd build
 
