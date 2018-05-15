@@ -2,7 +2,8 @@
 set -ev
 
 if [[ -z $TRAVIS_TAG ]]; then
-  exit 0
+  echo TRAVIS_TAG unset, exiting
+  exit 1
 fi
 
 cd build

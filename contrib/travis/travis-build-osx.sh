@@ -1,15 +1,16 @@
 #!/bin/bash
-BUILD_REPO_URL=https://github.com/akhavr/electrum-dash.git
+set -ev
 
-set -e
+if [[ -z $TRAVIS_TAG ]]; then
+  echo TRAVIS_TAG unset, exiting
+  exit 1
+fi
+
+BUILD_REPO_URL=https://github.com/akhavr/electrum-dash.git
 
 cd build
 
-if [[ -z $TRAVIS_TAG ]]; then
-  exit 0
-else
-  git clone --branch $TRAVIS_TAG $BUILD_REPO_URL electrum-dash
-fi
+git clone --branch $TRAVIS_TAG $BUILD_REPO_URL electrum-dash
 
 cd electrum-dash
 
