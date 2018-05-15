@@ -1,0 +1,13 @@
+Index: Electrum-DASH-3.0.6/lib/util.py
+===================================================================
+--- Electrum-DASH-3.0.6.orig/lib/util.py	2018-05-11 11:06:15.000000000 +0300
++++ Electrum-DASH-3.0.6/lib/util.py	2018-05-11 11:46:25.197338884 +0300
+@@ -354,7 +354,7 @@
+         return 'unknown'
+     x = int(x)  # Some callers pass Decimal
+     scale_factor = pow (10, decimal_point)
+-    integer_part = "{:n}".format(int(abs(x) / scale_factor))
++    integer_part = "{:d}".format(int(abs(x) / scale_factor))
+     if x < 0:
+         integer_part = '-' + integer_part
+     elif is_diff:

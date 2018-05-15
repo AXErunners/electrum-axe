@@ -1,0 +1,75 @@
+.TH electrum-dash 1 "23 June 2013" "electrum-dash"
+.SH NAME
+electrum-dash \- Lightweight Dash client
+.SH SYNOPSIS
+.B electrum-dash [options] command [options]
+.SH DESCRIPTION
+.PP
+Electrum-DASH is a lightweight Dash client.
+.br
+Electrum-DASH protects from losing dashcoins in a backup mistake or computer
+failure. It allows recovery of wallet from a passphrase which you can
+learn by heart or write it down on a paper.
+.br
+Since electrum-dash does not download the entire blockchain there
+is no waiting time when the client is started.
+
+.TP
+\fB\-g GUI, \-\-gui=GUI\fR
+Select user interface, possible values are  qt, lite, gtk or text
+.TP
+\fB\-w WALLET_PATH, \-\-wallet=WALLET_PATH\fR
+Use wallet from WALLET_PATH, default is default_wallet.dat.
+.TP
+\fB\-o, \-\-offline\fR
+Remain offline.
+.TP
+\fB\-a, \-\-all\fR
+Show all addresses.
+.TP
+\fB\-b, \-\-balance\fR
+Show the balance of listed addresses
+.TP
+\fB\-l, \-\-labels\fR
+Show the labels of listed addresses
+.TP
+\fB\-f TX_FEE, \-\-fee=TX_FEE\fR
+set tx fee
+.TP
+\fB\-F FROM_ADDR, \-\-fromad
+dr=FROM_ADDR\fR
+.PP
+set source address for payto/mktx. if it isn't in the wallet, it will
+ask for the private key unless supplied in the format
+public_key:private_key. It's not saved in the wallet.
+.TP
+\fB\-c CHANGE_ADDR, \-\-changeaddr=CHANGE_ADDR\fR
+.PP
+set the change address for payto/mktx. default is a spare address, or
+the source address if it's not in the wallet.
+.TP
+\fB\-s SERVER, \-\-server=SERVER\fR
+set server host:port:protocol, where protocol is t or h
+.TP
+\fB\-p PROXY, \-\-proxy=PROXY\fR
+set proxy [type:]host[:port], where type is socks4,socks5 or http
+.TP
+\fB\-v, \-\-verbose\fR
+show debugging information
+.TP
+\fB\-P, \-\-portable\fR
+portable wallet
+.TP
+\fB\-L LANGUAGE, \-\-lang=LANGUAGE\fR
+default language used in GUI
+.TP
+\fB\-u, \-\-usb\fR
+Turn on support for hardware wallets (EXPERIMENTAL).
+.SH AUTHORS
+Electrum-DASH client was initially written by ThomasV
+<\fIthomasv@gitorious\fR>
+.br
+This manual page was written by Vasudev Kamath
+<\fIkamathvasudev@gmail.com\fR> for Debian Project (but can be used by
+others).
+

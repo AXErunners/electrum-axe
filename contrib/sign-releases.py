@@ -1,6 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Sign releases on github
+"""Sign releases on github, make/upload ppa to launchpad.net
+
+NOTE: To build ppa need to install some packages. On ubuntu:
+     sudo apt-get install devscripts libssl-dev python3-dev \
+          debhelper python3-setuptools dh-python
 
 Settings is read from options, then if repo not set, repo is read from
 current dire 'git remote -v' output, filtered by 'origin', then config
@@ -41,6 +45,7 @@ Example:
 
 import os
 import os.path
+import re
 import sys
 import time
 import getpass
@@ -48,28 +53,74 @@ import shutil
 import hashlib
 import tempfile
 import json
-from subprocess import check_output, CalledProcessError
+from subprocess import check_output, call, CalledProcessError
+from functools import cmp_to_key
+from time import localtime, strftime
 
 try:
     import click
+    import certifi
     import gnupg
     import dateutil.parser
     import colorama
     from colorama import Fore, Style
     from github_release import (get_releases, gh_asset_download,
                                 gh_asset_upload, gh_asset_delete)
-except ImportError, e:
-    print 'Import error:', e
-    print 'To run script install required packages with the next command:\n\n'\
-          'pip install githubrelease python-gnupg pyOpenSSL cryptography idna'\
-          ' certifi python-dateutil click colorama'
+    from urllib3 import PoolManager
+except ImportError as e:
+    print('Import error:', e)
+    print('To run script install required packages with the next command:\n\n'
+          'pip install githubrelease python-gnupg pyOpenSSL cryptography idna'
+          ' certifi python-dateutil click colorama requests LinkHeader')
     sys.exit(1)
 
+HTTP = PoolManager(cert_reqs='CERT_REQUIRED', ca_certs=certifi.where())
+
+FNULL = open(os.devnull, 'w')
 
 HOME_DIR = os.path.expanduser('~')
 CONFIG_NAME = '.sign-releases'
 SEARCH_COUNT = 6
 SHA_FNAME = 'SHA256SUMS.txt'
+PPA_SERIES = {
+    'trusty': '14.04.1',
+    'xenial': '16.04.1',
+    'artful': '17.10.1',
+    'bionic': '18.04.1',
+}
+PEP440_PUBVER_PATTERN = re.compile('^((\d+)!)?'
+                                   '((\d+)(\.\d+)*)'
+                                   '([a-zA-Z]+\d+)?'
+                                   '((\.[a-zA-Z]+\d+)*)$')
+REL_NOTES_PATTERN = re.compile('^#.+?(^[^#].+?)^#.+?', re.M | re.S)
+SDIST_NAME_PATTERN = re.compile('Electrum-DASH-(.*).tar.gz')
+SDIST_DIR_TEMPLATE = 'Electrum-DASH-{version}'
+PPA_SOURCE_NAME = 'electrum-dash'
+PPA_ORIG_NAME_TEMPLATE = '%s_{version}.orig.tar.gz' % PPA_SOURCE_NAME
+CHANGELOG_TEMPLATE = """%s ({ppa_version}) {series}; urgency=medium
+{changes} -- {uid}  {time}""" % PPA_SOURCE_NAME
+PPA_FILES_TEMPLATE = '%s_{0}{1}' % PPA_SOURCE_NAME
+LP_API_URL='https://api.launchpad.net/1.0'
+LP_SERIES_TEMPLATE = '%s/ubuntu/{0}' % LP_API_URL
+LP_ARCHIVES_TEMPLATE = '%s/~{user}/+archive/ubuntu/{ppa}' % LP_API_URL
+
+os.environ['QUILT_PATCHES'] = 'debian/patches'
+
+
+def pep440_to_deb(version):
+    """Convert PEP 440 public version to deb upstream version"""
+    ver_match = PEP440_PUBVER_PATTERN.match(version)
+    if not ver_match:
+        raise Exception('Version "%s" does not comply with PEP 440' % version)
+
+    g = ver_match.group
+    deb_ver = ''
+    deb_ver += ('%s:' % g(2)) if g(1) else ''
+    deb_ver += g(3)
+    deb_ver += ('~%s' % g(6)) if g(6) else ''
+    deb_ver += ('%s' % g(7)) if g(7) else ''
+
+    return deb_ver
 
 
 def compare_published_times(a, b):
@@ -115,8 +166,8 @@ def read_config():
         with open(config_path, 'r') as f:
             data = f.read()
             return json.loads(data)
-    except Exception, e:
-        print 'Error: Cannot read config file:', e
+    except Exception as e:
+        print('Error: Cannot read config file:', e)
         return {}
 
 
@@ -124,7 +175,7 @@ def check_github_repo(remote_name='origin'):
     """Try to determine and return 'username/repo' if current dir is git dir"""
     try:
         remotes = check_output(['git', 'remote', '-v'],
-                               stderr=open(os.devnull, 'w'))
+                               stderr=FNULL).decode('utf-8')
         remotes = remotes.splitlines()
     except CalledProcessError:
         remotes = []
@@ -148,14 +199,46 @@ def check_github_repo(remote_name='origin'):
     return repo
 
 
+def get_next_ppa_num(ppa, source_package_name, ppa_upstr_version, series_name):
+    user, ppa_name = ppa.split('/')
+    archives_url = LP_ARCHIVES_TEMPLATE.format(user=user, ppa=ppa_name)
+    series_url = LP_SERIES_TEMPLATE.format(series_name)
+    query = {
+        'ws.op': 'getPublishedSources',
+        'distro_series': series_url,
+        'order_by_date': 'true',
+        'source_name': source_package_name,
+    }
+
+    resp = HTTP.request('GET', archives_url, fields=query)
+    if resp.status != 200:
+        raise Exception('Launchpad API error %s %s', (resp.status,
+                                                      resp.reason))
+    data = json.loads(resp.data.decode('utf-8'))
+    entries = data['entries']
+    if len(entries) == 0:
+        return 1
+
+    for e in entries:
+        ppa_version = e['source_package_version']
+        version_match = re.match('%s-0ppa(\d+)~ubuntu' % ppa_upstr_version,
+                                 ppa_version)
+        if version_match:
+            return int(version_match.group(1)) + 1
+
+    return 1
+
+
 class ChdirTemporaryDirectory(object):
     """Create tmp dir, chdir to it and remove on exit"""
     def __enter__(self):
+        self.prev_wd = os.getcwd()
         self.name = tempfile.mkdtemp()
         os.chdir(self.name)
         return self.name
 
     def __exit__(self, exc_type, exc_value, traceback):
+        os.chdir(self.prev_wd)
         shutil.rmtree(self.name)
 
 
@@ -167,10 +250,13 @@ class SignApp(object):
         self.force = kwargs.pop('force', False)
         self.tag_name = kwargs.pop('tag_name', None)
         self.repo = kwargs.pop('repo', None)
+        self.ppa = kwargs.pop('ppa', None)
         self.token = kwargs.pop('token', None)
         self.keyid = kwargs.pop('keyid', None)
         self.count = kwargs.pop('count', None)
         self.dry_run = kwargs.pop('dry_run', False)
+        self.no_ppa = kwargs.pop('no_ppa', False)
+        self.verbose = kwargs.pop('verbose', False)
 
         if not self.repo:
             self.repo = check_github_repo()
@@ -193,22 +279,26 @@ class SignApp(object):
 
         if self.config:
             self.repo = self.repo or self.config.get('repo', None)
+            self.ppa = self.ppa or self.config.get('ppa', None)
             self.token = self.token or self.config.get('token', None)
             self.keyid = self.keyid or self.config.get('keyid', None)
             self.count = self.count or self.config.get('count', None) \
                 or SEARCH_COUNT
             self.sign_drafts = self.sign_drafts \
                 or self.config.get('sign_drafts', False)
+            self.no_ppa = self.no_ppa \
+                or self.config.get('no_ppa', False)
+            self.verbose = self.verbose or self.config.get('verbose', None)
 
         if not self.repo:
-            print 'no repo found, exit'
+            print('no repo found, exit')
             sys.exit(1)
 
         if self.token:
             os.environ['GITHUB_TOKEN'] = self.token
 
         if not os.environ.get('GITHUB_TOKEN', None):
-            print 'GITHUB_TOKEN environment var not set, exit'
+            print('GITHUB_TOKEN environment var not set, exit')
             sys.exit(1)
 
         if self.keyid:
@@ -218,12 +308,12 @@ class SignApp(object):
         self.gpg = gnupg.GPG()
 
         if not self.keyid:
-            print 'no keyid set, exit'
+            print('no keyid set, exit')
             sys.exit(1)
 
         keylist = self.gpg.list_keys(True, keys=[self.keyid])
         if not keylist:
-            print 'no key with keyid %s found, exit' % self.keyid
+            print('no key with keyid %s found, exit' % self.keyid)
             sys.exit(1)
 
         self.uid = ', '.join(keylist[0].get('uids', ['No uid found']))
@@ -251,7 +341,7 @@ class SignApp(object):
                                     keyid=self.keyid, passphrase=passphrase)
         if signed_data.data and self.gpg.verify(signed_data.data).valid:
             return True
-        print '%sWrong passphrase!%s' % (Fore.RED, Style.RESET_ALL)
+        print('%sWrong passphrase!%s' % (Fore.RED, Style.RESET_ALL))
         return False
 
     def sign_file_name(self, name, detach=True):
@@ -261,10 +351,10 @@ class SignApp(object):
                                              keyid=self.keyid,
                                              passphrase=self.passphrase,
                                              detach=detach)
-            with open('%s.asc' % name, 'w') as fdw:
+            with open('%s.asc' % name, 'wb') as fdw:
                 fdw.write(signed_data.data)
 
-    def sign_release(self, release, other_names, asc_names):
+    def sign_release(self, release, other_names, asc_names, is_newest_release):
         """Download/sign unsigned assets, upload .asc counterparts.
         Create SHA256SUMS.txt with all assets included and upload it
         with SHA256SUMS.txt.asc counterpart.
@@ -272,16 +362,20 @@ class SignApp(object):
         repo = self.repo
         tag = release.get('tag_name', None)
         if not tag:
-            print 'Release have no tag name, skip release\n'
+            print('Release have no tag name, skip release\n')
             return
 
-        with ChdirTemporaryDirectory():
+        with ChdirTemporaryDirectory() as tmpdir:
             with open(SHA_FNAME, 'w') as fdw:
+                sdist_match = None
                 for name in other_names:
                     if name == SHA_FNAME:
                         continue
 
                     gh_asset_download(repo, tag, name)
+                    if not self.no_ppa:
+                        sdist_match = sdist_match \
+                                      or SDIST_NAME_PATTERN.match(name)
                     if not '%s.asc' % name in asc_names or self.force:
                         self.sign_file_name(name)
 
@@ -303,12 +397,89 @@ class SignApp(object):
             gh_asset_upload(repo, tag, '%s.asc' % SHA_FNAME,
                             dry_run=self.dry_run)
 
+            if sdist_match and is_newest_release:
+                self.make_ppa(sdist_match, tmpdir)
+
+    def make_ppa(self, sdist_match, tmpdir):
+        """Build, sign and upload dsc to launchpad.net ppa from sdist.tar.gz"""
+        with ChdirTemporaryDirectory() as ppa_tmpdir:
+            sdist_name = sdist_match.group(0)
+            version = sdist_match.group(1)
+            ppa_upstr_version = pep440_to_deb(version)
+            ppa_orig_name = PPA_ORIG_NAME_TEMPLATE.format(
+                version=ppa_upstr_version)
+            series = list(map(lambda x: x[0],
+                sorted(PPA_SERIES.items(), key=lambda x: x[1])))
+            sdist_dir = SDIST_DIR_TEMPLATE.format(version=version)
+            sdist_dir = os.path.join(ppa_tmpdir, sdist_dir)
+            debian_dir = os.path.join(sdist_dir, 'debian')
+            changelog_name = os.path.join(debian_dir, 'changelog')
+            relnotes_name = os.path.join(sdist_dir, 'RELEASE-NOTES')
+
+            print('Found sdist: %s, version: %s' % (sdist_name, version))
+            print('  Copying sdist to %s, extracting' % ppa_orig_name)
+            shutil.copy(os.path.join(tmpdir, sdist_name),
+                  os.path.join(ppa_tmpdir, ppa_orig_name))
+            call(['tar', '-xzvf', ppa_orig_name], stdout=FNULL)
+
+            with open(relnotes_name, 'r') as rnfd:
+                changes = rnfd.read()
+                changes_match = REL_NOTES_PATTERN.match(changes)
+                if changes_match and len(changes_match.group(1)) > 0:
+                    changes = changes_match.group(1).split('\n')
+                    for i in range(len(changes)):
+                        if changes[i] == '':
+                            continue
+                        elif changes[i][0] != ' ':
+                            changes[i] = '  %s' % changes[i]
+                        elif len(changes[i]) > 1 and changes[i][1] != ' ':
+                            changes[i] = ' %s' % changes[i]
+                    changes = '\n'.join(changes)
+                else:
+                    changes = '\n  * Porting to ppa\n\n'
+
+            os.chdir(sdist_dir)
+            print('  Making PPAs for series: %s' % (', '.join(series)))
+            now_formatted = strftime('%a, %d %b %Y %H:%M:%S %z', localtime())
+            for s in series:
+                ppa_num = get_next_ppa_num(self.ppa, PPA_SOURCE_NAME,
+                                           ppa_upstr_version, s)
+                rel_version = PPA_SERIES[s]
+                ppa_version = '%s-0ppa%s~ubuntu%s' % (ppa_upstr_version,
+                                                      ppa_num, rel_version)
+                ppa_dsc = os.path.join(ppa_tmpdir, PPA_FILES_TEMPLATE.format(
+                    ppa_version, '.dsc'))
+                ppa_chgs = os.path.join(ppa_tmpdir, PPA_FILES_TEMPLATE.format(
+                    ppa_version, '_source.changes'))
+                changelog = CHANGELOG_TEMPLATE.format(ppa_version=ppa_version,
+                                                      series=s,
+                                                      changes=changes,
+                                                      uid=self.uid,
+                                                      time=now_formatted)
+
+                with open(changelog_name, 'w') as chlfd:
+                    chlfd.write(changelog)
+
+                print('  Make %s ppa, Signing with key: %s, %s' %
+                    (ppa_version, self.keyid, self.uid))
+                if self.verbose:
+                    call(['debuild', '-S'])
+                else:
+                    call(['debuild', '-S'], stdout=FNULL)
+                print('  Upload %s ppa to %s' % (ppa_version, self.ppa))
+                if self.dry_run:
+                    print('  Dry run:  dput ppa:%s %s' % (self.ppa, ppa_chgs))
+                else:
+                    call(['dput', ('ppa:%s' % self.ppa), ppa_chgs],
+                         stdout=FNULL)
+                print('\n')
+
     def search_and_sign_unsinged(self):
         """Search through last 'count' releases with assets without
         .asc counterparts or releases withouth SHA256SUMS.txt.asc
         """
-        print 'Sign releases on repo: %s' % self.repo
-        print '  With key: %s, %s\n' % (self.keyid, self.uid)
+        print('Sign releases on repo: %s' % self.repo)
+        print('  With key: %s, %s\n' % (self.keyid, self.uid))
         releases = get_releases(self.repo)
 
         if self.tag_name:
@@ -316,13 +487,13 @@ class SignApp(object):
                         if r.get('tag_name', None) == self.tag_name]
 
             if len(releases) == 0:
-                print 'No release with tag "%s" found, exit' % self.tag_name
+                print('No release with tag "%s" found, exit' % self.tag_name)
                 sys.exit(1)
         elif not self.sign_drafts:
             releases = [r for r in releases if not r.get('draft', False)]
 
         # cycle through releases sorted by by publication date
-        releases.sort(compare_published_times)
+        releases.sort(key=cmp_to_key(compare_published_times))
         for r in releases[:self.count]:
             tag_name = r.get('tag_name', 'No tag_name')
             is_draft = r.get('draft', False)
@@ -339,12 +510,12 @@ class SignApp(object):
             if not is_draft:
                 msg += ', published at: %s' % r.get('published_at', '')
 
-            print msg
+            print(msg)
 
             asset_names = [a['name'] for a in r['assets']]
 
             if not asset_names:
-                print '  No assets found, skip release\n'
+                print('  No assets found, skip release\n')
                 continue
 
             asc_names = [a for a in asset_names if a.endswith('.asc')]
@@ -364,9 +535,9 @@ class SignApp(object):
                 need_to_sign = '%s.asc' % SHA_FNAME not in asc_names
 
             if need_to_sign or self.force:
-                self.sign_release(r, other_names, asc_names)
+                self.sign_release(r, other_names, asc_names, r==releases[0])
             else:
-                print '  Seems already signed, skip release\n'
+                print('  Seems already signed, skip release\n')
 
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
@@ -383,6 +554,10 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               help='Sing only release tagged with tag name')
 @click.option('-k', '--keyid',
               help='gnupg keyid')
+@click.option('-l', '--ppa',
+              help='PPA in format uzername/ppa')
+@click.option('-L', '--no-ppa', is_flag=True,
+              help='Do not make launchpad ppa')
 @click.option('-n', '--dry-run', is_flag=True,
               help='Do not uload signed files')
 @click.option('-p', '--ask-passphrase', is_flag=True,
@@ -394,12 +569,14 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('-t', '--token',
               help='GigHub access token, to be set as'
                    ' GITHUB_TOKEN environmet variable')
+@click.option('-v', '--verbose', is_flag=True,
+              help='Make more verbose output')
 def main(**kwargs):
     app = SignApp(**kwargs)
 
     sleep = kwargs.pop('sleep', None)
     if (sleep):
-        print 'Sleep for %s seconds' % sleep
+        print('Sleep for %s seconds' % sleep)
         time.sleep(sleep)
 
     app.search_and_sign_unsinged()

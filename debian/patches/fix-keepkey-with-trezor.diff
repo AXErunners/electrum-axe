@@ -1,0 +1,13 @@
+Index: Electrum-DASH-3.0.6/electrum-dash
+===================================================================
+--- Electrum-DASH-3.0.6.orig/electrum-dash	2018-04-17 19:12:42.320633114 +0300
++++ Electrum-DASH-3.0.6/electrum-dash	2018-04-25 11:16:48.929394266 +0300
+@@ -26,6 +26,8 @@
+ import os
+ import sys
+
++os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION']='python'
++
+ # from https://gist.github.com/tito/09c42fb4767721dc323d
+ import threading
+ try:

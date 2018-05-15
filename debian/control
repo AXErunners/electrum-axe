@@ -1,0 +1,76 @@
+Source: electrum-dash
+Section: utils
+Priority: optional
+Maintainer: Andriy Khavryuchenko <akhavr@khavr.com>
+Build-Depends:
+ debhelper (>= 9),
+ dh-python,
+ python3-all-dev,
+ python3-setuptools,
+ pyqt5-dev-tools,
+ python3-pyaes (>= 1.6.1),
+ python3-ecdsa (>= 0.10),
+ python3-pbkdf2 (>= 1.3),
+ python3-requests (>= 2.2.1),
+ python3-qrcode (>= 5.3),
+ python3-protobuf (>= 3.0.0),
+ python3-dnspython (>= 1.11.1),
+ python3-jsonrpclib-pelix (>= 0.3.1),
+ python3-socks (>= 1.6.5),
+ python3-x11-hash (>=1.4),
+Standards-Version: 4.1.3
+Homepage: http://electrum.dash.org/
+X-Python3-Version: >= 3.4
+
+Package: python3-electrum-dash
+Architecture: all
+Section: python
+Depends:
+ trezor (>= 0.7.16.1),
+ python3-trezor (>= 0.7.16.1),
+ keepkey (>= 4.0.2),
+ python3-keepkey (>= 4.0.2),
+ python3-btchip (>= 0.1.24),
+ ${misc:Depends},
+ ${python3:Depends},
+Description: Easy to use Dash client - Python module
+ This package provides a lightweight Dash client which protects
+ you from losing your Dashcoins in a backup mistake or computer
+ failure. Also, Electrum-DASH does not require waiting time because it does
+ not download the Dash blockchain.
+ .
+ This package provides the "electrum_dash" Python 3 module which can be used
+ to access a Dash wallet from Python programs.
+
+Package: electrum-dash
+Architecture: all
+Depends:
+ ${misc:Depends},
+ ${python3:Depends},
+ python3-electrum-dash (= ${binary:Version}),
+Recommends: python3-pyqt5
+Description: Easy to use Dash client
+ This package provides a lightweight Dash client which protects
+ you from losing your Dashcoins in a backup mistake or computer
+ failure. Also, Electrum-DASH does not require waiting time because it does
+ not download the Dash blockchain.
+ .
+ Features of Electrum-DASH:
+ .
+   * Instant on: Your client does not download the blockchain. It uses a
+     network of specialized servers that index the blockchain.
+   * Forgiving: Your wallet can be recovered from a secret seed.
+   * Safe: Your seed and private keys are encrypted on your hard drive.
+     They are never sent to the servers.
+   * Low trust: Information received from the servers is verified using
+     SPV. Servers are authenticated using SSL.
+   * No downtimes: Your client is not tied to a particular server; it
+     will switch instantly if your server is down.
+   * Ubiquitous: You can use the same wallet on different computers, they
+     will synchronize automatically.
+   * Cold Storage: Sign transactions from a computer that is always
+     offline. Broadcast them using a machine that does not have your keys.
+   * Reachable: You can export your private keys into other Dash
+     clients.
+   * Established: Electrum-DASH is open source and was first released in
+     November 2011.
