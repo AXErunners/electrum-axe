@@ -17,9 +17,12 @@ docker run --rm \
     -w /opt/electrum-dash \
     -t zebralucky/electrum-dash-winebuild:Linux /opt/build_linux.sh
 
+sudo find . -name '*.po' -delete
+sudo find . -name '*.pot' -delete
+
 sudo chown -R 1000 electrum-dash
 
 docker run --rm \
     -v $(pwd)/electrum-dash:/home/buildozer/build \
     -t zebralucky/electrum-dash-winebuild:Kivy bash -c \
-    './contrib/make_packages && mv ./contrib/packages . && ./contrib/make_apk'
+    'rm -rf packages && ./contrib/make_packages && mv ./contrib/packages . && ./contrib/make_apk'

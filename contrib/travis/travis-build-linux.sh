@@ -17,6 +17,9 @@ docker run --rm \
     -w /opt/electrum-dash \
     -t zebralucky/electrum-dash-winebuild:Linux /opt/build_linux.sh
 
+sudo find . -name '*.po' -delete
+sudo find . -name '*.pot' -delete
+
 export WINEARCH=win32
 export WINEPREFIX=/root/.wine-32
 export PYHOME=$WINEPREFIX/drive_c/Python34

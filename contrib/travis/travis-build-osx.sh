@@ -28,6 +28,11 @@ sudo pip3 install \
 
 pyrcc5 icons.qrc -o gui/qt/icons_rc.py
 
+export PATH="/usr/local/opt/gettext/bin:$PATH"
+./contrib/make_locale
+find . -name '*.po' -delete
+find . -name '*.pot' -delete
+
 cp contrib/osx.spec .
 cp contrib/pyi_runtimehook.py .
 cp contrib/pyi_tctl_runtimehook.py .
