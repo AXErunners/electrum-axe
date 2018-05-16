@@ -255,7 +255,7 @@ class Test_drk_import(unittest.TestCase):
     """ The keys used in this class are TEST keys from
         https://en.bitcoin.it/wiki/BIP_0032_TestVectors"""
 
-    xpub = 'xpub6D29GbQPoG4HzDFJw8hp8vGVr1Awr3seNyBEzqrgV22JxBnYb8qg7nPhsKKc2T1MSJ5qV3oDZayG9GBHh8WWgp2ApSdY5sisH8kwuBCDRwS'
+    xpub = 'xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw'
     xprv = 'xprv9z2ns5sVxtVzmjAqq7AomnKmHyLTSb9o1kFeCTT4vgVL5PTQ3bXRZz5E24RxdEUfLK8YjXeHptQkNQSHj7PUNZYjJMEybYDg2hHyzLfc2uV'
     drkp = 'drkpRv3MKBiuEwFtNSzj62Kwpj7Cd77NVUYAPoxBN8EL5rSn6EMWr3bD4RnwwbGrnQZStpYJ1iGZCiGKt9mR7aYNtaurGyTCQZuwVzqzAbX9znj'
     drkv = 'drkvjLuVs1zJu2rKwexyhS5mYeVuNs2umm4bZMg8hv4Zy28xLX2tXbr6tzytFNsAsqjveLoFqSgcNhF4YoonH1y35REUMeSFJZ8ALdoFutwvbtw'
@@ -328,7 +328,7 @@ class Test_keyImport(unittest.TestCase):
             'address': 'P9h6zCz253jmc4TvqgKPRNpkx5qELdNWWT',
             'minikey': False,
             'txin_type': 'p2pkh',
-            'compressed': False,
+            'compressed': True,
             'addr_encoding': 'base58',
             'scripthash': '4b72a36e24dac8375220db482e44b04d350e3a6c05e6901bd15b251c6553eaca'},
            # from http://bitscan.com/articles/security/spotlight-on-mini-private-keys
