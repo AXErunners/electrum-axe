@@ -50,6 +50,8 @@ class Synchronizer(ThreadJob):
         self.requested_histories = {}
         self.requested_addrs = set()
         self.lock = Lock()
+
+        self.initialized = False
         self.initialize()
 
     def parse_response(self, response):
@@ -84,11 +86,13 @@ class Synchronizer(ThreadJob):
         return bh2u(hashlib.sha256(status.encode('ascii')).digest())
 
     def on_address_status(self, response):
+        if self.wallet.synchronizer is None and self.initialized:
+            return  # we have been killed, this was just an orphan callback
         params, result = self.parse_response(response)
         if not params:
             return
         addr = params[0]
-        history = self.wallet.get_address_history(addr)
+        history = self.wallet.history.get(addr, [])
         if self.get_status(history) != result:
             if self.requested_histories.get(addr) is None:
                 self.requested_histories[addr] = result
@@ -98,12 +102,17 @@ class Synchronizer(ThreadJob):
             self.requested_addrs.remove(addr)
 
     def on_address_history(self, response):
+        if self.wallet.synchronizer is None and self.initialized:
+            return  # we have been killed, this was just an orphan callback
         params, result = self.parse_response(response)
         if not params:
             return
         addr = params[0]
+        server_status = self.requested_histories.get(addr)
+        if server_status is None:
+            self.print_error("receiving history (unsolicited)", addr, len(result))
+            return
         self.print_error("receiving history", addr, len(result))
-        server_status = self.requested_histories[addr]
         hashes = set(map(lambda item: item['tx_hash'], result))
         hist = list(map(lambda item: (item['tx_hash'], item['height']), result))
         # tx_fees
@@ -127,6 +136,8 @@ class Synchronizer(ThreadJob):
         self.requested_histories.pop(addr)
 
     def tx_response(self, response):
+        if self.wallet.synchronizer is None and self.initialized:
+            return  # we have been killed, this was just an orphan callback
         params, result = self.parse_response(response)
         if not params:
             return
@@ -177,6 +188,7 @@ class Synchronizer(ThreadJob):
         if self.requested_tx:
             self.print_error("missing tx", self.requested_tx)
         self.subscribe_to_addresses(set(self.wallet.get_addresses()))
+        self.initialized = True
 
     def run(self):
         '''Called from the network proxy thread main loop.'''

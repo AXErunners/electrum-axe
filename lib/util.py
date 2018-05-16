@@ -41,7 +41,6 @@ def inv_dict(d):
 
 
 base_units = {'DASH':8, 'mDASH':5, 'uDASH':2}
-fee_levels = [_('Within 25 blocks'), _('Within 10 blocks'), _('Within 5 blocks'), _('Within 2 blocks'), _('In the next block')]
 
 def normalize_version(v):
     return [int(x) for x in re.sub(r'(\.0+)*$','', v).split(".")]
@@ -54,9 +53,48 @@ class AlreadyHaveAddress(Exception):
 
 class NotEnoughFunds(Exception): pass
 
+
+class NoDynamicFeeEstimates(Exception):
+    def __str__(self):
+        return _('Dynamic fee estimates not available')
+
+
 class InvalidPassword(Exception):
     def __str__(self):
         return _("Incorrect password")
+
+
+class FileImportFailed(Exception):
+    def __init__(self, message=''):
+        self.message = str(message)
+
+    def __str__(self):
+        return _("Failed to import from file.") + "\n" + self.message
+
+
+class FileExportFailed(Exception):
+    def __init__(self, message=''):
+        self.message = str(message)
+
+    def __str__(self):
+        return _("Failed to export to file.") + "\n" + self.message
+
+
+class TimeoutException(Exception):
+    def __init__(self, message=''):
+        self.message = str(message)
+
+    def __str__(self):
+        if not self.message:
+            return _("Operation timed out.")
+        return self.message
+
+
+class WalletFileException(Exception): pass
+
+
+class BitcoinException(Exception): pass
+
 
 # Throw this exception to unwind the stack like when an error occurs.
 # However unlike other exceptions the user won't be informed.
@@ -64,11 +102,47 @@ class UserCancelled(Exception):
     '''An exception that is suppressed from the user'''
     pass
 
+class Satoshis(object):
+    def __new__(cls, value):
+        self = super(Satoshis, cls).__new__(cls)
+        self.value = value
+        return self
+
+    def __repr__(self):
+        return 'Satoshis(%d)'%self.value
+
+    def __str__(self):
+        return format_satoshis(self.value) + " BTC"
+
+class Fiat(object):
+    def __new__(cls, value, ccy):
+        self = super(Fiat, cls).__new__(cls)
+        self.ccy = ccy
+        self.value = value
+        return self
+
+    def __repr__(self):
+        return 'Fiat(%s)'% self.__str__()
+
+    def __str__(self):
+        if self.value.is_nan():
+            return _('No Data')
+        else:
+            return "{:.2f}".format(self.value) + ' ' + self.ccy
+
 class MyEncoder(json.JSONEncoder):
     def default(self, obj):
         from .transaction import Transaction
         if isinstance(obj, Transaction):
             return obj.as_dict()
+        if isinstance(obj, Satoshis):
+            return str(obj)
+        if isinstance(obj, Fiat):
+            return str(obj)
+        if isinstance(obj, Decimal):
+            return str(obj)
+        if isinstance(obj, datetime):
+            return obj.isoformat(' ')[:-3]
         return super(MyEncoder, self).default(obj)
 
 class PrintError(object):
@@ -77,7 +151,11 @@ class PrintError(object):
         return self.__class__.__name__
 
     def print_error(self, *msg):
+        # only prints with --verbose flag
         print_error("[%s]" % self.diagnostic_name(), *msg)
+
+    def print_stderr(self, *msg):
+        print_stderr("[%s]" % self.diagnostic_name(), *msg)
 
     def print_msg(self, *msg):
         print_msg("[%s]" % self.diagnostic_name(), *msg)
@@ -245,8 +323,8 @@ def android_check_data_dir():
     old_electrum_dir = ext_dir + '/electrum-dash'
     if not os.path.exists(data_dir) and os.path.exists(old_electrum_dir):
         import shutil
-        new_headers_path = android_headers_dir() + 'blockchain_headers'
-        old_headers_path = old_electrum_dir + 'blockchain_headers'
+        new_headers_path = android_headers_dir() + '/blockchain_headers'
+        old_headers_path = old_electrum_dir + '/blockchain_headers'
         if not os.path.exists(new_headers_path) and os.path.exists(old_headers_path):
             print_error("Moving headers file to", new_headers_path)
             shutil.move(old_headers_path, new_headers_path)
@@ -346,7 +424,7 @@ def format_satoshis(x, is_diff=False, num_zeros = 0, decimal_point = 8, whitespa
         return 'unknown'
     x = int(x)  # Some callers pass Decimal
     scale_factor = pow (10, decimal_point)
-    integer_part = "{:n}".format(int(abs(x) / scale_factor))
+    integer_part = "{:d}".format(int(abs(x) / scale_factor))
     if x < 0:
         integer_part = '-' + integer_part
     elif is_diff:
@@ -363,10 +441,9 @@ def format_satoshis(x, is_diff=False, num_zeros = 0, decimal_point = 8, whitespa
     return result
 
 def timestamp_to_datetime(timestamp):
-    try:
-        return datetime.fromtimestamp(timestamp)
-    except:
+    if timestamp is None:
         return None
+    return datetime.fromtimestamp(timestamp)
 
 def format_time(timestamp):
     date = timestamp_to_datetime(timestamp)
@@ -427,24 +504,24 @@ def time_difference(distance_in_time, include_seconds):
         return "over %d years" % (round(distance_in_minutes / 525600))
 
 mainnet_block_explorers = {
-    'Dash.org': ('https://explorer.dash.org',
-                       {'tx': 'tx', 'addr': 'address'}),
-    'Bchain.info': ('https://bchain.info/DASH',
-                       {'tx': 'tx', 'addr': 'addr'}),
-    'system default': ('blockchain:',
-                       {'tx': 'tx', 'addr': 'address'}),
+    'Dash.org': ('https://explorer.dash.org/',
+                       {'tx': 'tx/', 'addr': 'address/'}),
+    'Bchain.info': ('https://bchain.info/DASH/',
+                       {'tx': 'tx/', 'addr': 'addr/'}),
+    'system default': ('blockchain:/',
+                       {'tx': 'tx/', 'addr': 'address/'}),
 }
 
 testnet_block_explorers = {
-    'Dash.org': ('https://test.insight.dash.siampm.com',
-                       {'tx': 'tx', 'addr': 'address'}),
-    'system default': ('blockchain:',
-                       {'tx': 'tx', 'addr': 'address'}),
+    'Dash.org': ('https://test.insight.dash.siampm.com/',
+                       {'tx': 'tx/', 'addr': 'address/'}),
+    'system default': ('blockchain:/',
+                       {'tx': 'tx/', 'addr': 'address/'}),
 }
 
 def block_explorer_info():
-    from . import bitcoin
-    return testnet_block_explorers if bitcoin.NetworkConstants.TESTNET else mainnet_block_explorers
+    from . import constants
+    return testnet_block_explorers if constants.net.TESTNET else mainnet_block_explorers
 
 def block_explorer(config):
     return config.get('block_explorer', 'Dash.org')
@@ -460,7 +537,7 @@ def block_explorer_URL(config, kind, item):
     if not kind_str:
         return
     url_parts = [be_tuple[0], kind_str, item]
-    return "/".join(url_parts)
+    return ''.join(url_parts)
 
 # URL decode
 #_ud = re.compile('%([0-9a-hA-H]{2})', re.MULTILINE)
@@ -472,12 +549,12 @@ def parse_URI(uri, on_pr=None):
 
     if ':' not in uri:
         if not bitcoin.is_address(uri):
-            raise BaseException("Not a Dash address")
+            raise Exception("Not a Dash address")
         return {'address': uri}
 
     u = urllib.parse.urlparse(uri)
     if u.scheme != 'dash':
-        raise BaseException("Not a Dash URI")
+        raise Exception("Not a Dash URI")
     address = u.path
 
     # python for android fails to parse query
@@ -494,7 +571,7 @@ def parse_URI(uri, on_pr=None):
     out = {k: v[0] for k, v in pq.items()}
     if address:
         if not bitcoin.is_address(address):
-            raise BaseException("Invalid Dash address:" + address)
+            raise Exception("Invalid Dash address:" + address)
         out['address'] = address
     if 'amount' in out:
         am = out['amount']
@@ -657,10 +734,6 @@ class SocketPipe:
                 print_error("SSLError:", e)
                 time.sleep(0.1)
                 continue
-            except OSError as e:
-                print_error("OSError", e)
-                time.sleep(0.1)
-                continue
 
 
 class QueuePipe:
@@ -697,25 +770,56 @@ class QueuePipe:
             self.send(request)
 
 
-def check_www_dir(rdir):
-    import urllib, shutil, os
-    if not os.path.exists(rdir):
-        os.mkdir(rdir)
-    index = os.path.join(rdir, 'index.html')
-    if not os.path.exists(index):
-        print_error("copying index.html")
-        src = os.path.join(os.path.dirname(__file__), 'www', 'index.html')
-        shutil.copy(src, index)
-    files = [
-        "https://code.jquery.com/jquery-1.9.1.min.js",
-        "https://raw.githubusercontent.com/davidshimjs/qrcodejs/master/qrcode.js",
-        "https://code.jquery.com/ui/1.10.3/jquery-ui.js",
-        "https://code.jquery.com/ui/1.10.3/themes/smoothness/jquery-ui.css"
-    ]
-    for URL in files:
-        path = urllib.parse.urlsplit(URL).path
-        filename = os.path.basename(path)
-        path = os.path.join(rdir, filename)
-        if not os.path.exists(path):
-            print_error("downloading ", URL)
-            urllib.request.urlretrieve(URL, path)
+
+
+def setup_thread_excepthook():
+    """
+    Workaround for `sys.excepthook` thread bug from:
+    http://bugs.python.org/issue1230540
+
+    Call once from the main thread before creating any threads.
+    """
+
+    init_original = threading.Thread.__init__
+
+    def init(self, *args, **kwargs):
+
+        init_original(self, *args, **kwargs)
+        run_original = self.run
+
+        def run_with_except_hook(*args2, **kwargs2):
+            try:
+                run_original(*args2, **kwargs2)
+            except Exception:
+                sys.excepthook(*sys.exc_info())
+
+        self.run = run_with_except_hook
+
+    threading.Thread.__init__ = init
+
+
+def versiontuple(v):
+    return tuple(map(int, (v.split("."))))
+
+
+def import_meta(path, validater, load_meta):
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            d = validater(json.loads(f.read()))
+        load_meta(d)
+    #backwards compatibility for JSONDecodeError
+    except ValueError:
+        traceback.print_exc(file=sys.stderr)
+        raise FileImportFailed(_("Invalid JSON code."))
+    except BaseException as e:
+        traceback.print_exc(file=sys.stdout)
+        raise FileImportFailed(e)
+
+
+def export_meta(meta, fileName):
+    try:
+        with open(fileName, 'w+', encoding='utf-8') as f:
+            json.dump(meta, f, indent=4, sort_keys=True)
+    except (IOError, os.error) as e:
+        traceback.print_exc(file=sys.stderr)
+        raise FileExportFailed(e)
