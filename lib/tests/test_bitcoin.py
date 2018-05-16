@@ -256,7 +256,7 @@ class Test_drk_import(unittest.TestCase):
         https://en.bitcoin.it/wiki/BIP_0032_TestVectors"""
 
     xpub = 'xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw'
-    xprv = 'xprv9z2ns5sVxtVzmjAqq7AomnKmHyLTSb9o1kFeCTT4vgVL5PTQ3bXRZz5E24RxdEUfLK8YjXeHptQkNQSHj7PUNZYjJMEybYDg2hHyzLfc2uV'
+    xprv = 'xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7'
     drkp = 'drkpRv3MKBiuEwFtNSzj62Kwpj7Cd77NVUYAPoxBN8EL5rSn6EMWr3bD4RnwwbGrnQZStpYJ1iGZCiGKt9mR7aYNtaurGyTCQZuwVzqzAbX9znj'
     drkv = 'drkvjLuVs1zJu2rKwexyhS5mYeVuNs2umm4bZMg8hv4Zy28xLX2tXbr6tzytFNsAsqjveLoFqSgcNhF4YoonH1y35REUMeSFJZ8ALdoFutwvbtw'
     master_fpr = '3442193e'

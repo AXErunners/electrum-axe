@@ -91,7 +91,7 @@ class TestWalletKeystoreAddressIntegrity(unittest.TestCase):
         w = self._create_standard_wallet(ks)
 
         self.assertEqual(w.get_receiving_addresses()[0], 'PBenpocD6pDoAoFZP4qA2pLpNwrm6FAcVw')
-        self.assertEqual(w.get_change_addresses()[0], 'P9h6zCz253jmc4TvqgKPRNpkx5qELdNWWT')
+        self.assertEqual(w.get_change_addresses()[0], 'PSLW1ndf1oacFjm7aUY1gL87fAvyuJKeRU')
 
     @mock.patch.object(storage.WalletStorage, '_write')
     def test_electrum_multisig_seed_standard(self, mock_write):
