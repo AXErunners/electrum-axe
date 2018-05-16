@@ -8,7 +8,9 @@ RUN dpkg --add-architecture i386 \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
         wine-development wine32-development wine64-development libwine-development libwine-development:i386 \
-        wget ca-certificates zip unzip \
+        cabextract xauth xvfb wget ca-certificates zip unzip \
+    && wget https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks \
+    && chmod +x winetricks && mv winetricks /usr/local/bin \
     && rm -rf /var/lib/apt/lists/*
 
 ENV WINEPATH c:/git/cmd
@@ -19,6 +21,7 @@ ENV PYHOME $WINEPREFIX/drive_c/Python34
 
 RUN echo 'download and install 32-bit Python/mingwpy/pywin32/PyQt/git/NSIS/PyInstaller' \
     && wineboot -i \
+    && xvfb-run -a winetricks -q vcrun2010 \
     \
     && wget -nv -O python.msi https://www.python.org/ftp/python/3.4.4/python-3.4.4.msi \
     && msiexec /q /i python.msi && rm python.msi \
@@ -51,6 +54,7 @@ ENV PYHOME $WINEPREFIX/drive_c/Python34
 
 RUN echo 'download and install 64-bit Python/mingwpy/pywin32/PyQt/git/NSIS/PyInstaller' \
     && wineboot -i \
+    && xvfb-run -a winetricks -q vcrun2010 \
     \
     && wget -nv -O python.msi https://www.python.org/ftp/python/3.4.4/python-3.4.4.amd64.msi \
     && msiexec /q /i python.msi && rm python.msi \
