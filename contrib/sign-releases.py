@@ -2,9 +2,58 @@
 # -*- coding: utf-8 -*-
 """Sign releases on github, make/upload ppa to launchpad.net
 
-NOTE: To build ppa need to install some packages. On ubuntu:
+NOTE on ppa: To build a ppa you may need to install some more packages.
+On ubuntu:
+
      sudo apt-get install devscripts libssl-dev python3-dev \
           debhelper python3-setuptools dh-python
+
+NOTE on apk signing: To create a keystore and sign the apk you need to install
+      java-8-openjdk, or java-7-openjdk on older systems.
+
+To create a keystore run the following command:
+
+    mkdir ~/.jks && keytool -genkey -v -keystore ~/.jks/keystore \
+        -alias electrum.dash.org -keyalg RSA -keysize 2048 \
+        -validity 10000
+
+Then it shows a warning about the proprietary format and a command to migrate:
+
+    keytool -importkeystore -srckeystore ~/.jks/keystore \
+            -destkeystore ~/.jks/keystore -deststoretype pkcs12
+
+Manual signing:
+
+    jarsigner -verbose \
+        -tsa http://sha256timestamp.ws.symantec.com/sha256/timestamp \
+        -sigalg SHA1withRSA -digestalg SHA1 \
+        -sigfile dash-electrum \
+        -keystore ~/.jks/keystore \
+        Electrum_DASH-3.0.6.1-release-unsigned.apk \
+        electrum.dash.org
+
+Zipalign from Android SDK build tools is also required (set path to bin in
+settings file or with key -z). To install:
+
+    wget http://dl.google.com/android/android-sdk_r24-linux.tgz \
+    && tar xzf android-sdk_r24-linux.tgz \
+    && rm android-sdk_r24-linux.tgz \
+    && (while sleep 3; do echo "y"; done) \
+        | android-sdk-linux/tools/android update sdk -u -a -t \
+            'tools, platform-tools-preview, build-tools-23.0.1' \
+    && (while sleep 3; do echo "y"; done) \
+        | android-sdk-linux/tools/android update sdk -u -a -t \
+            'tools, platform-tools, build-tools-27.0.3'
+
+Manual zip aligning:
+
+    android-sdk-linux/build-tools/27.0.3/zipalign -v 4 \
+        Electrum_DASH-3.0.6.1-release-unsigned.apk \
+        Electrum_DASH-3.0.6.1-release.apk
+
+
+
+About script settings:
 
 Settings is read from options, then if repo not set, repo is read from
 current dire 'git remote -v' output, filtered by 'origin', then config
@@ -15,8 +64,8 @@ If setting is already set then it value does not changes.
 Config file can have one repo form or multiple repo form.
 
 In one repo form config settings read from root JSON object.
-Keys are "repo", "keyid", "token", "count" and "sign_drafts",
-which is correspond to program options.
+Keys are "repo", "keyid", "token", "count", "sign_drafts",
+and others, which is corresponding to program options.
 
 Example:
 
@@ -53,7 +102,8 @@ import shutil
 import hashlib
 import tempfile
 import json
-from subprocess import check_output, call, CalledProcessError
+import zipfile
+from subprocess import check_output, check_call, CalledProcessError
 from functools import cmp_to_key
 from time import localtime, strftime
 
@@ -80,8 +130,10 @@ FNULL = open(os.devnull, 'w')
 
 HOME_DIR = os.path.expanduser('~')
 CONFIG_NAME = '.sign-releases'
-SEARCH_COUNT = 6
+SEARCH_COUNT = 1
 SHA_FNAME = 'SHA256SUMS.txt'
+
+# make_ppa related definitions
 PPA_SERIES = {
     'trusty': '14.04.1',
     'xenial': '16.04.1',
@@ -93,7 +145,7 @@ PEP440_PUBVER_PATTERN = re.compile('^((\d+)!)?'
                                    '([a-zA-Z]+\d+)?'
                                    '((\.[a-zA-Z]+\d+)*)$')
 REL_NOTES_PATTERN = re.compile('^#.+?(^[^#].+?)^#.+?', re.M | re.S)
-SDIST_NAME_PATTERN = re.compile('Electrum-DASH-(.*).tar.gz')
+SDIST_NAME_PATTERN = re.compile('^Electrum-DASH-(.*).tar.gz$')
 SDIST_DIR_TEMPLATE = 'Electrum-DASH-{version}'
 PPA_SOURCE_NAME = 'electrum-dash'
 PPA_ORIG_NAME_TEMPLATE = '%s_{version}.orig.tar.gz' % PPA_SOURCE_NAME
@@ -103,6 +155,24 @@ PPA_FILES_TEMPLATE = '%s_{0}{1}' % PPA_SOURCE_NAME
 LP_API_URL='https://api.launchpad.net/1.0'
 LP_SERIES_TEMPLATE = '%s/ubuntu/{0}' % LP_API_URL
 LP_ARCHIVES_TEMPLATE = '%s/~{user}/+archive/ubuntu/{ppa}' % LP_API_URL
+
+# sing_apk related definitions
+JKS_KEYSTORE = os.path.join(HOME_DIR, '.jks/keystore')
+JKS_ALIAS = 'electrum.dash.org'
+JKS_STOREPASS = 'JKS_STOREPASS'
+JKS_KEYPASS = 'JKS_KEYPASS'
+KEYTOOL_ARGS = ['keytool', '-list', '-storepass:env', JKS_STOREPASS]
+JARSIGNER_ARGS = [
+    'jarsigner', '-verbose',
+    '-tsa', 'http://sha256timestamp.ws.symantec.com/sha256/timestamp',
+    '-sigalg', 'SHA1withRSA', '-digestalg', 'SHA1',
+    '-sigfile', 'dash-electrum',
+    '-storepass:env', JKS_STOREPASS,
+    '-keypass:env', JKS_KEYPASS,
+]
+UNSIGNED_APK_PATTERN = re.compile('^Electrum_DASH-(.*)-release-unsigned.apk$')
+SIGNED_APK_TEMPLATE = 'Electrum_DASH-{version}-release.apk'
+
 
 os.environ['QUILT_PATCHES'] = 'debian/patches'
 
@@ -124,7 +194,7 @@ def pep440_to_deb(version):
 
 
 def compare_published_times(a, b):
-    """Releases list sorting comparsion function"""
+    """Releases list sorting comparsion function (last published first)"""
 
     a = a['published_at']
     b = b['published_at']
@@ -200,6 +270,7 @@ def check_github_repo(remote_name='origin'):
 
 
 def get_next_ppa_num(ppa, source_package_name, ppa_upstr_version, series_name):
+    """Calculate next ppa num (if older ppa versions whas published earlier)"""
     user, ppa_name = ppa.split('/')
     archives_url = LP_ARCHIVES_TEMPLATE.format(user=user, ppa=ppa_name)
     series_url = LP_SERIES_TEMPLATE.format(series_name)
@@ -257,6 +328,9 @@ class SignApp(object):
         self.dry_run = kwargs.pop('dry_run', False)
         self.no_ppa = kwargs.pop('no_ppa', False)
         self.verbose = kwargs.pop('verbose', False)
+        self.jks_keystore = kwargs.pop('jks_keystore', False)
+        self.jks_alias = kwargs.pop('jks_alias', False)
+        self.zipalign_path = kwargs.pop('zipalign_path', False)
 
         if not self.repo:
             self.repo = check_github_repo()
@@ -289,6 +363,12 @@ class SignApp(object):
             self.no_ppa = self.no_ppa \
                 or self.config.get('no_ppa', False)
             self.verbose = self.verbose or self.config.get('verbose', None)
+            self.jks_keystore = self.jks_keystore \
+                or self.config.get('jks_keystore', JKS_KEYSTORE)
+            self.jks_alias = self.jks_alias \
+                or self.config.get('jks_alias', JKS_ALIAS)
+            self.zipalign_path = self.zipalign_path \
+                or self.config.get('zipalign_path', None)
 
         if not self.repo:
             print('no repo found, exit')
@@ -324,6 +404,60 @@ class SignApp(object):
         elif not self.check_key():
             while not self.passphrase:
                 self.read_passphrase()
+
+        if self.zipalign_path:
+            try:
+                check_call(self.zipalign_path, stderr=FNULL)
+            except CalledProcessError:
+                pass
+            self.read_jks_storepass()
+            self.read_jks_keypass()
+
+    def read_jks_storepass(self):
+        """Read JKS storepass and keypass"""
+        while not JKS_STOREPASS in os.environ:
+            storepass = getpass.getpass('%sInput %s keystore password:%s ' %
+                                    (Fore.GREEN,
+                                     self.jks_keystore,
+                                     Style.RESET_ALL))
+            os.environ[JKS_STOREPASS] = storepass
+            try:
+                check_call(KEYTOOL_ARGS + ['-keystore', self.jks_keystore],
+                       stdout=FNULL, stderr=FNULL)
+            except CalledProcessError:
+                print('%sWrong keystore password%s' %
+                      (Fore.RED, Style.RESET_ALL))
+                del os.environ[JKS_STOREPASS]
+
+    def read_jks_keypass(self):
+        while not JKS_KEYPASS in os.environ:
+            keypass = getpass.getpass('%sInput alias password for <%s> '
+                                      '[Enter if same as for keystore]:%s ' %
+                                  (Fore.YELLOW,
+                                   self.jks_alias,
+                                   Style.RESET_ALL))
+            if not keypass:
+                os.environ[JKS_KEYPASS] = os.environ[JKS_STOREPASS]
+            else:
+                os.environ[JKS_KEYPASS] = keypass
+
+            with ChdirTemporaryDirectory() as tmpdir:
+                test_file = 'testfile.txt'
+                test_zipfile = 'testzip.zip'
+                with open(test_file, 'w') as fdw:
+                    fdw.write('testcontent')
+                test_zf = zipfile.ZipFile(test_zipfile, mode='w')
+                test_zf.write(test_file)
+                test_zf.close()
+
+                sign_args = ['-keystore', self.jks_keystore,
+                             test_zipfile, self.jks_alias]
+                try:
+                    check_call(JARSIGNER_ARGS + sign_args, stdout=FNULL)
+                except CalledProcessError:
+                    print('%sWrong key alias password%s' %
+                          (Fore.RED, Style.RESET_ALL))
+                    del os.environ[JKS_KEYPASS]
 
     def read_passphrase(self):
         """Read passphrase for gpg key until check_key is passed"""
@@ -373,9 +507,20 @@ class SignApp(object):
                         continue
 
                     gh_asset_download(repo, tag, name)
+
                     if not self.no_ppa:
                         sdist_match = sdist_match \
                                       or SDIST_NAME_PATTERN.match(name)
+
+                    apk_match = UNSIGNED_APK_PATTERN.match(name)
+                    if apk_match:
+                        unsigned_name = name
+                        name = self.sign_apk(unsigned_name, apk_match.group(1))
+
+                        gh_asset_upload(repo, tag, name, dry_run=self.dry_run)
+                        gh_asset_delete(repo, tag, unsigned_name,
+                                        dry_run=self.dry_run)
+
                     if not '%s.asc' % name in asc_names or self.force:
                         self.sign_file_name(name)
 
@@ -400,6 +545,26 @@ class SignApp(object):
             if sdist_match and is_newest_release:
                 self.make_ppa(sdist_match, tmpdir)
 
+    def sign_apk(self, unsigned_name, version):
+        """Sign unsigned release apk"""
+        if not (JKS_STOREPASS in os.environ and JKS_KEYPASS in os.environ):
+            raise Exception('Found unsigned apk and no zipalign path set')
+
+        name = SIGNED_APK_TEMPLATE.format(version=version)
+
+        print('Signing apk: %s' % name)
+        apk_args = ['-keystore', self.jks_keystore,
+                    unsigned_name, self.jks_alias]
+        if self.verbose:
+            check_call(JARSIGNER_ARGS + apk_args)
+            check_call([self.zipalign_path, '-v', '4', unsigned_name, name])
+        else:
+            check_call(JARSIGNER_ARGS + apk_args, stdout=FNULL)
+            check_call([self.zipalign_path, '-v', '4', unsigned_name, name],
+                       stdout=FNULL)
+
+        return name
+
     def make_ppa(self, sdist_match, tmpdir):
         """Build, sign and upload dsc to launchpad.net ppa from sdist.tar.gz"""
         with ChdirTemporaryDirectory() as ppa_tmpdir:
@@ -420,7 +585,7 @@ class SignApp(object):
             print('  Copying sdist to %s, extracting' % ppa_orig_name)
             shutil.copy(os.path.join(tmpdir, sdist_name),
                   os.path.join(ppa_tmpdir, ppa_orig_name))
-            call(['tar', '-xzvf', ppa_orig_name], stdout=FNULL)
+            check_call(['tar', '-xzvf', ppa_orig_name], stdout=FNULL)
 
             with open(relnotes_name, 'r') as rnfd:
                 changes = rnfd.read()
@@ -463,14 +628,14 @@ class SignApp(object):
                 print('  Make %s ppa, Signing with key: %s, %s' %
                     (ppa_version, self.keyid, self.uid))
                 if self.verbose:
-                    call(['debuild', '-S'])
+                    check_call(['debuild', '-S'])
                 else:
-                    call(['debuild', '-S'], stdout=FNULL)
+                    check_call(['debuild', '-S'], stdout=FNULL)
                 print('  Upload %s ppa to %s' % (ppa_version, self.ppa))
                 if self.dry_run:
                     print('  Dry run:  dput ppa:%s %s' % (self.ppa, ppa_chgs))
                 else:
-                    call(['dput', ('ppa:%s' % self.ppa), ppa_chgs],
+                    check_call(['dput', ('ppa:%s' % self.ppa), ppa_chgs],
                          stdout=FNULL)
                 print('\n')
 
@@ -544,6 +709,8 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
 
 @click.command(context_settings=CONTEXT_SETTINGS)
+@click.option('-a', '--jks-alias',
+              help='jks key alias')
 @click.option('-c', '--count', type=int,
               help='Number of recently published releases to sign')
 @click.option('-d', '--sign-drafts', is_flag=True,
@@ -554,6 +721,8 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               help='Sing only release tagged with tag name')
 @click.option('-k', '--keyid',
               help='gnupg keyid')
+@click.option('-K', '--jks-keystore',
+              help='jks keystore path')
 @click.option('-l', '--ppa',
               help='PPA in format uzername/ppa')
 @click.option('-L', '--no-ppa', is_flag=True,
@@ -571,6 +740,8 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
                    ' GITHUB_TOKEN environmet variable')
 @click.option('-v', '--verbose', is_flag=True,
               help='Make more verbose output')
+@click.option('-z', '--zipalign-path',
+              help='zipalign path')
 def main(**kwargs):
     app = SignApp(**kwargs)
 
