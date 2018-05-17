@@ -42,6 +42,7 @@ deploy:
   - build/electrum-dash/dist/Electrum-DASH-$ELECTRUM_DASH_VERSION.tar.gz
   - build/electrum-dash/dist/electrum-dash-$ELECTRUM_DASH_VERSION-setup-win32.exe
   - build/electrum-dash/dist/electrum-dash-$ELECTRUM_DASH_VERSION-setup-win64.exe
+  - build/electrum-dash/bin/Electrum_DASH-$ELECTRUM_DASH_APK_VERSION-release-unsigned.apk
   on:
     repo: akhavr/electrum-dash
     tags: true

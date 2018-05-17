@@ -77,11 +77,12 @@ class FxDialog(Factory.Popup):
         self.config = config
         self.callback = callback
         self.fx = self.app.fx
-        self.fx.set_history_config(True)
+        self.fx.set_history_config(False)
         self.add_currencies()
 
     def add_exchanges(self):
-        exchanges = sorted(self.fx.get_exchanges_by_ccy(self.fx.get_currency(), True)) if self.fx.is_enabled() else []
+        with_history = self.fx.get_history_config()
+        exchanges = sorted(self.fx.get_exchanges_by_ccy(self.fx.get_currency(), with_history)) if self.fx.is_enabled() else []
         mx = self.fx.exchange.name() if self.fx.is_enabled() else ''
         ex = self.ids.exchanges
         ex.values = exchanges
@@ -94,7 +95,8 @@ class FxDialog(Factory.Popup):
             self.fx.set_exchange(text)
 
     def add_currencies(self):
-        currencies = [_('None')] + self.fx.get_currencies(True)
+        with_history = self.fx.get_history_config()
+        currencies = [_('None')] + self.fx.get_currencies(with_history)
         my_ccy = self.fx.get_currency() if self.fx.is_enabled() else _('None')
         self.ids.ccy.values = currencies
         self.ids.ccy.text = my_ccy
