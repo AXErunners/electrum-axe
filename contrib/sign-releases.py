@@ -55,11 +55,9 @@ Manual zip aligning:
 
 About script settings:
 
-Settings is read from options, then if repo not set, repo is read from
-current dire 'git remote -v' output, filtered by 'origin', then config
-file is read.
-
-If setting is already set then it value does not changes.
+Settings is read from options, then config file is read.
+If setting is already set from options, then it value does
+not changes.
 
 Config file can have one repo form or multiple repo form.
 
@@ -103,7 +101,7 @@ import hashlib
 import tempfile
 import json
 import zipfile
-from subprocess import check_output, check_call, CalledProcessError
+from subprocess import check_call, CalledProcessError
 from functools import cmp_to_key
 from time import localtime, strftime
 
@@ -241,34 +239,6 @@ def read_config():
         return {}
 
 
-def check_github_repo(remote_name='origin'):
-    """Try to determine and return 'username/repo' if current dir is git dir"""
-    try:
-        remotes = check_output(['git', 'remote', '-v'],
-                               stderr=FNULL).decode('utf-8')
-        remotes = remotes.splitlines()
-    except CalledProcessError:
-        remotes = []
-    remotes = [r for r in remotes if remote_name in r]
-    repo = remotes[0].split()[1] if len(remotes) > 0 else None
-
-    if repo:
-        if repo.startswith('git'):
-            repo = repo.split(':')[-1]
-
-        if repo.startswith('http'):
-            if repo.endswith('/'):
-                repo = repo[:-1]
-
-            repo = repo.split('/')
-            repo = '/'.join(repo[-2:])
-
-        if repo.endswith('.git'):
-            repo = repo[:-4]
-
-    return repo
-
-
 def get_next_ppa_num(ppa, source_package_name, ppa_upstr_version, series_name):
     """Calculate next ppa num (if older ppa versions whas published earlier)"""
     user, ppa_name = ppa.split('/')
@@ -331,9 +301,6 @@ class SignApp(object):
         self.jks_keystore = kwargs.pop('jks_keystore', False)
         self.jks_alias = kwargs.pop('jks_alias', False)
         self.zipalign_path = kwargs.pop('zipalign_path', False)
-
-        if not self.repo:
-            self.repo = check_github_repo()
 
         self.config = {}
         config_data = read_config()
