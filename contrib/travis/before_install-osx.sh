@@ -2,13 +2,15 @@
 set -ev
 
 if [[ -z $TRAVIS_TAG ]]; then
-  exit 0
+  echo TRAVIS_TAG unset, exiting
+  exit 1
 fi
 
 cd build
 
 brew update
 brew install zebra-lucky/qt5/qt5
+brew install gettext
 
 curl -O https://www.python.org/ftp/python/3.6.5/python-3.6.5-macosx10.6.pkg
 curl -O https://bootstrap.pypa.io/get-pip.py

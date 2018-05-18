@@ -1,30 +1,55 @@
+sudo: required
+language: python
+services:
+- docker
+addons:
+  apt:
+    packages:
+    - libusb-1.0-0-dev
+    - libudev-dev
 matrix:
   include:
   - if: tag =~ .+
     os: osx
+    language: ruby
     osx_image: xcode7.3
   - os: linux
-    language: python
     python: "3.4"
-    sudo: required
-    services:
-    - docker
-    addons:
-      apt:
-        packages:
-        - libusb-1.0-0-dev
-        - libudev-dev
+  - os: linux
+    python: "3.5"
+  - if: NOT tag =~ .+
+    os: linux
+    python: "3.6"
 before_install:
 - source contrib/travis/electrum_dash_version_env.sh
 - echo electrum-dash version is $ELECTRUM_DASH_VERSION
-- mkdir -p build && cp contrib/travis/* ./build/ && if [[ $TRAVIS_OS_NAME == 'osx' ]]; then ./build/before_install-osx.sh; else ./build/before_install-linux.sh; fi
+- mkdir -p build && cp contrib/travis/* ./build/
+- if [[ -n $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'osx' ]]; then
+      ./build/before_install-osx.sh;
+  fi
+- if [[ -n $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]] && [[ $TRAVIS_PYTHON_VERSION == '3.4' ]]; then
+      ./build/before_install-linux.sh;
+  fi
+- if [[ -n $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]] && [[ $TRAVIS_PYTHON_VERSION == '3.5' ]]; then
+      ./build/before_install-linux-apk.sh;
+  fi
 install:
-- if [[ -z $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]]; then pip install tox; pip install tox-travis; fi
+- if [[ -z $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]]; then
+      pip install tox; pip install tox-travis;
+  fi
 script:
-- if [[ -z $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]]; then tox; fi
-- if [[ $TRAVIS_OS_NAME == 'osx' ]]; then ./build/travis-build-osx.sh ; else ./build/travis-build-linux.sh; fi
-after_success:
-- if [ "$TRAVIS_BRANCH" = "master" ] && [[ -z $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]]; then pip install pycurl requests && contrib/make_locale; fi
+- if [[ -z $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]];then
+      tox;
+  fi
+- if [[ -n $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'osx' ]]; then
+      ./build/travis-build-osx.sh ;
+  fi
+- if [[ -n $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]] && [[ $TRAVIS_PYTHON_VERSION == '3.4' ]]; then
+      ./build/travis-build-linux.sh;
+  fi
+- if [[ -n $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]] && [[ $TRAVIS_PYTHON_VERSION == '3.5' ]]; then
+      ./build/travis-build-linux-apk.sh;
+  fi
 deploy:
 - provider: releases
   api_key:

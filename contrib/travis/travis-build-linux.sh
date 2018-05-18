@@ -1,17 +1,15 @@
 #!/bin/bash
-set -e
-
-if [[ $TRAVIS_PYTHON_VERSION != 3.4 ]]; then
-  exit 0
-fi
+set -ev
 
 if [[ -z $TRAVIS_TAG ]]; then
-  exit 0
+  echo TRAVIS_TAG unset, exiting
+  exit 1
 fi
+
+BUILD_REPO_URL=https://github.com/akhavr/electrum-dash.git
 
 cd build
 
-BUILD_REPO_URL=https://github.com/akhavr/electrum-dash.git
 git clone --branch $TRAVIS_TAG $BUILD_REPO_URL electrum-dash
 
 docker run --rm \
@@ -19,11 +17,8 @@ docker run --rm \
     -w /opt/electrum-dash \
     -t zebralucky/electrum-dash-winebuild:Linux /opt/build_linux.sh
 
-sudo chown -R 1000 electrum-dash
-docker run --rm \
-    -v $(pwd)/electrum-dash:/home/buildozer/build \
-    -t zebralucky/electrum-dash-winebuild:Kivy bash -c \
-    './contrib/make_packages && mv ./contrib/packages . && ./contrib/make_apk'
+sudo find . -name '*.po' -delete
+sudo find . -name '*.pot' -delete
 
 export WINEARCH=win32
 export WINEPREFIX=/root/.wine-32
