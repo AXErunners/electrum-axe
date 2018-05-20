@@ -405,6 +405,10 @@ QComboBox { /* Dropdown Menus */
     combobox-popup: 0;
 }
 
+QComboBox::disabled {
+    background:#eeeeee;
+}
+
 QComboBox::drop-down {
     width:25px;
     border:0px;
