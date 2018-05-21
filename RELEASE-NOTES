@@ -1,3 +1,8 @@
+# Release 3.0.6.2 :
+
+ * Fix ledger plugin to python3
+ * Fix QComboBox CSS
+
 # Release 3.0.6.1 :
 
  * Build with locale
