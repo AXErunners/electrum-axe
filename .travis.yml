@@ -43,6 +43,7 @@ deploy:
   - build/electrum-axe/dist/Electrum-AXE-$ELECTRUM_AXE_VERSION.tar.gz
   - build/electrum-axe/dist/electrum-axe-$ELECTRUM_AXE_VERSION-setup-win32.exe
   - build/electrum-axe/dist/electrum-axe-$ELECTRUM_AXE_VERSION-setup-win64.exe
+  - build/electrum-axe/bin/Electrum_AXE-$ELECTRUM_AXE_APK_VERSION-release-unsigned.apk
   on:
     repo: axerunners/electrum-axe
     tags: true
