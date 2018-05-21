@@ -13,4 +13,4 @@ Categories=Network;
 StartupNotify=false
 Terminal=false
 Type=Application
-MimeType=x-scheme-handler/axerunners;
+MimeType=x-scheme-handler/axe;

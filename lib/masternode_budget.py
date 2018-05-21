@@ -1,12 +1,13 @@
 import time
 import string
 
-import bitcoin
-from transaction import BCDataStream, Transaction
-import util
-from i18n import _
+from . import bitcoin
+from .transaction import BCDataStream, Transaction
+from . import util
+from .util import bfh
+from .i18n import _
 
-BUDGET_PAYMENTS_CYCLE_BLOCKS = 50 if bitcoin.TESTNET else 16616
+BUDGET_PAYMENTS_CYCLE_BLOCKS = 50 if bitcoin.NetworkConstants.TESTNET else 16616
 SUBSIDY_HALVING_INTERVAL = 210240
 
 safe_characters = string.ascii_letters + " .,;-_/:?@()"
@@ -59,7 +60,7 @@ class BudgetProposal(object):
         vds.write_int32(self.start_block)
         vds.write_int32(self.end_block)
         vds.write_int64(self.payment_amount)
-        vds.write_string(Transaction.pay_script(bitcoin.TYPE_ADDRESS, self.address).decode('hex'))
+        vds.write_string(bfh(Transaction.pay_script(bitcoin.TYPE_ADDRESS, self.address)))
         return bitcoin.hash_encode(bitcoin.Hash(vds.input))
 
     def dump(self):
@@ -100,8 +101,8 @@ class BudgetProposal(object):
 
         if not bitcoin.is_address(self.address):
             raise ValueError(_('Invalid address:') + ' %s' % self.address)
-        addrtype, h160 = bitcoin.bc_address_to_hash_160(self.address)
-        if addrtype != bitcoin.PUBKEY_ADDR:
+        addrtype, h160 = bitcoin.b58_address_to_hash160(self.address)
+        if addrtype != bitcoin.NetworkConstants.ADDRTYPE_P2PKH:
             raise ValueError(_('Only P2PKH addresses are currently supported.'))
 
         if self.payment_amount < bitcoin.COIN:
@@ -156,10 +157,11 @@ class BudgetVote(object):
             self.timestamp = current_time
             update_time = False
 
-        delegate_pubkey = bitcoin.public_key_from_private_key(wif).decode('hex')
-        eckey = bitcoin.regenerate_key(wif)
-        serialized = unicode(self.serialize_for_sig(update_time=update_time)).encode('utf-8')
-        return eckey.sign_message(serialized, bitcoin.is_compressed(wif))
+        txin_type, key, is_compressed = bitcoin.deserialize_privkey(wif)
+        delegate_pubkey = bfh(bitcoin.public_key_from_private_key(key, is_compressed))
+        eckey = bitcoin.regenerate_key(key)
+        serialized = self.serialize_for_sig(update_time=update_time)
+        return eckey.sign_message(serialized, is_compressed)
 
     def get_vin_short(self):
         return '%s-%d' % (self.vin['prevout_hash'], self.vin['prevout_n'])

@@ -1,4 +1,3 @@
-syntax = "proto2";
 //
 // Simple Bitcoin Payment Protocol messages
 //
@@ -7,6 +6,7 @@ syntax = "proto2";
 // https://github.com/bitcoin/bips/bip-0070/extensions.mediawiki
 //
 
+syntax = "proto2";
 package payments;
 option java_package = "org.bitcoin.protocols.payments";
 option java_outer_classname = "Protos";

@@ -67,5 +67,3 @@ password if your wallet is encrypted.
 
 Importing a "masternode.conf" file will automatically set up one or more masternode configurations in
 the Masternode Manager.
-
-Ref: https://github.com/AXErunners/axe/blob/master/doc/masternode-detailed_setup.md

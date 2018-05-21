@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Electrum - lightweight Bitcoin client
 # Copyright (C) 2018 Thomas Voegtlin
@@ -48,7 +48,7 @@ class RPCAuthUnsupportedType(Exception):
 # based on http://acooke.org/cute/BasicHTTPA0.html by andrew cooke
 class VerifyingJSONRPCServer(SimpleJSONRPCServer):
 
-    def __init__(self, rpc_user, rpc_password, addr, *args, **kargs):
+    def __init__(self, *args, rpc_user, rpc_password, **kargs):
 
         self.rpc_user = rpc_user
         self.rpc_password = rpc_password
@@ -71,7 +71,7 @@ class VerifyingJSONRPCServer(SimpleJSONRPCServer):
                 return False
 
         SimpleJSONRPCServer.__init__(
-            self, addr, requestHandler=VerifyingRequestHandler, *args, **kargs)
+            self, requestHandler=VerifyingRequestHandler, *args, **kargs)
 
     def authenticate(self, headers):
         if self.rpc_password == '':

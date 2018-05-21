@@ -1,4 +1,4 @@
-from labels import LabelsPlugin
+from .labels import LabelsPlugin
 from electrum_axe.plugins import hook
 
 class Plugin(LabelsPlugin):

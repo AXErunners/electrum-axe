@@ -8,10 +8,14 @@ fi
 cd build
 
 brew update
-export PATH="/usr/local/opt/python@2/bin:$PATH"
-export PATH="/usr/local/opt/python@2/libexec/bin:$PATH"
+brew install zebra-lucky/qt5/qt5
 
-brew install akhavr/qt4/pyqt@4
-sudo pip2 install Cython
+curl -O https://www.python.org/ftp/python/3.6.5/python-3.6.5-macosx10.6.pkg
+curl -O https://bootstrap.pypa.io/get-pip.py
+sudo installer -pkg python-3.6.5-macosx10.6.pkg -target /
+sudo python3 get-pip.py
 
-sudo pip2 install pyinstaller==3.2.1
+sudo pip3 install SIP==4.19.8
+sudo pip3 install PyQt5==5.7.1
+sudo pip3 install Cython==0.28.1
+sudo pip3 install PyInstaller==3.3.1

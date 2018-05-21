@@ -41,7 +41,7 @@ OTHER_PLUGINS= [
     'virtualkeyboard',
 ]
 
-OTHER_PLUGINS = map(lambda p: '%s.%s' % (PLUGINS_PREFIX, p), OTHER_PLUGINS)
+OTHER_PLUGINS = list(map(lambda p: '%s.%s' % (PLUGINS_PREFIX, p), OTHER_PLUGINS))
 
 PLUGINS = KEYSTORE_PLUGINS + OTHER_PLUGINS
 
