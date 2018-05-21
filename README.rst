@@ -2,8 +2,8 @@ Electrum-AXE - Lightweight AXE client
 =====================================
 
 
-.. image:: https://travis-ci.org/axerunners/electrum-axe.svg?branch=master
-    :target: https://travis-ci.org/axerunners/electrum-axe
+.. image:: https://travis-ci.org/AXErunners/electrum-axe.svg?branch=master
+    :target: https://travis-ci.org/AXErunners/electrum-axe
     :alt: Build Status
 
 
