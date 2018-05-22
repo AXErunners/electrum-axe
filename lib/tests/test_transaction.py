@@ -76,12 +76,12 @@ class TestTransaction(unittest.TestCase):
                 'version': 1
         }
         tx = transaction.Transaction(unsigned_blob)
-        #print(tx.deserialize())
+        print(tx)
         self.assertEqual(tx.deserialize(), expected)
         self.assertEqual(tx.deserialize(), None)
 
         self.assertEqual(tx.as_dict(), {'hex': unsigned_blob, 'complete': False, 'final': True})
-        self.assertEqual(tx.get_outputs(), [('P9h6zCz253jmc4TvqgKPRNpkx5qELdNWWT', 1000000)])
+        self.assertEqual(tx.get_outputs(), [('P9h6zCz253jmc4TvqgKPRNpkx5qELdNWWT', 99900000)])
         self.assertEqual(tx.get_output_addresses(), ['P9h6zCz253jmc4TvqgKPRNpkx5qELdNWWT'])
 
         self.assertTrue(tx.has_address('P9h6zCz253jmc4TvqgKPRNpkx5qELdNWWT'))
@@ -102,9 +102,9 @@ class TestTransaction(unittest.TestCase):
         expected = {
             'inputs': [{
                 'type': 'p2pkh',
-                'address': 'PBenpocD6pDoAoFZP4qA2pLpNwrm6FAcVw',
+                'address': 'PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ',
                 'num_sig': 1,
-                'prevout_hash': '594ecdf6a39f7ef34b1e36c2d1cb71aac16d60bff460afa2369d71b7f18bde3b',
+                'prevout_hash': '3140eb24b43386f35ba69e3875eb6c93130ac66201d01c58f598defc949a5c2a',
                 'prevout_n': 0,
                 'pubkeys': ['0218864d879997fefbb2846e54ac4db0df99029b91cd12be32312d7e0da45029a8'],
                 'scriptSig': '493046022100a82bbc57a0136751e5433f41cf000b3f1a99c6744775e76ec764fb78c54ee100022100f9e80b7de89de861dc6fb0c1429d5da72c2b6b2ee2406bc9bfb1beedd729d985012102e61d176da16edd1d258a200ad9759ef63adf8e14cd97f53227bae35cdb84d2f6',
