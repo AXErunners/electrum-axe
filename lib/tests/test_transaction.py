@@ -72,7 +72,7 @@ class TestTransaction(unittest.TestCase):
                 'prevout_n': 0,
                 'scriptPubKey': '76a914230ac37834073a42146f11ef8414ae929feaafc388ac',
                 'type': TYPE_ADDRESS,
-                'value': 1000000}],
+                'value': 99900000}],
                 'version': 1
         }
         tx = transaction.Transaction(unsigned_blob)
