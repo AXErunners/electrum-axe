@@ -46,7 +46,7 @@ class ScannerAndroid(NFCBase):
         global app
         app = App.get_running_app()
 
-        # Make sure we are listening to new intent 
+        # Make sure we are listening to new intent
         activity.bind(on_new_intent=self.on_new_intent)
 
         # Configure nfc
@@ -55,7 +55,7 @@ class ScannerAndroid(NFCBase):
         # Check if adapter exists
         if not self.nfc_adapter:
             return False
-        
+
         # specify that we want our activity to remain on top whan a new intent
         # is fired
         self.nfc_pending_intent = PendingIntent.getActivity(context, 0,
@@ -131,7 +131,7 @@ class ScannerAndroid(NFCBase):
         ''' This functions is called when the application receives a
         new intent, for the ones the application has registered previously,
         either in the manifest or in the foreground dispatch setup in the
-        nfc_init function above. 
+        nfc_init function above.
         '''
 
         action_list = (NfcAdapter.ACTION_NDEF_DISCOVERED,)
@@ -165,20 +165,20 @@ class ScannerAndroid(NFCBase):
     def create_AAR(self):
         '''Create the record responsible for linking our application to the tag.
         '''
-        return NdefRecord.createApplicationRecord(JString("org.electrum-axe.kivy"))
+        return NdefRecord.createApplicationRecord(JString("org.axe.electrum.kivy"))
 
     def create_TNF_EXTERNAL(self, data):
         '''Create our actual payload record.
         '''
         if BUILDVERSION >= 14:
-            domain = "org.electrum-axe"
+            domain = "org.axe.electrum"
             stype = "externalType"
             extRecord = NdefRecord.createExternal(domain, stype, data)
         else:
             # Creating the NdefRecord manually:
             extRecord = NdefRecord(
                 NdefRecord.TNF_EXTERNAL_TYPE,
-                "org.electrum-axe:externalType",
+                "org.axe.electrum:externalType",
                 '',
                 data)
         return extRecord
@@ -213,8 +213,8 @@ class ScannerAndroid(NFCBase):
         # Create record
         ndef_record = NdefRecord(
                 NdefRecord.TNF_MIME_MEDIA,
-                'org.electrum-axe.kivy', '', data)
-        
+                'org.axe.electrum.kivy', '', data)
+
         # Create message
         ndef_message = NdefMessage([ndef_record])
 
