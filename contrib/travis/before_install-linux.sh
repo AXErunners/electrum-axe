@@ -1,11 +1,9 @@
 #!/bin/bash
-
-if [[ $TRAVIS_PYTHON_VERSION != 3.4 ]]; then
-  exit 0
-fi
+set -ev
 
 if [[ -z $TRAVIS_TAG ]]; then
-  exit 0
+  echo TRAVIS_TAG unset, exiting
+  exit 1
 fi
 
 docker pull zebralucky/electrum-axe-winebuild:Linux

@@ -1,15 +1,16 @@
 #!/bin/bash
-BUILD_REPO_URL=https://github.com/axerunners/electrum-axe.git
+set -ev
 
-set -e
+if [[ -z $TRAVIS_TAG ]]; then
+  echo TRAVIS_TAG unset, exiting
+  exit 1
+fi
+
+BUILD_REPO_URL=https://github.com/AXErunners/electrum-axe.git
 
 cd build
 
-if [[ -z $TRAVIS_TAG ]]; then
-  exit 0
-else
-  git clone --branch $TRAVIS_TAG $BUILD_REPO_URL electrum-axe
-fi
+git clone --branch $TRAVIS_TAG $BUILD_REPO_URL electrum-axe
 
 cd electrum-axe
 
@@ -26,6 +27,11 @@ sudo pip3 install \
     trezor==0.7.16
 
 pyrcc5 icons.qrc -o gui/qt/icons_rc.py
+
+export PATH="/usr/local/opt/gettext/bin:$PATH"
+./contrib/make_locale
+find . -name '*.po' -delete
+find . -name '*.pot' -delete
 
 cp contrib/osx.spec .
 cp contrib/pyi_runtimehook.py .
