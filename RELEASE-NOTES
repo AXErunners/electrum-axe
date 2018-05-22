@@ -1,3 +1,7 @@
+# Release 3.0.6.3 :
+
+ * Fix bip44_derivation call
+
 # Release 3.0.6.2 :
 
  * Fix ledger plugin to python3
