@@ -86,7 +86,7 @@ class TestTransaction(unittest.TestCase):
 
         self.assertTrue(tx.has_address('P9h6zCz253jmc4TvqgKPRNpkx5qELdNWWT'))
         self.assertTrue(tx.has_address('P9h6zCz253jmc4TvqgKPRNpkx5qELdNWWT'))
-        self.assertFalse(tx.has_address('PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ'))
+        self.assertFalse(tx.has_address('PBenpocD6pDoAoFZP4qA2pLpNwrm6FAcVw'))
 
         self.assertEqual(tx.serialize(), unsigned_blob)
 
@@ -102,9 +102,9 @@ class TestTransaction(unittest.TestCase):
         expected = {
             'inputs': [{
                 'type': 'p2pkh',
-                'address': 'PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ',
+                'address': 'PBenpocD6pDoAoFZP4qA2pLpNwrm6FAcVw',
                 'num_sig': 1,
-                'prevout_hash': '3140eb24b43386f35ba69e3875eb6c93130ac66201d01c58f598defc949a5c2a',
+                'prevout_hash': '594ecdf6a39f7ef34b1e36c2d1cb71aac16d60bff460afa2369d71b7f18bde3b',
                 'prevout_n': 0,
                 'pubkeys': ['0218864d879997fefbb2846e54ac4db0df99029b91cd12be32312d7e0da45029a8'],
                 'scriptSig': '493046022100a82bbc57a0136751e5433f41cf000b3f1a99c6744775e76ec764fb78c54ee100022100f9e80b7de89de861dc6fb0c1429d5da72c2b6b2ee2406bc9bfb1beedd729d985012102e61d176da16edd1d258a200ad9759ef63adf8e14cd97f53227bae35cdb84d2f6',
@@ -117,7 +117,7 @@ class TestTransaction(unittest.TestCase):
                 'prevout_n': 0,
                 'scriptPubKey': '4b72a36e24dac8375220db482e44b04d350e3a6c05e6901bd15b251c6553eaca',
                 'type': TYPE_ADDRESS,
-                'value': 1000000}],
+                'value': 99900000}],
             'version': 1
         }
         tx = transaction.Transaction(signed_blob)
