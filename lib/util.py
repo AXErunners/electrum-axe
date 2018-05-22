@@ -222,14 +222,6 @@ def profiler(func):
     return lambda *args, **kw_args: do_profile(func, args, kw_args)
 
 
-def android_headers_file_name():
-    from bitcoin import TESTNET
-    s = 'blockchain_headers'
-    if TESTNET:
-        s += '_testnet'
-    return s
-
-
 def android_ext_dir():
     import jnius
     env = jnius.autoclass('android.os.Environment')
@@ -241,7 +233,7 @@ def android_data_dir():
     return PythonActivity.mActivity.getFilesDir().getPath() + '/data'
 
 def android_headers_dir():
-    d = android_ext_dir() + '/org.electrum-axe.electrum-axe'
+    d = android_ext_dir() + '/org.axe.electrum.electrum_axe'
     if not os.path.exists(d):
         os.mkdir(d)
     return d
@@ -253,8 +245,8 @@ def android_check_data_dir():
     old_electrum_dir = ext_dir + '/electrum-axe'
     if not os.path.exists(data_dir) and os.path.exists(old_electrum_dir):
         import shutil
-        new_headers_path = android_headers_dir() + android_headers_file_name()
-        old_headers_path = old_electrum_dir + android_headers_file_name()
+        new_headers_path = android_headers_dir() + 'blockchain_headers'
+        old_headers_path = old_electrum_dir + 'blockchain_headers'
         if not os.path.exists(new_headers_path) and os.path.exists(old_headers_path):
             print_error("Moving headers file to", new_headers_path)
             shutil.move(old_headers_path, new_headers_path)
