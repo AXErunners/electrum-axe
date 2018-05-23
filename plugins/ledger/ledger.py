@@ -131,7 +131,7 @@ class Ledger_Client():
             firmwareInfo = self.dongleObject.getFirmwareVersion()
             firmware = firmwareInfo['version'].split(".")
             self.canAlternateCoinVersions = (firmwareInfo['specialVersion'] >= 0x20 and
-                                             map(int, firmware) >= [1, 0, 1])
+                                             list(map(int, firmware)) >= [1, 0, 1])
             self.multiOutputSupported = int(firmware[0]) >= 1 and int(firmware[1]) >= 1 and int(firmware[2]) >= 4
 
             if not checkFirmware(firmware):
