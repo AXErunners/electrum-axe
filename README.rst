@@ -1,6 +1,5 @@
-Electrum-AXE - Lightweight AXE client
-=====================================
-
+Electrum-AXE
+======================
 
 .. image:: https://travis-ci.org/AXErunners/electrum-axe.svg?branch=master
     :target: https://travis-ci.org/AXErunners/electrum-axe
@@ -18,7 +17,13 @@ Qt interface, install the Qt dependencies::
 If you downloaded the official package (tar.gz), you can run
 Electrum-AXE from its root directory, without installing it on your
 system; all the python dependencies are included in the 'packages'
-directory. To run Electrum-AXE from its root directory, just do::
+directory (except x11-hash).
+
+To install x11-hash dependency in the 'packages' dir run once::
+
+    pip3 install -t packages x11-hash
+
+To run Electrum-AXE from its root directory, just do::
 
     ./electrum-axe
 
