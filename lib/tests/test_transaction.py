@@ -76,7 +76,9 @@ class TestTransaction(unittest.TestCase):
                 'version': 1
         }
         tx = transaction.Transaction(unsigned_blob)
-        print(tx)
+        trx=tx.deserialize()
+        print(trx)
+        print(trx.inputs)
         self.assertEqual(tx.deserialize(), expected)
         self.assertEqual(tx.deserialize(), None)
 
