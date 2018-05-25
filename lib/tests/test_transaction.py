@@ -135,10 +135,10 @@ class TestTransaction(unittest.TestCase):
 
         tx.update_signatures(signed_blob)
 
-        self.assertEqual(tx.estimated_total_size(), 193)
-        self.assertEqual(tx.estimated_base_size(), 193)
-        self.assertEqual(tx.estimated_weight(), 772)
-        self.assertEqual(tx.estimated_size(), 193)
+        self.assertEqual(tx.estimated_total_size(), 191)
+        self.assertEqual(tx.estimated_base_size(), 191)
+        self.assertEqual(tx.estimated_weight(), 764)
+        self.assertEqual(tx.estimated_size(), 191)
 
     def test_errors(self):
         with self.assertRaises(TypeError):
