@@ -94,7 +94,7 @@ class TestTransaction(unittest.TestCase):
 
         self.assertTrue(tx.has_address('P9h6zCz253jmc4TvqgKPRNpkx5qELdNWWT'))
         self.assertTrue(tx.has_address('P9h6zCz253jmc4TvqgKPRNpkx5qELdNWWT'))
-        self.assertFalse(tx.has_address('PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ'))
+        self.assertFalse(tx.has_address('PUFpXCipFhCM1n3incCvY1pdJnsuBYGXopNoZ'))
 
         self.assertEqual(tx.serialize(), unsigned_blob)
 
