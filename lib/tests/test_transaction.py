@@ -83,11 +83,11 @@ class TestTransaction(unittest.TestCase):
         self.assertEqual(tx.deserialize(), None)
 
         self.assertEqual(tx.as_dict(), {'hex': unsigned_blob, 'complete': False, 'final': True})
-        self.assertEqual(tx.get_outputs(), [('P9h6zCz253jmc4TvqgKPRNpkx5qELdNWWT', 10000000),('PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ', 29980000)])
-        self.assertEqual(tx.get_output_addresses(), ['P9h6zCz253jmc4TvqgKPRNpkx5qELdNWWT','PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ'])
+        self.assertEqual(tx.get_outputs(), [('PQCuFncFVzYhuoyv9MCSE5nQU2gwr56uh4', 99999040)])
+        self.assertEqual(tx.get_output_addresses(), ['PQCuFncFVzYhuoyv9MCSE5nQU2gwr56uh4'])
 
-        self.assertTrue(tx.has_address('P9h6zCz253jmc4TvqgKPRNpkx5qELdNWWT'))
-        self.assertTrue(tx.has_address('P9h6zCz253jmc4TvqgKPRNpkx5qELdNWWT'))
+        self.assertTrue(tx.has_address('PQCuFncFVzYhuoyv9MCSE5nQU2gwr56uh4'))
+        self.assertTrue(tx.has_address('PQMDbX7KC3Z6nkpkptBb19vkoEaaFo5K5o'))
         self.assertFalse(tx.has_address('PUFpXCipFhCM1n3incCvY1pdJnsuBYGXopNoZ'))
 
         self.assertEqual(tx.serialize(), unsigned_blob)
