@@ -82,9 +82,9 @@ class TestTransaction(unittest.TestCase):
             'version': 1
         }
         tx = transaction.Transaction(unsigned_blob)
-        #trx=tx.deserialize()
-        #print(trx)
-        #print(trx.get("inputs"))
+        trx=tx.deserialize()
+        print(trx)
+        print(trx.get("inputs"))
         self.assertEqual(tx.deserialize(), expected)
         self.assertEqual(tx.deserialize(), None)
 
@@ -129,6 +129,10 @@ class TestTransaction(unittest.TestCase):
             'version': 1
         }
         tx = transaction.Transaction(signed_blob)
+        trx=tx.deserialize()
+        print(trx)
+        print(trx.get("inputs"))
+        
         self.assertEqual(tx.deserialize(), expected)
         self.assertEqual(tx.deserialize(), None)
         self.assertEqual(tx.as_dict(), {'hex': signed_blob, 'complete': True, 'final': True})
