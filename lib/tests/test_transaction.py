@@ -89,8 +89,8 @@ class TestTransaction(unittest.TestCase):
         self.assertEqual(tx.deserialize(), None)
 
         self.assertEqual(tx.as_dict(), {'hex': unsigned_blob, 'complete': False, 'final': True})
-        self.assertEqual(tx.get_outputs(), [('P9h6zCz253jmc4TvqgKPRNpkx5qELdNWWT', 99900000)])
-        self.assertEqual(tx.get_output_addresses(), ['P9h6zCz253jmc4TvqgKPRNpkx5qELdNWWT'])
+        self.assertEqual(tx.get_outputs(), [('P9h6zCz253jmc4TvqgKPRNpkx5qELdNWWT', 10000000),('PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ', 29980000)])
+        self.assertEqual(tx.get_output_addresses(), ['P9h6zCz253jmc4TvqgKPRNpkx5qELdNWWT','PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ'])
 
         self.assertTrue(tx.has_address('P9h6zCz253jmc4TvqgKPRNpkx5qELdNWWT'))
         self.assertTrue(tx.has_address('P9h6zCz253jmc4TvqgKPRNpkx5qELdNWWT'))
