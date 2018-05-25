@@ -1,3 +1,7 @@
+# Release 3.0.6.4 :
+
+ * Fix amount fields width
+
 # Release 3.0.6.3 :
 
  * Fix bip44_derivation call
