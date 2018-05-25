@@ -57,34 +57,28 @@ class TestTransaction(unittest.TestCase):
         expected = {
             'inputs': [{
                 'type': 'p2pkh',
-                'address': 'PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ',
+                'address': 'PQMDbX7KC3Z6nkpkptBb19vkoEaaFo5K5o',
                 'num_sig': 1,
-                'prevout_hash': 'aa03d442b257122d1f9a0d153139d1f6aecf74314f2b884c6d463fc6f34a773a',
+                'prevout_hash': '94ff0738bee075823a566db3e1011f1adae98c6e31950da4475126d81b4fb580',
                 'prevout_n': 1,
-                'pubkeys': ['fd76a914d7b9635605a6006e53623cf4bbe5fbd39051e73988ac'],
-                'scriptSig': '01ff1afd76a914d7b9635605a6006e53623cf4bbe5fbd39051e73988ac',
+                'pubkeys': ['03aa69e4e3f9fddc3e087491996e9d59eae908e650c12a75054d2249e6573ff52a'],
+                'scriptSig': '01ff4c53ff0488b21e000000000000000000d6f1f7cd3d082daddffc75e8e558e4d33efc1c2f0b1cf6d52cd8719621e7c49e03123e1dc268988db79c47f91dfc00b328f666c375dd9e7b5d1d2bb7658a3b027e00000000',
                 'sequence': 4294967294,
                 'signatures': [None],
-                'x_pubkeys': ['fd76a914d7b9635605a6006e53623cf4bbe5fbd39051e73988ac']}],
-            'lockTime': 64261,
+                'x_pubkeys': ['ff0488b21e000000000000000000d6f1f7cd3d082daddffc75e8e558e4d33efc1c2f0b1cf6d52cd8719621e7c49e03123e1dc268988db79c47f91dfc00b328f666c375dd9e7b5d1d2bb7658a3b027e00000000']}],
+            'lockTime': 64577,
             'outputs': [{
-                'address': 'P9h6zCz253jmc4TvqgKPRNpkx5qELdNWWT',
+                'address': 'PQCuFncFVzYhuoyv9MCSE5nQU2gwr56uh4',
                 'prevout_n': 0,
-                'scriptPubKey': '76a9140c1724583577182cceef0e31bc176b2dcfdaadfd88ac',
+                'scriptPubKey': '76a914ab4b96c435fd4ac967b27745fee19982a510430888ac',
                 'type': TYPE_ADDRESS,
-                'value': 10000000},
-                {
-                'address': 'PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ',
-                'prevout_n': 1,
-                'scriptPubKey': '76a914d7b9635605a6006e53623cf4bbe5fbd39051e73988ac',
-                'type': TYPE_ADDRESS,
-                'value': 29980000}],
+                'value': 99999040}],
             'version': 1
         }
         tx = transaction.Transaction(unsigned_blob)
-        trx=tx.deserialize()
-        print(trx)
-        print(trx.get("inputs"))
+        #trx=tx.deserialize()
+        #print(trx)
+        #print(trx.get("inputs"))
         self.assertEqual(tx.deserialize(), expected)
         self.assertEqual(tx.deserialize(), None)
 
@@ -110,28 +104,28 @@ class TestTransaction(unittest.TestCase):
         expected = {
             'inputs': [{
                 'type': 'p2pkh',
-                'address': 'PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ',
+                'address': 'PQMDbX7KC3Z6nkpkptBb19vkoEaaFo5K5o',
                 'num_sig': 1,
-                'prevout_hash': '3140eb24b43386f35ba69e3875eb6c93130ac66201d01c58f598defc949a5c2a',
+                'prevout_hash': '94ff0738bee075823a566db3e1011f1adae98c6e31950da4475126d81b4fb580',
                 'prevout_n': 0,
-                'pubkeys': ['0218864d879997fefbb2846e54ac4db0df99029b91cd12be32312d7e0da45029a8'],
-                'scriptSig': '493046022100a82bbc57a0136751e5433f41cf000b3f1a99c6744775e76ec764fb78c54ee100022100f9e80b7de89de861dc6fb0c1429d5da72c2b6b2ee2406bc9bfb1beedd729d985012102e61d176da16edd1d258a200ad9759ef63adf8e14cd97f53227bae35cdb84d2f6',
-                'sequence': 4294967295,
-                'signatures': ['3046022100a82bbc57a0136751e5433f41cf000b3f1a99c6744775e76ec764fb78c54ee100022100f9e80b7de89de861dc6fb0c1429d5da72c2b6b2ee2406bc9bfb1beedd729d98501'],
-                'x_pubkeys': ['0218864d879997fefbb2846e54ac4db0df99029b91cd12be32312d7e0da45029a8']}],
-            'lockTime': 0,
+                'pubkeys': ['03aa69e4e3f9fddc3e087491996e9d59eae908e650c12a75054d2249e6573ff52a'],
+                'scriptSig': '473044022057e5b082ef4aaeae33562766012a2fbc85869b8e625255e2111df4f9d39c971302200c07a8f1d96d079710e6451a87ba3007dcacc1c1f322bf879bf19e584c1f5216012103aa69e4e3f9fddc3e087491996e9d59eae908e650c12a75054d2249e6573ff52a',
+                'sequence': 4294967294,
+                'signatures': ['3044022057e5b082ef4aaeae33562766012a2fbc85869b8e625255e2111df4f9d39c971302200c07a8f1d96d079710e6451a87ba3007dcacc1c1f322bf879bf19e584c1f521601'],
+                'x_pubkeys': ['03aa69e4e3f9fddc3e087491996e9d59eae908e650c12a75054d2249e6573ff52a']}],
+            'lockTime': 64577,
             'outputs': [{
-                'address': 'P9h6zCz253jmc4TvqgKPRNpkx5qELdNWWT',
+                'address': 'PQCuFncFVzYhuoyv9MCSE5nQU2gwr56uh4',
                 'prevout_n': 0,
-                'scriptPubKey': '4b72a36e24dac8375220db482e44b04d350e3a6c05e6901bd15b251c6553eaca',
+                'scriptPubKey': '76a914ab4b96c435fd4ac967b27745fee19982a510430888ac',
                 'type': TYPE_ADDRESS,
-                'value': 99900000}],
+                'value': 99999040}],
             'version': 1
         }
         tx = transaction.Transaction(signed_blob)
-        trx=tx.deserialize()
-        print(trx)
-        print(trx.get("inputs"))
+        #trx=tx.deserialize()
+        #print(trx)
+        #print(trx.get("inputs"))
         
         self.assertEqual(tx.deserialize(), expected)
         self.assertEqual(tx.deserialize(), None)
