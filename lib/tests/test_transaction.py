@@ -59,21 +59,27 @@ class TestTransaction(unittest.TestCase):
                 'type': 'p2pkh',
                 'address': 'PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ',
                 'num_sig': 1,
-                'prevout_hash': '3140eb24b43386f35ba69e3875eb6c93130ac66201d01c58f598defc949a5c2a',
-                'prevout_n': 0,
-                'pubkeys': ['0218864d879997fefbb2846e54ac4db0df99029b91cd12be32312d7e0da45029a8'],
-                'scriptSig': '01ff4c53ff0488b21e03ef2afea18000000089689bff23e1e7fb2f161daa37270a97a3d8c2e537584b2d304ecb47b86d21fc021b010d3bd425f8cf2e04824bfdf1f1f5ff1d51fadd9a41f9e3fb8dd3403b1bfe00000000',
-                'sequence': 4294967295,
+                'prevout_hash': 'aa03d442b257122d1f9a0d153139d1f6aecf74314f2b884c6d463fc6f34a773a',
+                'prevout_n': 1,
+                'pubkeys': ['fd76a914d7b9635605a6006e53623cf4bbe5fbd39051e73988ac'],
+                'scriptSig': '01ff1afd76a914d7b9635605a6006e53623cf4bbe5fbd39051e73988ac',
+                'sequence': 4294967294,
                 'signatures': [None],
-                'x_pubkeys': ['ff0488b21e03ef2afea18000000089689bff23e1e7fb2f161daa37270a97a3d8c2e537584b2d304ecb47b86d21fc021b010d3bd425f8cf2e04824bfdf1f1f5ff1d51fadd9a41f9e3fb8dd3403b1bfe00000000']}],
-            'lockTime': 0,
+                'x_pubkeys': ['fd76a914d7b9635605a6006e53623cf4bbe5fbd39051e73988ac']}],
+            'lockTime': 64261,
             'outputs': [{
                 'address': 'P9h6zCz253jmc4TvqgKPRNpkx5qELdNWWT',
                 'prevout_n': 0,
-                'scriptPubKey': '76a914230ac37834073a42146f11ef8414ae929feaafc388ac',
+                'scriptPubKey': '76a9140c1724583577182cceef0e31bc176b2dcfdaadfd88ac',
                 'type': TYPE_ADDRESS,
-                'value': 99900000}],
-                'version': 1
+                'value': 10000000},
+                {
+                'address': 'PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ',
+                'prevout_n': 1,
+                'scriptPubKey': '76a914d7b9635605a6006e53623cf4bbe5fbd39051e73988ac',
+                'type': TYPE_ADDRESS,
+                'value': 29980000}],
+            'version': 1
         }
         tx = transaction.Transaction(unsigned_blob)
         trx=tx.deserialize()
