@@ -60,7 +60,7 @@ class TestTransaction(unittest.TestCase):
                 'address': 'PQMDbX7KC3Z6nkpkptBb19vkoEaaFo5K5o',
                 'num_sig': 1,
                 'prevout_hash': '94ff0738bee075823a566db3e1011f1adae98c6e31950da4475126d81b4fb580',
-                'prevout_n': 1,
+                'prevout_n': 0,
                 'pubkeys': ['03aa69e4e3f9fddc3e087491996e9d59eae908e650c12a75054d2249e6573ff52a'],
                 'scriptSig': '01ff4c53ff0488b21e000000000000000000d6f1f7cd3d082daddffc75e8e558e4d33efc1c2f0b1cf6d52cd8719621e7c49e03123e1dc268988db79c47f91dfc00b328f666c375dd9e7b5d1d2bb7658a3b027e00000000',
                 'sequence': 4294967294,
