@@ -4,6 +4,9 @@ Electrum-AXE
 .. image:: https://travis-ci.org/AXErunners/electrum-axe.svg?branch=master
     :target: https://travis-ci.org/AXErunners/electrum-axe
     :alt: Build Status
+    
+Getting started
+---------------
 
 Electrum-AXE is a pure python application. If you want to use the
 Qt interface, install the Qt dependencies::
@@ -38,7 +41,7 @@ Version".
 
 
 Development version
-===================
+-------------------
 
 Check out the code from Github::
 
@@ -68,7 +71,7 @@ Create translations (optional)::
 
 
 Creating Binaries
-=================
+-----------------
 
 
 To create binaries, create the 'packages' directory::
@@ -78,7 +81,7 @@ To create binaries, create the 'packages' directory::
 This directory contains the python dependencies used by Electrum-AXE.
 
 Mac OS X / macOS
---------
+`````````````
 
 ::
 
@@ -91,12 +94,12 @@ Mac OS X / macOS
     sudo hdiutil create -fs HFS+ -volname "Electrum-AXE" -srcfolder dist/Electrum-AXE.app dist/electrum-VERSION-macosx.dmg
 
 Windows
--------
+`````````````
 
 See `contrib/build-wine/README` file.
 
 
 Android
--------
+`````````````
 
 See `gui/kivy/Readme.txt` file.
