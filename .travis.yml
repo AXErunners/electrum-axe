@@ -57,7 +57,7 @@ deploy:
   file:
   - build/electrum-axe/dist/electrum-axe-$ELECTRUM_AXE_VERSION-macosx.dmg
   on:
-    repo: axerunners/electrum-axe
+    repo: AXErunners/electrum-axe
     tags: true
     condition: "$TRAVIS_OS_NAME = osx"
 - provider: releases
@@ -69,6 +69,6 @@ deploy:
   - build/electrum-axe/dist/electrum-axe-$ELECTRUM_AXE_VERSION-setup-win64.exe
   - build/electrum-axe/bin/Electrum_AXE-$ELECTRUM_AXE_APK_VERSION-release-unsigned.apk
   on:
-    repo: axerunners/electrum-axe
+    repo: AXErunners/electrum-axe
     tags: true
     condition: "$TRAVIS_OS_NAME = linux"
