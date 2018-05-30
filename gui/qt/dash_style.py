@@ -660,6 +660,11 @@ QListWidget, QTableView, QTextEdit, QDialog QTreeWidget {
     border: 1px solid #1c75bc;
 }
 
+#send_container QTreeWidget, #receive_container QTreeWidget {
+    border: 1px solid #1c75bc;
+    background-color: #fff;
+}
+
 QTableView {
     background-color: #fff;
 }

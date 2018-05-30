@@ -1,6 +1,7 @@
 # Release 3.0.6.4 :
 
  * Fix amount fields width
+ * Fix SendFrom/InvoiceList/RequestList CSS
 
 # Release 3.0.6.3 :
 
