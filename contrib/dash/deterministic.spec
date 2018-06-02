@@ -1,5 +1,6 @@
 # -*- mode: python -*-
 import sys
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 
 for i, x in enumerate(sys.argv):
@@ -7,17 +8,19 @@ for i, x in enumerate(sys.argv):
         cmdline_name = sys.argv[i+1]
         break
 else:
-    raise BaseException('no name')
+    raise Exception('no name')
 
-hiddenimports = [
+hiddenimports = collect_submodules('trezorlib')
+hiddenimports += collect_submodules('btchip')
+hiddenimports += collect_submodules('keepkeylib')
+hiddenimports += collect_submodules('websocket')
+hiddenimports += [
     'lib',
     'lib.base_wizard',
     'lib.plot',
     'lib.qrscanner',
     'lib.websockets',
     'gui.qt',
-
-    'mnemonic',  # required by python-trezor
 
     'plugins',
 
@@ -37,19 +40,60 @@ hiddenimports = [
 datas = [
     ('lib/servers.json', 'electrum_dash'),
     ('lib/servers_testnet.json', 'electrum_dash'),
+    ('lib/servers_regtest.json', 'electrum_dash'),
     ('lib/currencies.json', 'electrum_dash'),
+    ('lib/checkpoints.json', 'electrum_dash'),
     ('lib/locale', 'electrum_dash/locale'),
     ('lib/wordlist', 'electrum_dash/wordlist'),
+    ('C:\\zbar\\bin', '.'),
 ]
+datas += collect_data_files('trezorlib')
+datas += collect_data_files('btchip')
+datas += collect_data_files('keepkeylib')
+
+binaries = [('C:/Python34/libusb-1.0.dll', '.')]
 
 # https://github.com/pyinstaller/pyinstaller/wiki/Recipe-remove-tkinter-tcl
 sys.modules['FixTk'] = None
 excludes = ['FixTk', 'tcl', 'tk', '_tkinter', 'tkinter', 'Tkinter']
+excludes += [
+    'PyQt5.QtCLucene',
+    'PyQt5.Qt5CLucene',
+    'PyQt5.QtDesigner',
+    'PyQt5.QtDesignerComponents',
+    'PyQt5.QtHelp',
+    'PyQt5.QtLocation',
+    'PyQt5.QtMultimedia',
+    'PyQt5.QtMultimediaQuick_p',
+    'PyQt5.QtMultimediaWidgets',
+    'PyQt5.QtNetwork',
+    'PyQt5.QtOpenGL',
+    'PyQt5.QtPositioning',
+    'PyQt5.QtPrintSupport',
+    'PyQt5.QtQml',
+    'PyQt5.QtQuick',
+    'PyQt5.QtQuickParticles',
+    'PyQt5.QtQuickWidgets',
+    'PyQt5.QtSensors',
+    'PyQt5.QtSerialPort',
+    'PyQt5.QtSql',
+    'PyQt5.Qt5Sql',
+    'PyQt5.QtTest',
+    'PyQt5.QtWebChannel',
+    'PyQt5.QtWebKit',
+    'PyQt5.QtWebKitWidgets',
+    'PyQt5.QtWebSockets',
+    'PyQt5.QtXml',
+    'PyQt5.QtXmlPatterns',
+    'PyQt5.QtWebProcess',
+    'PyQt5.QtWinExtras',
+]
 
 a = Analysis(['electrum-dash'],
              pathex=['plugins'],
              hiddenimports=hiddenimports,
              datas=datas,
+             binaries=binaries,
              excludes=excludes,
              runtime_hooks=['pyi_runtimehook.py'])
 

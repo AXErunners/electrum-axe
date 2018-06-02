@@ -26,11 +26,11 @@ Package: python3-electrum-dash
 Architecture: all
 Section: python
 Depends:
- trezor (>= 0.7.16.1),
- python3-trezor (>= 0.7.16.1),
+ trezor (>= 0.9.1),
+ python3-trezor (>= 0.9.1),
  keepkey (>= 4.0.2),
  python3-keepkey (>= 4.0.2),
- python3-btchip (>= 0.1.24),
+ python3-btchip (>= 0.1.26),
  ${misc:Depends},
  ${python3:Depends},
 Description: Easy to use Dash client - Python module
