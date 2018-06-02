@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # -*- mode: python -*-
 #
 # Electrum - lightweight Bitcoin client
@@ -34,7 +34,7 @@ from electrum_dash.i18n import _
 from electrum_dash.util import PrintError
 
 # The trickiest thing about this handler was getting windows properly
-# parented on MacOSX.
+# parented on macOS.
 class QtHandlerBase(QObject, PrintError):
     '''An interface between the GUI (here, QT) and the device handling
     logic for handling I/O.'''
@@ -70,9 +70,10 @@ class QtHandlerBase(QObject, PrintError):
         self.status_signal.emit(paired)
 
     def _update_status(self, paired):
-        button = self.button
-        icon = button.icon_paired if paired else button.icon_unpaired
-        button.setIcon(QIcon(icon))
+        if hasattr(self, 'button'):
+            button = self.button
+            icon = button.icon_paired if paired else button.icon_unpaired
+            button.setIcon(QIcon(icon))
 
     def query_choice(self, msg, labels):
         self.done.clear()
@@ -143,7 +144,7 @@ class QtHandlerBase(QObject, PrintError):
     def message_dialog(self, msg, on_cancel):
         # Called more than once during signing, to confirm output and fee
         self.clear_dialog()
-        title = _('Please check your %s device') % self.device
+        title = _('Please check your {} device').format(self.device)
         self.dialog = dialog = WindowModalDialog(self.top_level_window(), title)
         l = QLabel(msg)
         vbox = QVBoxLayout(dialog)
@@ -183,10 +184,12 @@ class QtPluginBase(object):
             if not isinstance(keystore, self.keystore_class):
                 continue
             if not self.libraries_available:
-                window.show_error(
-                    _("Cannot find python library for") + " '%s'.\n" % self.name \
-                    + _("Make sure you install it with python3")
-                )
+                if hasattr(self, 'libraries_available_message'):
+                    message = self.libraries_available_message + '\n'
+                else:
+                    message = _("Cannot find python library for") + " '%s'.\n" % self.name
+                message += _("Make sure you install it with python3")
+                window.show_error(message)
                 return
             tooltip = self.device + '\n' + (keystore.label or 'unnamed')
             cb = partial(self.show_settings_dialog, window, keystore)
