@@ -429,8 +429,6 @@ def time_difference(distance_in_time, include_seconds):
 mainnet_block_explorers = {
     'AXE explorer': ('http://207.246.65.114:3001',
                        {'tx': 'tx', 'addr': 'address'}),
-    'Bchain.info': ('https://bchain.info/AXE',
-                       {'tx': 'tx', 'addr': 'addr'}),
     'system default': ('blockchain:',
                        {'tx': 'tx', 'addr': 'address'}),
 }
