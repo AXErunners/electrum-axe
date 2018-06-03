@@ -3,12 +3,12 @@
   !include "TextFunc.nsh" ;Needed for the $GetSize fuction. I know, doesn't sound logical, it isn't.
   !include "MUI2.nsh"
   !include "x64.nsh"
-  
+
 ;--------------------------------
 ;Variables
 
   !define PRODUCT_NAME "Electrum-AXE"
-  !define PRODUCT_WEB_SITE "https://github.com/akhavr/electrum-axe"
+  !define PRODUCT_WEB_SITE "https://github.com/AXErunners/electrum-axe"
   !define PRODUCT_PUBLISHER "Electrum Technologies GmbH"
   !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
   !define BUILD_ARCH "${WINEARCH}"
@@ -31,31 +31,31 @@
 
   ;Specifies whether or not the installer will perform a CRC on itself before allowing an install
   CRCCheck on
-  
+
   ;Sets whether or not the details of the install are shown. Can be 'hide' (the default) to hide the details by default, allowing the user to view them, or 'show' to show them by default, or 'nevershow', to prevent the user from ever seeing them.
   ShowInstDetails show
-  
+
   ;Sets whether or not the details of the uninstall  are shown. Can be 'hide' (the default) to hide the details by default, allowing the user to view them, or 'show' to show them by default, or 'nevershow', to prevent the user from ever seeing them.
   ShowUninstDetails show
-  
+
   ;Sets the colors to use for the install info screen (the default is 00FF00 000000. Use the form RRGGBB (in hexadecimal, as in HTML, only minus the leading '#', since # can be used for comments). Note that if "/windows" is specified as the only parameter, the default windows colors will be used.
   InstallColors /windows
-  
+
   ;This command sets the compression algorithm used to compress files/data in the installer. (http://nsis.sourceforge.net/Reference/SetCompressor)
   SetCompressor /SOLID lzma
-  
+
   ;Sets the dictionary size in megabytes (MB) used by the LZMA compressor (default is 8 MB).
   SetCompressorDictSize 64
-  
+
   ;Sets the text that is shown (by default it is 'Nullsoft Install System vX.XX') in the bottom of the install window. Setting this to an empty string ("") uses the default; to set the string to blank, use " " (a space).
-  BrandingText "${PRODUCT_NAME} Installer v${PRODUCT_VERSION}" 
-  
+  BrandingText "${PRODUCT_NAME} Installer v${PRODUCT_VERSION}"
+
   ;Sets what the titlebars of the installer will display. By default, it is 'Name Setup', where Name is specified with the Name command. You can, however, override it with 'MyApp Installer' or whatever. If you specify an empty string (""), the default will be used (you can however specify " " to achieve a blank string)
   Caption "${PRODUCT_NAME}"
 
   ;Adds the Product Version on top of the Version Tab in the Properties of the file.
   VIProductVersion 1.0.0.0
-  
+
   ;VIAddVersionKey - Adds a field in the Version Tab of the File Properties. This can either be a field provided by the system or a user defined field.
   VIAddVersionKey ProductName "${PRODUCT_NAME} Installer"
   VIAddVersionKey Comments "The installer for ${PRODUCT_NAME}"
@@ -65,7 +65,7 @@
   VIAddVersionKey FileVersion ${PRODUCT_VERSION}
   VIAddVersionKey ProductVersion ${PRODUCT_VERSION}
   VIAddVersionKey InternalName "${PRODUCT_NAME} Installer"
-  VIAddVersionKey LegalTrademarks "${PRODUCT_NAME} is a trademark of ${PRODUCT_PUBLISHER}" 
+  VIAddVersionKey LegalTrademarks "${PRODUCT_NAME} is a trademark of ${PRODUCT_PUBLISHER}"
   VIAddVersionKey OriginalFilename "${PRODUCT_NAME}.exe"
 
 ;--------------------------------
@@ -73,9 +73,9 @@
 
   !define MUI_ABORTWARNING
   !define MUI_ABORTWARNING_TEXT "Are you sure you wish to abort the installation of ${PRODUCT_NAME}?"
-  
+
   !define MUI_ICON "icons\electrum-axe.ico"
-  
+
 ;--------------------------------
 ;Pages
 
@@ -178,7 +178,7 @@ Section "Uninstall"
   Delete "$DESKTOP\${PRODUCT_NAME}.lnk"
   Delete "$SMPROGRAMS\${PRODUCT_NAME}\*.*"
   RMDir  "$SMPROGRAMS\${PRODUCT_NAME}"
-  
+
   DeleteRegKey HKCU "Software\Classes\axe"
   DeleteRegKey HKCU "Software\${PRODUCT_NAME}"
   DeleteRegKey HKCU "${PRODUCT_UNINST_KEY}"

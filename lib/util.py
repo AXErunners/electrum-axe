@@ -427,16 +427,14 @@ def time_difference(distance_in_time, include_seconds):
         return "over %d years" % (round(distance_in_minutes / 525600))
 
 mainnet_block_explorers = {
-    'AXE.org': ('https://explorer.axe.org',
+    'AXE explorer': ('http://207.246.65.114:3001',
                        {'tx': 'tx', 'addr': 'address'}),
-    'Bchain.info': ('https://bchain.info/AXE',
-                       {'tx': 'tx', 'addr': 'addr'}),
     'system default': ('blockchain:',
                        {'tx': 'tx', 'addr': 'address'}),
 }
 
 testnet_block_explorers = {
-    'AXE.org': ('https://test.insight.axe.siampm.com',
+    'AXE explorer': ('http://207.246.65.114:3001',
                        {'tx': 'tx', 'addr': 'address'}),
     'system default': ('blockchain:',
                        {'tx': 'tx', 'addr': 'address'}),
@@ -447,7 +445,7 @@ def block_explorer_info():
     return testnet_block_explorers if bitcoin.NetworkConstants.TESTNET else mainnet_block_explorers
 
 def block_explorer(config):
-    return config.get('block_explorer', 'AXE.org')
+    return config.get('block_explorer', 'AXE explorer')
 
 def block_explorer_tuple(config):
     return block_explorer_info().get(block_explorer(config))
