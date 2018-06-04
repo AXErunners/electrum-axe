@@ -32,6 +32,7 @@ class UTXOList(MyTreeWidget):
     def __init__(self, parent=None):
         MyTreeWidget.__init__(self, parent, self.create_menu, [ _('Address'), _('Label'), _('Amount'), _('Height'), _('Output point')], 1)
         self.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.setSortingEnabled(True)
 
     def get_name(self, x):
         return x.get('prevout_hash') + ":%d"%x.get('prevout_n')
@@ -46,8 +47,8 @@ class UTXOList(MyTreeWidget):
             height = x.get('height')
             name = self.get_name(x)
             label = self.wallet.get_label(x.get('prevout_hash'))
-            amount = self.parent.format_amount(x['value'])
-            utxo_item = QTreeWidgetItem([address, label, amount, '%d'%height, name[0:10] + '...' + name[-2:]])
+            amount = self.parent.format_amount(x['value'], whitespaces=True)
+            utxo_item = SortableTreeWidgetItem([address, label, amount, '%d'%height, name[0:10] + '...' + name[-2:]])
             for i in range(5):
                 utxo_item.setFont(i, QFont(MONOSPACE_FONT))
             utxo_item.setTextAlignment(2, Qt.AlignRight)

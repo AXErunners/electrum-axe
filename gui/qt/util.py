@@ -6,10 +6,14 @@ import queue
 from collections import namedtuple
 from functools import partial
 
-from electrum_dash.i18n import _
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
+
+from electrum_dash.i18n import _
+from electrum_dash.util import FileImportFailed, FileExportFailed
+from electrum_dash.paymentrequest import PR_UNPAID, PR_PAID, PR_EXPIRED
+
 
 if platform.system() == 'Windows':
     if platform.release() in ['7', '8', '10']:
@@ -23,8 +27,6 @@ else:
 
 
 dialogs = []
-
-from electrum_dash.paymentrequest import PR_UNPAID, PR_PAID, PR_EXPIRED
 
 pr_icons = {
     PR_UNPAID:":icons/unpaid.png",
@@ -166,17 +168,21 @@ class CancelButton(QPushButton):
         self.clicked.connect(dialog.reject)
 
 class MessageBoxMixin(object):
-    def top_level_window_recurse(self, window=None):
+    def top_level_window_recurse(self, window=None, test_func=None):
         window = window or self
         classes = (WindowModalDialog, QMessageBox)
+        if test_func is None:
+            test_func = lambda x: True
         for n, child in enumerate(window.children()):
-            # Test for visibility as old closed dialogs may not be GC-ed
-            if isinstance(child, classes) and child.isVisible():
-                return self.top_level_window_recurse(child)
+            # Test for visibility as old closed dialogs may not be GC-ed.
+            # Only accept children that confirm to test_func.
+            if isinstance(child, classes) and child.isVisible() \
+                    and test_func(child):
+                return self.top_level_window_recurse(child, test_func=test_func)
         return window
 
-    def top_level_window(self):
-        return self.top_level_window_recurse()
+    def top_level_window(self, test_func=None):
+        return self.top_level_window_recurse(test_func)
 
     def question(self, msg, parent=None, title=None, icon=None):
         Yes, No = QMessageBox.Yes, QMessageBox.No
@@ -203,9 +209,14 @@ class MessageBoxMixin(object):
     def msg_box(self, icon, parent, title, text, buttons=QMessageBox.Ok,
                 defaultButton=QMessageBox.NoButton):
         parent = parent or self.top_level_window()
-        d = QMessageBox(icon, title, str(text), buttons, parent)
+        if type(icon) is QPixmap:
+            d = QMessageBox(QMessageBox.Information, title, str(text), buttons, parent)
+            d.setIconPixmap(icon)
+        else:
+            d = QMessageBox(icon, title, str(text), buttons, parent)
         d.setWindowModality(Qt.WindowModal)
         d.setDefaultButton(defaultButton)
+        d.setTextInteractionFlags(Qt.TextSelectableByMouse)
         return d.exec_()
 
 class WindowModalDialog(QDialog, MessageBoxMixin):
@@ -219,7 +230,7 @@ class WindowModalDialog(QDialog, MessageBoxMixin):
 
 
 class WaitingDialog(WindowModalDialog):
-    '''Shows a please wait dialog whilst runnning a task.  It is not
+    '''Shows a please wait dialog whilst running a task.  It is not
     necessary to maintain a reference to this dialog.'''
     def __init__(self, parent, message, task, on_success=None, on_error=None):
         assert parent
@@ -231,6 +242,7 @@ class WaitingDialog(WindowModalDialog):
         self.accepted.connect(self.on_accepted)
         self.show()
         self.thread = TaskThread(self)
+        self.thread.finished.connect(self.deleteLater)  # see #3956
         self.thread.add(task, on_success, self.accept, on_error)
 
     def wait(self):
@@ -254,14 +266,14 @@ def line_dialog(parent, title, label, ok_label, default=None):
     if dialog.exec_():
         return txt.text()
 
-def text_dialog(parent, title, label, ok_label, default=None):
+def text_dialog(parent, title, label, ok_label, default=None, allow_multi=False):
     from .qrtextedit import ScanQRTextEdit
     dialog = WindowModalDialog(parent, title)
-    dialog.setMinimumWidth(500)
+    dialog.setMinimumWidth(600)
     l = QVBoxLayout()
     dialog.setLayout(l)
     l.addWidget(QLabel(label))
-    txt = ScanQRTextEdit()
+    txt = ScanQRTextEdit(allow_multi=allow_multi)
     if default:
         txt.setText(default)
     l.addWidget(txt)
@@ -388,16 +400,23 @@ class MyTreeWidget(QTreeWidget):
         self.addChild = self.addTopLevelItem
         self.insertChild = self.insertTopLevelItem
 
+        self.icon_cache = IconCache()
+
         # Control which columns are editable
         self.editor = None
         self.pending_update = False
         if editable_columns is None:
-            editable_columns = [stretch_column]
+            editable_columns = {stretch_column}
+        else:
+            editable_columns = set(editable_columns)
         self.editable_columns = editable_columns
         self.setItemDelegate(ElectrumItemDelegate(self))
         self.itemDoubleClicked.connect(self.on_doubleclick)
         self.update_headers(headers)
         self.current_filter = ""
+
+        self.setRootIsDecorated(False)  # remove left margin
+        self.toolbar_shown = False
 
     def update_headers(self, headers):
         self.setColumnCount(len(headers))
@@ -410,11 +429,15 @@ class MyTreeWidget(QTreeWidget):
 
     def editItem(self, item, column):
         if column in self.editable_columns:
-            self.editing_itemcol = (item, column, item.text(column))
-            # Calling setFlags causes on_changed events for some reason
-            item.setFlags(item.flags() | Qt.ItemIsEditable)
-            QTreeWidget.editItem(self, item, column)
-            item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+            try:
+                self.editing_itemcol = (item, column, item.text(column))
+                # Calling setFlags causes on_changed events for some reason
+                item.setFlags(item.flags() | Qt.ItemIsEditable)
+                QTreeWidget.editItem(self, item, column)
+                item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+            except RuntimeError:
+                # (item) wrapped C/C++ object has been deleted
+                pass
 
     def keyPressEvent(self, event):
         if event.key() in [ Qt.Key_F2, Qt.Key_Return ] and self.editor is None:
@@ -482,8 +505,12 @@ class MyTreeWidget(QTreeWidget):
             self.pending_update = True
         else:
             self.setUpdatesEnabled(False)
+            scroll_pos = self.verticalScrollBar().value()
             self.on_update()
             self.setUpdatesEnabled(True)
+            # To paint the list before resetting the scroll position
+            self.parent.app.processEvents()
+            self.verticalScrollBar().setValue(scroll_pos)
         if self.current_filter:
             self.filter(self.current_filter)
 
@@ -506,6 +533,37 @@ class MyTreeWidget(QTreeWidget):
         for item in self.get_leaves(self.invisibleRootItem()):
             item.setHidden(all([item.text(column).lower().find(p) == -1
                                 for column in columns]))
+
+    def create_toolbar(self, config=None):
+        hbox = QHBoxLayout()
+        buttons = self.get_toolbar_buttons()
+        for b in buttons:
+            b.setVisible(False)
+            hbox.addWidget(b)
+        hide_button = QPushButton('x')
+        hide_button.setVisible(False)
+        hide_button.pressed.connect(lambda: self.show_toolbar(False, config))
+        self.toolbar_buttons = buttons + (hide_button,)
+        hbox.addStretch()
+        hbox.addWidget(hide_button)
+        return hbox
+
+    def save_toolbar_state(self, state, config):
+        pass  # implemented in subclasses
+
+    def show_toolbar(self, state, config=None):
+        if state == self.toolbar_shown:
+            return
+        self.toolbar_shown = state
+        if config:
+            self.save_toolbar_state(state, config)
+        for b in self.toolbar_buttons:
+            b.setVisible(state)
+        if not state:
+            self.on_hide_toolbar()
+
+    def toggle_toolbar(self, config=None):
+        self.show_toolbar(not self.toolbar_shown, config)
 
 
 class ButtonsWidget(QWidget):
@@ -595,12 +653,12 @@ class TaskThread(QThread):
             except BaseException:
                 self.doneSig.emit(sys.exc_info(), task.cb_done, task.cb_error)
 
-    def on_done(self, result, cb_done, cb):
+    def on_done(self, result, cb_done, cb_result):
         # This runs in the parent's thread.
         if cb_done:
             cb_done()
-        if cb:
-            cb(result)
+        if cb_result:
+            cb_result(result)
 
     def stop(self):
         self.tasks.put(None)
@@ -627,6 +685,7 @@ class ColorScheme:
     dark_scheme = False
 
     GREEN = ColorSchemeItem("#117c11", "#8af296")
+    YELLOW = ColorSchemeItem("#897b2a", "#ffff00")
     RED = ColorSchemeItem("#7c1111", "#f18c8c")
     BLUE = ColorSchemeItem("#123b7c", "#8cb3f2")
     DEFAULT = ColorSchemeItem("#818181", "white")
@@ -640,6 +699,108 @@ class ColorScheme:
     def update_from_widget(widget):
         if ColorScheme.has_dark_background(widget):
             ColorScheme.dark_scheme = False
+
+
+class AcceptFileDragDrop:
+    def __init__(self, file_type=""):
+        assert isinstance(self, QWidget)
+        self.setAcceptDrops(True)
+        self.file_type = file_type
+
+    def validateEvent(self, event):
+        if not event.mimeData().hasUrls():
+            event.ignore()
+            return False
+        for url in event.mimeData().urls():
+            if not url.toLocalFile().endswith(self.file_type):
+                event.ignore()
+                return False
+        event.accept()
+        return True
+
+    def dragEnterEvent(self, event):
+        self.validateEvent(event)
+
+    def dragMoveEvent(self, event):
+        if self.validateEvent(event):
+            event.setDropAction(Qt.CopyAction)
+
+    def dropEvent(self, event):
+        if self.validateEvent(event):
+            for url in event.mimeData().urls():
+                self.onFileAdded(url.toLocalFile())
+
+    def onFileAdded(self, fn):
+        raise NotImplementedError()
+
+
+def import_meta_gui(electrum_window, title, importer, on_success):
+    filter_ = "JSON (*.json);;All files (*)"
+    filename = electrum_window.getOpenFileName(_("Open {} file").format(title), filter_)
+    if not filename:
+        return
+    try:
+        importer(filename)
+    except FileImportFailed as e:
+        electrum_window.show_critical(str(e))
+    else:
+        electrum_window.show_message(_("Your {} were successfully imported").format(title))
+        on_success()
+
+
+def export_meta_gui(electrum_window, title, exporter):
+    filter_ = "JSON (*.json);;All files (*)"
+    filename = electrum_window.getSaveFileName(_("Select file to save your {}").format(title),
+                                               'electrum_{}.json'.format(title), filter_)
+    if not filename:
+        return
+    try:
+        exporter(filename)
+    except FileExportFailed as e:
+        electrum_window.show_critical(str(e))
+    else:
+        electrum_window.show_message(_("Your {0} were exported to '{1}'")
+                                     .format(title, str(filename)))
+
+
+def get_parent_main_window(widget):
+    """Returns a reference to the ElectrumWindow this widget belongs to."""
+    from .main_window import ElectrumWindow
+    for _ in range(100):
+        if widget is None:
+            return None
+        if not isinstance(widget, ElectrumWindow):
+            widget = widget.parentWidget()
+        else:
+            return widget
+    return None
+
+class SortableTreeWidgetItem(QTreeWidgetItem):
+    DataRole = Qt.UserRole + 1
+
+    def __lt__(self, other):
+        column = self.treeWidget().sortColumn()
+        if None not in [x.data(column, self.DataRole) for x in [self, other]]:
+            # We have set custom data to sort by
+            return self.data(column, self.DataRole) < other.data(column, self.DataRole)
+        try:
+            # Is the value something numeric?
+            return float(self.text(column)) < float(other.text(column))
+        except ValueError:
+            # If not, we will just do string comparison
+            return self.text(column) < other.text(column)
+
+
+class IconCache:
+
+    def __init__(self):
+        self.__cache = {}
+
+    def get(self, file_name):
+        if file_name not in self.__cache:
+            self.__cache[file_name] = QIcon(file_name)
+        return self.__cache[file_name]
+
 
 if __name__ == "__main__":
     app = QApplication([])
