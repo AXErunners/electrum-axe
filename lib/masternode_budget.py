@@ -6,8 +6,9 @@ from .transaction import BCDataStream, Transaction
 from . import util
 from .util import bfh
 from .i18n import _
+from . import constants
 
-BUDGET_PAYMENTS_CYCLE_BLOCKS = 50 if bitcoin.NetworkConstants.TESTNET else 16616
+BUDGET_PAYMENTS_CYCLE_BLOCKS = 50 if constants.net.TESTNET else 16616
 SUBSIDY_HALVING_INTERVAL = 210240
 
 safe_characters = string.ascii_letters + " .,;-_/:?@()"
@@ -102,7 +103,7 @@ class BudgetProposal(object):
         if not bitcoin.is_address(self.address):
             raise ValueError(_('Invalid address:') + ' %s' % self.address)
         addrtype, h160 = bitcoin.b58_address_to_hash160(self.address)
-        if addrtype != bitcoin.NetworkConstants.ADDRTYPE_P2PKH:
+        if addrtype != constants.net.ADDRTYPE_P2PKH:
             raise ValueError(_('Only P2PKH addresses are currently supported.'))
 
         if self.payment_amount < bitcoin.COIN:
@@ -110,7 +111,7 @@ class BudgetProposal(object):
 
         # Calculate max budget.
         subsidy = 5 * bitcoin.COIN
-        if bitcoin.TESTNET:
+        if constants.net.TESTNET:
             for i in range(46200, self.start_block + 1, SUBSIDY_HALVING_INTERVAL):
                 subsidy -= subsidy/14
         else:
