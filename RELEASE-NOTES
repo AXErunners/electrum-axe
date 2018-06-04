@@ -1,6 +1,13 @@
+# Release 3.0.6.4.1 :
+
+ * amount fields fixed
+ * SendFrom/InvoiceList/RequestList css fixed
+ * logo color changed
+ * minor bugs squashed
+
 # Release 3.0.6.4 :
 
-  * increase amount field width
+ * increase amount field width
 
 # Release 3.0.6 :
 
