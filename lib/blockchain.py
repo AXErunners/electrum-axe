@@ -28,7 +28,10 @@ from . import bitcoin
 from . import constants
 from .bitcoin import *
 
-MAX_TARGET = 0x00000000FFFF0000000000000000000000000000000000000000000000000000
+MAX_TARGET = 0x00000FFFFF000000000000000000000000000000000000000000000000000000
+POW_TARGET_SPACING = int(2.5 * 60)  # Dash: 2.5 minutes
+POW_DGW3_HEIGHT = 68589
+DGW_PAST_BLOCKS = 24
 
 def serialize_header(res):
     s = int_to_hex(res.get('version'), 4) \
@@ -60,7 +63,7 @@ def hash_header(header):
         return '0' * 64
     if header.get('prev_block_hash') is None:
         header['prev_block_hash'] = '00'*32
-    return hash_encode(Hash(bfh(serialize_header(header))))
+    return hash_encode(PoWHash(bfh(serialize_header(header))))
 
 
 blockchains = {}
@@ -159,6 +162,9 @@ class Blockchain(util.PrintError):
             raise Exception("prev hash mismatch: %s vs %s" % (prev_hash, header.get('prev_block_hash')))
         if constants.net.TESTNET:
             return
+        height = header.get('block_height')
+        if height < POW_DGW3_HEIGHT:
+            return
         bits = self.target_to_bits(target)
         if bits != header.get('bits'):
             raise Exception("bits mismatch: %s vs %s" % (bits, header.get('bits')))
@@ -168,11 +174,19 @@ class Blockchain(util.PrintError):
     def verify_chunk(self, index, data):
         num = len(data) // 80
         prev_hash = self.get_hash(index * 2016 - 1)
-        target = self.get_target(index-1)
+        chunk_headers = {'empty': True}
         for i in range(num):
             raw_header = data[i*80:(i+1) * 80]
-            header = deserialize_header(raw_header, index*2016 + i)
+            height = index * 2016 + i
+            header = deserialize_header(raw_header, height)
+            target = self.get_target(height, chunk_headers)
             self.verify_header(header, prev_hash, target)
+
+            chunk_headers[height] = header
+            if i == 0:
+                chunk_headers['min_height'] = height
+                chunk_headers['empty'] = False
+            chunk_headers['max_height'] = height
             prev_hash = hash_header(header)
 
     def path(self):
@@ -282,31 +296,65 @@ class Blockchain(util.PrintError):
         else:
             return hash_header(self.read_header(height))
 
-    def get_target(self, index):
-        # compute target from chunk x, used in chunk x+1
-        if constants.net.TESTNET:
-            return 0
-        if index == -1:
+    def get_target(self, height, chunk_headers=None):
+        if chunk_headers is None:
+            chunk_headers = {'empty': True}
+
+        if height >= POW_DGW3_HEIGHT:
+            return self.get_target_dgw_v3(height, chunk_headers)
+        else:
             return MAX_TARGET
-        if index < len(self.checkpoints):
-            h, t = self.checkpoints[index]
-            return t
-        # new target
-        first = self.read_header(index * 2016)
-        last = self.read_header(index * 2016 + 2015)
-        bits = last.get('bits')
-        target = self.bits_to_target(bits)
-        nActualTimespan = last.get('timestamp') - first.get('timestamp')
-        nTargetTimespan = 14 * 24 * 60 * 60
-        nActualTimespan = max(nActualTimespan, nTargetTimespan // 4)
-        nActualTimespan = min(nActualTimespan, nTargetTimespan * 4)
-        new_target = min(MAX_TARGET, (target * nActualTimespan) // nTargetTimespan)
+
+    def get_target_dgw_v3(self, height, chunk_headers):
+        if chunk_headers['empty']:
+            chunk_empty = True
+        else:
+            chunk_empty = False
+            min_height = chunk_headers['min_height']
+            max_height = chunk_headers['max_height']
+
+        count_blocks = 1
+        while count_blocks <= DGW_PAST_BLOCKS:
+            reading_h = height - count_blocks
+            reading_header = self.read_header(reading_h)
+            if not reading_header and not chunk_empty \
+                and min_height <= reading_h <= max_height:
+                    reading_header = chunk_headers[reading_h]
+            if not reading_header:
+                return MAX_TARGET
+            reading_time = reading_header.get('timestamp')
+            reading_target = self.bits_to_target(reading_header.get('bits'))
+
+            if count_blocks == 1:
+                past_target_avg = reading_target
+                last_time = reading_time
+            past_target_avg = \
+                (past_target_avg * count_blocks + reading_target) // \
+                    (count_blocks + 1)
+
+            count_blocks +=1
+
+        new_target = past_target_avg
+        actual_timespan = last_time - reading_time
+        target_timespan = DGW_PAST_BLOCKS * POW_TARGET_SPACING
+
+        if actual_timespan < target_timespan // 3:
+            actual_timespan = target_timespan // 3
+        if actual_timespan > target_timespan * 3:
+            actual_timespan = target_timespan * 3
+
+        new_target *= actual_timespan
+        new_target //= target_timespan
+
+        if new_target > MAX_TARGET:
+            return MAX_TARGET
+
         return new_target
 
     def bits_to_target(self, bits):
         bitsN = (bits >> 24) & 0xff
-        if not (bitsN >= 0x03 and bitsN <= 0x1d):
-            raise Exception("First part of bits should be in [0x03, 0x1d]")
+        if not (bitsN >= 0x03 and bitsN <= 0x1e):
+            raise Exception("First part of bits should be in [0x03, 0x1e]")
         bitsBase = bits & 0xffffff
         if not (bitsBase >= 0x8000 and bitsBase <= 0x7fffff):
             raise Exception("Second part of bits should be in [0x8000, 0x7fffff]")
@@ -337,7 +385,7 @@ class Blockchain(util.PrintError):
             return False
         if prev_hash != header.get('prev_block_hash'):
             return False
-        target = self.get_target(height // 2016 - 1)
+        target = self.get_target(height)
         try:
             self.verify_header(header, prev_hash, target)
         except BaseException as e:
@@ -360,7 +408,8 @@ class Blockchain(util.PrintError):
         cp = []
         n = self.height() // 2016
         for index in range(n):
-            h = self.get_hash((index+1) * 2016 -1)
-            target = self.get_target(index)
+            height = (index + 1) * 2016 - 1
+            h = self.get_hash(height)
+            target = self.get_target(height)
             cp.append((h, target))
         return cp
