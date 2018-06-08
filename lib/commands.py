@@ -842,6 +842,15 @@ class Commands:
         to config settings (static/dynamic)"""
         return self.config.fee_per_kb()
 
+    @command('n')
+    def exportcp(self, cpfile):
+        """Export checkpoints to file"""
+        try:
+            self.network.export_checkpoints(cpfile)
+            return 'Exporting checkpoints done'
+        except Exception as e:
+            return 'Error exporting checkpoints: ' + str(e)
+
     @command('')
     def help(self):
         # for the python console
@@ -866,6 +875,7 @@ param_descriptions = {
     'redeem_script': 'redeem script (hexadecimal)',
     'conf_file': 'Masternode.conf file from Dash.',
     'alias': 'Masternode alias.',
+    'cpfile': 'Checkpoints file',
 }
 
 command_options = {
