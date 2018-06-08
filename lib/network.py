@@ -829,7 +829,6 @@ class Network(util.DaemonThread):
         #interface.print_error("requesting header %d" % height)
         self.queue_request('blockchain.block.get_header', [height], interface)
         interface.request = height
-        interface.req_time = time.time()
 
     def on_get_header(self, interface, response):
         '''Handle receiving a single block header'''
@@ -945,6 +944,7 @@ class Network(util.DaemonThread):
         else:
             raise Exception(interface.mode)
         # If not finished, get the next header
+        interface.request = None
         if next_height:
             if interface.mode == 'catch_up' and interface.tip > next_height + 50:
                 self.request_chunk(interface, next_height // 2016)
@@ -952,7 +952,6 @@ class Network(util.DaemonThread):
                 self.request_header(interface, next_height)
         else:
             interface.mode = 'default'
-            interface.request = None
             self.notify('updated')
         # refresh network dialog
         self.notify('interfaces')
