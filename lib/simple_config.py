@@ -437,7 +437,7 @@ class SimpleConfig(PrintError):
         return bool(self.get('dynamic_fees', True))
 
     def use_mempool_fees(self):
-        return bool(self.get('mempool_fees', False))
+        return False
 
     def fee_per_kb(self, dyn=None, mempool=None):
         """Returns sat/kvB fee to pay for a txn.
