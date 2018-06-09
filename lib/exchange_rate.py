@@ -23,7 +23,7 @@ CCY_PRECISIONS = {'BHD': 3, 'BIF': 0, 'BYR': 0, 'CLF': 4, 'CLP': 0,
                   'RWF': 0, 'TND': 3, 'UGX': 0, 'UYI': 0, 'VND': 0,
                   'VUV': 0, 'XAF': 0, 'XAU': 4, 'XOF': 0, 'XPF': 0,
                   # Not ISO 4217.
-                  'BTC': 8}
+                  'BTC': 8, 'ETH': 8}
 
 
 DEFAULT_EXCHANGE = 'BitcoinAverage'
@@ -144,12 +144,12 @@ class BitcoinAverage(ExchangeBase):
 class Bittrex(ExchangeBase):
     def get_rates(self, ccy):
         json = self.get_json('bittrex.com',
-                             '/api/v1.1/public/getticker?market=BTC-DASH')
+                             '/api/v1.1/public/getticker?market=%s-DASH' % ccy)
         quote_currencies = {}
         if not json.get('success', False):
             return quote_currencies
         last = Decimal(json['result']['Last'])
-        quote_currencies['BTC'] = last
+        quote_currencies[ccy] = last
         return quote_currencies
 
 
