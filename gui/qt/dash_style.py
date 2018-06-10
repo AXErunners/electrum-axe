@@ -181,7 +181,7 @@ QRadioButton::indicator:checked:pressed {
     image:url(':icons/radio/checked.png');
 }
 
-ScanQRTextEdit, ShowQRTextEdit {
+ScanQRTextEdit, ShowQRTextEdit, ButtonsTextEdit {
     color:#333;
     background-color:#FFFFFF;
     border: 1px solid #1c75bc;
@@ -513,8 +513,6 @@ QHeaderView::section { /* Table Header Sections */
     qproperty-alignment:center;
     background-color:qlineargradient(x1: 0, y1: 0, x2: 0, y2: 0.25, stop: 0 #64A3D0, stop: 1 #68A8D6);
     color:#fff;
-    min-width: 50px;
-    min-height:25px;
     font-weight:bold;
     font-size:11px;
     outline:0;

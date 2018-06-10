@@ -111,11 +111,16 @@ class AddressList(MyTreeWidget):
                 rate = fx.exchange_rate()
                 fiat_balance = fx.value_str(balance, rate)
                 address_item = SortableTreeWidgetItem(['', address, label, balance_text, fiat_balance, "%d"%num])
-                address_item.setTextAlignment(4, Qt.AlignRight)
-                address_item.setFont(4, QFont(MONOSPACE_FONT))
+                for i in range(6):
+                    if i > 2:
+                        address_item.setTextAlignment(i, Qt.AlignRight)
+                    address_item.setFont(i, QFont(MONOSPACE_FONT))
             else:
                 address_item = SortableTreeWidgetItem(['', address, label, balance_text, "%d"%num])
-            address_item.setFont(3, QFont(MONOSPACE_FONT))
+                for i in range(5):
+                    if i > 2:
+                        address_item.setTextAlignment(i, Qt.AlignRight)
+                    address_item.setFont(i, QFont(MONOSPACE_FONT))
             if self.wallet.is_change(address):
                 address_item.setText(0, _('change'))
                 address_item.setBackground(0, ColorScheme.YELLOW.as_color(True))
