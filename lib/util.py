@@ -109,10 +109,10 @@ class Satoshis(object):
         return self
 
     def __repr__(self):
-        return 'Satoshis(%d)'%self.value
+        return 'Duffs(%d)'%self.value
 
     def __str__(self):
-        return format_satoshis(self.value) + " BTC"
+        return format_satoshis(self.value) + " DASH"
 
 class Fiat(object):
     def __new__(cls, value, ccy):

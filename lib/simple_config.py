@@ -367,7 +367,7 @@ class SimpleConfig(PrintError):
         text is what we target: static fee / num blocks to confirm in / mempool depth
         tooltip is the corresponding estimate (e.g. num blocks for a static fee)
         """
-        rate_str = ('%s sat/kB' % round(fee_rate)) if fee_rate is not None else 'unknown'
+        rate_str = ('%s duffs/kB' % round(fee_rate)) if fee_rate is not None else 'unknown'
         if dyn:
             if mempool:
                 depth = self.depth_target(pos)

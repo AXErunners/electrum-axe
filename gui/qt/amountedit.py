@@ -107,7 +107,7 @@ class BTCAmountEdit(AmountEdit):
 
 class FeerateEdit(BTCAmountEdit):
     def _base_unit(self):
-        return 'sat/kB'
+        return 'duffs/kB'
 
     def get_amount(self):
         sat_per_kb_amount = BTCAmountEdit.get_amount(self)
