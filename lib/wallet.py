@@ -616,8 +616,8 @@ class Abstract_Wallet(PrintError):
                         fee = self.tx_fees.get(tx_hash)
                     if fee and self.network and self.network.config.has_fee_mempool():
                         size = tx.estimated_size()
-                        fee_per_byte = fee / size
-                        exp_n = self.network.config.fee_to_depth(fee_per_byte)
+                        fee_per_kb = round(fee / size)
+                        exp_n = self.network.config.fee_to_depth(fee_per_kb)
                 else:
                     status = _('Local')
                     can_broadcast = self.network is not None
@@ -1164,11 +1164,11 @@ class Abstract_Wallet(PrintError):
                 fee = self.tx_fees.get(tx_hash)
             if fee is not None:
                 size = tx.estimated_size()
-                fee_per_byte = fee / size
-                extra.append('%.1f sat/b'%(fee_per_byte))
+                fee_per_kb = round(fee / size)
+                extra.append('%s sat/kB'%(fee_per_kb))
             if fee is not None and height in (TX_HEIGHT_UNCONF_PARENT, TX_HEIGHT_UNCONFIRMED) \
                and self.network and self.network.config.has_fee_mempool():
-                exp_n = self.network.config.fee_to_depth(fee_per_byte)
+                exp_n = self.network.config.fee_to_depth(fee_per_kb)
                 if exp_n:
                     extra.append('%.2f MB'%(exp_n/1000000))
             if height == TX_HEIGHT_LOCAL:
