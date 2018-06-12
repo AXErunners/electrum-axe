@@ -1,13 +1,13 @@
-Index: Electrum-DASH-3.0.6/electrum-dash
+Index: electrum-dash-3.x.x/electrum-dash
 ===================================================================
---- Electrum-DASH-3.0.6.orig/electrum-dash	2018-04-17 19:12:42.320633114 +0300
-+++ Electrum-DASH-3.0.6/electrum-dash	2018-04-25 11:16:48.929394266 +0300
+--- electrum-dash-3.x.x.orig/electrum-dash	2018-06-12 22:15:35.699293303 +0300
++++ electrum-dash-3.x.x/electrum-dash	2018-06-12 22:20:02.122480853 +0300
 @@ -26,6 +26,8 @@
  import os
  import sys
-
+ 
 +os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION']='python'
 +
- # from https://gist.github.com/tito/09c42fb4767721dc323d
- import threading
- try:
+ script_dir = os.path.dirname(os.path.realpath(__file__))
+ is_bundle = getattr(sys, 'frozen', False)
+ is_local = not is_bundle and os.path.exists(os.path.join(script_dir, "electrum-dash.desktop"))
