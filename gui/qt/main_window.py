@@ -106,6 +106,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         self.gui_object = gui_object
         self.config = config = gui_object.config
 
+        self._old_excepthook = None
         self.setup_exception_hook()
 
         self.network = gui_object.daemon.network
@@ -567,11 +568,19 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         help_menu.addAction(_("&Official website"), lambda: webbrowser.open("https://electrum.dash.org"))
         help_menu.addSeparator()
         help_menu.addAction(_("&Documentation"), lambda: webbrowser.open("https://docs.dash.org/en/latest/wallets/index.html#dash-electrum-wallet")).setShortcut(QKeySequence.HelpContents)
+        self._auto_crash_reports = QAction(_("&Automated Crash Reports"), self, checkable=True)
+        self._auto_crash_reports.setChecked(self.config.get("show_crash_reporter", default=False))
+        self._auto_crash_reports.triggered.connect(self.auto_crash_reports)
+        help_menu.addAction(self._auto_crash_reports)
         help_menu.addAction(_("&Report Bug"), self.show_report_bug)
         help_menu.addSeparator()
         help_menu.addAction(_("&Donate to server"), self.donate_to_server)
 
         self.setMenuBar(menubar)
+
+    def auto_crash_reports(self, state):
+        self.config.set_key("show_crash_reporter", state)
+        self.setup_exception_hook()
 
     def donate_to_server(self):
         d = self.network.get_donation_address()

@@ -136,7 +136,8 @@ class Exception_Window(QWidget, MessageBoxMixin):
         self.close()
 
     def show_never(self):
-        self.main_window.config.set_key("show_crash_reporter", False)
+        self.main_window._auto_crash_reports.setChecked(False)
+        self.main_window.auto_crash_reports(False)
         self.close()
 
     def closeEvent(self, event):
@@ -201,9 +202,12 @@ class Exception_Hook(QObject):
 
     def __init__(self, main_window, *args, **kwargs):
         super(Exception_Hook, self).__init__(*args, **kwargs)
-        if not main_window.config.get("show_crash_reporter", default=True):
+        if not main_window.config.get("show_crash_reporter", default=False):
+            if main_window._old_excepthook:
+                sys.excepthook = main_window._old_excepthook
             return
         self.main_window = main_window
+        main_window._old_excepthook = sys.excepthook
         sys.excepthook = self.handler
         self._report_exception.connect(_show_window)
 
