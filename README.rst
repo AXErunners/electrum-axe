@@ -94,17 +94,6 @@ To create binaries, create the 'packages' directory::
 
 This directory contains the python dependencies used by Electrum-DASH.
 
-Mac OS X / macOS
---------
-
-See `contrib/build-osx/`.
-
-Windows
--------
-
-See `contrib/build-wine/`.
-
-
 Android
 -------
 
