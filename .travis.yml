@@ -21,9 +21,9 @@ matrix:
     os: linux
     python: "3.6"
 before_install:
-- source contrib/travis/electrum_dash_version_env.sh
+- source contrib/dash/travis/electrum_dash_version_env.sh
 - echo electrum-dash version is $ELECTRUM_DASH_VERSION
-- mkdir -p build && cp contrib/travis/* ./build/
+- mkdir -p build && cp contrib/dash/travis/* ./build/
 - if [[ -n $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'osx' ]]; then
       ./build/before_install-osx.sh;
   fi

@@ -77,12 +77,11 @@ class FxDialog(Factory.Popup):
         self.config = config
         self.callback = callback
         self.fx = self.app.fx
-        self.fx.set_history_config(False)
+        self.fx.set_history_config(True)
         self.add_currencies()
 
     def add_exchanges(self):
-        with_history = self.fx.get_history_config()
-        exchanges = sorted(self.fx.get_exchanges_by_ccy(self.fx.get_currency(), with_history)) if self.fx.is_enabled() else []
+        exchanges = sorted(self.fx.get_exchanges_by_ccy(self.fx.get_currency(), True)) if self.fx.is_enabled() else []
         mx = self.fx.exchange.name() if self.fx.is_enabled() else ''
         ex = self.ids.exchanges
         ex.values = exchanges
@@ -95,8 +94,7 @@ class FxDialog(Factory.Popup):
             self.fx.set_exchange(text)
 
     def add_currencies(self):
-        with_history = self.fx.get_history_config()
-        currencies = [_('None')] + self.fx.get_currencies(with_history)
+        currencies = [_('None')] + self.fx.get_currencies(True)
         my_ccy = self.fx.get_currency() if self.fx.is_enabled() else _('None')
         self.ids.ccy.values = currencies
         self.ids.ccy.text = my_ccy
@@ -108,4 +106,6 @@ class FxDialog(Factory.Popup):
             if ccy != self.fx.get_currency():
                 self.fx.set_currency(ccy)
             self.app.fiat_unit = ccy
+        else:
+            self.app.is_fiat = False
         Clock.schedule_once(lambda dt: self.add_exchanges())

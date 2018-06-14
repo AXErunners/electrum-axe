@@ -1,6 +1,12 @@
 {
+    "BitcoinAverage": [
+        "USD",
+        "EUR",
+        "PLN"
+    ],
     "Bittrex": [
-        "BTC"
+        "BTC",
+        "ETH"
     ],
     "Poloniex": [
         "BTC"

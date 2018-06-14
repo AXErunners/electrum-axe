@@ -1,9 +1,9 @@
-# If you want electrum-dash to appear in a linux app launcher ("start menu"), install this by doing:
-# sudo desktop-file-install electrum_dash.desktop
+# If you want Electrum-DASH to appear in a Linux app launcher ("start menu"), install this by doing:
+# sudo desktop-file-install electrum-dash.desktop
 
 [Desktop Entry]
 Comment=Lightweight Dashpay Client
-Exec=electrum-dash %u
+Exec=sh -c "PATH=\"\\$HOME/.local/bin:\\$PATH\" electrum-dash %u"
 GenericName[en_US]=Electrum-DASH
 GenericName=Electrum-DASH
 Icon=electrum-dash
@@ -14,4 +14,8 @@ StartupNotify=false
 Terminal=false
 Type=Application
 MimeType=x-scheme-handler/dashpay;
+Actions=Testnet;
 
+[Desktop Action Testnet]
+Exec=sh -c "PATH=\"\\$HOME/.local/bin:\\$PATH\" electrum-dash --testnet %u"
+Name=Testnet mode

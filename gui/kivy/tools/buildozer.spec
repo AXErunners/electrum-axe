@@ -31,7 +31,7 @@ version.filename = %(source.dir)s/contrib/versions.py
 #version = 1.9.8
 
 # (list) Application requirements
-requirements = python3crystax, android, openssl, plyer, kivy==1.10.0, x11_hash
+requirements = python3crystax, android, openssl, plyer, kivy==master, x11_hash
 
 # (str) Presplash of the application
 #presplash.filename = %(source.dir)s/gui/kivy/theming/splash.png
@@ -108,6 +108,9 @@ android.add_activities = org.dash.electrum.qr.SimpleScannerActivity
 
 # (str) XML file to include as an intent filters in <activity> tag
 android.manifest.intent_filters = gui/kivy/tools/bitcoin_intent.xml
+
+# (str) launchMode to set for the main activity
+android.manifest.launch_mode = singleTask
 
 # (list) Android additionnal libraries to copy into libs/armeabi
 #android.add_libs_armeabi = lib/android/*.so

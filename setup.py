@@ -9,6 +9,12 @@ import platform
 import imp
 import argparse
 
+with open('contrib/requirements/requirements.txt') as f:
+    requirements = f.read().splitlines()
+
+with open('contrib/requirements/requirements-hw.txt') as f:
+    requirements_hw = f.read().splitlines()
+
 version = imp.load_source('version', 'lib/version.py')
 
 if sys.version_info[:3] < (3, 4, 0):
@@ -21,32 +27,26 @@ if platform.system() in ['Linux', 'FreeBSD', 'DragonFly']:
     parser.add_argument('--root=', dest='root_path', metavar='dir', default='/')
     opts, _ = parser.parse_known_args(sys.argv[1:])
     usr_share = os.path.join(sys.prefix, "share")
+    icons_dirname = 'pixmaps'
     if not os.access(opts.root_path + usr_share, os.W_OK) and \
        not os.access(opts.root_path, os.W_OK):
+        icons_dirname = 'icons'
         if 'XDG_DATA_HOME' in os.environ.keys():
             usr_share = os.environ['XDG_DATA_HOME']
         else:
             usr_share = os.path.expanduser('~/.local/share')
     data_files += [
         (os.path.join(usr_share, 'applications/'), ['electrum-dash.desktop']),
-        (os.path.join(usr_share, 'pixmaps/'), ['icons/electrum-dash.png'])
+        (os.path.join(usr_share, icons_dirname), ['icons/electrum.png'])
     ]
 
 setup(
     name="Electrum-DASH",
     version=version.ELECTRUM_VERSION,
-    install_requires=[
-        'pyaes>=0.1a1',
-        'ecdsa>=0.9',
-        'pbkdf2',
-        'requests',
-        'qrcode',
-        'protobuf',
-        'dnspython',
-        'jsonrpclib-pelix',
-        'PySocks>=1.6.6',
-        'x11_hash>=1.4',
-    ],
+    install_requires=requirements,
+    extras_require={
+        'full': requirements_hw + ['pycryptodomex'],
+    },
     packages=[
         'electrum_dash',
         'electrum_dash_gui',
@@ -72,6 +72,7 @@ setup(
         'electrum_dash': [
             'servers.json',
             'servers_testnet.json',
+            'servers_regtest.json',
             'currencies.json',
             'www/index.html',
             'wordlist/*.txt',
