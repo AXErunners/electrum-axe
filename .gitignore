@@ -1,17 +1,29 @@
-.env
+####-*.patch
+*.pyc
+*.swp
+build/
+dist/
+*.egg/
+/electrum.py
+contrib/pyinstaller/
+Electrum.egg-info/
+gui/qt/icons_rc.py
+locale/
+.devlocaltmp/
+*_trial_temp
+packages
+env/
+.tox/
+.buildozer/
+bin/
+/app.fil
 
-# Ansible
-*.retry
+# tox files
+.cache/
+.pytest_cache/
+.coverage
 
-# Vagrant
-.vagrant
-
-# Terraform
-*.tfstate
-*.tfstate.backup
-.terraform
-/clusters/aws-example.inventory
-
-# CLion
-cmake-build-debug
-.idea
+electrum_data/
+gui/kivy/theming/light-0.png
+gui/kivy/theming/light.atlas
+Electrum_AXE.egg-info/
