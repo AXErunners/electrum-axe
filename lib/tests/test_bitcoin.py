@@ -11,10 +11,14 @@ from lib.bitcoin import (
     var_int, op_push, address_to_script, regenerate_key,
     verify_message, deserialize_privkey, serialize_privkey,
     is_b58_address, address_to_scripthash, is_minikey, is_compressed, is_xpub,
-    xpub_type, is_xprv, is_bip32_derivation, seed_type, NetworkConstants,
+    xpub_type, is_xprv, is_bip32_derivation, seed_type, EncodeBase58Check,
     deserialize_xprv, deserialize_xpub, deserialize_drkv, deserialize_drkp)
 from lib.util import bfh, bh2u
+from lib import constants
 from lib.keystore import from_master_key
+
+from . import TestCaseForTestnet
+
 
 try:
     import ecdsa
@@ -140,11 +144,11 @@ class Test_bitcoin(unittest.TestCase):
         self.assertEqual(op_push(0x4b), '4b')
         self.assertEqual(op_push(0x4c), '4c4c')
         self.assertEqual(op_push(0xfe), '4cfe')
-        self.assertEqual(op_push(0xff), '4dff00')
+        self.assertEqual(op_push(0xff), '4cff')
         self.assertEqual(op_push(0x100), '4d0001')
         self.assertEqual(op_push(0x1234), '4d3412')
         self.assertEqual(op_push(0xfffe), '4dfeff')
-        self.assertEqual(op_push(0xffff), '4effff0000')
+        self.assertEqual(op_push(0xffff), '4dffff')
         self.assertEqual(op_push(0x10000), '4e00000100')
         self.assertEqual(op_push(0x12345678), '4e78563412')
 
@@ -158,7 +162,7 @@ class Test_bitcoin(unittest.TestCase):
         self.assertEqual(address_to_script('7phNpVKta6kkbP24HfvvQVeHEmgBQYiJCB'), 'a914f47c8954e421031ad04ecd8e7752c9479206b9d387')
 
 
-class Test_bitcoin_testnet(unittest.TestCase):
+class Test_bitcoin_testnet(TestCaseForTestnet):
 
     @classmethod
     def setUpClass(cls):
@@ -250,6 +254,63 @@ class Test_xprv_xpub(unittest.TestCase):
         self.assertFalse(is_bip32_derivation(""))
         self.assertFalse(is_bip32_derivation("m/q8462"))
 
+def test_version_bytes(self):
+        xprv_headers_b58 = {
+            'standard':    'xprv',
+        }
+        xpub_headers_b58 = {
+            'standard':    'xpub',
+        }
+        for xtype, xkey_header_bytes in constants.net.XPRV_HEADERS.items():
+            xkey_header_bytes = bfh("%08x" % xkey_header_bytes)
+            xkey_bytes = xkey_header_bytes + bytes([0] * 74)
+            xkey_b58 = EncodeBase58Check(xkey_bytes)
+            self.assertTrue(xkey_b58.startswith(xprv_headers_b58[xtype]))
+
+            xkey_bytes = xkey_header_bytes + bytes([255] * 74)
+            xkey_b58 = EncodeBase58Check(xkey_bytes)
+            self.assertTrue(xkey_b58.startswith(xprv_headers_b58[xtype]))
+
+        for xtype, xkey_header_bytes in constants.net.XPUB_HEADERS.items():
+            xkey_header_bytes = bfh("%08x" % xkey_header_bytes)
+            xkey_bytes = xkey_header_bytes + bytes([0] * 74)
+            xkey_b58 = EncodeBase58Check(xkey_bytes)
+            self.assertTrue(xkey_b58.startswith(xpub_headers_b58[xtype]))
+
+            xkey_bytes = xkey_header_bytes + bytes([255] * 74)
+            xkey_b58 = EncodeBase58Check(xkey_bytes)
+            self.assertTrue(xkey_b58.startswith(xpub_headers_b58[xtype]))
+
+
+class Test_xprv_xpub_testnet(TestCaseForTestnet):
+
+    def test_version_bytes(self):
+        xprv_headers_b58 = {
+            'standard':    'tprv',
+        }
+        xpub_headers_b58 = {
+            'standard':    'tpub',
+        }
+        for xtype, xkey_header_bytes in constants.net.XPRV_HEADERS.items():
+            xkey_header_bytes = bfh("%08x" % xkey_header_bytes)
+            xkey_bytes = xkey_header_bytes + bytes([0] * 74)
+            xkey_b58 = EncodeBase58Check(xkey_bytes)
+            self.assertTrue(xkey_b58.startswith(xprv_headers_b58[xtype]))
+
+            xkey_bytes = xkey_header_bytes + bytes([255] * 74)
+            xkey_b58 = EncodeBase58Check(xkey_bytes)
+            self.assertTrue(xkey_b58.startswith(xprv_headers_b58[xtype]))
+
+        for xtype, xkey_header_bytes in constants.net.XPUB_HEADERS.items():
+            xkey_header_bytes = bfh("%08x" % xkey_header_bytes)
+            xkey_bytes = xkey_header_bytes + bytes([0] * 74)
+            xkey_b58 = EncodeBase58Check(xkey_bytes)
+            self.assertTrue(xkey_b58.startswith(xpub_headers_b58[xtype]))
+
+            xkey_bytes = xkey_header_bytes + bytes([255] * 74)
+            xkey_b58 = EncodeBase58Check(xkey_bytes)
+            self.assertTrue(xkey_b58.startswith(xpub_headers_b58[xtype]))
+
 
 class Test_drk_import(unittest.TestCase):
     """ The keys used in this class are TEST keys from
@@ -316,6 +377,7 @@ class Test_keyImport(unittest.TestCase):
 
     priv_pub_addr = (
            {'priv': 'XDL8kYsDheEviC7EYMNbo3Myy1txzKyfhZFZBaYUSPDPm9BZZae8',
+            'exported_privkey': 'p2pkh:XERBBcaPf5D5oFXTEP7TdPWLem5ktc2Zr3AhhQhHVQaF49fDP6tN',
             'pub': '0218864d879997fefbb2846e54ac4db0df99029b91cd12be32312d7e0da45029a8',
             'address': 'PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ',
             'minikey' : False,
@@ -324,6 +386,7 @@ class Test_keyImport(unittest.TestCase):
             'addr_encoding': 'base58',
             'scripthash': '33a07d5e4c49c5075ffdd6e018aa76adc6356cea32246af6cdd65d29acd6d36f'},
            {'priv': 'XFsDL1FgC4VWQWZQu1NZAs5ri1rUP8mu1CviQYBbXedBTK37uppF',
+            'exported_privkey': 'p2pkh:XFsDL1FgC4VWQWZQu1NZAs5ri1rUP8mu1CviQYBbXedBTK37uppF',
             'pub': '0329e04e958045a2866e59d13423772e16551cc1bedc50adb0e10b33ae28146cfc',
             'address': 'P9h6zCz253jmc4TvqgKPRNpkx5qELdNWWT',
             'minikey': False,
@@ -333,6 +396,7 @@ class Test_keyImport(unittest.TestCase):
             'scripthash': '4b72a36e24dac8375220db482e44b04d350e3a6c05e6901bd15b251c6553eaca'},
            # from http://bitscan.com/articles/security/spotlight-on-mini-private-keys
            {'priv': 'SzavMBLoXU6kDrqtUVmffv',
+            'exported_privkey': 'p2pkh:SzavMBLoXU6kDrqtUVmffv',
             'pub': '02588d202afcc1ee4ab5254c7847ec25b9a135bbda0f2bc69ee1a714749fd77dc9',
             'address': 'PGs65CKCQQ3KufnqHXRgLpmCK6nxTwLixp',
             'minikey': True,
@@ -370,6 +434,7 @@ class Test_keyImport(unittest.TestCase):
     def test_is_private_key(self):
         for priv_details in self.priv_pub_addr:
             self.assertTrue(is_private_key(priv_details['priv']))
+            self.assertTrue(is_private_key(priv_details['exported_privkey']))
             self.assertFalse(is_private_key(priv_details['pub']))
             self.assertFalse(is_private_key(priv_details['address']))
         self.assertFalse(is_private_key("not a privkey"))
@@ -378,8 +443,7 @@ class Test_keyImport(unittest.TestCase):
         for priv_details in self.priv_pub_addr:
             txin_type, privkey, compressed = deserialize_privkey(priv_details['priv'])
             priv2 = serialize_privkey(privkey, compressed, txin_type)
-            if not priv_details['minikey']:
-                self.assertEqual(priv_details['priv'], priv2)
+            self.assertEqual(priv_details['exported_privkey'], priv2)
 
     def test_address_to_scripthash(self):
         for priv_details in self.priv_pub_addr:
@@ -417,7 +481,7 @@ class Test_seeds(unittest.TestCase):
         ('x8', 'standard'),
         ('science dawn member doll dutch real ca brick knife deny drive list', ''),
     }
-    
+
     def test_new_seed(self):
         seed = "cram swing cover prefer miss modify ritual silly deliver chunk behind inform able"
         self.assertTrue(is_new_seed(seed))
