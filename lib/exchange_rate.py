@@ -26,8 +26,8 @@ CCY_PRECISIONS = {'BHD': 3, 'BIF': 0, 'BYR': 0, 'CLF': 4, 'CLP': 0,
                   'BTC': 8}
 
 
-DEFAULT_EXCHANGE = 'Bittrex'
-DEFAULT_CCY = 'BTC'
+DEFAULT_EXCHANGE = 'BitcoinAverage'
+DEFAULT_CCY = 'USD'
 
 
 class ExchangeBase(PrintError):
@@ -121,6 +121,24 @@ class ExchangeBase(PrintError):
     def get_currencies(self):
         rates = self.get_rates('')
         return sorted([str(a) for (a, b) in rates.items() if b is not None and len(a)==3])
+
+
+class BitcoinAverage(ExchangeBase):
+
+    def get_rates(self, ccy):
+        json = self.get_json('apiv2.bitcoinaverage.com',
+                             '/indices/local/ticker/AXE%s' % ccy)
+        return {ccy: Decimal(json['last'])}
+
+
+    def history_ccys(self):
+        return ['USD', 'EUR', 'PLN']
+
+    def request_history(self, ccy):
+        history = self.get_json('apiv2.bitcoinaverage.com',
+                               "/indices/local/history/AXE%s"
+                               "?period=alltime&format=json" % ccy)
+        return dict([(h['time'][:10], h['average']) for h in history])
 
 
 class Bittrex(ExchangeBase):

@@ -1,4 +1,9 @@
 {
+    "BitcoinAverage": [
+        "USD",
+        "EUR",
+        "PLN"
+    ],
     "Bittrex": [
         "BTC"
     ],
