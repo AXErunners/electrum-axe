@@ -11,8 +11,10 @@ Builder.load_string('''
     pos_hint: {'top':0.9}
     BoxLayout:
         orientation: 'vertical'
+
         Widget:
             size_hint: 1, 0.1
+
         BoxLayout:
             orientation: 'horizontal'
             size_hint: 1, 0.1
@@ -23,8 +25,10 @@ Builder.load_string('''
                 height: '48dp'
                 id: ccy
                 on_text: popup.on_currency(self.text)
+
         Widget:
             size_hint: 1, 0.1
+
         BoxLayout:
             orientation: 'horizontal'
             size_hint: 1, 0.1
@@ -35,8 +39,10 @@ Builder.load_string('''
                 height: '48dp'
                 id: exchanges
                 on_text: popup.on_exchange(self.text)
+
         Widget:
             size_hint: 1, 0.2
+
         BoxLayout:
             orientation: 'horizontal'
             size_hint: 1, 0.2
@@ -102,4 +108,6 @@ class FxDialog(Factory.Popup):
             if ccy != self.fx.get_currency():
                 self.fx.set_currency(ccy)
             self.app.fiat_unit = ccy
+        else:
+            self.app.is_fiat = False
         Clock.schedule_once(lambda dt: self.add_exchanges())
