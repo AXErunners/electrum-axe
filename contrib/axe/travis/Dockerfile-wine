@@ -8,7 +8,7 @@ RUN dpkg --add-architecture i386 \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
         wine-development wine32-development wine64-development libwine-development libwine-development:i386 \
-        cabextract xauth xvfb wget ca-certificates zip unzip \
+        cabextract xauth xvfb wget ca-certificates zip unzip p7zip-full \
     && wget https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks \
     && chmod +x winetricks && mv winetricks /usr/local/bin \
     && rm -rf /var/lib/apt/lists/*
@@ -23,8 +23,15 @@ RUN echo 'download and install 32-bit Python/mingwpy/pywin32/PyQt/git/NSIS/PyIns
     && wineboot -i \
     && xvfb-run -a winetricks -q vcrun2010 \
     \
+    && wget -nv -O zbar-setup.exe https://sourceforge.net/projects/zbarw/files/zbarw-20121031-setup.exe/download \
+    && wine zbar-setup.exe /S /D=c:\\zbar \
+    \
     && wget -nv -O python.msi https://www.python.org/ftp/python/3.4.4/python-3.4.4.msi \
     && msiexec /q /i python.msi && rm python.msi \
+    \
+    && wget -nv -O libusb.7z https://prdownloads.sourceforge.net/project/libusb/libusb-1.0/libusb-1.0.22/libusb-1.0.22.7z?download \
+    && 7z x -olibusb libusb.7z -aos && rm libusb.7z  \
+    && cp libusb/MS32/dll/libusb-1.0.dll $PYHOME/ \
     \
     && wine pip install -i https://pypi.anaconda.org/carlkl/simple mingwpy \
     && /bin/echo -e '[build]\ncompiler=mingw32\n' > $PYHOME/Lib/distutils/distutils.cfg \
@@ -56,8 +63,12 @@ RUN echo 'download and install 64-bit Python/mingwpy/pywin32/PyQt/git/NSIS/PyIns
     && wineboot -i \
     && xvfb-run -a winetricks -q vcrun2010 \
     \
+    && wine zbar-setup.exe /S /D=c:\\zbar && rm zbar-setup.exe \
+    \
     && wget -nv -O python.msi https://www.python.org/ftp/python/3.4.4/python-3.4.4.amd64.msi \
     && msiexec /q /i python.msi && rm python.msi \
+    \
+    && cp libusb/MS64/dll/libusb-1.0.dll $PYHOME/ && rm -rf libusb \
     \
     && wine pip install -i https://pypi.anaconda.org/carlkl/simple mingwpy \
     && /bin/echo -e '[build]\ncompiler=mingw32\n' > $PYHOME/Lib/distutils/distutils.cfg \

@@ -1,6 +1,6 @@
 ;--------------------------------
 ;Include Modern UI
-  !include "TextFunc.nsh" ;Needed for the $GetSize fuction. I know, doesn't sound logical, it isn't.
+  !include "TextFunc.nsh" ;Needed for the $GetSize function. I know, doesn't sound logical, it isn't.
   !include "MUI2.nsh"
   !include "x64.nsh"
 
@@ -150,7 +150,7 @@ Section
   WriteRegStr HKCU "Software\Classes\axe" "DefaultIcon" "$\"$INSTDIR\electrum-axe.ico, 0$\""
   WriteRegStr HKCU "Software\Classes\axe\shell\open\command" "" "$\"$INSTDIR\electrum-axe-${PRODUCT_VERSION}.exe$\" $\"%1$\""
 
-  ;Adds an uninstaller possibilty to Windows Uninstall or change a program section
+  ;Adds an uninstaller possibility to Windows Uninstall or change a program section
   WriteRegStr HKCU "${PRODUCT_UNINST_KEY}" "DisplayName" "$(^Name)"
   WriteRegStr HKCU "${PRODUCT_UNINST_KEY}" "UninstallString" "$INSTDIR\Uninstall.exe"
   WriteRegStr HKCU "${PRODUCT_UNINST_KEY}" "DisplayVersion" "${PRODUCT_VERSION}"

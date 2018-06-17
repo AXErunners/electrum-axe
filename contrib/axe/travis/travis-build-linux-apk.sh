@@ -25,4 +25,4 @@ sudo chown -R 1000 electrum-axe
 docker run --rm \
     -v $(pwd)/electrum-axe:/home/buildozer/build \
     -t axerunners/electrum-axe-winebuild:Kivy bash -c \
-    'rm -rf packages && ./contrib/make_packages && mv ./contrib/packages . && ./contrib/make_apk'
+    'rm -rf packages && ./contrib/make_packages && ./contrib/make_apk'
