@@ -284,6 +284,7 @@ class Blockchain(util.PrintError):
         return deserialize_header(h, height)
 
     def get_hash(self, height):
+        len_checkpoints = len(self.checkpoints)
         if height == -1:
             return '0000000000000000000000000000000000000000000000000000000000000000'
         elif height == 0:
@@ -292,9 +293,9 @@ class Blockchain(util.PrintError):
             assert (height+1) % 2016 == 0, height
             index = height // 2016
             if index < len_checkpoints - 1:
-                 h, t = self.checkpoints[index]
-             else:
-                 h, t, extra_headers = self.checkpoints[index]
+                h, t = self.checkpoints[index]
+            else:
+                h, t, extra_headers = self.checkpoints[index]
             return h
         else:
             return hash_header(self.read_header(height))
