@@ -288,7 +288,7 @@ class Blockchain(util.PrintError):
             return '0000000000000000000000000000000000000000000000000000000000000000'
         elif height == 0:
             return constants.net.GENESIS
-        elif height < len_checkpoints * 2016:
+        elif height < len_checkpoints * 2016 - POW_DGW3_HEIGHT:
             assert (height+1) % 2016 == 0, height
             index = height // 2016
             if index < len_checkpoints - 1:
