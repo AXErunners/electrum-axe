@@ -855,7 +855,7 @@ class Transaction:
                     private_key = bitcoin.MySigningKey.from_secret_exponent(secexp, curve = SECP256k1)
                     public_key = private_key.get_verifying_key()
                     sig = private_key.sign_digest_deterministic(pre_hash, hashfunc=hashlib.sha256, sigencode = ecdsa.util.sigencode_der_canonize)
-                    if not public_key.verify_digest(sig, pre_hash, sigdecode = ecdsa.util.sigdecode_der_canonize):
+                    if not public_key.verify_digest(sig, pre_hash, sigdecode = ecdsa.util.sigdecode_der):
                         raise Exception('Sanity check verifying our own signature failed.')
                     txin['signatures'][j] = bh2u(sig) + '01'
                     #txin['x_pubkeys'][j] = pubkey
