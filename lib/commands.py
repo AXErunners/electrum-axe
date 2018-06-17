@@ -137,8 +137,8 @@ class Commands:
     @command('wn')
     def restore(self, text):
         """Restore a wallet from text. Text can be a seed phrase, a master
-        public key, a master private key, a list of Axe addresses
-        or Axe private keys. If you want to be prompted for your
+        public key, a master private key, a list of AXE addresses
+        or AXE private keys. If you want to be prompted for your
         seed, type '?' or ':' (concealed) """
         raise Exception('Not a JSON-RPC command')
 
@@ -467,7 +467,7 @@ class Commands:
 
     @command('w')
     def setlabel(self, key, label):
-        """Assign a label to an item. Item may be a Axe address or a
+        """Assign a label to an item. Item may be a AXE address or a
         transaction ID"""
         self.wallet.set_label(key, label)
 
@@ -844,12 +844,12 @@ class Commands:
 
     @command('n')
     def exportcp(self, cpfile):
-         """Export checkpoints to file"""
+        """Export checkpoints to file"""
         try:
-             self.network.export_checkpoints(cpfile)
-             return 'Exporting checkpoints done'
+            self.network.export_checkpoints(cpfile)
+            return 'Exporting checkpoints done'
         except Exception as e:
-             return 'Error exporting checkpoints: ' + str(e)
+            return 'Error exporting checkpoints: ' + str(e)
 
     @command('')
     def help(self):
@@ -858,8 +858,8 @@ class Commands:
 
 param_descriptions = {
     'privkey': 'Private key. Type \'?\' to get a prompt.',
-    'destination': 'Axe address, contact or alias',
-    'address': 'Axe address',
+    'destination': 'AXE address, contact or alias',
+    'address': 'AXE address',
     'seed': 'Seed phrase',
     'txid': 'Transaction ID',
     'pos': 'Position',
@@ -873,13 +873,13 @@ param_descriptions = {
     'requested_amount': 'Requested amount (in AXE).',
     'outputs': 'list of ["address", amount]',
     'redeem_script': 'redeem script (hexadecimal)',
-    'conf_file': 'Masternode.conf file from Axe.',
+    'conf_file': 'Masternode.conf file from AXE.',
     'alias': 'Masternode alias.',
     'cpfile': 'Checkpoints file',
 }
 
 command_options = {
-    'broadcast':   (None, "Broadcast the transaction to the Axe network"),
+    'broadcast':   (None, "Broadcast the transaction to the AXE network"),
     'password':    ("-W", "Password"),
     'new_password':(None, "New Password"),
     'receiving':   (None, "Show only receiving addresses"),
@@ -891,7 +891,7 @@ command_options = {
     'labels':      ("-l", "Show the labels of listed addresses"),
     'nocheck':     (None, "Do not verify aliases"),
     'imax':        (None, "Maximum number of inputs"),
-    'fee':         ("-f", "Transaction fee (in Axe)"),
+    'fee':         ("-f", "Transaction fee (in AXE)"),
     'from_addr':   ("-F", "Source address (must be a wallet address; use sweep to spend from non-wallet address)."),
     'change_addr': ("-c", "Change address. Default is a spare address, or the source address if it's not in the wallet"),
     'nbits':       (None, "Number of bits of entropy"),
@@ -939,10 +939,10 @@ config_variables = {
         'requests_dir': 'directory where a bip70 file will be written.',
         'ssl_privkey': 'Path to your SSL private key, needed to sign the request.',
         'ssl_chain': 'Chain of SSL certificates, needed for signed requests. Put your certificate at the top and the root CA at the end',
-        'url_rewrite': 'Parameters passed to str.replace(), in order to create the r= part of axe: URIs. Example: \"(\'file:///var/www/\',\'https://axerunners.com/\')\"',
+        'url_rewrite': 'Parameters passed to str.replace(), in order to create the r= part of axe: URIs. Example: \"(\'file:///var/www/\',\'https://electrum.org/\')\"',
     },
     'listrequests':{
-        'url_rewrite': 'Parameters passed to str.replace(), in order to create the r= part of axe: URIs. Example: \"(\'file:///var/www/\',\'https://axerunners.com/\')\"',
+        'url_rewrite': 'Parameters passed to str.replace(), in order to create the r= part of axe: URIs. Example: \"(\'file:///var/www/\',\'https://electrum.org/\')\"',
     }
 }
 
