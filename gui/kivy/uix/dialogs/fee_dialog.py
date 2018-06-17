@@ -24,7 +24,7 @@ Builder.load_string('''
                 background_color: (0,0,0,0)
                 bold: True
                 on_release:
-                    root.method  = (root.method + 1) % 3
+                    root.method  = (root.method + 1) % 2
                     root.update_slider()
                     root.update_text()
         BoxLayout:
@@ -117,7 +117,7 @@ class FeeDialog(Factory.Popup):
         value = int(self.ids.slider.value)
         dynfees, mempool = self.get_method()
         self.config.set_key('dynamic_fees', dynfees, False)
-        self.config.set_key('mempool_fees', mempool, False)
+        self.config.set_key('mempool_fees', False, False)
         if dynfees:
             if mempool:
                 self.config.set_key('depth_level', value, True)
