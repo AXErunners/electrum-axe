@@ -288,10 +288,13 @@ class Blockchain(util.PrintError):
             return '0000000000000000000000000000000000000000000000000000000000000000'
         elif height == 0:
             return constants.net.GENESIS
-        elif height < len(self.checkpoints) * 2016:
+        elif height < len_checkpoints * 2016:
             assert (height+1) % 2016 == 0, height
             index = height // 2016
-            h, t = self.checkpoints[index]
+            if index < len_checkpoints - 1:
+                 h, t = self.checkpoints[index]
+             else:
+                 h, t, extra_headers = self.checkpoints[index]
             return h
         else:
             return hash_header(self.read_header(height))
