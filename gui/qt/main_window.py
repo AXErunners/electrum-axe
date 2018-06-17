@@ -673,7 +673,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         return text
 
     def format_fee_rate(self, fee_rate):
-        return format_satoshis(fee_rate/1000, False, self.num_zeros, 0, False)  + ' sat/byte'
+        return '%s sat/kB' % round(fee_rate)
 
     def get_decimal_point(self):
         return self.decimal_point
@@ -1134,7 +1134,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
                 self.config.set_key('fee_per_kb', fee_rate, False)
 
             if fee_rate:
-                self.feerate_e.setAmount(fee_rate // 1000)
+                self.feerate_e.setAmount(fee_rate)
             else:
                 self.feerate_e.setAmount(None)
             self.fee_e.setModified(False)
@@ -1170,7 +1170,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         self.size_e.setStyleSheet(ColorScheme.DEFAULT.as_stylesheet())
 
         self.feerate_e = FeerateEdit(lambda: 0)
-        self.feerate_e.setAmount(self.config.fee_per_byte())
+        self.feerate_e.setAmount(self.config.fee_per_kb())
         self.feerate_e.textEdited.connect(partial(on_fee_or_feerate, self.feerate_e, False))
         self.feerate_e.editingFinished.connect(partial(on_fee_or_feerate, self.feerate_e, True))
 
@@ -1187,7 +1187,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             QMessageBox.information(self, 'Fee rounding', text)
 
         self.feerounding_icon = QPushButton(QIcon(':icons/info.png'), '')
-        self.feerounding_icon.setFixedWidth(20)
+        self.feerounding_icon.setFixedWidth(30)
         self.feerounding_icon.setFlat(True)
         self.feerounding_icon.clicked.connect(feerounding_onclick)
         self.feerounding_icon.setVisible(False)
@@ -1367,12 +1367,12 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             if freeze_feerate or self.fee_slider.is_active():
                 displayed_feerate = self.feerate_e.get_amount()
                 if displayed_feerate:
-                    displayed_feerate = displayed_feerate // 1000
+                    displayed_feerate = displayed_feerate
                 else:
                     # fallback to actual fee
                     displayed_feerate = fee // size if fee is not None else None
                     self.feerate_e.setAmount(displayed_feerate)
-                displayed_fee = displayed_feerate * size if displayed_feerate is not None else None
+                displayed_fee = round(displayed_feerate * size / 1000) if displayed_feerate is not None else None
                 self.fee_e.setAmount(displayed_fee)
             else:
                 if freeze_fee:
@@ -1382,7 +1382,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
                     displayed_fee = fee
                     self.fee_e.setAmount(displayed_fee)
                 displayed_fee = displayed_fee if displayed_fee else 0
-                displayed_feerate = displayed_fee // size if displayed_fee is not None else None
+                displayed_feerate = round(displayed_fee * 1000 / size) if displayed_fee is not None else None
                 self.feerate_e.setAmount(displayed_feerate)
 
             # show/hide fee rounding icon
@@ -1758,7 +1758,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             e.setText('')
             e.setFrozen(False)
         self.fee_slider.activate()
-        self.feerate_e.setAmount(self.config.fee_per_byte())
+        self.feerate_e.setAmount(self.config.fee_per_kb())
         self.size_e.setAmount(0)
         self.feerounding_icon.setVisible(False)
         self.set_pay_from([])

@@ -7,7 +7,7 @@ import stat
 from copy import deepcopy
 
 from .util import (user_dir, print_error, PrintError,
-                   NoDynamicFeeEstimates, format_satoshis)
+                   NoDynamicFeeEstimates)
 from .i18n import _
 
 FEE_ETA_TARGETS = [25, 10, 5, 2]
@@ -367,7 +367,7 @@ class SimpleConfig(PrintError):
         text is what we target: static fee / num blocks to confirm in / mempool depth
         tooltip is the corresponding estimate (e.g. num blocks for a static fee)
         """
-        rate_str = (format_satoshis(fee_rate/1000, False, 0, 0, False)  + ' sat/byte') if fee_rate is not None else 'unknown'
+        rate_str = ('%s sat/kB' % round(fee_rate)) if fee_rate is not None else 'unknown'
         if dyn:
             if mempool:
                 depth = self.depth_target(pos)
@@ -456,13 +456,6 @@ class SimpleConfig(PrintError):
             fee_rate = self.get('fee_per_kb', FEERATE_FALLBACK_STATIC_FEE)
         return fee_rate
 
-    def fee_per_byte(self):
-        """Returns sat/vB fee to pay for a txn.
-        Note: might return None.
-        """
-        fee_per_kb = self.fee_per_kb()
-        return fee_per_kb / 1000 if fee_per_kb is not None else None
-
     def estimate_fee(self, size):
         fee_per_kb = self.fee_per_kb()
         if fee_per_kb is None:
@@ -471,12 +464,7 @@ class SimpleConfig(PrintError):
 
     @classmethod
     def estimate_fee_for_feerate(cls, fee_per_kb, size):
-        # note: We only allow integer sat/byte values atm.
-        # The GUI for simplicity reasons only displays integer sat/byte,
-        # and for the sake of consistency, we thus only use integer sat/byte in
-        # the backend too.
-        fee_per_byte = int(fee_per_kb / 1000)
-        return int(fee_per_byte * size)
+        return round(fee_per_kb * size / 1000)
 
     def update_fee_estimates(self, key, value):
         self.fee_estimates[key] = value

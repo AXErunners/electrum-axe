@@ -107,10 +107,10 @@ class BTCAmountEdit(AmountEdit):
 
 class FeerateEdit(BTCAmountEdit):
     def _base_unit(self):
-        return 'sat/byte'
+        return 'sat/kB'
 
     def get_amount(self):
-        sat_per_byte_amount = BTCAmountEdit.get_amount(self)
-        if sat_per_byte_amount is None:
+        sat_per_kb_amount = BTCAmountEdit.get_amount(self)
+        if sat_per_kb_amount is None:
             return None
-        return 1000 * sat_per_byte_amount
+        return sat_per_kb_amount

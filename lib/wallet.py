@@ -353,7 +353,7 @@ class Abstract_Wallet(PrintError):
         addrs = self.get_receiving_addresses()
         if len(addrs) > 0:
             if not bitcoin.is_address(addrs[0]):
-                raise WalletFileException('The addresses in this wallet are not Axe addresses.')
+                raise WalletFileException('The addresses in this wallet are not AXE addresses.')
 
     def synchronize(self):
         pass
@@ -616,8 +616,8 @@ class Abstract_Wallet(PrintError):
                         fee = self.tx_fees.get(tx_hash)
                     if fee and self.network and self.network.config.has_fee_mempool():
                         size = tx.estimated_size()
-                        fee_per_byte = fee / size
-                        exp_n = self.network.config.fee_to_depth(fee_per_byte)
+                        fee_per_kb = round(fee / size)
+                        exp_n = self.network.config.fee_to_depth(fee_per_kb)
                 else:
                     status = _('Local')
                     can_broadcast = self.network is not None
@@ -1164,11 +1164,11 @@ class Abstract_Wallet(PrintError):
                 fee = self.tx_fees.get(tx_hash)
             if fee is not None:
                 size = tx.estimated_size()
-                fee_per_byte = fee / size
-                extra.append('%.1f sat/b'%(fee_per_byte))
+                fee_per_kb = round(fee / size)
+                extra.append('%s sat/kB'%(fee_per_kb))
             if fee is not None and height in (TX_HEIGHT_UNCONF_PARENT, TX_HEIGHT_UNCONFIRMED) \
                and self.network and self.network.config.has_fee_mempool():
-                exp_n = self.network.config.fee_to_depth(fee_per_byte)
+                exp_n = self.network.config.fee_to_depth(fee_per_kb)
                 if exp_n:
                     extra.append('%.2f MB'%(exp_n/1000000))
             if height == TX_HEIGHT_LOCAL:
@@ -1201,7 +1201,7 @@ class Abstract_Wallet(PrintError):
             _type, data, value = o
             if _type == TYPE_ADDRESS:
                 if not is_address(data):
-                    raise Exception("Invalid Axe address: {}".format(data))
+                    raise Exception("Invalid AXE address: {}".format(data))
             if value == '!':
                 if i_max is not None:
                     raise Exception("More than one output set to spend max")
@@ -1558,7 +1558,7 @@ class Abstract_Wallet(PrintError):
     def add_payment_request(self, req, config):
         addr = req['address']
         if not bitcoin.is_address(addr):
-            raise Exception(_('Invalid Axe address.'))
+            raise Exception(_('Invalid AXE address.'))
         if not self.is_mine(addr):
             raise Exception(_('Address not in wallet.'))
 
@@ -1637,6 +1637,7 @@ class Abstract_Wallet(PrintError):
 
     def get_available_storage_encryption_version(self):
         """Returns the type of storage encryption offered to the user.
+
         A wallet file (storage) is either encrypted with this version
         or is stored in plaintext.
         """
@@ -1647,6 +1648,7 @@ class Abstract_Wallet(PrintError):
 
     def has_keystore_encryption(self):
         """Returns whether encryption is enabled for the keystore.
+
         If True, e.g. signing a transaction will require a password.
         """
         if self.can_have_keystore_encryption():
@@ -1763,7 +1765,7 @@ class Abstract_Wallet(PrintError):
                 p = self.price_at_timestamp(txid, price_func)
                 return p * txin_value/Decimal(COIN)
 
-    # Axe Abstract_Wallet additions
+    # AXE Abstract_Wallet additions
     def get_delegate_private_key(self, pubkey):
         """Get the private delegate key for pubkey."""
         return self.masternode_delegates.get(pubkey, '')
