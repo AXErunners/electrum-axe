@@ -411,5 +411,22 @@ class Blockchain(util.PrintError):
             height = (index + 1) * 2016 - 1
             h = self.get_hash(height)
             target = self.get_target(height)
-            cp.append((h, target))
+            if len(h.strip('0')) == 0:
+                raise Exception('%s file has not enough data.' % self.path())
+            if index < n - 1:
+                cp.append((h, target))
+            else:
+                dgw3_headers = []
+                if os.path.exists(self.path()):
+                    with open(self.path(), 'rb') as f:
+                        lower_header = height - DGW_PAST_BLOCKS
+                        for height in range(height, lower_header-1, -1):
+                            f.seek(height*80)
+                            hd = f.read(80)
+                            if len(hd) < 80:
+                                raise Exception(
+                                    'Expected to read a full header.'
+                                    ' This was only {} bytes'.format(len(hd)))
+                            dgw3_headers.append((height, bh2u(hd)))
+                cp.append((h, target, dgw3_headers))
         return cp
