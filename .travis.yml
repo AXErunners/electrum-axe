@@ -21,9 +21,9 @@ matrix:
     os: linux
     python: "3.6"
 before_install:
-- source contrib/travis/electrum_axe_version_env.sh
+- source contrib/axe/travis/electrum_axe_version_env.sh
 - echo electrum-axe version is $ELECTRUM_AXE_VERSION
-- mkdir -p build && cp contrib/travis/* ./build/
+- mkdir -p build && cp contrib/axe/travis/* ./build/
 - if [[ -n $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'osx' ]]; then
       ./build/before_install-osx.sh;
   fi
