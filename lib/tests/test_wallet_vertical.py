@@ -155,4 +155,4 @@ class TestWalletKeystoreAddressIntegrityForMainnet(unittest.TestCase):
         self.assertEqual(w.txin_type, 'p2sh')
 
         self.assertEqual(w.get_receiving_addresses()[0], '7dTFS18zaHNT67z54NWLUshtKs6FnPo7iu')
-        self.assertEqual(w.get_change_addresses()[0], '7SRcVV8vWMqMPLLy9jUGJTBvJ6fpavXGvy')
+        self.assertEqual(w.get_change_addresses()[0], '7Z8vUdV1WzTQqNqcW6MizSSP96HpBvwMcS')
