@@ -105,7 +105,7 @@ class TestWalletKeystoreAddressIntegrityForMainnet(unittest.TestCase):
         self.assertTrue(isinstance(ks, keystore.BIP32_KeyStore))
 
         self.assertEqual(ks.xprv, 'xprv9z3dKeoZEe6oPP3HGUiwGuDirB6otu4FaitvyztdXFbtNTM8Q2oWm8iAwELb4wVL7mYpzoT3YAMnkyEW8wzobLaFXrU9fdS6egiXgp7Xq8s')
-        self.assertEqual(ks.xpub, 'xpub6DFh1smUsyqmYD4obDX6ngaxhd53Zx7aeFjoobebm7vbkT6f9awJWFuGzBT9FQJEWFBL7UyhMXtYzRcwDuVbcxtv9Ce2W9eMm4KXLdvdbjv')
+        self.assertEqual(ks.xpub, 'xpub6D2yjALT51f6bs7kNWFwe3ATQCwJJMn6wwpXnPJF5b8sFFgGwa7mJw2enYSrng7a4UrGaSea7ADbbiciBojB8w8qAXfNfctrCGGicTqWfGa')
 
         w = WalletIntegrityHelper.create_standard_wallet(ks)
         self.assertEqual(w.txin_type, 'p2pkh')
@@ -142,7 +142,7 @@ class TestWalletKeystoreAddressIntegrityForMainnet(unittest.TestCase):
 
         ks1 = keystore.from_bip39_seed(seed_words, '', "m/45'/4242")
         self.assertTrue(isinstance(ks1, keystore.BIP32_KeyStore))
-        self.assertEqual(ks1.xprv, 'xprv9vyEFyXf7pYVv4eDU3hhuCEAHPHNGuxX73nwtYdpbLcqwJCPwFKknAK8pHWuHHBirCzAPDZ7UJHrYdhLfn1NkGp9rk3rVz2aEqrT93qKRD9')
+        self.assertEqual(ks1.xprv, 'xprv9vyEFyXf7pbiKy3pDC6qTX6jah2yrYFKhzHnoXXm1FU7fHDbFxR3Tdho91atnqN8EPTSut4t4xgTRkBoS7PjHN8tDfseZooqCsrVx6Dn3Cb')
         self.assertEqual(ks1.xpub, 'xpub69xafV4YxC6o8Yiga5EiGLAtqR7rgNgNUGiYgw3S9g9pp6XYUne1KxdcfYtxwmA3eBrzMFuYcNQKfqsXCygCo4GxQFHfywxpUbKNfYvGJka')
 
         # bip39 seed: tray machine cook badge night page project uncover ritual toward person enact
