@@ -141,7 +141,7 @@ class TestTransaction(unittest.TestCase):
 
     def test_estimated_output_size(self):
         estimated_output_size = transaction.Transaction.estimated_output_size
-        self.assertEqual(estimated_output_size('Xdt8NqE5wSX9ytfP958t4tKdXoZDo6Bm6T'), 34)
+        self.assertEqual(estimated_output_size('PQCuFncFVzYhuoyv9MCSE5nQU2gwr56uh4'), 34)
         self.assertEqual(estimated_output_size('7WHUEVtMDLeereT5r4ZoNKjr3MXr4gqfon'), 32)
 
     def test_errors(self):
@@ -165,8 +165,8 @@ class TestTransaction(unittest.TestCase):
         ADDR = transaction.TYPE_ADDRESS
 
         # base58 p2pkh
-        self.assertEqual((ADDR, 'XeNTG4aihv1ru8xmaoiQnToSi8hLiTTNbh'), addr_from_script('76a91428662c67561b95c79d2257d2a93d9d151c977e9188ac'))
-        self.assertEqual((ADDR, 'XkvgWFLxVmDaVkUF8bFE2QXP4f5C2KKWEg'), addr_from_script('76a914704f4b81cadb7bf7e68c08cd3657220f680f863c88ac'))
+        self.assertEqual((ADDR, 'PBenpocD6pDoAoFZP4qA2pLpNwrm6FAcVw'), addr_from_script('76a9142197669050d01c6136181127ac8a0c631733da9688ac'))
+        self.assertEqual((ADDR, 'P9h6zCz253jmc4TvqgKPRNpkx5qELdNWWT'), addr_from_script('76a9140c1724583577182cceef0e31bc176b2dcfdaadfd88ac'))
 
         # base58 p2sh
         self.assertEqual((ADDR, '7WHUEVtMDLeereT5r4ZoNKjr3MXr4gqfon'), addr_from_script('a9142a84cf00d47f699ee7bbc1dea5ec1bdecb4ac15487'))
