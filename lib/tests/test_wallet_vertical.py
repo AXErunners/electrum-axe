@@ -104,7 +104,7 @@ class TestWalletKeystoreAddressIntegrityForMainnet(unittest.TestCase):
 
         self.assertTrue(isinstance(ks, keystore.BIP32_KeyStore))
 
-        self.assertEqual(ks.xprv, 'xprv9zGLcNEb3cHUKizLVBz6RYeE9bEZAVPjH2pD1DEzCnPcsemWc3d3xTao8sfhfUmDLMq6e3RcEMEvJG1Et8dvfL8DV4h7mwm9J6AJsW9WXQD')
+        self.assertEqual(ks.xprv, 'xprv9z3dKeoZEe6oPP3HGUiwGuDirB6otu4FaitvyztdXFbtNTM8Q2oWm8iAwELb4wVL7mYpzoT3YAMnkyEW8wzobLaFXrU9fdS6egiXgp7Xq8s')
         self.assertEqual(ks.xpub, 'xpub6DFh1smUsyqmYD4obDX6ngaxhd53Zx7aeFjoobebm7vbkT6f9awJWFuGzBT9FQJEWFBL7UyhMXtYzRcwDuVbcxtv9Ce2W9eMm4KXLdvdbjv')
 
         w = WalletIntegrityHelper.create_standard_wallet(ks)
@@ -140,7 +140,7 @@ class TestWalletKeystoreAddressIntegrityForMainnet(unittest.TestCase):
         seed_words = 'treat dwarf wealth gasp brass outside high rent blood crowd make initial'
         self.assertEqual(keystore.bip39_is_checksum_valid(seed_words), (True, True))
 
-        ks1 = keystore.from_bip39_seed(seed_words, '', "m/45'/0")
+        ks1 = keystore.from_bip39_seed(seed_words, '', "m/45'/4242")
         self.assertTrue(isinstance(ks1, keystore.BIP32_KeyStore))
         self.assertEqual(ks1.xprv, 'xprv9vyEFyXf7pYVv4eDU3hhuCEAHPHNGuxX73nwtYdpbLcqwJCPwFKknAK8pHWuHHBirCzAPDZ7UJHrYdhLfn1NkGp9rk3rVz2aEqrT93qKRD9')
         self.assertEqual(ks1.xpub, 'xpub69xafV4YxC6o8Yiga5EiGLAtqR7rgNgNUGiYgw3S9g9pp6XYUne1KxdcfYtxwmA3eBrzMFuYcNQKfqsXCygCo4GxQFHfywxpUbKNfYvGJka')
