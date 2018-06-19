@@ -244,7 +244,7 @@ class Test_xprv_xpub(unittest.TestCase):
         self.assertFalse(is_bip32_derivation(""))
         self.assertFalse(is_bip32_derivation("m/q8462"))
 
-def test_version_bytes(self):
+    def test_version_bytes(self):
         xprv_headers_b58 = {
             'standard':    'xprv',
         }
