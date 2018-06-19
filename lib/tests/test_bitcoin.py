@@ -164,16 +164,6 @@ class Test_bitcoin(unittest.TestCase):
 
 class Test_bitcoin_testnet(TestCaseForTestnet):
 
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        NetworkConstants.set_testnet()
-
-    @classmethod
-    def tearDownClass(cls):
-        super().tearDownClass()
-        NetworkConstants.set_mainnet()
-
     def test_address_to_script(self):
         # base58 P2PKH
         self.assertEqual(address_to_script('yah2ARXMnY5A9VaR5Cd43fjiQnsu2vZ5a8'), '76a9149da64e300c5e4eb4aaffc9c2fd465348d5618ad488ac')
