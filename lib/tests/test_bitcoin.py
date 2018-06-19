@@ -367,7 +367,7 @@ class Test_keyImport(unittest.TestCase):
 
     priv_pub_addr = (
            {'priv': 'XDL8kYsDheEviC7EYMNbo3Myy1txzKyfhZFZBaYUSPDPm9BZZae8',
-            'exported_privkey': 'p2pkh:XERBBcaPf5D5oFXTEP7TdPWLem5ktc2Zr3AhhQhHVQaF49fDP6tN',
+            'exported_privkey': 'p2pkh:XDL8kYsDheEviC7EYMNbo3Myy1txzKyfhZFZBaYUSPDPm9BZZae8',
             'pub': '0218864d879997fefbb2846e54ac4db0df99029b91cd12be32312d7e0da45029a8',
             'address': 'PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ',
             'minikey' : False,
