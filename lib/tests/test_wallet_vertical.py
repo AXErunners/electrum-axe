@@ -110,7 +110,7 @@ class TestWalletKeystoreAddressIntegrityForMainnet(unittest.TestCase):
         w = WalletIntegrityHelper.create_standard_wallet(ks)
         self.assertEqual(w.txin_type, 'p2pkh')
 
-        self.assertEqual(w.get_receiving_addresses()[0], 'PEKHNp8tc4hpSTredgX21ULgatXLn4vmaB')
+        self.assertEqual(w.get_receiving_addresses()[0], 'PAcFhYAdadySYQ3f6xQX3btQbQDfCVVzn7')
         self.assertEqual(w.get_change_addresses()[0], 'PPrFkU3Mj6JGWLn4gH9EYXyL2KMwtSYapL')
 
     @mock.patch.object(storage.WalletStorage, '_write')
@@ -143,7 +143,7 @@ class TestWalletKeystoreAddressIntegrityForMainnet(unittest.TestCase):
         ks1 = keystore.from_bip39_seed(seed_words, '', "m/45'/4242")
         self.assertTrue(isinstance(ks1, keystore.BIP32_KeyStore))
         self.assertEqual(ks1.xprv, 'xprv9vyEFyXf7pbiKy3pDC6qTX6jah2yrYFKhzHnoXXm1FU7fHDbFxR3Tdho91atnqN8EPTSut4t4xgTRkBoS7PjHN8tDfseZooqCsrVx6Dn3Cb')
-        self.assertEqual(ks1.xpub, 'xpub69xafV4YxC6o8Yiga5EiGLAtqR7rgNgNUGiYgw3S9g9pp6XYUne1KxdcfYtxwmA3eBrzMFuYcNQKfqsXCygCo4GxQFHfywxpUbKNfYvGJka')
+        self.assertEqual(ks1.xpub, 'xpub69xafV4YxCA1YT8HKDdqpf3U8isUFzyB5DDPbuwNZb16Y5YjoVjJ1S2GzHTY5oUgpQAjzRxWGw4YA3sqdQ9f9hP2gog7uLbNV3Jm4sjSfFj')
 
         # bip39 seed: tray machine cook badge night page project uncover ritual toward person enact
         # der: m/45'/0
