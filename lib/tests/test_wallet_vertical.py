@@ -111,7 +111,7 @@ class TestWalletKeystoreAddressIntegrityForMainnet(unittest.TestCase):
         self.assertEqual(w.txin_type, 'p2pkh')
 
         self.assertEqual(w.get_receiving_addresses()[0], 'PAcFhYAdadySYQ3f6xQX3btQbQDfCVVzn7')
-        self.assertEqual(w.get_change_addresses()[0], 'PPrFkU3Mj6JGWLn4gH9EYXyL2KMwtSYapL')
+        self.assertEqual(w.get_change_addresses()[0], 'PSjEodULoy8W3GMnxPSi14ku2b8Y1yhRBS')
 
     @mock.patch.object(storage.WalletStorage, '_write')
     def test_electrum_multisig_seed_standard(self, mock_write):
@@ -154,5 +154,5 @@ class TestWalletKeystoreAddressIntegrityForMainnet(unittest.TestCase):
         w = WalletIntegrityHelper.create_multisig_wallet(ks1, ks2)
         self.assertEqual(w.txin_type, 'p2sh')
 
-        self.assertEqual(w.get_receiving_addresses()[0], '7hmMoMUPGKPuCnxK1Yz4wawUZ6PinbtLHj')
+        self.assertEqual(w.get_receiving_addresses()[0], '7dTFS18zaHNT67z54NWLUshtKs6FnPo7iu')
         self.assertEqual(w.get_change_addresses()[0], '7SRcVV8vWMqMPLLy9jUGJTBvJ6fpavXGvy')
