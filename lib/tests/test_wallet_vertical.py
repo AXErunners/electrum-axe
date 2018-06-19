@@ -110,7 +110,7 @@ class TestWalletKeystoreAddressIntegrityForMainnet(unittest.TestCase):
         w = WalletIntegrityHelper.create_standard_wallet(ks)
         self.assertEqual(w.txin_type, 'p2pkh')
 
-        self.assertEqual(w.get_receiving_addresses()[0], 'PBenpocD6pDoAoFZP4qA2pLpNwrm6FAcVw')
+        self.assertEqual(w.get_receiving_addresses()[0], 'PEKHNp8tc4hpSTredgX21ULgatXLn4vmaB')
         self.assertEqual(w.get_change_addresses()[0], 'PSLW1ndf1oacFjm7aUY1gL87fAvyuJKeRU')
 
     @mock.patch.object(storage.WalletStorage, '_write')
