@@ -143,7 +143,7 @@ class InfoBubble(Factory.Bubble):
         else:
             Window.add_widget(self)
 
-        # wait for the bubble to adjust it's size according to text then animate
+        # wait for the bubble to adjust its size according to text then animate
         Clock.schedule_once(lambda dt: self._show(pos, duration))
 
     def _show(self, pos, duration):
@@ -212,4 +212,3 @@ class OutputList(Factory.GridLayout):
         b.address = address
         b.value = self.app.format_amount_and_units(amount)
         self.add_widget(b)
-

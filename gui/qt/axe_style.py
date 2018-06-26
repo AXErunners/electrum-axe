@@ -49,16 +49,6 @@ QGroupBox::title {
     background:qradialgradient(cx:0.5, cy:0.5, radius: 0.5, fx:0.5, fy:0.5, stop:0 rgba(255, 255, 255, 255), stop: 1 rgba(246, 246, 246, 255));
 }
 
-#list_header {
-    background-color:#1e75b4;
-    background-color:qlineargradient(x1: 0, y1: 0, x2: 0, y2: 0.25, stop: 0 #64A3D0, stop: 1 #68A8D6);
-}
-
-#list_header > QLabel {
-    padding: 1px 0px;
-    color: #fff;
-}
-
 #main_window_nav_bar QTabBar{
     color: #fff;
     border:0;
@@ -191,7 +181,7 @@ QRadioButton::indicator:checked:pressed {
     image:url(':icons/radio/checked.png');
 }
 
-ScanQRTextEdit, ShowQRTextEdit {
+ScanQRTextEdit, ShowQRTextEdit, ButtonsTextEdit {
     color:#333;
     background-color:#FFFFFF;
     border: 1px solid #1c75bc;
@@ -523,8 +513,6 @@ QHeaderView::section { /* Table Header Sections */
     qproperty-alignment:center;
     background-color:qlineargradient(x1: 0, y1: 0, x2: 0, y2: 0.25, stop: 0 #64A3D0, stop: 1 #68A8D6);
     color:#fff;
-    min-width: 50px;
-    min-height:25px;
     font-weight:bold;
     font-size:11px;
     outline:0;

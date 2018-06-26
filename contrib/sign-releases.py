@@ -9,7 +9,7 @@ NOTE on apk signing: To create a keystore and sign the apk you need to install
       java-8-openjdk, or java-7-openjdk on older systems.
 To create a keystore run the following command:
     mkdir ~/.jks && keytool -genkey -v -keystore ~/.jks/keystore \
-        -alias electrum.axe.org -keyalg RSA -keysize 2048 \
+        -alias axerunners.com -keyalg RSA -keysize 2048 \
         -validity 10000
 Then it shows a warning about the proprietary format and a command to migrate:
     keytool -importkeystore -srckeystore ~/.jks/keystore \
@@ -21,7 +21,7 @@ Manual signing:
         -sigfile axe-electrum \
         -keystore ~/.jks/keystore \
         Electrum_AXE-3.0.6.1-release-unsigned.apk \
-        electrum.axe.org
+        axerunners.com
 Zipalign from Android SDK build tools is also required (set path to bin in
 settings file or with key -z). To install:
     wget http://dl.google.com/android/android-sdk_r24-linux.tgz \
@@ -132,7 +132,7 @@ LP_ARCHIVES_TEMPLATE = '%s/~{user}/+archive/ubuntu/{ppa}' % LP_API_URL
 
 # sing_apk related definitions
 JKS_KEYSTORE = os.path.join(HOME_DIR, '.jks/keystore')
-JKS_ALIAS = 'electrum.axe.org'
+JKS_ALIAS = 'axerunners.com'
 JKS_STOREPASS = 'JKS_STOREPASS'
 JKS_KEYPASS = 'JKS_KEYPASS'
 KEYTOOL_ARGS = ['keytool', '-list', '-storepass:env', JKS_STOREPASS]

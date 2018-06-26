@@ -28,8 +28,9 @@ from unicodedata import normalize
 
 from . import bitcoin
 from .bitcoin import *
-
-from .util import PrintError, InvalidPassword, hfu
+from . import constants
+from .util import (PrintError, InvalidPassword, hfu, WalletFileException,
+                   BitcoinException)
 from .mnemonic import Mnemonic, load_wordlist
 from .plugins import run_hook
 
@@ -44,6 +45,10 @@ class KeyStore(PrintError):
 
     def can_import(self):
         return False
+
+    def may_have_password(self):
+        """Returns whether the keystore can be encrypted with a password."""
+        raise NotImplementedError()
 
     def get_tx_derivations(self, tx):
         keypairs = {}
@@ -71,6 +76,8 @@ class KeyStore(PrintError):
             return False
         return bool(self.get_tx_derivations(tx))
 
+    def ready_to_sign(self):
+        return not self.is_watching_only()
 
 
 class Software_KeyStore(KeyStore):
@@ -116,9 +123,6 @@ class Imported_KeyStore(Software_KeyStore):
     def is_deterministic(self):
         return False
 
-    def can_change_password(self):
-        return True
-
     def get_master_public_key(self):
         return None
 
@@ -138,7 +142,14 @@ class Imported_KeyStore(Software_KeyStore):
     def import_privkey(self, sec, password):
         txin_type, privkey, compressed = deserialize_privkey(sec)
         pubkey = public_key_from_private_key(privkey, compressed)
-        self.keypairs[pubkey] = pw_encode(sec, password)
+        # re-serialize the key so the internal storage format is consistent
+        serialized_privkey = serialize_privkey(
+            privkey, compressed, txin_type, internal_use=True)
+        # NOTE: if the same pubkey is reused for multiple addresses (script types),
+        # there will only be one pubkey-privkey pair for it in self.keypairs,
+        # and the privkey will encode a txin_type but that txin_type cannot be trusted.
+        # Removing keys complicates this further.
+        self.keypairs[pubkey] = pw_encode(serialized_privkey, password)
         return txin_type, pubkey
 
     def delete_imported_key(self, key):
@@ -195,9 +206,6 @@ class Deterministic_KeyStore(Software_KeyStore):
 
     def is_watching_only(self):
         return not self.has_seed()
-
-    def can_change_password(self):
-        return not self.is_watching_only()
 
     def add_seed(self, seed):
         if self.seed:
@@ -504,7 +512,7 @@ class Hardware_KeyStore(KeyStore, Xpub):
         }
 
     def unpaired(self):
-        '''A device paired with the wallet was diconnected.  This can be
+        '''A device paired with the wallet was disconnected.  This can be
         called in any thread context.'''
         self.print_error("unpaired")
 
@@ -522,9 +530,24 @@ class Hardware_KeyStore(KeyStore, Xpub):
         assert not self.has_seed()
         return False
 
-    def can_change_password(self):
-        return False
+    def get_password_for_storage_encryption(self):
+        from .storage import get_derivation_used_for_hw_device_encryption
+        client = self.plugin.get_client(self)
+        derivation = get_derivation_used_for_hw_device_encryption()
+        xpub = client.get_xpub(derivation, "standard")
+        password = self.get_pubkey_from_xpub(xpub, ())
+        return password
 
+    def has_usable_connection_with_device(self):
+        if not hasattr(self, 'plugin'):
+            return False
+        client = self.plugin.get_client(self, force_pair=False)
+        if client is None:
+            return False
+        return client.has_usable_connection_with_device()
+
+    def ready_to_sign(self):
+        return super().ready_to_sign() and self.has_usable_connection_with_device()
 
 
 def bip39_normalize_passphrase(passphrase):
@@ -571,9 +594,18 @@ def bip39_is_checksum_valid(mnemonic):
 def from_bip39_seed(seed, passphrase, derivation):
     k = BIP32_KeyStore({})
     bip32_seed = bip39_to_seed(seed, passphrase)
-    t = 'standard'  # bip43
-    k.add_xprv_from_seed(bip32_seed, t, derivation)
+    xtype = xtype_from_derivation(derivation)
+    k.add_xprv_from_seed(bip32_seed, xtype, derivation)
     return k
+
+
+def xtype_from_derivation(derivation):
+    """Returns the script type to be used for this derivation."""
+    if derivation.startswith("m/84'") or derivation.startswith("m/49'"):
+        raise Exception('Unknown bip43 derivation purpose %s' % derivation[:5])
+    else:
+        return 'standard'
+
 
 # extended pubkeys
 
@@ -599,7 +631,8 @@ def xpubkey_to_address(x_pubkey):
         mpk, s = Old_KeyStore.parse_xpubkey(x_pubkey)
         pubkey = Old_KeyStore.get_pubkey_from_mpk(mpk, s[0], s[1])
     else:
-        raise BaseException("Cannot parse pubkey")
+        raise BitcoinException("Cannot parse pubkey. prefix: {}"
+                               .format(x_pubkey[0:2]))
     if pubkey:
         address = public_key_to_p2pkh(bfh(pubkey))
     return pubkey, address
@@ -618,14 +651,15 @@ def hardware_keystore(d):
     if hw_type in hw_keystores:
         constructor = hw_keystores[hw_type]
         return constructor(d)
-    raise BaseException('unknown hardware type', hw_type)
+    raise WalletFileException('unknown hardware type: {}'.format(hw_type))
 
 def load_keystore(storage, name):
-    w = storage.get('wallet_type', 'standard')
     d = storage.get(name, {})
     t = d.get('type')
     if not t:
-        raise BaseException('wallet format requires update')
+        raise WalletFileException(
+            'Wallet format requires update.\n'
+            'Cannot find keystore for name {}'.format(name))
     if t == 'old':
         k = Old_KeyStore(d)
     elif t == 'imported':
@@ -635,7 +669,8 @@ def load_keystore(storage, name):
     elif t == 'hardware':
         k = hardware_keystore(d)
     else:
-        raise BaseException('unknown wallet type', t)
+        raise WalletFileException(
+            'Unknown type {} for keystore named {}'.format(t, name))
     return k
 
 
@@ -672,10 +707,9 @@ is_private_key = lambda x: is_xprv(x) or is_private_key_list(x)
 is_bip32_key = lambda x: is_xprv(x) or is_xpub(x)
 
 
-def bip44_derivation(account_id):
-    bip  = 44
-    coin = 1 if bitcoin.NetworkConstants.TESTNET else 5
-    return "m/%d'/%d'/%d'" % (bip, coin, int(account_id))
+def bip44_derivation(account_id, bip43_purpose=44):
+    coin = 1 if constants.net.TESTNET else 5
+    return "m/%d'/%d'/%d'" % (bip43_purpose, coin, int(account_id))
 
 def from_seed(seed, passphrase, is_p2sh):
     t = seed_type(seed)
@@ -691,7 +725,7 @@ def from_seed(seed, passphrase, is_p2sh):
         xtype = 'standard'
         keystore.add_xprv_from_seed(bip32_seed, xtype, der)
     else:
-        raise BaseException(t)
+        raise BitcoinException('Unexpected seed type {}'.format(t))
     return keystore
 
 def from_private_key_list(text):
@@ -745,5 +779,5 @@ def from_master_key(text):
     elif is_drkp(text):
         k = from_drkp(text)
     else:
-        raise BaseException('Invalid key')
+        raise BitcoinException('Invalid master key')
     return k

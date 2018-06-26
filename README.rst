@@ -4,7 +4,7 @@ Electrum-AXE
 .. image:: https://travis-ci.org/AXErunners/electrum-axe.svg?branch=master
     :target: https://travis-ci.org/AXErunners/electrum-axe
     :alt: Build Status
-    
+
 Getting started
 ---------------
 
@@ -29,10 +29,12 @@ To run Electrum-AXE from its root directory, just do::
 You can also install Electrum-AXE on your system, by running this command::
 
     sudo apt-get install python3-setuptools
-    python3 setup.py install
+    pip3 install .[full]
 
 This will download and install the Python dependencies used by
 Electrum-AXE, instead of using the 'packages' directory.
+The 'full' extra contains some optional dependencies that we think
+are often useful but they are not strictly needed.
 
 If you cloned the git repository, you need to compile extra files
 before you can run Electrum-AXE. Read the next section, "Development
@@ -43,14 +45,14 @@ Version".
 Development version
 -------------------
 
-Check out the code from Github::
+Check out the code from GitHub::
 
-    git clone https://github.com/axerunners/electrum-axe.git
+    git clone https://github.com/AXErunners/electrum-axe.git
     cd electrum-axe
 
 Run install (this should install dependencies)::
 
-    python3 setup.py install
+    pip3 install .[full]
 
 Compile the icons file for Qt::
 
@@ -64,7 +66,7 @@ Compile the protobuf description file::
 
 Create translations (optional)::
 
-    sudo apt-get install python-pycurl gettext
+    sudo apt-get install python-requests gettext
     ./contrib/make_locale
 
 
@@ -79,25 +81,6 @@ To create binaries, create the 'packages' directory::
     ./contrib/make_packages
 
 This directory contains the python dependencies used by Electrum-AXE.
-
-Mac OS X / macOS
-`````````````
-
-::
-
-    # On MacPorts installs:
-    sudo python3 setup-release.py py2app
-
-    # On Homebrew installs:
-    ARCHFLAGS="-arch i386 -arch x86_64" sudo python3 setup-release.py py2app --includes sip
-
-    sudo hdiutil create -fs HFS+ -volname "Electrum-AXE" -srcfolder dist/Electrum-AXE.app dist/electrum-VERSION-macosx.dmg
-
-Windows
-`````````````
-
-See `contrib/build-wine/README` file.
-
 
 Android
 `````````````

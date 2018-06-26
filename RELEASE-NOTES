@@ -1,3 +1,73 @@
+# Release 3.1.3
+
+ * Qt GUI: seed word auto-complete during restore
+ * Android: fix some crashes
+ * performance improvements (wallet, and Qt GUI)
+ * hardware wallets: show debug message during device scan
+ * add regtest support (via --regtest flag)
+ * other minor bugfixes and usability improvements
+
+# Release 3.1.2
+
+ * Kivy/android: request PIN on startup
+ * Fix various bugs with hardware wallets
+ * Other minor bugfixes
+
+# Release 3.1.1
+
+ * fix #4031: Trezor T support
+ * partial fix #4060: proxy and hardware wallet can't be used together
+ * fix #4039: can't set address labels
+ * fix crash related to coinbase transactions
+ * MacOS: use internal graphics card
+ * fix openalias related crashes
+ * speed-up capital gains calculations
+ * hw wallet encryption: re-prompt for passphrase if incorrect
+ * other minor fixes.
+
+
+
+# Release 3.1.0
+
+ * Capital gains: For each outgoing transaction, the difference
+   between the acquisition and liquidation prices of outgoing coins is
+   displayed in the wallet history. By default, historical exchange
+   rates are used to compute acquisition and liquidation prices. These
+   values can also be entered manually, in order to match the actual
+   price realized by the user. The order of liquidation of coins is
+   the natural order defined by the blockchain; this results in
+   capital gain values that are invariant to changes in the set of
+   addresses that are in the wallet. Any other ordering strategy (such
+   as FIFO, LIFO) would result in capital gain values that depend on
+   the presence of other addresses in the wallet.
+ * Local transactions: Transactions can be saved in the wallet without
+   being broadcast. The inputs of local transactions are considered as
+   spent, and their change outputs can be re-used in subsequent
+   transactions. This can be combined with cold storage, in order to
+   create several transactions before broadcasting them. Outgoing
+   transactions that have been removed from the memory pool are also
+   saved in the wallet, and can be broadcast again.
+ * The 'privacy' and 'priority' coin selection policies have been
+   merged into one. Previously, the 'privacy' policy has been unusable
+   because it was was not prioritizing confirmed coins. The new policy
+   is similar to 'privacy', except that it de-prioritizes addresses
+   that have unconfirmed coins.
+ * The 'Send' tab of the Qt GUI displays how transaction fees are
+   computed from transaction size.
+ * The wallet history can be filtered by time interval.
+ * Watching-only wallets and hardware wallets can be encrypted.
+ * Semi-automated crash reporting
+ * The SSL checkbox option was removed from the GUI.
+ * The Trezor T hardware wallet is now supported.
+ * Windows: the binaries now include ZBar, and QR code scanning should work.
+ * The Wallet Import Format (WIF) for private keys that was extended in 3.0
+   is changed. Keys in the previous format can be imported, compatibility
+   is maintained. Newly exported keys will be serialized as
+   "script_type:original_wif_format_key".
+ * A new version of the Electrum protocol is required by the client
+   (version 1.2). Servers using older versions of the protocol will
+   not be displayed in the GUI.
+
 # Release 3.0.6.4.1 :
 
  * amount fields fixed

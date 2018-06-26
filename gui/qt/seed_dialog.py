@@ -23,13 +23,13 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
-from PyQt5.QtWidgets import *
 from electrum_axe.i18n import _
+from electrum_axe.mnemonic import Mnemonic
+import electrum_axe.old_mnemonic
 
 from .util import *
 from .qrtextedit import ShowQRTextEdit, ScanQRTextEdit
+from .completion_text_edit import CompletionTextEdit
 
 
 def seed_warning_msg(seed):
@@ -92,15 +92,16 @@ class SeedLayout(QVBoxLayout):
         self.options = options
         if title:
             self.addWidget(WWLabel(title))
+        self.seed_e = CompletionTextEdit()
         if seed:
-            self.seed_e = ShowQRTextEdit()
             self.seed_e.setText(seed)
         else:
-            self.seed_e = ScanQRTextEdit()
             self.seed_e.setTabChangesFocus(True)
             self.is_seed = is_seed
             self.saved_is_seed = self.is_seed
             self.seed_e.textChanged.connect(self.on_edit)
+            self.initialize_completer()
+
         self.seed_e.setMaximumHeight(75)
         hbox = QHBoxLayout()
         if icon:
@@ -133,6 +134,14 @@ class SeedLayout(QVBoxLayout):
             self.seed_warning.setText(seed_warning_msg(seed))
         self.addWidget(self.seed_warning)
 
+    def initialize_completer(self):
+        english_list = Mnemonic('en').wordlist
+        old_list = electrum_axe.old_mnemonic.words
+        self.wordlist = english_list + list(set(old_list) - set(english_list)) #concat both lists
+        self.wordlist.sort()
+        self.completer = QCompleter(self.wordlist)
+        self.seed_e.set_completer(self.completer)
+
     def get_seed(self):
         text = self.seed_e.text()
         return ' '.join(text.split())
@@ -152,13 +161,19 @@ class SeedLayout(QVBoxLayout):
         self.seed_type_label.setText(label)
         self.parent.next_button.setEnabled(b)
 
+        # to account for bip39 seeds
+        for word in self.get_seed().split(" ")[:-1]:
+            if word not in self.wordlist:
+                self.seed_e.disable_suggestions()
+                return
+        self.seed_e.enable_suggestions()
 
 class KeysLayout(QVBoxLayout):
-    def __init__(self, parent=None, title=None, is_valid=None):
+    def __init__(self, parent=None, title=None, is_valid=None, allow_multi=False):
         QVBoxLayout.__init__(self)
         self.parent = parent
         self.is_valid = is_valid
-        self.text_e = ScanQRTextEdit()
+        self.text_e = ScanQRTextEdit(allow_multi=allow_multi)
         self.text_e.textChanged.connect(self.on_edit)
         self.addWidget(WWLabel(title))
         self.addWidget(self.text_e)

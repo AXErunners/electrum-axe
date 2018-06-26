@@ -1,9 +1,9 @@
-# If you want electrum-axe to appear in a linux app launcher ("start menu"), install this by doing:
-# sudo desktop-file-install electrum_axe.desktop
+# If you want Electrum-AXE to appear in a Linux app launcher ("start menu"), install this by doing:
+# sudo desktop-file-install electrum-axe.desktop
 
 [Desktop Entry]
 Comment=Lightweight AXE Client
-Exec=electrum-axe %u
+Exec=sh -c "PATH=\"\\$HOME/.local/bin:\\$PATH\" electrum-axe %u"
 GenericName[en_US]=Electrum-AXE
 GenericName=Electrum-AXE
 Icon=electrum-axe
@@ -14,3 +14,8 @@ StartupNotify=false
 Terminal=false
 Type=Application
 MimeType=x-scheme-handler/axe;
+Actions=Testnet;
+
+[Desktop Action Testnet]
+Exec=sh -c "PATH=\"\\$HOME/.local/bin:\\$PATH\" electrum-axe --testnet %u"
+Name=Testnet mode
