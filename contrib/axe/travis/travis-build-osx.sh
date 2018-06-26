@@ -6,7 +6,7 @@ if [[ -z $TRAVIS_TAG ]]; then
   exit 1
 fi
 
-BUILD_REPO_URL=https://github.com/akhavr/electrum-axe.git
+BUILD_REPO_URL=https://github.com/AXErunners/electrum-axe.git
 
 cd build
 
