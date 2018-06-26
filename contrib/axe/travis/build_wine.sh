@@ -3,6 +3,7 @@
 source ./contrib/axe/travis/electrum_axe_version_env.sh;
 echo wine build version is $ELECTRUM_AXE_VERSION
 
+mv /opt/zbarw $WINEPREFIX/drive_c/
 cd $WINEPREFIX/drive_c/electrum-axe
 
 rm -rf build
