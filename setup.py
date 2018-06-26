@@ -37,7 +37,7 @@ if platform.system() in ['Linux', 'FreeBSD', 'DragonFly']:
             usr_share = os.path.expanduser('~/.local/share')
     data_files += [
         (os.path.join(usr_share, 'applications/'), ['electrum-dash.desktop']),
-        (os.path.join(usr_share, icons_dirname), ['icons/electrum.png'])
+        (os.path.join(usr_share, icons_dirname), ['icons/electrum-dash.png'])
     ]
 
 setup(
@@ -74,7 +74,7 @@ setup(
             'servers_testnet.json',
             'servers_regtest.json',
             'currencies.json',
-            'www/index.html',
+            'checkpoints.json',
             'wordlist/*.txt',
             'locale/*/LC_MESSAGES/electrum.mo',
         ]

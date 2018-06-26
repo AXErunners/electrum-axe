@@ -3,6 +3,7 @@
 source ./contrib/dash/travis/electrum_dash_version_env.sh;
 echo wine build version is $ELECTRUM_DASH_VERSION
 
+mv /opt/zbarw $WINEPREFIX/drive_c/
 cd $WINEPREFIX/drive_c/electrum-dash
 
 rm -rf build
