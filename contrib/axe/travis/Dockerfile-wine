@@ -23,9 +23,6 @@ RUN echo 'download and install 32-bit Python/mingwpy/pywin32/PyQt/git/NSIS/PyIns
     && wineboot -i \
     && xvfb-run -a winetricks -q vcrun2010 \
     \
-    && wget -nv -O zbar-setup.exe https://sourceforge.net/projects/zbarw/files/zbarw-20121031-setup.exe/download \
-    && wine zbar-setup.exe /S /D=c:\\zbar \
-    \
     && wget -nv -O python.msi https://www.python.org/ftp/python/3.4.4/python-3.4.4.msi \
     && msiexec /q /i python.msi && rm python.msi \
     \
@@ -62,8 +59,6 @@ ENV PYHOME $WINEPREFIX/drive_c/Python34
 RUN echo 'download and install 64-bit Python/mingwpy/pywin32/PyQt/git/NSIS/PyInstaller' \
     && wineboot -i \
     && xvfb-run -a winetricks -q vcrun2010 \
-    \
-    && wine zbar-setup.exe /S /D=c:\\zbar && rm zbar-setup.exe \
     \
     && wget -nv -O python.msi https://www.python.org/ftp/python/3.4.4/python-3.4.4.amd64.msi \
     && msiexec /q /i python.msi && rm python.msi \

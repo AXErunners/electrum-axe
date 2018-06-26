@@ -4,7 +4,6 @@
  * Android: fix some crashes
  * performance improvements (wallet, and Qt GUI)
  * hardware wallets: show debug message during device scan
- * add regtest support (via --regtest flag)
  * other minor bugfixes and usability improvements
 
 # Release 3.1.2
@@ -47,6 +46,10 @@
    create several transactions before broadcasting them. Outgoing
    transactions that have been removed from the memory pool are also
    saved in the wallet, and can be broadcast again.
+ * Checkpoints: The initial download of a headers file was replaced
+   with hardcoded checkpoints. The wallet uses one checkpoint per
+   retargeting period. The headers for a retargeting period are
+   downloaded only if transactions need to be verified in this period.
  * The 'privacy' and 'priority' coin selection policies have been
    merged into one. Previously, the 'privacy' policy has been unusable
    because it was was not prioritizing confirmed coins. The new policy

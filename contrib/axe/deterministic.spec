@@ -45,7 +45,7 @@ datas = [
     ('lib/checkpoints.json', 'electrum_axe'),
     ('lib/locale', 'electrum_axe/locale'),
     ('lib/wordlist', 'electrum_axe/wordlist'),
-    ('C:\\zbar\\bin', '.'),
+    ('C:\\zbarw', '.'),
 ]
 datas += collect_data_files('trezorlib')
 datas += collect_data_files('btchip')
