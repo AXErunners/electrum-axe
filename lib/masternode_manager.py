@@ -540,6 +540,9 @@ class MasternodeManager(object):
         if not mn:
             return
 
+        if not 'result' in response:
+            return
+
         status = response['result']
         if status is None:
             status = False
