@@ -284,18 +284,14 @@ class Blockchain(util.PrintError):
         return deserialize_header(h, height)
 
     def get_hash(self, height):
-        len_checkpoints = len(self.checkpoints)
         if height == -1:
             return '0000000000000000000000000000000000000000000000000000000000000000'
         elif height == 0:
             return constants.net.GENESIS
-        elif height < len_checkpoints * 2016 - DGW_PAST_BLOCKS:
+        elif height < len(self.checkpoints) * 2016 - DGW_PAST_BLOCKS:
             assert (height+1) % 2016 == 0, height
             index = height // 2016
-            if index < len_checkpoints - 1:
-                h, t = self.checkpoints[index]
-            else:
-                h, t, extra_headers = self.checkpoints[index]
+            h, t, extra_headers = self.checkpoints[index]
             return h
         else:
             return hash_header(self.read_header(height))
@@ -417,20 +413,17 @@ class Blockchain(util.PrintError):
             target = self.get_target(height)
             if len(h.strip('0')) == 0:
                 raise Exception('%s file has not enough data.' % self.path())
-            if index < n - 1:
-                cp.append((h, target))
-            else:
-                dgw3_headers = []
-                if os.path.exists(self.path()):
-                    with open(self.path(), 'rb') as f:
-                        lower_header = height - DGW_PAST_BLOCKS
-                        for height in range(height, lower_header-1, -1):
-                            f.seek(height*80)
-                            hd = f.read(80)
-                            if len(hd) < 80:
-                                raise Exception(
-                                    'Expected to read a full header.'
-                                    ' This was only {} bytes'.format(len(hd)))
-                            dgw3_headers.append((height, bh2u(hd)))
-                cp.append((h, target, dgw3_headers))
+            dgw3_headers = []
+            if os.path.exists(self.path()):
+                with open(self.path(), 'rb') as f:
+                    lower_header = height - DGW_PAST_BLOCKS
+                    for height in range(height, lower_header-1, -1):
+                        f.seek(height*80)
+                        hd = f.read(80)
+                        if len(hd) < 80:
+                            raise Exception(
+                                'Expected to read a full header.'
+                                ' This was only {} bytes'.format(len(hd)))
+                        dgw3_headers.append((height, bh2u(hd)))
+            cp.append((h, target, dgw3_headers))
         return cp
