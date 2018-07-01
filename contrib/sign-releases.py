@@ -292,6 +292,7 @@ class SignApp(object):
         self.tag_name = kwargs.pop('tag_name', None)
         self.repo = kwargs.pop('repo', None)
         self.ppa = kwargs.pop('ppa', None)
+        self.ppa_upstream_suffix = kwargs.pop('ppa_upstream_suffix', None)
         self.token = kwargs.pop('token', None)
         self.keyid = kwargs.pop('keyid', None)
         self.count = kwargs.pop('count', None)
@@ -538,6 +539,9 @@ class SignApp(object):
             sdist_name = sdist_match.group(0)
             version = sdist_match.group(1)
             ppa_upstr_version = pep440_to_deb(version)
+            ppa_upstream_suffix = self.ppa_upstream_suffix
+            if ppa_upstream_suffix:
+                ppa_upstr_version += ('+%s' % ppa_upstream_suffix)
             ppa_orig_name = PPA_ORIG_NAME_TEMPLATE.format(
                 version=ppa_upstr_version)
             series = list(map(lambda x: x[0],
@@ -692,6 +696,8 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               help='jks keystore path')
 @click.option('-l', '--ppa',
               help='PPA in format uzername/ppa')
+@click.option('-S', '--ppa-upstream-suffix',
+              help='upload upstream source with version suffix (ex p1)')
 @click.option('-L', '--no-ppa', is_flag=True,
               help='Do not make launchpad ppa')
 @click.option('-n', '--dry-run', is_flag=True,
