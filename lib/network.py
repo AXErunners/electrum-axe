@@ -1107,7 +1107,12 @@ class Network(util.DaemonThread):
             self.invalid_version(i.server)
 
     def on_notify_header(self, interface, header_dict):
-        header_hex, height = header_dict['hex'], header_dict['height']
+        try:
+            header_hex, height = header_dict['hex'], header_dict['height']
+        except KeyError:
+            # no point in keeping this connection without headers sub
+            self.connection_down(interface.server)
+            return
         header = blockchain.deserialize_header(util.bfh(header_hex), height)
         if height < self.max_checkpoint():
             self.connection_down(interface.server)
