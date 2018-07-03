@@ -362,7 +362,6 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         self.masternode_manager = MasternodeManager(self.wallet, self.config)
         self.update_recently_visited(wallet.storage.path)
         # address used to create a dummy transaction and estimate transaction fee
-        self.masternode_manager.send_subscriptions()
         self.history_list.update()
         self.address_list.update()
         self.utxo_list.update()
@@ -743,6 +742,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             icon = QIcon(":icons/status_disconnected.png")
 
         elif self.network.is_connected():
+            self.masternode_manager.send_subscriptions()
             server_height = self.network.get_server_height()
             server_lag = self.network.get_local_height() - server_height
             # Server height can be 0 after switching to a new server
