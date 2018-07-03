@@ -545,12 +545,12 @@ class MasternodeDialog(QDialog, PrintError):
 
         def on_send_successful(result):
             errmsg, was_announced = result
-            if was_announced:
-                self.print_msg('Successfully broadcasted MasternodeAnnounce for "%s"' % alias)
-                QMessageBox.information(self, _('Success'), _('Masternode activated successfully.'))
-            else:
+            if errmsg:
                 self.print_error('Failed to broadcast MasternodeAnnounce: %s' % errmsg)
                 QMessageBox.critical(self, _('Error Sending'), _(errmsg))
+            elif was_announced:
+                self.print_msg('Successfully broadcasted MasternodeAnnounce for "%s"' % alias)
+                QMessageBox.information(self, _('Success'), _('Masternode activated successfully.'))
             self.masternodes_widget.refresh_items()
             self.masternodes_widget.select_masternode(alias)
 

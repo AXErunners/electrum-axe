@@ -344,7 +344,7 @@ class MasternodeManager(object):
             addr = conf_line.addr.split(':')
             addr = NetworkAddress(ip=addr[0], port=int(addr[1]))
             vin = {'prevout_hash': conf_line.txid, 'prevout_n': conf_line.output_index}
-            mn = MasternodeAnnounce(alias=conf_line.alias, vin=vin,  
+            mn = MasternodeAnnounce(alias=conf_line.alias, vin=vin,
                     delegate_key = public_key, addr=addr)
             self.add_masternode(mn)
             try:
@@ -538,6 +538,9 @@ class MasternodeManager(object):
                 break
 
         if not mn:
+            return
+
+        if not 'result' in response:
             return
 
         status = response['result']
