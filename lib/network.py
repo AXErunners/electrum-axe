@@ -156,7 +156,9 @@ class Network(util.DaemonThread):
     servers, each connected socket is handled by an Interface() object.
     Connections are initiated by a Connection() thread which stops once
     the connection succeeds or fails.
+
     Our external API:
+
     - Member functions get_header(), get_interfaces(), get_local_height(),
           get_parameters(), get_server_height(), get_status_value(),
           is_connected(), set_parameters(), stop()
@@ -986,14 +988,15 @@ class Network(util.DaemonThread):
     def init_headers_file(self):
         b = self.blockchains[0]
         filename = b.path()
-        length = 80 * len(constants.net.CHECKPOINTS) * 2016
+        len_checkpoints = len(constants.net.CHECKPOINTS)
+        length = 80 * len_checkpoints * 2016
         if not os.path.exists(filename) or os.path.getsize(filename) < length:
             with open(filename, 'wb') as f:
-                if length > 0:
-                    for height, hd in b.checkpoints[-1][2]:
+                for i in range(len_checkpoints):
+                    for height, header_data in b.checkpoints[i][2]:
                         f.seek(height*80)
-                        bd = bfh(hd)
-                        f.write(bd)
+                        bin_header = bfh(header_data)
+                        f.write(bin_header)
         with b.lock:
             b.update_size()
 
