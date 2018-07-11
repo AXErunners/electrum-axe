@@ -5,8 +5,12 @@
 
 try:
     import electrum_dash
-    from electrum_dash.bitcoin import TYPE_ADDRESS, push_script, var_int, msg_magic, Hash, verify_message, pubkey_from_signature, point_to_ser, public_key_to_p2pkh, EncodeAES, DecodeAES, MyVerifyingKey
-    from electrum_dash.bitcoin import serialize_xpub, deserialize_xpub
+    from electrum_dash.crypto import Hash, EncodeAES, DecodeAES
+    from electrum_dash.bitcoin import (TYPE_ADDRESS, push_script, var_int, public_key_to_p2pkh, is_address,
+                                  serialize_xpub, deserialize_xpub)
+    from electrum_dash import ecc
+    from electrum_dash.ecc import msg_magic
+    from electrum_dash.wallet import Standard_Wallet
     from electrum_dash import constants
     from electrum_dash.transaction import Transaction
     from electrum_dash.i18n import _
@@ -26,9 +30,6 @@ try:
     import base64
     import os
     import sys
-    from ecdsa.ecdsa import generator_secp256k1
-    from ecdsa.util import sigencode_der
-    from ecdsa.curves import SECP256k1
     DIGIBOX = True
 except ImportError as e:
     DIGIBOX = False
@@ -95,7 +96,7 @@ class DigitalBitbox_Client():
 
 
     def get_xpub(self, bip32_path, xtype):
-        assert xtype in ('standard')
+        assert xtype in self.plugin.SUPPORTED_XTYPES
         reply = self._get_xpub(bip32_path)
         if reply:
             xpub = reply['xpub']
@@ -475,19 +476,21 @@ class DigitalBitbox_KeyStore(Hardware_KeyStore):
 
             if 'recid' in reply['sign'][0]:
                 # firmware > v2.1.1
-                sig = bytes([27 + int(reply['sign'][0]['recid'], 16) + 4]) + binascii.unhexlify(reply['sign'][0]['sig'])
-                pk, compressed = pubkey_from_signature(sig, msg_hash)
-                pk = point_to_ser(pk.pubkey.point, compressed)
-                addr = public_key_to_p2pkh(pk)
-                if verify_message(addr, sig, message) is False:
+                sig_string = binascii.unhexlify(reply['sign'][0]['sig'])
+                recid = int(reply['sign'][0]['recid'], 16)
+                sig = ecc.construct_sig65(sig_string, recid, True)
+                pubkey, compressed = ecc.ECPubkey.from_signature65(sig, msg_hash)
+                addr = public_key_to_p2pkh(pubkey.get_public_key_bytes(compressed=compressed))
+                if ecc.verify_message_with_address(addr, sig, message) is False:
                     raise Exception(_("Could not sign message"))
             elif 'pubkey' in reply['sign'][0]:
                 # firmware <= v2.1.1
-                for i in range(4):
-                    sig = bytes([27 + i + 4]) + binascii.unhexlify(reply['sign'][0]['sig'])
+                for recid in range(4):
+                    sig_string = binascii.unhexlify(reply['sign'][0]['sig'])
+                    sig = ecc.construct_sig65(sig_string, recid, True)
                     try:
                         addr = public_key_to_p2pkh(binascii.unhexlify(reply['sign'][0]['pubkey']))
-                        if verify_message(addr, sig, message):
+                        if ecc.verify_message_with_address(addr, sig, message):
                             break
                     except Exception:
                         continue
@@ -556,7 +559,7 @@ class DigitalBitbox_KeyStore(Hardware_KeyStore):
                             # expected serialization though, so we leave it here until we activate it.
                             return '00' + push_script(Transaction.get_preimage_script(txin))
                         raise Exception("unsupported type %s" % txin['type'])
-                tx_dbb_serialized = CustomTXSerialization(tx.serialize()).serialize()
+                tx_dbb_serialized = CustomTXSerialization(tx.serialize()).serialize_to_network()
             else:
                 # We only need this for the signing echo / verification.
                 tx_dbb_serialized = None
@@ -633,8 +636,8 @@ class DigitalBitbox_KeyStore(Hardware_KeyStore):
                         recid = int(signed['recid'], 16)
                         s = binascii.unhexlify(signed['sig'])
                         h = inputhasharray[i]
-                        pk = MyVerifyingKey.from_signature(s, recid, h, curve = SECP256k1)
-                        pk = to_hexstr(point_to_ser(pk.pubkey.point, True))
+                        pk = ecc.ECPubkey.from_sig_string(s, recid, h)
+                        pk = pk.get_public_key_hex(compressed=True)
                     elif 'pubkey' in signed:
                         # firmware <= v2.1.1
                         pk = signed['pubkey']
@@ -642,9 +645,9 @@ class DigitalBitbox_KeyStore(Hardware_KeyStore):
                         continue
                     sig_r = int(signed['sig'][:64], 16)
                     sig_s = int(signed['sig'][64:], 16)
-                    sig = sigencode_der(sig_r, sig_s, generator_secp256k1.order())
-                    txin['signatures'][ii] = to_hexstr(sig) + '01'
-                    tx._inputs[i] = txin
+                    sig = ecc.der_sig_from_r_and_s(sig_r, sig_s)
+                    sig = to_hexstr(sig) + '01'
+                    tx.add_signature_to_txin(i, ii, sig)
         except UserCancelled:
             raise
         except BaseException as e:
@@ -662,6 +665,7 @@ class DigitalBitboxPlugin(HW_PluginBase):
     DEVICE_IDS = [
                    (0x03eb, 0x2402) # Digital Bitbox
                  ]
+    SUPPORTED_XTYPES = ('standard', )
 
     def __init__(self, parent, config, name):
         HW_PluginBase.__init__(self, parent, config, name)
@@ -693,6 +697,9 @@ class DigitalBitboxPlugin(HW_PluginBase):
         devmgr = self.device_manager()
         device_id = device_info.device.id_
         client = devmgr.client_by_id(device_id)
+        if client is None:
+            raise Exception(_('Failed to create a client for this device.') + '\n' +
+                            _('Make sure it is in the correct state.'))
         client.handler = self.create_handler(wizard)
         if purpose == HWD_SETUP_NEW_WALLET:
             client.setupRunning = True
@@ -718,8 +725,8 @@ class DigitalBitboxPlugin(HW_PluginBase):
 
 
     def get_xpub(self, device_id, derivation, xtype, wizard):
-        if xtype not in ('standard', 'p2wpkh-p2sh', 'p2wpkh'):
-            raise ScriptTypeNotSupported(_('This type of script is not supported with the Digital Bitbox.'))
+        if xtype not in self.SUPPORTED_XTYPES:
+            raise ScriptTypeNotSupported(_('This type of script is not supported with {}.').format(self.device))
         devmgr = self.device_manager()
         client = devmgr.client_by_id(device_id)
         client.handler = self.create_handler(wizard)
@@ -737,7 +744,20 @@ class DigitalBitboxPlugin(HW_PluginBase):
             client.check_device_dialog()
         return client
 
-    def show_address(self, wallet, keystore, address):
+    def show_address(self, wallet, address, keystore=None):
+        if keystore is None:
+            keystore = wallet.get_keystore()
+        if not self.show_address_helper(wallet, address, keystore):
+            return
+        if type(wallet) is not Standard_Wallet:
+            keystore.handler.show_error(_('This function is only available for standard wallets when using {}.').format(self.device))
+            return
+        if not self.is_mobile_paired():
+            keystore.handler.show_error(_('This function is only available after pairing your {} with a mobile device.').format(self.device))
+            return
+        if not keystore.is_p2pkh():
+            keystore.handler.show_error(_('This function is only available for p2pkh keystores when using {}.').format(self.device))
+            return
         change, index = wallet.get_address_index(address)
         keypath = '%s/%d/%d' % (keystore.derivation, change, index)
         xpub = self.get_client(keystore)._get_xpub(keypath)
