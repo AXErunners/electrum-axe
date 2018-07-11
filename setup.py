@@ -40,13 +40,19 @@ if platform.system() in ['Linux', 'FreeBSD', 'DragonFly']:
         (os.path.join(usr_share, icons_dirname), ['icons/electrum-dash.png'])
     ]
 
+extras_require = {
+    'hardware': requirements_hw,
+    'fast': ['pycryptodomex'],
+    ':python_version < "3.5"': ['typing>=3.0.0'],
+}
+extras_require['full'] = extras_require['hardware'] + extras_require['fast']
+
+
 setup(
     name="Electrum-DASH",
     version=version.ELECTRUM_VERSION,
     install_requires=requirements,
-    extras_require={
-        'full': requirements_hw + ['pycryptodomex'],
-    },
+    extras_require=extras_require,
     packages=[
         'electrum_dash',
         'electrum_dash_gui',
@@ -59,6 +65,7 @@ setup(
         'electrum_dash_plugins.keepkey',
         'electrum_dash_plugins.labels',
         'electrum_dash_plugins.ledger',
+        'electrum_dash_plugins.revealer',
         'electrum_dash_plugins.trezor',
         'electrum_dash_plugins.digitalbitbox',
         'electrum_dash_plugins.virtualkeyboard',
@@ -69,15 +76,11 @@ setup(
         'electrum_dash_plugins': 'plugins',
     },
     package_data={
+        '': ['*.txt', '*.json', '*.ttf', '*.otf'],
         'electrum_dash': [
-            'servers.json',
-            'servers_testnet.json',
-            'servers_regtest.json',
-            'currencies.json',
-            'checkpoints.json',
             'wordlist/*.txt',
             'locale/*/LC_MESSAGES/electrum.mo',
-        ]
+        ],
     },
     scripts=['electrum-dash'],
     data_files=data_files,
