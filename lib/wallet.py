@@ -1784,7 +1784,8 @@ class Abstract_Wallet(PrintError):
         """Import the private key for a masternode."""
         try:
             txin_type, key, is_compressed = bitcoin.deserialize_privkey(sec)
-            pubkey = public_key_from_private_key(key, is_compressed)
+            pubkey = ecc.ECPrivkey(key)\
+                .get_public_key_hex(compressed=is_compressed)
             address = public_key_to_p2pkh(pubkey)
         except BaseException:
             raise Exception('Invalid private key')
