@@ -21,6 +21,10 @@ mkdir libusb
 curl https://homebrew.bintray.com/bottles/libusb-1.0.22.el_capitan.bottle.tar.gz | tar xz --directory libusb
 cp libusb/libusb/1.0.22/lib/libusb-1.0.dylib .
 
+curl -O -L https://github.com/zebra-lucky/secp256k1/releases/download/0.1/libsecp256k1-0.1-osx.tgz
+tar -xzf libsecp256k1-0.1-osx.tgz
+cp libsecp256k1/libsecp256k1.0.dylib .
+
 sudo pip3 install SIP==4.19.8
 sudo pip3 install PyQt5==5.7.1
 sudo pip3 install Cython==0.28.1
