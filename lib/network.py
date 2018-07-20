@@ -1069,7 +1069,7 @@ class Network(util.DaemonThread):
                 for i in range(len_checkpoints):
                     for height, header_data in b.checkpoints[i][2]:
                         f.seek(height*80)
-                        bin_header = bfh(header_data)
+                        bin_header = util.bfh(header_data)
                         f.write(bin_header)
         with b.lock:
             b.update_size()
