@@ -27,11 +27,11 @@ import base64
 import os
 import hashlib
 import hmac
-import x11_hash
 
 import pyaes
 
 from .util import assert_bytes, InvalidPassword, to_bytes, to_string
+from .x11hash import getPoWHash
 
 
 try:
@@ -134,7 +134,7 @@ def Hash(x: bytes) -> bytes:
 
 
 def PoWHash(x):
-    return x11_hash.getPoWHash(to_bytes(x))
+    return getPoWHash(to_bytes(x))
 
 
 def hash_160(x: bytes) -> bytes:
