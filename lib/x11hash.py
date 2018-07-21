@@ -13,7 +13,7 @@ except ImportError:
 
 
 if load_libx11hash:
-    from ctypes import cdll, create_string_buffer, addressof
+    from ctypes import cdll, create_string_buffer, byref
 
     if sys.platform == 'darwin':
         name = 'libx11hash.dylib'
@@ -31,11 +31,9 @@ if load_libx11hash:
 
 if load_libx11hash:
     hash_out = create_string_buffer(32)
-    p_out = addressof(hash_out)
-
 
     def getPoWHash(header):
-        x11_hash(header, p_out)
+        x11_hash(header, byref(hash_out))
         return hash_out.raw
 
 
