@@ -59,6 +59,7 @@ datas += collect_data_files('keepkeylib')
 
 binaries = [('../libusb-1.0.dylib', '.')]
 binaries += [('../libsecp256k1.0.dylib', '.')]
+binaries += [('/usr/local/lib/libgmp.10.dylib', '.')]
 
 # https://github.com/pyinstaller/pyinstaller/wiki/Recipe-remove-tkinter-tcl
 sys.modules['FixTk'] = None
