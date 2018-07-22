@@ -1,13 +1,19 @@
 import unittest
 from unittest import mock
+import shutil
+import tempfile
+from typing import Sequence
 
-import lib.bitcoin as bitcoin
-import lib.keystore as keystore
-import lib.storage as storage
-import lib.wallet as wallet
-from lib import constants
+import lib
+from lib import storage, bitcoin, keystore, constants
+from lib.transaction import Transaction
+from lib.simple_config import SimpleConfig
+from lib.wallet import TX_HEIGHT_UNCONFIRMED, TX_HEIGHT_UNCONF_PARENT, sweep
+from lib.util import bfh, bh2u
 
 from . import TestCaseForTestnet
+from . import SequentialTestCase
+from .test_bitcoin import needs_test_with_all_ecc_implementations
 
 
 class WalletIntegrityHelper:
@@ -29,35 +35,41 @@ class WalletIntegrityHelper:
         test_obj.assertFalse(ks.has_seed())
 
     @classmethod
-    def create_standard_wallet(cls, ks):
+    def create_standard_wallet(cls, ks, gap_limit=None):
         store = storage.WalletStorage('if_this_exists_mocking_failed_648151893')
         store.put('keystore', ks.dump())
-        store.put('gap_limit', cls.gap_limit)
-        w = wallet.Standard_Wallet(store)
+        store.put('gap_limit', gap_limit or cls.gap_limit)
+        w = lib.wallet.Standard_Wallet(store)
         w.synchronize()
         return w
 
     @classmethod
-    def create_multisig_wallet(cls, ks1, ks2, ks3=None):
-        """Creates a 2-of-2 or 2-of-3 multisig wallet."""
+    def create_imported_wallet(cls, privkeys=False):
         store = storage.WalletStorage('if_this_exists_mocking_failed_648151893')
-        store.put('x%d/' % 1, ks1.dump())
-        store.put('x%d/' % 2, ks2.dump())
-        if ks3 is None:
-            multisig_type = "%dof%d" % (2, 2)
-        else:
-            multisig_type = "%dof%d" % (2, 3)
-            store.put('x%d/' % 3, ks3.dump())
+        if privkeys:
+            k = keystore.Imported_KeyStore({})
+            store.put('keystore', k.dump())
+        w = lib.wallet.Imported_Wallet(store)
+        return w
+
+    @classmethod
+    def create_multisig_wallet(cls, keystores: Sequence, multisig_type: str, gap_limit=None):
+        """Creates a multisig wallet."""
+        store = storage.WalletStorage('if_this_exists_mocking_failed_648151893')
+        for i, ks in enumerate(keystores):
+            cosigner_index = i + 1
+            store.put('x%d/' % cosigner_index, ks.dump())
         store.put('wallet_type', multisig_type)
-        store.put('gap_limit', cls.gap_limit)
-        w = wallet.Multisig_Wallet(store)
+        store.put('gap_limit', gap_limit or cls.gap_limit)
+        w = lib.wallet.Multisig_Wallet(store)
         w.synchronize()
         return w
 
 
 # TODO passphrase/seed_extension
-class TestWalletKeystoreAddressIntegrityForMainnet(unittest.TestCase):
+class TestWalletKeystoreAddressIntegrityForMainnet(SequentialTestCase):
 
+    @needs_test_with_all_ecc_implementations
     @mock.patch.object(storage.WalletStorage, '_write')
     def test_electrum_seed_standard(self, mock_write):
         seed_words = 'cycle rocket west magnet parrot shuffle foot correct salt library feed song'
@@ -77,6 +89,7 @@ class TestWalletKeystoreAddressIntegrityForMainnet(unittest.TestCase):
         self.assertEqual(w.get_receiving_addresses()[0], 'PVxw3sArbqyTcfrGQTjdfpaKBhDA9k5EK7')
         self.assertEqual(w.get_change_addresses()[0], 'PT2q9WkYDDqhp6GFbFLqYbWwhtehqh1bXh')
 
+    @needs_test_with_all_ecc_implementations
     @mock.patch.object(storage.WalletStorage, '_write')
     def test_electrum_seed_old(self, mock_write):
         seed_words = 'powerful random nobody notice nothing important anyway look away hidden message over'
@@ -95,12 +108,13 @@ class TestWalletKeystoreAddressIntegrityForMainnet(unittest.TestCase):
         self.assertEqual(w.get_receiving_addresses()[0], 'PNtQP9XZkJqnyhhD6R6Ni1bZbARsbmovBo')
         self.assertEqual(w.get_change_addresses()[0], 'PT1gHnfwLAmkfxnuqJ9dL8JCPc3eJkvVqG')
 
+    @needs_test_with_all_ecc_implementations
     @mock.patch.object(storage.WalletStorage, '_write')
     def test_bip39_seed_bip44_standard(self, mock_write):
         seed_words = 'treat dwarf wealth gasp brass outside high rent blood crowd make initial'
         self.assertEqual(keystore.bip39_is_checksum_valid(seed_words), (True, True))
 
-        ks = keystore.from_bip39_seed(seed_words, '', "m/44'/4242'/0'")
+        ks = keystore.from_bip39_seed(seed_words, '', "m/44'/0'/0'")
 
         self.assertTrue(isinstance(ks, keystore.BIP32_KeyStore))
 
@@ -113,6 +127,7 @@ class TestWalletKeystoreAddressIntegrityForMainnet(unittest.TestCase):
         self.assertEqual(w.get_receiving_addresses()[0], 'PAcFhYAdadySYQ3f6xQX3btQbQDfCVVzn7')
         self.assertEqual(w.get_change_addresses()[0], 'PSjEodULoy8W3GMnxPSi14ku2b8Y1yhRBS')
 
+    @needs_test_with_all_ecc_implementations
     @mock.patch.object(storage.WalletStorage, '_write')
     def test_electrum_multisig_seed_standard(self, mock_write):
         seed_words = 'blast uniform dragon fiscal ensure vast young utility dinosaur abandon rookie sure'
@@ -129,12 +144,13 @@ class TestWalletKeystoreAddressIntegrityForMainnet(unittest.TestCase):
         WalletIntegrityHelper.check_xpub_keystore_sanity(self, ks2)
         self.assertTrue(isinstance(ks2, keystore.BIP32_KeyStore))
 
-        w = WalletIntegrityHelper.create_multisig_wallet(ks1, ks2)
+        w = WalletIntegrityHelper.create_multisig_wallet([ks1, ks2], '2of2')
         self.assertEqual(w.txin_type, 'p2sh')
 
         self.assertEqual(w.get_receiving_addresses()[0], '7TTLsc2LVWUd6ZnkhHFGJb3dnZMuSQooiu')
         self.assertEqual(w.get_change_addresses()[0], '7XF9mRa2fUHynUGGLyWzpem8DEYDzN7Bew')
 
+    @needs_test_with_all_ecc_implementations
     @mock.patch.object(storage.WalletStorage, '_write')
     def test_bip39_multisig_seed_bip45_standard(self, mock_write):
         seed_words = 'treat dwarf wealth gasp brass outside high rent blood crowd make initial'
@@ -151,8 +167,75 @@ class TestWalletKeystoreAddressIntegrityForMainnet(unittest.TestCase):
         WalletIntegrityHelper.check_xpub_keystore_sanity(self, ks2)
         self.assertTrue(isinstance(ks2, keystore.BIP32_KeyStore))
 
-        w = WalletIntegrityHelper.create_multisig_wallet(ks1, ks2)
+        w = WalletIntegrityHelper.create_multisig_wallet([ks1, ks2], '2of2')
         self.assertEqual(w.txin_type, 'p2sh')
 
         self.assertEqual(w.get_receiving_addresses()[0], '7dTFS18zaHNT67z54NWLUshtKs6FnPo7iu')
         self.assertEqual(w.get_change_addresses()[0], '7Z8vUdV1WzTQqNqcW6MizSSP96HpBvwMcS')
+
+    @needs_test_with_all_ecc_implementations
+    @mock.patch.object(storage.WalletStorage, '_write')
+    def test_bip32_extended_version_bytes(self, mock_write):
+        seed_words = 'crouch dumb relax small truck age shine pink invite spatial object tenant'
+        self.assertEqual(keystore.bip39_is_checksum_valid(seed_words), (True, True))
+        bip32_seed = keystore.bip39_to_seed(seed_words, '')
+        self.assertEqual('0df68c16e522eea9c1d8e090cfb2139c3b3a2abed78cbcb3e20be2c29185d3b8df4e8ce4e52a1206a688aeb88bfee249585b41a7444673d1f16c0d45755fa8b9',
+                         bh2u(bip32_seed))
+
+        def create_keystore_from_bip32seed(xtype):
+            ks = keystore.BIP32_KeyStore({})
+            ks.add_xprv_from_seed(bip32_seed, xtype=xtype, derivation='m/')
+            return ks
+
+        ks = create_keystore_from_bip32seed(xtype='standard')
+        self.assertEqual('033a05ec7ae9a9833b0696eb285a762f17379fa208b3dc28df1c501cf84fe415d0', ks.derive_pubkey(0, 0))
+        self.assertEqual('02bf27f41683d84183e4e930e66d64fc8af5508b4b5bf3c473c505e4dbddaeed80', ks.derive_pubkey(1, 0))
+
+        ks = create_keystore_from_bip32seed(xtype='standard')  # p2pkh
+        w = WalletIntegrityHelper.create_standard_wallet(ks)
+        self.assertEqual(ks.xprv, 'xprv9s21ZrQH143K3nyWMZVjzGL4KKAE1zahmhTHuV5pdw4eK3o3igC5QywgQG7UTRe6TGBniPDpPFWzXMeMUFbBj8uYsfXGjyMmF54wdNt8QBm')
+        self.assertEqual(ks.xpub, 'xpub661MyMwAqRbcGH3yTb2kMQGnsLziRTJZ8vNthsVSCGbdBr8CGDWKxnGAFYgyKTzBtwvPPmfVAWJuFmxRXjSbUTg87wDkWQ5GmzpfUcN9t8Z')
+        self.assertEqual(w.get_receiving_addresses()[0], 'XjMM4kERoPWqQihtQGAKfSemZuYk36oeBr')
+        self.assertEqual(w.get_change_addresses()[0], 'XovMwtDvyZ1DhvEuVUfJwccopyfNbuheco')
+
+        ks = create_keystore_from_bip32seed(xtype='standard')  # p2sh
+        w = WalletIntegrityHelper.create_multisig_wallet([ks], '1of1')
+        self.assertEqual(ks.xprv, 'xprv9s21ZrQH143K3nyWMZVjzGL4KKAE1zahmhTHuV5pdw4eK3o3igC5QywgQG7UTRe6TGBniPDpPFWzXMeMUFbBj8uYsfXGjyMmF54wdNt8QBm')
+        self.assertEqual(ks.xpub, 'xpub661MyMwAqRbcGH3yTb2kMQGnsLziRTJZ8vNthsVSCGbdBr8CGDWKxnGAFYgyKTzBtwvPPmfVAWJuFmxRXjSbUTg87wDkWQ5GmzpfUcN9t8Z')
+        self.assertEqual(w.get_receiving_addresses()[0], '7fnRbKn5baDQxGTny63XNWPCcBs5dQEBtK')
+        self.assertEqual(w.get_change_addresses()[0], '7nrNkWYwmyavE9K3SgexxwshHhS9DvyeGK')
+
+
+class TestWalletKeystoreAddressIntegrityForTestnet(TestCaseForTestnet):
+
+    @needs_test_with_all_ecc_implementations
+    @mock.patch.object(storage.WalletStorage, '_write')
+    def test_bip32_extended_version_bytes(self, mock_write):
+        seed_words = 'crouch dumb relax small truck age shine pink invite spatial object tenant'
+        self.assertEqual(keystore.bip39_is_checksum_valid(seed_words), (True, True))
+        bip32_seed = keystore.bip39_to_seed(seed_words, '')
+        self.assertEqual('0df68c16e522eea9c1d8e090cfb2139c3b3a2abed78cbcb3e20be2c29185d3b8df4e8ce4e52a1206a688aeb88bfee249585b41a7444673d1f16c0d45755fa8b9',
+                         bh2u(bip32_seed))
+
+        def create_keystore_from_bip32seed(xtype):
+            ks = keystore.BIP32_KeyStore({})
+            ks.add_xprv_from_seed(bip32_seed, xtype=xtype, derivation='m/')
+            return ks
+
+        ks = create_keystore_from_bip32seed(xtype='standard')
+        self.assertEqual('033a05ec7ae9a9833b0696eb285a762f17379fa208b3dc28df1c501cf84fe415d0', ks.derive_pubkey(0, 0))
+        self.assertEqual('02bf27f41683d84183e4e930e66d64fc8af5508b4b5bf3c473c505e4dbddaeed80', ks.derive_pubkey(1, 0))
+
+        ks = create_keystore_from_bip32seed(xtype='standard')  # p2pkh
+        w = WalletIntegrityHelper.create_standard_wallet(ks)
+        self.assertEqual(ks.xprv, 'tprv8ZgxMBicQKsPecD328MF9ux3dSaSFWci7FNQmuWH7uZ86eY8i3XpvjK8KSH8To2QphiZiUqaYc6nzDC6bTw8YCB9QJjaQL5pAApN4z7vh2B')
+        self.assertEqual(ks.xpub, 'tpubD6NzVbkrYhZ4Y5Epun1qZKcACU6NQqocgYyC4RYaYBMWw8nuLSMR7DvzVamkqxwRgrTJ1MBMhc8wwxT2vbHqMu8RBXy4BvjWMxR5EdZroxE')
+        self.assertEqual(w.get_receiving_addresses()[0], 'yUyx5hJsEwAukTdRy7UihU57rC37Y4y2ZX')
+        self.assertEqual(w.get_change_addresses()[0], 'yZYxxqJNR6fJ3fAT4Kyhye3A7G9kC19B9q')
+
+        ks = create_keystore_from_bip32seed(xtype='standard')  # p2sh
+        w = WalletIntegrityHelper.create_multisig_wallet([ks], '1of1')
+        self.assertEqual(ks.xprv, 'tprv8ZgxMBicQKsPecD328MF9ux3dSaSFWci7FNQmuWH7uZ86eY8i3XpvjK8KSH8To2QphiZiUqaYc6nzDC6bTw8YCB9QJjaQL5pAApN4z7vh2B')
+        self.assertEqual(ks.xpub, 'tpubD6NzVbkrYhZ4Y5Epun1qZKcACU6NQqocgYyC4RYaYBMWw8nuLSMR7DvzVamkqxwRgrTJ1MBMhc8wwxT2vbHqMu8RBXy4BvjWMxR5EdZroxE')
+        self.assertEqual(w.get_receiving_addresses()[0], '8soEYefwj7c3QZt43M3UptCZVhduigoYNs')
+        self.assertEqual(w.get_change_addresses()[0], '8zsBhqSouWyYgSjJWwevRKh4BDCySjizKi')

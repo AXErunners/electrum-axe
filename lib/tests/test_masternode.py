@@ -4,6 +4,7 @@ import base64
 from lib.masternode import MasternodeAnnounce, MasternodePing, NetworkAddress
 from lib.masternode_manager import parse_masternode_conf, MasternodeConfLine
 from lib import bitcoin
+from lib import ecc
 from lib.util import bfh, to_bytes
 
 
@@ -43,7 +44,7 @@ class TestMasternode(unittest.TestCase):
         expected_hash = 'a8a3dc1782191f28f613c8971709a57ee58a4d0d7a11138804f89a0b088d67d1'
         msg = announce.serialize_for_sig()
 
-        h = bitcoin.Hash(bitcoin.msg_magic(msg))
+        h = bitcoin.Hash(ecc.msg_magic(msg))
         h = bitcoin.hash_encode(h)
         self.assertEqual(expected_hash, h)
 
@@ -107,13 +108,16 @@ class TestMasternode(unittest.TestCase):
 
         address = 'PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ'
         self.assertTrue(announce.verify(address))
-        self.assertTrue(bitcoin.verify_message(address, sig, announce.serialize_for_sig()))
+        self.assertTrue(ecc.verify_message_with_address
+                            (address, sig, announce.serialize_for_sig()))
+
         # DEBUG information. Uncomment to see serialization.
         # from pprint import pprint
         # pprint(announce.dump())
         # print(' - sig follows - ')
         # print(base64.b64encode(sig))
         # self.assertFalse(announce.serialize())
+
 
 class TestMasternode70210(unittest.TestCase):
     def test_serialization(self):
@@ -148,7 +152,7 @@ class TestMasternode70210(unittest.TestCase):
         expected_hash = '5f69e59f5ea327be16e649fb6c72ed02e39ef9dae8ecb27d222419e94dcd89b7'
         msg = announce.serialize_for_sig()
 
-        h = bitcoin.Hash(bitcoin.msg_magic(msg))
+        h = bitcoin.Hash(ecc.msg_magic(msg))
         h = bitcoin.hash_encode(h)
         self.assertEqual(expected_hash, h)
 
@@ -203,7 +207,8 @@ class TestMasternode70210(unittest.TestCase):
 
         address = 'XahPxwmCuKjPq69hzVxP18V1eASwDWbUrn'
         self.assertTrue(announce.verify(address))
-        self.assertTrue(bitcoin.verify_message(address, sig, announce.serialize_for_sig()))
+        self.assertTrue(ecc.verify_message_with_address
+                            (address, sig, announce.serialize_for_sig()))
 
 class TestMasternodePing(unittest.TestCase):
     def test_serialize_for_sig(self):
@@ -226,7 +231,8 @@ class TestMasternodePing(unittest.TestCase):
         wif = 'XCbhXBc2N9q8kxqBF41rSuLWVpVVbDm7P1oPv9GxcrS9QXYBWZkB'
         sig = ping.sign(wif, current_time = current_time)
         address = bitcoin.address_from_private_key(wif)
-        self.assertTrue(bitcoin.verify_message(address, sig, ping.serialize_for_sig()))
+        self.assertTrue(ecc.verify_message_with_address
+                            (address, sig, ping.serialize_for_sig()))
         self.assertEqual(expected_sig, base64.b64encode(sig).decode('utf-8'))
 
 class TestNetworkAddr(unittest.TestCase):

@@ -32,18 +32,21 @@ import stat
 import pbkdf2, hmac, hashlib
 import base64
 import zlib
+from collections import defaultdict
 
-from .util import PrintError, profiler, InvalidPassword, WalletFileException
+from . import util
+from .util import PrintError, profiler, InvalidPassword, WalletFileException, bfh
 from .plugins import run_hook, plugin_loaders
 from .keystore import bip44_derivation
 from . import bitcoin
+from . import ecc
 
 
 # seed_version is now used for the version of the wallet file
 
 OLD_SEED_VERSION = 4        # electrum versions < 2.0
 NEW_SEED_VERSION = 11       # electrum versions >= 2.0
-FINAL_SEED_VERSION = 16     # electrum >= 2.7 will set this to prevent
+FINAL_SEED_VERSION = 17     # electrum >= 2.7 will set this to prevent
                             # old versions from overwriting new format
 
 
@@ -119,6 +122,7 @@ class WalletStorage(PrintError):
 
     def is_past_initial_decryption(self):
         """Return if storage is in a usable state for normal operations.
+
         The value is True exactly
             if encryption is disabled completely (self.is_encrypted() == False),
             or if encryption is enabled but the contents have already been decrypted.
@@ -137,7 +141,9 @@ class WalletStorage(PrintError):
 
     def get_encryption_version(self):
         """Return the version of encryption used for this storage.
+
         0: plaintext / no encryption
+
         ECIES, private key derived from a password,
         1: password is provided by user
         2: password is derived from an xpub; used with hw wallets
@@ -159,9 +165,10 @@ class WalletStorage(PrintError):
     def file_exists(self):
         return self.path and os.path.exists(self.path)
 
-    def get_key(self, password):
-        secret = pbkdf2.PBKDF2(password, '', iterations = 1024, macmodule = hmac, digestmodule = hashlib.sha512).read(64)
-        ec_key = bitcoin.EC_KEY(secret)
+    @staticmethod
+    def get_eckey_from_password(password):
+        secret = pbkdf2.PBKDF2(password, '', iterations=1024, macmodule=hmac, digestmodule=hashlib.sha512).read(64)
+        ec_key = ecc.ECPrivkey.from_arbitrary_size_secret(secret)
         return ec_key
 
     def _get_encryption_magic(self):
@@ -174,13 +181,13 @@ class WalletStorage(PrintError):
             raise WalletFileException('no encryption magic for version: %s' % v)
 
     def decrypt(self, password):
-        ec_key = self.get_key(password)
+        ec_key = self.get_eckey_from_password(password)
         if self.raw:
             enc_magic = self._get_encryption_magic()
             s = zlib.decompress(ec_key.decrypt_message(self.raw, enc_magic))
         else:
             s = None
-        self.pubkey = ec_key.get_public_key()
+        self.pubkey = ec_key.get_public_key_hex()
         s = s.decode('utf8')
         self.load_data(s)
 
@@ -188,7 +195,7 @@ class WalletStorage(PrintError):
         """Raises an InvalidPassword exception on invalid password"""
         if not self.is_encrypted():
             return
-        if self.pubkey and self.pubkey != self.get_key(password).get_public_key():
+        if self.pubkey and self.pubkey != self.get_eckey_from_password(password).get_public_key_hex():
             raise InvalidPassword()
 
     def set_keystore_encryption(self, enable):
@@ -199,8 +206,8 @@ class WalletStorage(PrintError):
         if enc_version is None:
             enc_version = self._encryption_version
         if password and enc_version != STO_EV_PLAINTEXT:
-            ec_key = self.get_key(password)
-            self.pubkey = ec_key.get_public_key()
+            ec_key = self.get_eckey_from_password(password)
+            self.pubkey = ec_key.get_public_key_hex()
             self._encryption_version = enc_version
         else:
             self.pubkey = None
@@ -220,8 +227,8 @@ class WalletStorage(PrintError):
 
     def put(self, key, value):
         try:
-            json.dumps(key)
-            json.dumps(value)
+            json.dumps(key, cls=util.MyEncoder)
+            json.dumps(value, cls=util.MyEncoder)
         except:
             self.print_error("json error: cannot save", key)
             return
@@ -245,12 +252,13 @@ class WalletStorage(PrintError):
             return
         if not self.modified:
             return
-        s = json.dumps(self.data, indent=4, sort_keys=True)
+        s = json.dumps(self.data, indent=4, sort_keys=True, cls=util.MyEncoder)
         if self.pubkey:
             s = bytes(s, 'utf8')
             c = zlib.compress(s)
             enc_magic = self._get_encryption_magic()
-            s = bitcoin.encrypt_message(c, self.pubkey, enc_magic)
+            public_key = ecc.ECPubkey(bfh(self.pubkey))
+            s = public_key.encrypt_message(c, enc_magic)
             s = s.decode('utf8')
 
         temp_path = "%s.tmp.%s" % (self.path, os.getpid())
@@ -323,6 +331,7 @@ class WalletStorage(PrintError):
     def requires_upgrade(self):
         return self.file_exists() and self.get_seed_version() < FINAL_SEED_VERSION
 
+    @profiler
     def upgrade(self):
         self.print_error('upgrading wallet format')
         if self.requires_upgrade():
@@ -335,6 +344,7 @@ class WalletStorage(PrintError):
         self.convert_version_14()
         self.convert_version_15()
         self.convert_version_16()
+        self.convert_version_17()
 
         self.put('seed_version', FINAL_SEED_VERSION)  # just to be sure
         self.write()
@@ -538,6 +548,28 @@ class WalletStorage(PrintError):
 
         self.put('seed_version', 16)
 
+    def convert_version_17(self):
+        # delete pruned_txo; construct spent_outpoints
+        if not self._is_upgrade_method_needed(16, 16):
+            return
+
+        self.put('pruned_txo', None)
+
+        from .transaction import Transaction
+        transactions = self.get('transactions', {})  # txid -> raw_tx
+        spent_outpoints = defaultdict(dict)
+        for txid, raw_tx in transactions.items():
+            tx = Transaction(raw_tx)
+            for txin in tx.inputs():
+                if txin['type'] == 'coinbase':
+                    continue
+                prevout_hash = txin['prevout_hash']
+                prevout_n = txin['prevout_n']
+                spent_outpoints[prevout_hash][prevout_n] = txid
+        self.put('spent_outpoints', spent_outpoints)
+
+        self.put('seed_version', 17)
+
     def convert_imported(self):
         if not self._is_upgrade_method_needed(0, 13):
             return
@@ -586,6 +618,10 @@ class WalletStorage(PrintError):
 
     def get_action(self):
         action = run_hook('get_action', self)
+        if self.file_exists() and self.requires_upgrade():
+            if action:
+                raise WalletFileException('Incomplete wallet files cannot be upgraded.')
+            return 'upgrade_storage'
         if action:
             return action
         if not self.file_exists():

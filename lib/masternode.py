@@ -3,6 +3,7 @@ import time
 import base64
 
 from . import bitcoin
+from . import ecc
 from .bitcoin import hash_encode, hash_decode
 from .transaction import BCDataStream, parse_input, parse_outpoint
 from . import util
@@ -59,7 +60,7 @@ class MasternodePing(object):
     @classmethod
     def deserialize(cls, vds, protocol_version=70208):
         if protocol_version <= 70208:
-            vin = parse_input(vds)
+            vin = parse_input(vds, full_parse=True)
         else:
             vin = parse_outpoint(vds)
 
@@ -134,11 +135,13 @@ class MasternodePing(object):
             update_time = False
 
         txin_type, key, is_compressed = bitcoin.deserialize_privkey(wif)
-        eckey = bitcoin.regenerate_key(key)
+        eckey = ecc.ECPrivkey(key)
         serialized = self.serialize_for_sig(update_time=update_time)
 
         if not delegate_pubkey:
-            delegate_pubkey = bfh(bitcoin.public_key_from_private_key(key, is_compressed))
+            delegate_pubkey = bfh(ecc.ECPrivkey(key)
+                .get_public_key_hex(compressed=is_compressed))
+
         self.sig = eckey.sign_message(serialized, is_compressed)
         return self.sig
 
@@ -221,7 +224,7 @@ class MasternodeAnnounce(object):
         if MasternodeAnnounce.check_latest_protocol_version(raw):
             vin = parse_outpoint(vds)
         else:
-            vin = parse_input(vds)
+            vin = parse_input(vds, full_parse=True)
 
         address = NetworkAddress.deserialize(vds)
         collateral_pubkey = bh2u(vds.read_bytes(vds.read_compact_size()))
@@ -376,7 +379,7 @@ class MasternodeAnnounce(object):
             update_time = False
 
         txin_type, key, is_compressed = bitcoin.deserialize_privkey(wif)
-        eckey = bitcoin.regenerate_key(key)
+        eckey = ecc.ECPrivkey(key)
 
         serialized = self.serialize_for_sig(update_time=update_time)
         self.sig = eckey.sign_message(serialized, is_compressed)
@@ -386,4 +389,5 @@ class MasternodeAnnounce(object):
         """Verify that our sig is signed with addr's key."""
         if not addr:
             addr = bitcoin.public_key_to_p2pkh(bfh(self.collateral_key))
-        return bitcoin.verify_message(addr, self.sig, self.serialize_for_sig())
+        return ecc.verify_message_with_address\
+                    (addr, self.sig, self.serialize_for_sig())
