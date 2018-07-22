@@ -621,7 +621,7 @@ class Abstract_Wallet(PrintError):
                         fee = self.tx_fees.get(tx_hash)
                     if fee and self.network and self.network.config.has_fee_mempool():
                         size = tx.estimated_size()
-                        fee_per_kb = round(fee / size)
+                        fee_per_kb = round(fee * 1000 / size)
                         exp_n = self.network.config.fee_to_depth(fee_per_kb)
                 else:
                     status = _('Local')
@@ -1159,7 +1159,7 @@ class Abstract_Wallet(PrintError):
                 fee = self.tx_fees.get(tx_hash)
             if fee is not None:
                 size = tx.estimated_size()
-                fee_per_kb = round(fee / size)
+                fee_per_kb = round(fee * 1000 / size)
                 extra.append(format_fee_satoshis(fee_per_kb) + ' duffs/kB')
             if fee is not None and height in (TX_HEIGHT_UNCONF_PARENT, TX_HEIGHT_UNCONFIRMED) \
                and self.network and self.network.config.has_fee_mempool():
