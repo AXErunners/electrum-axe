@@ -153,7 +153,7 @@ tctl_exe = EXE(tctl_pyz,
            console=True,
            name=os.path.join('build\\pyi.win32\\electrum', 'trezorctl.exe'))
 
-coll = COLLECT(exe, conexe, tctl_exe,
+coll = COLLECT(exe, conexe, #tctl_exe,
                a.binaries,
                a.datas,
                strip=False,

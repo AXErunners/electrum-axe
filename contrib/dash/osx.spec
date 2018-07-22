@@ -144,7 +144,7 @@ tctl_exe = EXE(tctl_pyz,
            console=True,
            name=os.path.join('build/electrum-dash/electrum-dash', 'trezorctl.bin'))
 
-coll = COLLECT(exe, tctl_exe,
+coll = COLLECT(exe, #tctl_exe,
                a.binaries,
                a.datas,
                strip=False,
