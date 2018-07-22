@@ -11,6 +11,7 @@ from kivy.compat import string_types
 from kivy.properties import (ObjectProperty, DictProperty, NumericProperty,
                              ListProperty, StringProperty)
 
+from kivy.uix.recycleview import RecycleView
 from kivy.uix.label import Label
 
 from kivy.lang import Builder
@@ -21,12 +22,15 @@ from electrum_axe.util import profiler, parse_URI, format_time, InvalidPassword,
 from electrum_axe import bitcoin
 from electrum_axe.util import timestamp_to_datetime
 from electrum_axe.paymentrequest import PR_UNPAID, PR_PAID, PR_UNKNOWN, PR_EXPIRED
+from electrum_axe.plugins import run_hook
 
 from .context_menu import ContextMenu
 
 
 from electrum_axe_gui.kivy.i18n import _
 
+class HistoryRecycleView(RecycleView):
+    pass
 
 class CScreen(Factory.Screen):
     __events__ = ('on_activate', 'on_deactivate', 'on_enter', 'on_leave')
@@ -131,25 +135,22 @@ class HistoryScreen(CScreen):
         status, status_str = self.app.wallet.get_tx_status(tx_hash, height, conf, timestamp)
         icon = "atlas://gui/kivy/theming/light/" + TX_ICONS[status]
         label = self.app.wallet.get_label(tx_hash) if tx_hash else _('Pruned transaction outputs')
-        ri = self.cards.get(tx_hash)
-        if ri is None:
-            ri = Factory.HistoryItem()
-            ri.screen = self
-            ri.tx_hash = tx_hash
-            self.cards[tx_hash] = ri
-        ri.icon = icon
-        ri.date = status_str
-        ri.message = label
-        ri.confirmations = conf
+        ri = {}
+        ri['screen'] = self
+        ri['tx_hash'] = tx_hash
+        ri['icon'] = icon
+        ri['date'] = status_str
+        ri['message'] = label
+        ri['confirmations'] = conf
         if value is not None:
-            ri.is_mine = value < 0
+            ri['is_mine'] = value < 0
             if value < 0: value = - value
-            ri.amount = self.app.format_amount_and_units(value)
+            ri['amount'] = self.app.format_amount_and_units(value)
             if self.app.fiat_unit:
                 fx = self.app.fx
                 fiat_value = value / Decimal(bitcoin.COIN) * self.app.wallet.price_at_timestamp(tx_hash, fx.timestamp_rate)
                 fiat_value = Fiat(fiat_value, fx.ccy)
-                ri.quote_text = str(fiat_value)
+                ri['quote_text'] = str(fiat_value)
         return ri
 
     def update(self, see_all=False):
@@ -157,11 +158,8 @@ class HistoryScreen(CScreen):
             return
         history = reversed(self.app.wallet.get_history())
         history_card = self.screen.ids.history_container
-        history_card.clear_widgets()
         count = 0
-        for item in history:
-            ri = self.get_card(*item)
-            history_card.add_widget(ri)
+        history_card.data = [self.get_card(*item) for item in history]
 
 
 class SendScreen(CScreen):
@@ -276,7 +274,12 @@ class SendScreen(CScreen):
             _("Amount to be sent") + ": " + self.app.format_amount_and_units(amount),
             _("Mining fee") + ": " + self.app.format_amount_and_units(fee),
         ]
-        if fee >= config.get('confirm_fee', 100000):
+        x_fee = run_hook('get_tx_extra_fee', self.app.wallet, tx)
+        if x_fee:
+            x_fee_address, x_fee_amount = x_fee
+            msg.append(_("Additional fees") + ": " + self.app.format_amount_and_units(x_fee_amount))
+
+        if fee >= config.get('confirm_fee', 10000):
             msg.append(_('Warning')+ ': ' + _("The fee for this transaction seems unusually high."))
         msg.append(_("Enter your PIN code to proceed"))
         self.app.protected('\n'.join(msg), self.send_tx, (tx, message))
