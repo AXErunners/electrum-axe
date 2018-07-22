@@ -16,11 +16,13 @@ hiddenimports += collect_submodules('keepkeylib')
 hiddenimports += collect_submodules('websocket')
 hiddenimports += [
     'lib',
+    'lib.base_crash_reporter',
     'lib.base_wizard',
     'lib.plot',
     'lib.qrscanner',
     'lib.websockets',
     'gui.qt',
+    'PyQt5.sip',
 
     'plugins',
 
@@ -31,6 +33,7 @@ hiddenimports += [
     'plugins.digitalbitbox.qt',
     'plugins.email_requests.qt',
     'plugins.keepkey.qt',
+    'plugins.revealer.qt',
     'plugins.labels.qt',
     'plugins.trezor.qt',
     'plugins.ledger.qt',
@@ -51,13 +54,17 @@ datas += collect_data_files('trezorlib')
 datas += collect_data_files('btchip')
 datas += collect_data_files('keepkeylib')
 
-binaries = [('C:/Python34/libusb-1.0.dll', '.')]
+binaries = [('C:/Python35/libusb-1.0.dll', '.')]
+binaries += [('C:/x11_hash/libx11hash-0.dll', '.')]
+binaries += [('C:/libsecp256k1/libsecp256k1.dll', '.')]
 
 # https://github.com/pyinstaller/pyinstaller/wiki/Recipe-remove-tkinter-tcl
 sys.modules['FixTk'] = None
 excludes = ['FixTk', 'tcl', 'tk', '_tkinter', 'tkinter', 'Tkinter']
 excludes += [
+    'PyQt5.QtBluetooth',
     'PyQt5.QtCLucene',
+    'PyQt5.QtDBus',
     'PyQt5.Qt5CLucene',
     'PyQt5.QtDesigner',
     'PyQt5.QtDesignerComponents',
@@ -67,9 +74,10 @@ excludes += [
     'PyQt5.QtMultimediaQuick_p',
     'PyQt5.QtMultimediaWidgets',
     'PyQt5.QtNetwork',
+    'PyQt5.QtNetworkAuth',
+    'PyQt5.QtNfc',
     'PyQt5.QtOpenGL',
     'PyQt5.QtPositioning',
-    'PyQt5.QtPrintSupport',
     'PyQt5.QtQml',
     'PyQt5.QtQuick',
     'PyQt5.QtQuickParticles',
@@ -78,8 +86,12 @@ excludes += [
     'PyQt5.QtSerialPort',
     'PyQt5.QtSql',
     'PyQt5.Qt5Sql',
+    'PyQt5.Qt5Svg',
     'PyQt5.QtTest',
     'PyQt5.QtWebChannel',
+    'PyQt5.QtWebEngine',
+    'PyQt5.QtWebEngineCore',
+    'PyQt5.QtWebEngineWidgets',
     'PyQt5.QtWebKit',
     'PyQt5.QtWebKitWidgets',
     'PyQt5.QtWebSockets',
@@ -137,8 +149,11 @@ conexe = EXE(pyz,
                             'console-%s' % cmdline_name))
 
 # trezorctl separate executable
-tctl_a = Analysis(['C:/Python34/Scripts/trezorctl'],
-                  hiddenimports=['pkgutil'],
+tctl_a = Analysis(['C:/Python35/Scripts/trezorctl'],
+                  hiddenimports=[
+                    'pkgutil',
+                    'win32api',
+                  ],
                   excludes=excludes,
                   runtime_hooks=['pyi_tctl_runtimehook.py'])
 
@@ -153,7 +168,7 @@ tctl_exe = EXE(tctl_pyz,
            console=True,
            name=os.path.join('build\\pyi.win32\\electrum', 'trezorctl.exe'))
 
-coll = COLLECT(exe, conexe, tctl_exe,
+coll = COLLECT(exe, conexe, #tctl_exe,
                a.binaries,
                a.datas,
                strip=False,

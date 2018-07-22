@@ -24,11 +24,13 @@ import binascii
 import os, sys, re, json
 from collections import defaultdict
 from datetime import datetime
+import decimal
 from decimal import Decimal
 import traceback
 import urllib
 import threading
 import hmac
+import stat
 
 from .i18n import _
 
@@ -40,16 +42,37 @@ def inv_dict(d):
     return {v: k for k, v in d.items()}
 
 
-base_units = {'DASH':8, 'mDASH':5, 'uDASH':2}
+base_units = {'DASH':8, 'mDASH':5, 'uDASH':2, 'duffs':0}
+base_units_inverse = inv_dict(base_units)
+base_units_list = ['DASH', 'mDASH', 'uDASH', 'duffs']  # list(dict) does not guarantee order
+
+
+def decimal_point_to_base_unit_name(dp: int) -> str:
+    # e.g. 8 -> "DASH"
+    try:
+        return base_units_inverse[dp]
+    except KeyError:
+        raise Exception('Unknown base unit')
+
+
+def base_unit_name_to_decimal_point(unit_name: str) -> int:
+    # e.g. "DASH" -> 8
+    try:
+        return base_units[unit_name]
+    except KeyError:
+        raise Exception('Unknown base unit')
+
 
 def normalize_version(v):
     return [int(x) for x in re.sub(r'(\.0+)*$','', v).split(".")]
+
 
 # Raised when importing a key that's already in the wallet.
 class AlreadyHaveAddress(Exception):
     def __init__(self, msg, addr):
         super(AlreadyHaveAddress, self).__init__(msg)
         self.addr = addr
+
 
 class NotEnoughFunds(Exception): pass
 
@@ -143,6 +166,8 @@ class MyEncoder(json.JSONEncoder):
             return str(obj)
         if isinstance(obj, datetime):
             return obj.isoformat(' ')[:-3]
+        if isinstance(obj, set):
+            return list(obj)
         return super(MyEncoder, self).default(obj)
 
 class PrintError(object):
@@ -332,8 +357,29 @@ def android_check_data_dir():
         shutil.move(old_electrum_dir, data_dir)
     return data_dir
 
+
 def get_headers_dir(config):
     return android_headers_dir() if 'ANDROID_DATA' in os.environ else config.path
+
+
+def assert_datadir_available(config_path):
+    path = config_path
+    if os.path.exists(path):
+        return
+    else:
+        raise FileNotFoundError(
+            'Electrum-DASH datadir does not exist. Was it deleted while running?' + '\n' +
+            'Should be at {}'.format(path))
+
+
+def assert_file_in_datadir_available(path, config_path):
+    if os.path.exists(path):
+        return
+    else:
+        assert_datadir_available(config_path)
+        raise FileNotFoundError(
+            'Cannot find file but datadir is there.' + '\n' +
+            'Should be at {}'.format(path))
 
 
 def assert_bytes(*args):
@@ -410,6 +456,10 @@ def user_dir():
         #raise Exception("No home directory found in environment variables.")
         return
 
+def is_valid_email(s):
+    regexp = r"[^@]+@[^@]+\.[^@]+"
+    return re.match(regexp, s) is not None
+
 
 def format_satoshis_plain(x, decimal_point = 8):
     """Display a satoshi amount scaled.  Always uses a '.' as a decimal
@@ -418,20 +468,18 @@ def format_satoshis_plain(x, decimal_point = 8):
     return "{:.8f}".format(Decimal(x) / scale_factor).rstrip('0').rstrip('.')
 
 
-def format_satoshis(x, is_diff=False, num_zeros = 0, decimal_point = 8, whitespaces=False):
+def format_satoshis(x, num_zeros=0, decimal_point=8, precision=None, is_diff=False, whitespaces=False):
     from locale import localeconv
     if x is None:
         return 'unknown'
-    x = int(x)  # Some callers pass Decimal
-    scale_factor = pow (10, decimal_point)
-    integer_part = "{:d}".format(int(abs(x) / scale_factor))
-    if x < 0:
-        integer_part = '-' + integer_part
-    elif is_diff:
-        integer_part = '+' + integer_part
+    if precision is None:
+        precision = decimal_point
+    decimal_format = ".0" + str(precision) if precision > 0 else ""
+    if is_diff:
+        decimal_format = '+' + decimal_format
+    result = ("{:" + decimal_format + "f}").format(x / pow (10, decimal_point)).rstrip('0')
+    integer_part, fract_part = result.split(".")
     dp = localeconv()['decimal_point']
-    fract_part = ("{:0" + str(decimal_point) + "}").format(abs(x) % scale_factor)
-    fract_part = fract_part.rstrip('0')
     if len(fract_part) < num_zeros:
         fract_part += "0" * (num_zeros - len(fract_part))
     result = integer_part + dp + fract_part
@@ -439,6 +487,22 @@ def format_satoshis(x, is_diff=False, num_zeros = 0, decimal_point = 8, whitespa
         result += " " * (decimal_point - len(fract_part))
         result = " " * (15 - len(result)) + result
     return result
+
+
+FEERATE_PRECISION = 0  # num fractional decimal places for duffs/kB fee rates
+_feerate_quanta = Decimal(10) ** (-FEERATE_PRECISION)
+
+
+def format_fee_satoshis(fee, num_zeros=0):
+    return '%d' % round(fee)
+
+
+def quantize_feerate(fee):
+    """Strip sat/byte fee rate of excess precision."""
+    if fee is None:
+        return None
+    return Decimal(fee).quantize(_feerate_quanta, rounding=decimal.ROUND_HALF_DOWN)
+
 
 def timestamp_to_datetime(timestamp):
     if timestamp is None:
@@ -823,3 +887,12 @@ def export_meta(meta, fileName):
     except (IOError, os.error) as e:
         traceback.print_exc(file=sys.stderr)
         raise FileExportFailed(e)
+
+
+def make_dir(path, allow_symlink=True):
+    """Make directory if it does not yet exist."""
+    if not os.path.exists(path):
+        if not allow_symlink and os.path.islink(path):
+            raise Exception('Dangling link: ' + path)
+        os.mkdir(path)
+        os.chmod(path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)

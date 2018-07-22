@@ -2,6 +2,7 @@ import time
 import string
 
 from . import bitcoin
+from . import ecc
 from .transaction import BCDataStream, Transaction
 from . import util
 from .util import bfh
@@ -159,8 +160,9 @@ class BudgetVote(object):
             update_time = False
 
         txin_type, key, is_compressed = bitcoin.deserialize_privkey(wif)
-        delegate_pubkey = bfh(bitcoin.public_key_from_private_key(key, is_compressed))
-        eckey = bitcoin.regenerate_key(key)
+        delegate_pubkey = bfh(ecc.ECPrivkey(key)
+            .get_public_key_hex(compressed=is_compressed))
+        eckey = ecc.ECPrivkey(key)
         serialized = self.serialize_for_sig(update_time=update_time)
         return eckey.sign_message(serialized, is_compressed)
 

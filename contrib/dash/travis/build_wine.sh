@@ -4,6 +4,13 @@ source ./contrib/dash/travis/electrum_dash_version_env.sh;
 echo wine build version is $ELECTRUM_DASH_VERSION
 
 mv /opt/zbarw $WINEPREFIX/drive_c/
+
+mv /opt/x11_hash $WINEPREFIX/drive_c/
+
+mv /opt/libsecp256k1/libsecp256k1-0.dll \
+   /opt/libsecp256k1/libsecp256k1.dll
+mv /opt/libsecp256k1 $WINEPREFIX/drive_c/
+
 cd $WINEPREFIX/drive_c/electrum-dash
 
 rm -rf build
@@ -20,18 +27,17 @@ wine pip install $PYINSTALLER_TAG.tar.gz
 rm $PYINSTALLER_TAG.tar.gz
 
 wine pip install eth-hash==0.1.2
-wine pip install -r contrib/dash/requirements.txt
+wine pip install -r contrib/dash/requirements-win.txt
 
-wine pip install x11_hash
 wine pip install cython
 wine pip install hidapi
 wine pip install pycryptodomex==3.6.0
-wine pip install btchip-python==0.1.26
+wine pip install btchip-python==0.1.27
 wine pip install keepkey==4.0.2
-wine pip install trezor==0.9.1
+wine pip install trezor==0.10.1
 
 mkdir $WINEPREFIX/drive_c/Qt
-ln -s $PYHOME/Lib/site-packages/PyQt5/ $WINEPREFIX/drive_c/Qt/5.5.1
+ln -s $PYHOME/Lib/site-packages/PyQt5/ $WINEPREFIX/drive_c/Qt/5.11.2
 
 wine pyinstaller -y \
     --name electrum-dash-$ELECTRUM_DASH_VERSION.exe \

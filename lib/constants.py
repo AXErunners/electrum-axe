@@ -56,6 +56,7 @@ class BitcoinMainnet:
     }
     DRKV_HEADER = 0x02fe52f8  # drkv
     DRKP_HEADER = 0x02fe52cc  # drkp
+    BIP44_COIN_TYPE = 5
 
 
 class BitcoinTestnet:
@@ -77,6 +78,7 @@ class BitcoinTestnet:
     }
     DRKV_HEADER = 0x3a8061a0  # DRKV
     DRKP_HEADER = 0x3a805837  # DRKP
+    BIP44_COIN_TYPE = 1
 
 
 class BitcoinRegtest(BitcoinTestnet):

@@ -1,4 +1,4 @@
-FROM debian:stretch-slim
+FROM debian:buster-slim
 LABEL maintainer "Andriy Khavryuchenko <akhavr@khavr.com>"
 
 USER root
@@ -13,75 +13,66 @@ RUN dpkg --add-architecture i386 \
     && chmod +x winetricks && mv winetricks /usr/local/bin \
     && rm -rf /var/lib/apt/lists/*
 
-ENV WINEPATH c:/git/cmd
+ENV WINEPATH c:/git/cmd;c:/Python35;c:/Python35/Scripts
 ENV WINEDEBUG -all
 ENV WINEPREFIX /root/.wine-32
 ENV WINEARCH win32
-ENV PYHOME $WINEPREFIX/drive_c/Python34
+ENV PYHOME $WINEPREFIX/drive_c/Python35
 
-RUN echo 'download and install 32-bit Python/mingwpy/pywin32/PyQt/git/NSIS/PyInstaller' \
+RUN echo 'download and install 32-bit Python/pywin32/PyQt/git/NSIS' \
     && wineboot -i \
-    && xvfb-run -a winetricks -q vcrun2010 \
+    && xvfb-run -a winetricks -q vcrun2015 && winetricks win10 \
     \
-    && wget -nv -O python.msi https://www.python.org/ftp/python/3.4.4/python-3.4.4.msi \
-    && msiexec /q /i python.msi && rm python.msi \
+    && wget -nv -O python.exe https://www.python.org/ftp/python/3.5.4/python-3.5.4.exe \
+    && xvfb-run -a wine python.exe /quiet InstallAllUsers=1 TargetDir=$PYHOME && rm python.exe \
+    && wine python -m pip install -U pip \
     \
     && wget -nv -O libusb.7z https://prdownloads.sourceforge.net/project/libusb/libusb-1.0/libusb-1.0.22/libusb-1.0.22.7z?download \
     && 7z x -olibusb libusb.7z -aos && rm libusb.7z  \
     && cp libusb/MS32/dll/libusb-1.0.dll $PYHOME/ \
     \
-    && wine pip install -i https://pypi.anaconda.org/carlkl/simple mingwpy \
-    && /bin/echo -e '[build]\ncompiler=mingw32\n' > $PYHOME/Lib/distutils/distutils.cfg \
-    \
-    && wget -nv -O pywin32.exe https://github.com/mhammond/pywin32/releases/download/b221/pywin32-221.win32-py3.4.exe \
+    && wget -nv -O pywin32.exe https://github.com/mhammond/pywin32/releases/download/b223/pywin32-223.win32-py3.5.exe \
     && unzip -qq -d pywin32 pywin32.exe; echo && rm pywin32.exe \
     && cp -r pywin32/PLATLIB/* $PYHOME/Lib/site-packages/ \
     && cp -r pywin32/SCRIPTS/* $PYHOME/Scripts/ && rm -rf pywin32 \
     && wine python $PYHOME/Scripts/pywin32_postinstall.py -install \
     \
-    && wget -nv -O PyQt.exe "https://sourceforge.net/projects/pyqt/files/PyQt5/PyQt-5.5.1/PyQt5-5.5.1-gpl-Py3.4-Qt5.5.1-x32.exe/download" \
-    && wine PyQt.exe /S && rm PyQt.exe \
+    && wine pip install PyQt5==5.11.2 \
     \
     && wget -nv -O git.zip https://github.com/git-for-windows/git/releases/download/v2.16.3.windows.1/MinGit-2.16.3-32-bit.zip \
     && unzip -qq -d git git.zip && rm git.zip && mv git $WINEPREFIX/drive_c/ \
     \
-    && wget -nv -O nsis.exe "https://sourceforge.net/projects/nsis/files/NSIS%202/2.51/nsis-2.51-setup.exe/download" \
-    && wine nsis.exe /S && rm nsis.exe \
+    && wget -nv -O nsis.exe "https://prdownloads.sourceforge.net/nsis/nsis-3.03-setup.exe?download" \
+    && wine nsis.exe /S \
     \
-    && wine pip install PyInstaller==3.2.1 \
     && rm -rf /tmp/.wine-0
 
 
 ENV WINEPREFIX /root/.wine-64
 ENV WINEARCH win64
-ENV PYHOME $WINEPREFIX/drive_c/Python34
+ENV PYHOME $WINEPREFIX/drive_c/Python35
 
-RUN echo 'download and install 64-bit Python/mingwpy/pywin32/PyQt/git/NSIS/PyInstaller' \
+RUN echo 'download and install 64-bit Python/pywin32/PyQt/git/NSIS' \
     && wineboot -i \
-    && xvfb-run -a winetricks -q vcrun2010 \
+    && xvfb-run -a winetricks -q vcrun2015 && winetricks win10 \
     \
-    && wget -nv -O python.msi https://www.python.org/ftp/python/3.4.4/python-3.4.4.amd64.msi \
-    && msiexec /q /i python.msi && rm python.msi \
+    && wget -nv -O python.exe https://www.python.org/ftp/python/3.5.4/python-3.5.4-amd64.exe \
+    && xvfb-run -a wine python.exe /quiet InstallAllUsers=1 TargetDir=$PYHOME && rm python.exe \
+    && wine python -m pip install -U pip \
     \
     && cp libusb/MS64/dll/libusb-1.0.dll $PYHOME/ && rm -rf libusb \
     \
-    && wine pip install -i https://pypi.anaconda.org/carlkl/simple mingwpy \
-    && /bin/echo -e '[build]\ncompiler=mingw32\n' > $PYHOME/Lib/distutils/distutils.cfg \
-    \
-    && wget -nv -O pywin32.exe https://github.com/mhammond/pywin32/releases/download/b221/pywin32-221.win-amd64-py3.4.exe \
+    && wget -nv -O pywin32.exe https://github.com/mhammond/pywin32/releases/download/b223/pywin32-223.win-amd64-py3.5.exe \
     && unzip -qq -d pywin32 pywin32.exe; echo && rm pywin32.exe \
     && cp -r pywin32/PLATLIB/* $PYHOME/Lib/site-packages/ \
     && cp -r pywin32/SCRIPTS/* $PYHOME/Scripts/ && rm -rf pywin32 \
     && wine python $PYHOME/Scripts/pywin32_postinstall.py -install \
     \
-    && wget -nv -O PyQt.exe "https://sourceforge.net/projects/pyqt/files/PyQt5/PyQt-5.5.1/PyQt5-5.5.1-gpl-Py3.4-Qt5.5.1-x64.exe/download" \
-    && wine PyQt.exe /S && rm PyQt.exe \
+    && wine pip install PyQt5==5.11.2 \
     \
     && wget -nv -O git.zip https://github.com/git-for-windows/git/releases/download/v2.16.3.windows.1/MinGit-2.16.3-64-bit.zip \
     && unzip -qq -d git git.zip && rm git.zip && mv git $WINEPREFIX/drive_c/ \
     \
-    && wget -nv -O nsis.exe "https://sourceforge.net/projects/nsis/files/NSIS%202/2.51/nsis-2.51-setup.exe/download" \
     && wine nsis.exe /S && rm nsis.exe \
     \
-    && wine pip install PyInstaller==3.2.1 \
     && rm -rf /tmp/.wine-0

@@ -4,9 +4,12 @@ services:
 - docker
 addons:
   apt:
+    sources:
+      - sourceline: 'ppa:tah83/secp256k1'
     packages:
-    - libusb-1.0-0-dev
-    - libudev-dev
+      - libusb-1.0-0-dev
+      - libudev-dev
+      - libsecp256k1-0
 matrix:
   include:
   - if: tag =~ .+

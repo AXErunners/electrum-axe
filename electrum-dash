@@ -69,7 +69,6 @@ if is_local or is_android:
     import imp
     imp.load_module('electrum_dash', *imp.find_module('lib'))
     imp.load_module('electrum_dash_gui', *imp.find_module('gui'))
-    imp.load_module('electrum_dash_plugins', *imp.find_module('plugins'))
 
 
 
@@ -84,7 +83,6 @@ from electrum_dash.commands import get_parser, known_commands, Commands, config_
 from electrum_dash import daemon
 from electrum_dash import keystore
 from electrum_dash.mnemonic import Mnemonic
-import electrum_dash_plugins
 
 # get password routine
 def prompt_password(prompt, confirm=True):

@@ -7,4 +7,4 @@ if [[ -z $TRAVIS_TAG ]]; then
 fi
 
 docker pull zebralucky/electrum-dash-winebuild:Linux
-docker pull zebralucky/electrum-dash-winebuild:Kivy
+docker pull zebralucky/electrum-dash-winebuild:KivyPy36
