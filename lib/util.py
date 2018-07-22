@@ -42,9 +42,9 @@ def inv_dict(d):
     return {v: k for k, v in d.items()}
 
 
-base_units = {'DASH':8, 'mDASH':5, 'uDASH':2, 'duff':0}
+base_units = {'DASH':8, 'mDASH':5, 'uDASH':2, 'duffs':0}
 base_units_inverse = inv_dict(base_units)
-base_units_list = ['DASH', 'mDASH', 'uDASH', 'duff']  # list(dict) does not guarantee order
+base_units_list = ['DASH', 'mDASH', 'uDASH', 'duffs']  # list(dict) does not guarantee order
 
 
 def decimal_point_to_base_unit_name(dp: int) -> str:
@@ -494,7 +494,7 @@ _feerate_quanta = Decimal(10) ** (-FEERATE_PRECISION)
 
 
 def format_fee_satoshis(fee, num_zeros=0):
-    return format_satoshis(fee, num_zeros, 0, precision=FEERATE_PRECISION)
+    return '%d' % round(fee)
 
 
 def quantize_feerate(fee):
