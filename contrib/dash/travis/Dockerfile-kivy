@@ -1,14 +1,19 @@
-FROM ubuntu:16.04
+FROM ubuntu:18.04
 LABEL maintainer "Andriy Khavryuchenko <akhavr@khavr.com>"
 
 RUN dpkg --add-architecture i386 \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
+        software-properties-common \
+    && add-apt-repository ppa:kivy-team/kivy-daily \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+        software-properties-common \
         language-pack-en build-essential ccache git \
         libncurses5:i386 libstdc++6:i386 libgtk2.0-0:i386 \
         libpangox-1.0-0:i386 libpangoxft-1.0-0:i386 libidn11:i386 \
         openjdk-8-jdk unzip zlib1g-dev zlib1g:i386 \
-        python3-dev python3-kivy \
+        python-dev python3-dev python3-kivy \
         wget vim less autoconf automake libtool \
         ffmpeg \
         libsdl2-dev \
@@ -22,7 +27,7 @@ RUN dpkg --add-architecture i386 \
     && rm -rf /var/lib/apt/lists/*
 
 RUN wget https://bootstrap.pypa.io/get-pip.py && python3 get-pip.py \
-    && pip3 install --upgrade setuptools cython==0.21.2 Pillow
+    && pip3 install --upgrade setuptools cython==0.28.2 Pillow
 
 RUN git config --global user.email "buildozer@example.com" \
     && git config --global user.name "Buildozer"
