@@ -2,11 +2,6 @@
 
 set -e
 
-pushd lib
-VERSION=$(python -c "import version; ev = version.ELECTRUM_VERSION; print ev if len(ev.split('.')) > 3 else ev + '.0';")
-popd
-echo $VERSION
-echo "version_apk = '$VERSION'" > contrib/versions.py
 pushd ./gui/kivy/
 make theming
 make release

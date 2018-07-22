@@ -8,8 +8,9 @@ import re
 
 imp.load_module('lib', *imp.find_module('../../lib'))
 
+from lib import constants
 from lib.bitcoin import (b58_address_to_hash160, hash160_to_b58_address,
-                         serialize_privkey, DecodeBase58Check, SCRIPT_TYPES)
+                         serialize_privkey, DecodeBase58Check, WIF_SCRIPT_TYPES)
 from lib.util import inv_dict
 
 
@@ -29,7 +30,7 @@ def deserialize_btc_priv(val):
     if len(vch) not in [33, 34]:
         return None, None, None
 
-    txin_type = inv_dict(SCRIPT_TYPES)[vch[0] - 0x80]
+    txin_type = inv_dict(WIF_SCRIPT_TYPES)[vch[0] - 0x80]
     compressed = len(vch) == 34
 
     return txin_type, vch[1:33], compressed
@@ -45,11 +46,25 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               help='Output file')
 @click.option('-p', '--inplace', is_flag=True,
               help='Replace data inplace')
+@click.option('-t', '--testnet', is_flag=True,
+              help='Use testnet network constants')
 def main(**kwargs):
     input_file = kwargs.pop('input_file')
     output_file = kwargs.pop('output_file', None)
     inplace = kwargs.pop('inplace', False)
     dry_run = kwargs.pop('dry_run', False)
+    testnet = kwargs.pop('testnet', False)
+
+    if testnet:
+        constants.set_testnet()
+        BTC_ADDRTYPE_P2PKH = 111
+        BTC_ADDRTYPE_P2SH = 196
+    else:
+        BTC_ADDRTYPE_P2PKH = 0
+        BTC_ADDRTYPE_P2SH = 5
+
+    net = constants.net
+
     if inplace:
         output_file = input_file
 
@@ -73,11 +88,11 @@ def main(**kwargs):
             except:
                 h = None
 
-            if h and addrtype == 0:
-                new_val = hash160_to_b58_address(h, 55)
+            if h and addrtype == BTC_ADDRTYPE_P2PKH:
+                new_val = hash160_to_b58_address(h, net.ADDRTYPE_P2PKH)
                 total_sub +=1
-            elif h and addrtype == 5:
-                new_val = hash160_to_b58_address(h, 16)
+            elif h and addrtype == BTC_ADDRTYPE_P2SH:
+                new_val = hash160_to_b58_address(h, net.ADDRTYPE_P2SH)
                 total_sub +=1
             else:
                 new_val = None
