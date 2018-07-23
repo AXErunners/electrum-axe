@@ -635,7 +635,7 @@ class Test_keyImport(SequentialTestCase):
             'address': 'PGs65CKCQQ3KufnqHXRgLpmCK6nxTwLixp',
             'minikey': True,
             'txin_type': 'p2pkh',
-            'compressed': False,  # this is actually ambiguous... issue #2748
+            'compressed': True,  # this is actually ambiguous... issue #2748
             'addr_encoding': 'base58',
             'scripthash': '60ad5a8b922f758cd7884403e90ee7e6f093f8d21a0ff24c9a865e695ccefdf1'},
     )
