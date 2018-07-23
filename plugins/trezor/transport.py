@@ -1,4 +1,4 @@
-axefrom electrum_axe.util import PrintError
+from electrum_axe.util import PrintError
 
 
 class TrezorTransport(PrintError):
