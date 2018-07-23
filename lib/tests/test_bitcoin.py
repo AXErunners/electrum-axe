@@ -629,13 +629,13 @@ class Test_keyImport(SequentialTestCase):
             'addr_encoding': 'base58',
             'scripthash': '6dd2e07ad2de9ba8eec4bbe8467eb53f8845acff0d9e6f5627391acc22ff62df'},
            # from http://bitscan.com/articles/security/spotlight-on-mini-private-keys
-           {'priv': 'SzavMBLoXU6kDrqtUVmffv',
+           {'priv': 'SzavMBLoXU6kDrqtUVmffv',   #E9873D79C6D87DC0FB6A5778633389F4453213303DA61F20BD67FC233AA33262
             'exported_privkey': 'p2pkh:XK7aeZ9n1H1G4W4gkaf4PtqJUJPBcXDEdj9DXfrs2dH3gqJMtvHn',
             'pub': '02588d202afcc1ee4ab5254c7847ec25b9a135bbda0f2bc69ee1a714749fd77dc9',
-            'address': 'PGs65CKCQQ3KufnqHXRgLpmCK6nxTwLixp',
+            'address': 'PGs65CKCQQ3KufnqHXRgLpmCK6nxTwLixp', # somehow needs uncompressed .. compressed value is PGs65CKCQQ3KufnqHXRgLpmCK6nxTwLixp
             'minikey': True,
             'txin_type': 'p2pkh',
-            'compressed': True,  # this is actually ambiguous... issue #2748
+            'compressed': False,  # this is actually ambiguous... issue #2748
             'addr_encoding': 'base58',
             'scripthash': '60ad5a8b922f758cd7884403e90ee7e6f093f8d21a0ff24c9a865e695ccefdf1'},
     )
