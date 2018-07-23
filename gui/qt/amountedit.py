@@ -118,7 +118,7 @@ class FeerateEdit(BTCAmountEdit):
         self.extra_precision = FEERATE_PRECISION
 
     def _base_unit(self):
-        return 'duffs/kB'
+        return 'haks/kB'
 
     def get_amount(self):
         sat_per_kb_amount = BTCAmountEdit.get_amount(self)
