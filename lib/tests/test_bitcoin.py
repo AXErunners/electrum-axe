@@ -637,7 +637,7 @@ class Test_keyImport(SequentialTestCase):
             'txin_type': 'p2pkh',
             'compressed': False,  # this is actually ambiguous... issue #2748
             'addr_encoding': 'base58',
-            'scripthash': '60ad5a8b922f758cd7884403e90ee7e6f093f8d21a0ff24c9a865e695ccefdf1'},
+            'scripthash': '5b07ddfde826f5125ee823900749103cea37808038ecead5505a766a07c34445'}, #script has is diff for uncomressed add 60ad5a8b922f758cd7884403e90ee7e6f093f8d21a0ff24c9a865e695ccefdf1
     )
 
     @needs_test_with_all_ecc_implementations
