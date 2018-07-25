@@ -205,7 +205,7 @@ class TestMasternode70210(unittest.TestCase):
         announce.last_ping.sign(delegate_wif, bfh(delegate_pub), 1461858375)
         sig = announce.sign(collateral_wif, 1461858375)
 
-        address = 'XahPxwmCuKjPq69hzVxP18V1eASwDWbUrn'
+        address = 'PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ'
         self.assertTrue(announce.verify(address))
         self.assertTrue(ecc.verify_message_with_address
                             (address, sig, announce.serialize_for_sig()))
