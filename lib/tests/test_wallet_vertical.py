@@ -196,7 +196,7 @@ class TestWalletKeystoreAddressIntegrityForMainnet(SequentialTestCase):
         self.assertEqual(ks.xprv, 'xprv9s21ZrQH143K3nyWMZVjzGL4KKAE1zahmhTHuV5pdw4eK3o3igC5QywgQG7UTRe6TGBniPDpPFWzXMeMUFbBj8uYsfXGjyMmF54wdNt8QBm')
         self.assertEqual(ks.xpub, 'xpub661MyMwAqRbcGH3yTb2kMQGnsLziRTJZ8vNthsVSCGbdBr8CGDWKxnGAFYgyKTzBtwvPPmfVAWJuFmxRXjSbUTg87wDkWQ5GmzpfUcN9t8Z')
         self.assertEqual(w.get_receiving_addresses()[0], 'PHFgPTyNtbnSEcn4tTAdUowFMK8w5bHghd')
-        self.assertEqual(w.get_change_addresses()[0], 'PXKKrMZRX5v8AzC76PcgZCae6sKZpUBCTR')
+        self.assertEqual(w.get_change_addresses()[0], 'PMphGbxt4mGpXpK5yffckyuHcPFZm3f5Cq')
 
         ks = create_keystore_from_bip32seed(xtype='standard')  # p2sh
         w = WalletIntegrityHelper.create_multisig_wallet([ks], '1of1')
