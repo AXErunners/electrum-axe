@@ -114,7 +114,7 @@ class TestWalletKeystoreAddressIntegrityForMainnet(SequentialTestCase):
         seed_words = 'treat dwarf wealth gasp brass outside high rent blood crowd make initial'
         self.assertEqual(keystore.bip39_is_checksum_valid(seed_words), (True, True))
 
-        ks = keystore.from_bip39_seed(seed_words, '', "m/44'/0'/0'")
+        ks = keystore.from_bip39_seed(seed_words, '', "m/44'/4242'/0'")
 
         self.assertTrue(isinstance(ks, keystore.BIP32_KeyStore))
 
