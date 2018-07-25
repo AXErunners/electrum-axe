@@ -631,7 +631,7 @@ class Test_keyImport(SequentialTestCase):
            # from http://bitscan.com/articles/security/spotlight-on-mini-private-keys
            {'priv': 'SzavMBLoXU6kDrqtUVmffv',   #E9873D79C6D87DC0FB6A5778633389F4453213303DA61F20BD67FC233AA33262
             'exported_privkey': 'p2pkh:7sKi9xmam1ud39rKXGL3ajZEvmGSy5aauGthuG9aYBV73kq1i2J',
-            'pub': '02588d202afcc1ee4ab5254c7847ec25b9a135bbda0f2bc69ee1a714749fd77dc9',
+            'pub': '04588d202afcc1ee4ab5254c7847ec25b9a135bbda0f2bc69ee1a714749fd77dc9f88ff2a00d7e752d44cbe16e1ebcf0890b76ec7c78886109dee76ccfc8445424',
             'address': 'PKnDg15k847HvN9GhjzMatLQuuqLYyMQbJ', # somehow needs uncompressed .. compressed value is PGs65CKCQQ3KufnqHXRgLpmCK6nxTwLixp
             'minikey': True,
             'txin_type': 'p2pkh',
