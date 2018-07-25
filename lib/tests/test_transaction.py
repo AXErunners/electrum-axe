@@ -82,9 +82,9 @@ class TestTransaction(SequentialTestCase):
             'version': 1,
         }
         tx = transaction.Transaction(unsigned_blob)
-        trx=tx.deserialize()
-        print(trx)
-        print(trx.get("inputs"))
+        #trx=tx.deserialize()
+        #print(trx)
+        #print(trx.get("inputs"))
         self.assertEqual(tx.deserialize(), expected)
         self.assertEqual(tx.deserialize(), None)
 
