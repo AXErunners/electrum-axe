@@ -111,11 +111,11 @@ QCheckBox::indicator {
 }
 
 QCheckBox::indicator:unchecked {
-    image:url(':icons/checkbox/unchecked.png');
+    image:url(':icons/checkbox/unchecked-dark.png');
 }
 
 QCheckBox::indicator:unchecked:disabled {
-    image:url(':icons/checkbox/unchecked_disabled.png');
+    image:url(':icons/checkbox/unchecked_disabled-dark.png');
 }
 
 QCheckBox::indicator:unchecked:pressed {
@@ -131,7 +131,7 @@ QCheckBox::indicator:checked:disabled {
 }
 
 QCheckBox::indicator:checked:pressed {
-    image:url(':icons/checkbox/unchecked.png');
+    image:url(':icons/checkbox/unchecked-dark.png');
 }
 
 QCheckBox::indicator:indeterminate {
