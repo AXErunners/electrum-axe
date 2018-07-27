@@ -70,7 +70,9 @@
     <file>icons/checkbox/indeterminate.png</file>
     <file>icons/radio/checked.png</file>
     <file>icons/radio/unchecked.png</file>
+    <file>icons/radio/unchecked-dark.png</file>
     <file>icons/radio/checked_disabled.png</file>
     <file>icons/radio/unchecked_disabled.png</file>
+    <file>icons/radio/unchecked_disabled-dark.png</file>
   </qresource>
 </RCC>

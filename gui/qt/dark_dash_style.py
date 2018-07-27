@@ -158,11 +158,11 @@ QRadioButton::indicator {
 }
 
 QRadioButton::indicator::unchecked {
-    image:url(':icons/radio/unchecked.png');
+    image:url(':icons/radio/unchecked-dark.png');
 }
 
 QRadioButton::indicator:unchecked:disabled {
-    image:url(':icons/radio/unchecked_disabled.png');
+    image:url(':icons/radio/unchecked_disabled-dark.png');
 }
 
 QRadioButton::indicator:unchecked:pressed {
