@@ -2,7 +2,7 @@
 
 set -e
 
-pushd ./gui/kivy/
+pushd ./electrum_dash/gui/kivy/
 make theming
 make release
 popd

@@ -15,7 +15,7 @@ with open('contrib/requirements/requirements.txt') as f:
 with open('contrib/requirements/requirements-hw.txt') as f:
     requirements_hw = f.read().splitlines()
 
-version = imp.load_source('version', 'lib/version.py')
+version = imp.load_source('version', 'electrum_dash/version.py')
 
 if sys.version_info[:3] < (3, 4, 0):
     sys.exit("Error: Electrum-DASH requires Python version >= 3.4.0...")
@@ -55,34 +55,32 @@ setup(
     extras_require=extras_require,
     packages=[
         'electrum_dash',
-        'electrum_dash_gui',
-        'electrum_dash_gui.qt',
-        'electrum_dash_plugins',
-        'electrum_dash_plugins.audio_modem',
-        'electrum_dash_plugins.cosigner_pool',
-        'electrum_dash_plugins.email_requests',
-        'electrum_dash_plugins.hw_wallet',
-        'electrum_dash_plugins.keepkey',
-        'electrum_dash_plugins.labels',
-        'electrum_dash_plugins.ledger',
-        'electrum_dash_plugins.revealer',
-        'electrum_dash_plugins.trezor',
-        'electrum_dash_plugins.digitalbitbox',
-        'electrum_dash_plugins.virtualkeyboard',
+        'electrum_dash.gui',
+        'electrum_dash.gui.qt',
+        'electrum_dash.plugins',
+        'electrum_dash.plugins.audio_modem',
+        'electrum_dash.plugins.cosigner_pool',
+        'electrum_dash.plugins.email_requests',
+        'electrum_dash.plugins.hw_wallet',
+        'electrum_dash.plugins.keepkey',
+        'electrum_dash.plugins.labels',
+        'electrum_dash.plugins.ledger',
+        'electrum_dash.plugins.revealer',
+        'electrum_dash.plugins.trezor',
+        'electrum_dash.plugins.digitalbitbox',
+        'electrum_dash.plugins.virtualkeyboard',
     ],
     package_dir={
-        'electrum_dash': 'lib',
-        'electrum_dash_gui': 'gui',
-        'electrum_dash_plugins': 'plugins',
+        'electrum_dash': 'electrum_dash'
     },
     package_data={
         '': ['*.txt', '*.json', '*.ttf', '*.otf'],
         'electrum_dash': [
-            'wordlist/*.txt',
-            'locale/*/LC_MESSAGES/electrum.mo',
+            'electrum_dash/wordlist/*.txt',
+            'electrum_dash/locale/*/LC_MESSAGES/electrum.mo',
         ],
     },
-    scripts=['electrum-dash'],
+    scripts=['electrum_dash/electrum-dash'],
     data_files=data_files,
     description="Lightweight Dashpay Wallet",
     maintainer="akhavr",
