@@ -53,8 +53,14 @@ ENV WINEARCH win64
 ENV PYHOME $WINEPREFIX/drive_c/Python35
 
 RUN echo 'download and install 64-bit Python/pywin32/PyQt/git/NSIS' \
-    && wineboot -i \
-    && xvfb-run -a winetricks -q vcrun2015 && winetricks win10 \
+    && wineboot -i && winetricks win10 \
+    && wget -nv https://download.microsoft.com/download/9/3/F/93FCF1E7-E6A4-478B-96E7-D4B285925B00/vc_redist.x64.exe \
+    && cabextract -d ex vc_redist.x64.exe && rm vc_redist.x64.exe \
+    && cabextract -d ex/a10ex ex/a10 && cabextract -d ex/a11ex ex/a11 \
+    && for f in ex/a10ex/api_ms_win_*; do mv $f $(echo "$f" | sed s/_/-/g); done \
+    && cp ex/a10ex/* $WINEPREFIX/drive_c/windows/system32 \
+    && cp ex/a11ex/* $WINEPREFIX/drive_c/windows/system32 \
+    && rm -rf ex \
     \
     && wget -nv -O python.exe https://www.python.org/ftp/python/3.5.4/python-3.5.4-amd64.exe \
     && xvfb-run -a wine python.exe /quiet InstallAllUsers=1 TargetDir=$PYHOME && rm python.exe \
