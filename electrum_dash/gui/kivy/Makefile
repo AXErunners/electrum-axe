@@ -8,25 +8,25 @@ theming:
 	$(PYTHON) -m kivy.atlas theming/light 1024 theming/light/*.png
 prepare:
 	# running pre build setup
-	@cp tools/buildozer.spec ../../buildozer.spec
+	@cp tools/buildozer.spec ../../../buildozer.spec
 	# copy electrum-dash to main.py
-	@cp ../../../run_electrum_dash ../../main.py
+	@cp ../../../run_electrum_dash ../../../main.py
 	@-if [ ! -d "../../.buildozer" ];then \
-		cd ../..; buildozer android debug;\
+		cd ../../..; buildozer android debug;\
 		cp -f electrum_dash/gui/kivy/tools/blacklist.txt .buildozer/android/platform/python-for-android/src/blacklist.txt;\
 		rm -rf ./.buildozer/android/platform/python-for-android/dist;\
 	fi
 apk:
 	@make prepare
-	@-cd ../..; buildozer android debug deploy run
+	@-cd ../../..; buildozer android debug deploy run
 	@make clean
 release:
 	@make prepare
-	@-cd ../..; buildozer android release
+	@-cd ../../..; buildozer android release
 	@make clean
 clean:
 	# Cleaning up
 	# rename main.py to electrum-dash
-	@-rm ../../main.py
+	@-rm ../../../main.py
 	# remove buildozer.spec
-	@-rm ../../buildozer.spec
+	@-rm ../../../buildozer.spec
