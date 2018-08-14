@@ -50,7 +50,6 @@ from electrum_dash.util import (UserCancelled, print_error,
 # from electrum_dash.wallet import Abstract_Wallet
 
 from .installwizard import InstallWizard
-from .dash_style import dash_stylesheet
 
 
 try:
@@ -107,8 +106,6 @@ class ElectrumGui:
         self.efilter = OpenFileEventFilter(self.windows)
         self.app = QElectrumApplication(sys.argv)
         self.app.installEventFilter(self.efilter)
-        self.app.setStyle('Fusion')
-        self.app.setStyleSheet(dash_stylesheet)
         self.timer = Timer()
         self.nd = None
         self.network_updated_signal_obj = QNetworkUpdatedSignalObject()
@@ -125,13 +122,13 @@ class ElectrumGui:
 
     def set_dark_theme_if_needed(self):
         use_dark_theme = self.config.get('qt_gui_color_theme', 'default') == 'dark'
+        self.app.setStyle('Fusion')
         if use_dark_theme:
-            try:
-                import qdarkstyle
-                self.app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
-            except BaseException as e:
-                use_dark_theme = False
-                print_error('Error setting dark theme: {}'.format(e))
+            from .dark_dash_style import dash_stylesheet
+            self.app.setStyleSheet(dash_stylesheet)
+        else:
+            from .dash_style import dash_stylesheet
+            self.app.setStyleSheet(dash_stylesheet)
         # Even if we ourselves don't set the dark theme,
         # the OS/window manager/etc might set *a dark theme*.
         # Hence, try to choose colors accordingly:
