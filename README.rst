@@ -101,4 +101,4 @@ This directory contains the python dependencies used by Electrum-DASH.
 Android
 -------
 
-See `gui/kivy/Readme.txt` file.
+See `electrum_dash/gui/kivy/Readme.txt` file.
