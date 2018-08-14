@@ -29,11 +29,12 @@ import datetime
 from electrum_dash.wallet import AddTransactionException, TX_HEIGHT_LOCAL
 from .util import *
 from electrum_dash.i18n import _
-from electrum_dash.util import block_explorer_URL, profiler
+from electrum_dash.util import block_explorer_URL, profiler, print_error
 
 try:
     from electrum_dash.plot import plot_history, NothingToPlotException
 except:
+    print_error("qt/history_list: could not import electrum_dash.plot. This feature needs matplotlib to be installed.")
     plot_history = None
 
 # note: this list needs to be kept in sync with another in kivy
