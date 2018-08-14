@@ -1,3 +1,10 @@
+# Release 3.2.2.1
+
+ * PPA built with libsecp256k1-0, python3-pycryptodome dependencies
+ * Added dark theme
+ * Fix ecc_fast.py for win64
+ * Fix vcrun2015 in win64 builds
+
 # Release 3.2.2
 
  * Fix DNS resolution on Windows
