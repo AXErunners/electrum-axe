@@ -26,7 +26,7 @@
 import webbrowser
 import datetime
 
-from electrum_dash.wallet import AddTransactionException, TX_HEIGHT_LOCAL
+from electrum_dash.address_synchronizer import TX_HEIGHT_LOCAL
 from .util import *
 from electrum_dash.i18n import _
 from electrum_dash.util import block_explorer_URL, profiler, print_error

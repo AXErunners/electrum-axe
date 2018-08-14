@@ -37,7 +37,6 @@ from electrum_dash.plugin import run_hook
 from electrum_dash import simple_config
 
 from electrum_dash.util import bfh
-from electrum_dash.wallet import AddTransactionException
 from electrum_dash.transaction import SerializationError
 
 from .util import *

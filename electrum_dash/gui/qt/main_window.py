@@ -51,7 +51,8 @@ from electrum_dash.util import (format_time, format_satoshis, format_fee_satoshi
                                 base_units, base_units_list, base_unit_name_to_decimal_point,
                                 decimal_point_to_base_unit_name, quantize_feerate)
 from electrum_dash.transaction import Transaction
-from electrum_dash.wallet import Multisig_Wallet, AddTransactionException
+from electrum_dash.address_synchronizer import AddTransactionException
+from electrum_dash.wallet import Multisig_Wallet
 from electrum_dash.base_crash_reporter import BaseCrashReporter
 from electrum_dash.masternode_manager import MasternodeManager
 
