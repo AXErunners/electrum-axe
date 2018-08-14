@@ -47,6 +47,7 @@ from .interface import Connection, Interface
 from . import blockchain
 from .version import ELECTRUM_VERSION, PROTOCOL_VERSION
 from .i18n import _
+from .blockchain import InvalidHeader
 from . import masternode_manager
 
 
@@ -1117,7 +1118,11 @@ class Network(util.DaemonThread):
             # no point in keeping this connection without headers sub
             self.connection_down(interface.server)
             return
-        header = blockchain.deserialize_header(util.bfh(header_hex), height)
+        try:
+            header = blockchain.deserialize_header(util.bfh(header_hex), height)
+        except InvalidHeader:
+            self.connection_down(interface.server)
+            return
         if height < self.max_checkpoint():
             self.connection_down(interface.server)
             return
