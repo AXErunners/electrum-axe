@@ -5,6 +5,7 @@ import os
 import stat
 from decimal import Decimal
 from typing import Union
+from numbers import Real
 
 from copy import deepcopy
 
@@ -307,7 +308,11 @@ class SimpleConfig(PrintError):
                 fee = int(fee)
         return fee
 
-    def fee_to_depth(self, target_fee):
+    def fee_to_depth(self, target_fee: Real) -> int:
+        """For a given sat/vbyte fee, returns an estimate of how deep
+        it would be in the current mempool in vbytes.
+        Pessimistic == overestimates the depth.
+        """
         depth = 0
         for fee, s in self.mempool_fees:
             depth += s
@@ -317,10 +322,16 @@ class SimpleConfig(PrintError):
             return 0
         return depth
 
-    @impose_hard_limits_on_fee
     def depth_to_fee(self, slider_pos) -> int:
         """Returns fee in sat/kbyte."""
         target = self.depth_target(slider_pos)
+        return self.depth_target_to_fee(target)
+
+    @impose_hard_limits_on_fee
+    def depth_target_to_fee(self, target: int) -> int:
+        """Returns fee in sat/kbyte.
+        target: desired mempool depth in sat/vbyte
+        """
         depth = 0
         for fee, s in self.mempool_fees:
             depth += s
@@ -328,6 +339,10 @@ class SimpleConfig(PrintError):
                 break
         else:
             return 0
+        # add one sat/byte as currently that is
+        # the max precision of the histogram
+        fee += 1
+        # convert to sat/kbyte
         return fee * 1000
 
     def depth_target(self, slider_pos):
