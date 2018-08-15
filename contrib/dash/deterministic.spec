@@ -11,6 +11,7 @@ else:
     raise Exception('no name')
 
 hiddenimports = collect_submodules('trezorlib')
+hiddenimports += collect_submodules('safetlib')
 hiddenimports += collect_submodules('btchip')
 hiddenimports += collect_submodules('keepkeylib')
 hiddenimports += collect_submodules('websocket')
@@ -35,7 +36,10 @@ hiddenimports += [
     'plugins.keepkey.qt',
     'plugins.revealer.qt',
     'plugins.labels.qt',
+    'plugins.trezor.client',
     'plugins.trezor.qt',
+    'plugins.safe_t.client',
+    'plugins.safe_t.qt',
     'plugins.ledger.qt',
     'plugins.virtualkeyboard.qt',
 ]
@@ -51,9 +55,11 @@ datas = [
     ('C:\\zbarw', '.'),
 ]
 datas += collect_data_files('trezorlib')
+datas += collect_data_files('safetlib')
 datas += collect_data_files('btchip')
 datas += collect_data_files('keepkeylib')
 
+# Add libusb so Trezor and Safe-T mini will work
 binaries = [('C:/Python35/libusb-1.0.dll', '.')]
 binaries += [('C:/x11_hash/libx11hash-0.dll', '.')]
 binaries += [('C:/libsecp256k1/libsecp256k1.dll', '.')]
