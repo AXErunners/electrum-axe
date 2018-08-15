@@ -14,7 +14,7 @@ from electrum_dash.wallet import Standard_Wallet
 from electrum_dash.base_wizard import ScriptTypeNotSupported
 
 from ..hw_wallet import HW_PluginBase
-from ..hw_wallet.plugin import is_any_tx_output_on_change_branch
+from ..hw_wallet.plugin import is_any_tx_output_on_change_branch, trezor_validate_op_return_output_and_get_data
 
 
 # TREZOR initialization methods
@@ -377,7 +377,7 @@ class KeepKeyPlugin(HW_PluginBase):
             txoutputtype.amount = amount
             if _type == TYPE_SCRIPT:
                 txoutputtype.script_type = self.types.PAYTOOPRETURN
-                txoutputtype.op_return_data = bfh(address)[2:]
+                txoutputtype.op_return_data = trezor_validate_op_return_output_and_get_data(_type, address, amount)
             elif _type == TYPE_ADDRESS:
                 addrtype, hash_160 = b58_address_to_hash160(address)
                 if addrtype == constants.net.ADDRTYPE_P2PKH:
