@@ -10,12 +10,12 @@ import threading
 from electrum_dash.bitcoin import TYPE_ADDRESS
 from electrum_dash.storage import WalletStorage
 from electrum_dash.wallet import Wallet
-from electrum_dash.i18n import _
 from electrum_dash.paymentrequest import InvoiceStore
 from electrum_dash.util import profiler, InvalidPassword
 from electrum_dash.plugin import run_hook
 from electrum_dash.util import format_satoshis, format_satoshis_plain
 from electrum_dash.paymentrequest import PR_UNPAID, PR_PAID, PR_UNKNOWN, PR_EXPIRED
+from .i18n import _
 
 from kivy.app import App
 from kivy.core.window import Window
