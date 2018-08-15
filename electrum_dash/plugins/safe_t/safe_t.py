@@ -2,15 +2,15 @@ from binascii import hexlify, unhexlify
 import traceback
 import sys
 
-from electrum.util import bfh, bh2u, versiontuple, UserCancelled
-from electrum.bitcoin import (b58_address_to_hash160, xpub_from_pubkey, deserialize_xpub,
+from electrum_dash.util import bfh, bh2u, versiontuple, UserCancelled
+from electrum_dash.bitcoin import (b58_address_to_hash160, xpub_from_pubkey, deserialize_xpub,
                               TYPE_ADDRESS, TYPE_SCRIPT, is_address)
-from electrum import constants
-from electrum.i18n import _
-from electrum.plugin import BasePlugin, Device
-from electrum.transaction import deserialize, Transaction
-from electrum.keystore import Hardware_KeyStore, is_xpubkey, parse_xpubkey, xtype_from_derivation
-from electrum.base_wizard import ScriptTypeNotSupported
+from electrum_dash import constants
+from electrum_dash.i18n import _
+from electrum_dash.plugin import BasePlugin, Device
+from electrum_dash.transaction import deserialize, Transaction
+from electrum_dash.keystore import Hardware_KeyStore, is_xpubkey, parse_xpubkey, xtype_from_derivation
+from electrum_dash.base_wizard import ScriptTypeNotSupported
 
 from ..hw_wallet import HW_PluginBase
 from ..hw_wallet.plugin import is_any_tx_output_on_change_branch
@@ -31,13 +31,7 @@ class SafeTKeyStore(Hardware_KeyStore):
         return self.derivation
 
     def get_script_gen(self):
-        xtype = xtype_from_derivation(self.derivation)
-        if xtype in ('p2wpkh', 'p2wsh'):
-            return SCRIPT_GEN_NATIVE_SEGWIT
-        elif xtype in ('p2wpkh-p2sh', 'p2wsh-p2sh'):
-            return SCRIPT_GEN_P2SH_SEGWIT
-        else:
-            return SCRIPT_GEN_LEGACY
+        return SCRIPT_GEN_LEGACY
 
     def get_client(self, force_pair=True):
         return self.plugin.get_client(self, force_pair)
@@ -62,7 +56,7 @@ class SafeTKeyStore(Hardware_KeyStore):
         for txin in tx.inputs():
             pubkeys, x_pubkeys = tx.get_sorted_pubkeys(txin)
             tx_hash = txin['prevout_hash']
-            if txin.get('prev_tx') is None and not Transaction.is_segwit_input(txin):
+            if txin.get('prev_tx') is None:
                 raise Exception(_('Offline signing with {} is not supported for legacy inputs.').format(self.device))
             prev_tx[tx_hash] = txin['prev_tx']
             for x_pubkey in x_pubkeys:
@@ -87,7 +81,7 @@ class SafeTPlugin(HW_PluginBase):
     minimum_firmware = (1, 0, 5)
     keystore_class = SafeTKeyStore
     minimum_library = (0, 1, 0)
-    SUPPORTED_XTYPES = ('standard', 'p2wpkh-p2sh', 'p2wpkh', 'p2wsh-p2sh', 'p2wsh')
+    SUPPORTED_XTYPES = ('standard', )
 
     MAX_LABEL_LEN = 32
 
@@ -175,7 +169,7 @@ class SafeTPlugin(HW_PluginBase):
         return client
 
     def get_coin_name(self):
-        return "Testnet" if constants.net.TESTNET else "Bitcoin"
+        return "DashTestnet" if constants.net.TESTNET else "Dash"
 
     def initialize_device(self, device_id, wizard, handler):
         # Initialization method
@@ -295,15 +289,10 @@ class SafeTPlugin(HW_PluginBase):
         return xpub
 
     def get_safet_input_script_type(self, script_gen, is_multisig):
-        if script_gen == SCRIPT_GEN_NATIVE_SEGWIT:
-            return self.types.InputScriptType.SPENDWITNESS
-        elif script_gen == SCRIPT_GEN_P2SH_SEGWIT:
-            return self.types.InputScriptType.SPENDP2SHWITNESS
+        if is_multisig:
+            return self.types.InputScriptType.SPENDMULTISIG
         else:
-            if is_multisig:
-                return self.types.InputScriptType.SPENDMULTISIG
-            else:
-                return self.types.InputScriptType.SPENDADDRESS
+            return self.types.InputScriptType.SPENDADDRESS
 
     def sign_transaction(self, keystore, tx, prev_tx, xpub_path):
         self.prev_tx = prev_tx
@@ -416,12 +405,7 @@ class SafeTPlugin(HW_PluginBase):
         def create_output_by_derivation(info):
             index, xpubs, m = info
             if len(xpubs) == 1:
-                if script_gen == SCRIPT_GEN_NATIVE_SEGWIT:
-                    script_type = self.types.OutputScriptType.PAYTOWITNESS
-                elif script_gen == SCRIPT_GEN_P2SH_SEGWIT:
-                    script_type = self.types.OutputScriptType.PAYTOP2SHWITNESS
-                else:
-                    script_type = self.types.OutputScriptType.PAYTOADDRESS
+                script_type = self.types.OutputScriptType.PAYTOADDRESS
                 address_n = self.client_class.expand_path(derivation + "/%d/%d" % index)
                 txoutputtype = self.types.TxOutputType(
                     amount=amount,
@@ -429,12 +413,7 @@ class SafeTPlugin(HW_PluginBase):
                     address_n=address_n,
                 )
             else:
-                if script_gen == SCRIPT_GEN_NATIVE_SEGWIT:
-                    script_type = self.types.OutputScriptType.PAYTOWITNESS
-                elif script_gen == SCRIPT_GEN_P2SH_SEGWIT:
-                    script_type = self.types.OutputScriptType.PAYTOP2SHWITNESS
-                else:
-                    script_type = self.types.OutputScriptType.PAYTOMULTISIG
+                script_type = self.types.OutputScriptType.PAYTOMULTISIG
                 address_n = self.client_class.expand_path("/%d/%d" % index)
                 pubkeys = [self._make_node_path(xpub, address_n) for xpub in xpubs]
                 multisig = self.types.MultisigRedeemScriptType(
