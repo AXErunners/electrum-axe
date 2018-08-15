@@ -2,7 +2,7 @@
 
 # python setup.py sdist --format=zip,gztar
 
-from setuptools import setup
+from setuptools import setup, find_packages
 import os
 import sys
 import platform
@@ -56,27 +56,15 @@ setup(
         'electrum_dash',
         'electrum_dash.gui',
         'electrum_dash.gui.qt',
-        'electrum_dash.plugins',
-        'electrum_dash.plugins.audio_modem',
-        'electrum_dash.plugins.cosigner_pool',
-        'electrum_dash.plugins.email_requests',
-        'electrum_dash.plugins.hw_wallet',
-        'electrum_dash.plugins.keepkey',
-        'electrum_dash.plugins.labels',
-        'electrum_dash.plugins.ledger',
-        'electrum_dash.plugins.revealer',
-        'electrum_dash.plugins.trezor',
-        'electrum_dash.plugins.digitalbitbox',
-        'electrum_dash.plugins.virtualkeyboard',
-    ],
+    ] + [('electrum_dash.plugins.'+pkg) for pkg in find_packages('electrum_dash/plugins')],
     package_dir={
         'electrum_dash': 'electrum_dash'
     },
     package_data={
         '': ['*.txt', '*.json', '*.ttf', '*.otf'],
         'electrum_dash': [
-            'electrum_dash/wordlist/*.txt',
-            'electrum_dash/locale/*/LC_MESSAGES/electrum.mo',
+            'wordlist/*.txt',
+            'locale/*/LC_MESSAGES/electrum.mo',
         ],
     },
     scripts=['electrum_dash/electrum-dash'],
