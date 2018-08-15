@@ -915,6 +915,7 @@ class Network(util.DaemonThread):
             self.connection_down(interface.server)
             return
         height = header.get('block_height')
+        #interface.print_error('got header', height, blockchain.hash_header(header))
         if interface.request != height:
             interface.print_error("unsolicited header",interface.request, height)
             self.connection_down(interface.server)
@@ -970,7 +971,7 @@ class Network(util.DaemonThread):
                     elif branch.parent().check_header(header):
                         interface.print_error('reorg', interface.bad, interface.tip)
                         interface.blockchain = branch.parent()
-                        next_height = None
+                        next_height = interface.bad
                     else:
                         interface.print_error('checkpoint conflicts with existing fork', branch.path())
                         branch.write(b'', 0)
@@ -1128,6 +1129,7 @@ class Network(util.DaemonThread):
         except InvalidHeader:
             self.connection_down(interface.server)
             return
+        #interface.print_error('notified of header', height, blockchain.hash_header(header))
         if height < self.max_checkpoint():
             self.connection_down(interface.server)
             return
