@@ -164,6 +164,7 @@ class Abstract_Wallet(AddressSynchronizer):
 
     def __init__(self, storage):
         AddressSynchronizer.__init__(self, storage)
+
         self.electrum_version = ELECTRUM_VERSION
         # saved fields
         self.use_change            = storage.get('use_change', True)
@@ -176,10 +177,6 @@ class Abstract_Wallet(AddressSynchronizer):
         # Delegate keys for signing Masternode Pings.
         self.masternode_delegates = storage.get('masternode_delegates', {})
 
-        self.load_keystore()
-        self.load_addresses()
-        self.test_addresses_sanity()
-
         # save wallet type the first time
         if self.storage.get('wallet_type') is None:
             self.storage.put('wallet_type', self.wallet_type)
@@ -189,6 +186,12 @@ class Abstract_Wallet(AddressSynchronizer):
         self.contacts = Contacts(self.storage)
 
         self.coin_price_cache = {}
+
+    def load_and_cleanup(self):
+        self.load_keystore()
+        self.load_addresses()
+        self.test_addresses_sanity()
+        super().load_and_cleanup()
 
     def diagnostic_name(self):
         return self.basename()
@@ -265,6 +268,15 @@ class Abstract_Wallet(AddressSynchronizer):
             return Decimal(fiat_value)
         except:
             return
+
+    def is_mine(self, address):
+        if not super().is_mine(address):
+            return False
+        try:
+            self.get_address_index(address)
+        except KeyError:
+            return False
+        return True
 
     def is_change(self, address):
         if not self.is_mine(address):
@@ -1182,9 +1194,9 @@ class Imported_Wallet(Simple_Wallet):
         if address in self.addresses:
             return ''
         self.addresses[address] = {}
-        self.storage.put('addresses', self.addresses)
-        self.storage.write()
         self.add_address(address)
+        self.save_addresses()
+        self.save_transactions(write=True)
         return address
 
     def delete_address(self, address):
@@ -1232,7 +1244,7 @@ class Imported_Wallet(Simple_Wallet):
             else:
                 self.keystore.delete_imported_key(pubkey)
                 self.save_keystore()
-        self.storage.put('addresses', self.addresses)
+        self.save_addresses()
 
         self.storage.write()
 
@@ -1260,9 +1272,9 @@ class Imported_Wallet(Simple_Wallet):
             raise NotImplementedError(txin_type)
         self.addresses[addr] = {'type':txin_type, 'pubkey':pubkey, 'redeem_script':redeem_script}
         self.save_keystore()
-        self.save_addresses()
-        self.storage.write()
         self.add_address(addr)
+        self.save_addresses()
+        self.save_transactions(write=True)
         return addr
 
     def get_redeem_script(self, address):
@@ -1300,6 +1312,13 @@ class Deterministic_Wallet(Abstract_Wallet):
 
     def has_seed(self):
         return self.keystore.has_seed()
+
+    def get_addresses(self):
+        # overloaded so that addresses are ordered based on derivation
+        out = []
+        out += self.get_receiving_addresses()
+        out += self.get_change_addresses()
+        return out
 
     def get_receiving_addresses(self):
         return self.receiving_addresses
