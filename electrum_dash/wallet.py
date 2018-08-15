@@ -315,7 +315,7 @@ class Abstract_Wallet(AddressSynchronizer):
         if tx.is_complete():
             if tx_hash in self.transactions.keys():
                 label = self.get_label(tx_hash)
-                height, conf, timestamp = self.get_tx_height(tx_hash)
+                height, conf, timestamp, header_hash = self.get_tx_height(tx_hash)
                 if height > 0:
                     if conf:
                         status = _("{} confirmations").format(conf)
@@ -764,7 +764,7 @@ class Abstract_Wallet(AddressSynchronizer):
             txid, n = txo.split(':')
             info = self.verified_tx.get(txid)
             if info:
-                tx_height, timestamp, pos = info
+                tx_height, timestamp, pos, header_hash = info
                 conf = local_height - tx_height
             else:
                 conf = 0
@@ -1016,7 +1016,7 @@ class Abstract_Wallet(AddressSynchronizer):
 
     def price_at_timestamp(self, txid, price_func):
         """Returns fiat price of bitcoin at the time tx got confirmed."""
-        height, conf, timestamp = self.get_tx_height(txid)
+        height, conf, timestamp, header_hash = self.get_tx_height(txid)
         return price_func(timestamp if timestamp else time.time())
 
     def unrealized_gains(self, domain, price_func, ccy):
