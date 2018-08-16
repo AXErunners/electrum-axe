@@ -10,6 +10,7 @@ from electrum_dash.simple_config import SimpleConfig
 from electrum_dash.address_synchronizer import TX_HEIGHT_UNCONFIRMED, TX_HEIGHT_UNCONF_PARENT
 from electrum_dash.wallet import sweep, Multisig_Wallet, Standard_Wallet, Imported_Wallet
 from electrum_dash.util import bfh, bh2u
+from electrum_dash.transaction import TxOutput
 
 from . import TestCaseForTestnet
 from . import SequentialTestCase

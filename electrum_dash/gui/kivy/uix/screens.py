@@ -20,6 +20,7 @@ from kivy.utils import platform
 
 from electrum_dash.util import profiler, parse_URI, format_time, InvalidPassword, NotEnoughFunds, Fiat
 from electrum_dash import bitcoin
+from electrum_dash .transaction import TxOutput
 from electrum_dash.util import timestamp_to_datetime
 from electrum_dash.paymentrequest import PR_UNPAID, PR_PAID, PR_UNKNOWN, PR_EXPIRED
 from electrum_dash.plugin import run_hook
@@ -256,7 +257,7 @@ class SendScreen(CScreen):
             except:
                 self.app.show_error(_('Invalid amount') + ':\n' + self.screen.amount)
                 return
-            outputs = [(bitcoin.TYPE_ADDRESS, address, amount)]
+            outputs = [TxOutput(bitcoin.TYPE_ADDRESS, address, amount)]
         message = self.screen.message
         amount = sum(map(lambda x:x[2], outputs))
         self._do_send(amount, message, outputs)

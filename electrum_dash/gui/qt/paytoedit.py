@@ -30,6 +30,7 @@ from decimal import Decimal
 
 from electrum_dash import bitcoin
 from electrum_dash.util import bfh
+from electrum_dash.transaction import TxOutput
 
 from .qrtextedit import ScanQRTextEdit
 from .completion_text_edit import CompletionTextEdit
@@ -79,7 +80,7 @@ class PayToEdit(CompletionTextEdit, ScanQRTextEdit):
         x, y = line.split(',')
         out_type, out = self.parse_output(x)
         amount = self.parse_amount(y)
-        return out_type, out, amount
+        return TxOutput(out_type, out, amount)
 
     def parse_output(self, x):
         try:
@@ -141,16 +142,16 @@ class PayToEdit(CompletionTextEdit, ScanQRTextEdit):
         is_max = False
         for i, line in enumerate(lines):
             try:
-                _type, to_address, amount = self.parse_address_and_amount(line)
+                output = self.parse_address_and_amount(line)
             except:
                 self.errors.append((i, line.strip()))
                 continue
 
-            outputs.append((_type, to_address, amount))
-            if amount == '!':
+            outputs.append(output)
+            if output.value == '!':
                 is_max = True
             else:
-                total += amount
+                total += output.value
 
         self.win.is_max = is_max
         self.outputs = outputs
@@ -176,7 +177,7 @@ class PayToEdit(CompletionTextEdit, ScanQRTextEdit):
                 amount = self.amount_edit.get_amount()
 
             _type, addr = self.payto_address
-            self.outputs = [(_type, addr, amount)]
+            self.outputs = [TxOutput(_type, addr, amount)]
 
         return self.outputs[:]
 

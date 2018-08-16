@@ -50,7 +50,7 @@ from electrum_dash.util import (format_time, format_satoshis, format_fee_satoshi
                                 export_meta, import_meta, bh2u, bfh, InvalidPassword,
                                 base_units, base_units_list, base_unit_name_to_decimal_point,
                                 decimal_point_to_base_unit_name, quantize_feerate)
-from electrum_dash.transaction import Transaction
+from electrum_dash.transaction import Transaction, TxOutput
 from electrum_dash.address_synchronizer import AddTransactionException
 from electrum_dash.wallet import Multisig_Wallet
 from electrum_dash.base_crash_reporter import BaseCrashReporter
@@ -1344,7 +1344,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             outputs = self.payto_e.get_outputs(self.is_max)
             if not outputs:
                 _type, addr = self.get_payto_or_dummy()
-                outputs = [(_type, addr, amount)]
+                outputs = [TxOutput(_type, addr, amount)]
             is_sweep = bool(self.tx_external_keypairs)
             make_tx = lambda fee_est: \
                 self.wallet.make_unsigned_transaction(
@@ -1523,14 +1523,14 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             self.show_error(_('No outputs'))
             return
 
-        for _type, addr, amount in outputs:
-            if addr is None:
+        for o in outputs:
+            if o.address is None:
                 self.show_error(_('Dash Address is None'))
                 return
-            if _type == TYPE_ADDRESS and not bitcoin.is_address(addr):
+            if o.type == TYPE_ADDRESS and not bitcoin.is_address(o.address):
                 self.show_error(_('Invalid Dash Address'))
                 return
-            if amount is None:
+            if o.value is None:
                 self.show_error(_('Invalid Amount'))
                 return
 

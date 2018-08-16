@@ -43,6 +43,7 @@ from .util import print_error, bh2u, bfh
 from .util import export_meta, import_meta
 
 from .bitcoin import TYPE_ADDRESS
+from .transaction import TxOutput
 
 REQUEST_HEADERS = {'Accept': 'application/dash-paymentrequest', 'User-Agent': 'Electrum-DASH'}
 ACK_HEADERS = {'Content-Type':'application/dash-payment','Accept':'application/dash-paymentack','User-Agent':'Electrum-DASH'}
@@ -124,7 +125,7 @@ class PaymentRequest:
         self.outputs = []
         for o in self.details.outputs:
             addr = transaction.get_address_from_output_script(o.script)[1]
-            self.outputs.append((TYPE_ADDRESS, addr, o.amount))
+            self.outputs.append(TxOutput(TYPE_ADDRESS, addr, o.amount))
         self.memo = self.details.memo
         self.payment_url = self.details.payment_url
 
@@ -226,8 +227,8 @@ class PaymentRequest:
 
     def get_address(self):
         o = self.outputs[0]
-        assert o[0] == TYPE_ADDRESS
-        return o[1]
+        assert o.type == TYPE_ADDRESS
+        return o.address
 
     def get_requestor(self):
         return self.requestor if self.requestor else self.get_address()

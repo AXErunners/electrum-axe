@@ -377,7 +377,7 @@ class KeepKeyPlugin(HW_PluginBase):
             txoutputtype.amount = amount
             if _type == TYPE_SCRIPT:
                 txoutputtype.script_type = self.types.PAYTOOPRETURN
-                txoutputtype.op_return_data = trezor_validate_op_return_output_and_get_data(_type, address, amount)
+                txoutputtype.op_return_data = trezor_validate_op_return_output_and_get_data(o)
             elif _type == TYPE_ADDRESS:
                 addrtype, hash_160 = b58_address_to_hash160(address)
                 if addrtype == constants.net.ADDRTYPE_P2PKH:
@@ -393,7 +393,8 @@ class KeepKeyPlugin(HW_PluginBase):
         has_change = False
         any_output_on_change_branch = is_any_tx_output_on_change_branch(tx)
 
-        for _type, address, amount in tx.outputs():
+        for o in tx.outputs():
+            _type, address, amount = o.type, o.address, o.value
             use_create_by_derivation = False
 
             info = tx.output_info.get(address)
