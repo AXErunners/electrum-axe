@@ -3,7 +3,7 @@ include README.rst
 include electrum-dash.conf.sample
 include electrum-dash.desktop
 include *.py
-include run_electrum_dash
+include electrum-dash
 include contrib/requirements/requirements.txt
 include contrib/requirements/requirements-hw.txt
 recursive-include packages *.py

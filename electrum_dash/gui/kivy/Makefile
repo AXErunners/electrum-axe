@@ -10,7 +10,7 @@ prepare:
 	# running pre build setup
 	@cp tools/buildozer.spec ../../../buildozer.spec
 	# copy electrum-dash to main.py
-	@cp ../../../run_electrum_dash ../../../main.py
+	@cp ../../../electrum-dash ../../../main.py
 	@-if [ ! -d "../../.buildozer" ];then \
 		cd ../../..; buildozer android debug;\
 		cp -f electrum_dash/gui/kivy/tools/blacklist.txt .buildozer/android/platform/python-for-android/src/blacklist.txt;\

@@ -36,7 +36,7 @@ To install x11-hash dependency in the 'packages' dir run once::
 
 To run Electrum-DASH from its root directory, just do::
 
-    ./run_electrum_dash
+    ./electrum-dash
 
 You can also install Electrum-DASH on your system, by running this command::
 
