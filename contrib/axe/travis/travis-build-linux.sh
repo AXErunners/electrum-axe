@@ -6,7 +6,7 @@ if [[ -z $TRAVIS_TAG ]]; then
   exit 1
 fi
 
-BUILD_REPO_URL=https://github.com/AXErunners/electrum-axe.git
+BUILD_REPO_URL=https://github.com/axerunners/electrum-axe.git
 
 cd build
 
@@ -22,11 +22,17 @@ sudo find . -name '*.pot' -delete
 
 export WINEARCH=win32
 export WINEPREFIX=/root/.wine-32
-export PYHOME=$WINEPREFIX/drive_c/Python34
+export PYHOME=$WINEPREFIX/drive_c/Python35
 
 wget https://github.com/zebra-lucky/zbarw/releases/download/20180620/zbarw-zbarcam-0.10-win32.zip
 unzip zbarw-zbarcam-0.10-win32.zip && rm zbarw-zbarcam-0.10-win32.zip
 
+wget https://github.com/zebra-lucky/x11_hash/releases/download/1.4.1/x11_hash-1.4.1-win32.zip
+unzip x11_hash-1.4.1-win32.zip && rm x11_hash-1.4.1-win32.zip
+
+wget https://github.com/zebra-lucky/secp256k1/releases/download/0.1/libsecp256k1-0.1-win32.zip
+unzip libsecp256k1-0.1-win32.zip && rm libsecp256k1-0.1-win32.zip
+
 docker run --rm \
     -e WINEARCH=$WINEARCH \
     -e WINEPREFIX=$WINEPREFIX \
@@ -34,15 +40,21 @@ docker run --rm \
     -v $(pwd):/opt \
     -v $(pwd)/electrum-axe/:$WINEPREFIX/drive_c/electrum-axe \
     -w /opt/electrum-axe \
-    -t axerunners/electrum-axe-winebuild:Wine /opt/build_wine.sh
+    -t axerunners/electrum-axe-winebuild:WinePy35 /opt/build_wine.sh
 
 export WINEARCH=win64
 export WINEPREFIX=/root/.wine-64
-export PYHOME=$WINEPREFIX/drive_c/Python34
+export PYHOME=$WINEPREFIX/drive_c/Python35
 
 wget https://github.com/zebra-lucky/zbarw/releases/download/20180620/zbarw-zbarcam-0.10-win64.zip
 unzip zbarw-zbarcam-0.10-win64.zip && rm zbarw-zbarcam-0.10-win64.zip
 
+wget https://github.com/zebra-lucky/x11_hash/releases/download/1.4.1/x11_hash-1.4.1-win64.zip
+unzip x11_hash-1.4.1-win64.zip && rm x11_hash-1.4.1-win64.zip
+
+wget https://github.com/zebra-lucky/secp256k1/releases/download/0.1/libsecp256k1-0.1-win64.zip
+unzip libsecp256k1-0.1-win64.zip && rm libsecp256k1-0.1-win64.zip
+
 docker run --rm \
     -e WINEARCH=$WINEARCH \
     -e WINEPREFIX=$WINEPREFIX \
@@ -50,4 +62,4 @@ docker run --rm \
     -v $(pwd):/opt \
     -v $(pwd)/electrum-axe/:$WINEPREFIX/drive_c/electrum-axe \
     -w /opt/electrum-axe \
-    -t axerunners/electrum-axe-winebuild:Wine /opt/build_wine.sh
+    -t axerunners/electrum-axe-winebuild:WinePy35 /opt/build_wine.sh

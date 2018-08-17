@@ -4,6 +4,7 @@ import threading
 from decimal import Decimal
 
 from . import bitcoin
+from . import ecc
 from .blockchain import hash_header
 from .masternode import MasternodeAnnounce, NetworkAddress
 from .masternode_budget import BudgetProposal, BudgetVote
@@ -319,7 +320,8 @@ class MasternodeManager(object):
             pubkey = self.wallet.import_masternode_delegate(sec)
         except AlreadyHaveAddress:
             txin_type, key, is_compressed = bitcoin.deserialize_privkey(sec)
-            pubkey = bitcoin.public_key_from_private_key(key, is_compressed)
+            pubkey = ecc.ECPrivkey(key)\
+                .get_public_key_hex(compressed=is_compressed)
         return pubkey
 
     def import_masternode_conf_lines(self, conf_lines, password):
@@ -344,7 +346,7 @@ class MasternodeManager(object):
             addr = conf_line.addr.split(':')
             addr = NetworkAddress(ip=addr[0], port=int(addr[1]))
             vin = {'prevout_hash': conf_line.txid, 'prevout_n': conf_line.output_index}
-            mn = MasternodeAnnounce(alias=conf_line.alias, vin=vin,  
+            mn = MasternodeAnnounce(alias=conf_line.alias, vin=vin,
                     delegate_key = public_key, addr=addr)
             self.add_masternode(mn)
             try:
@@ -538,6 +540,9 @@ class MasternodeManager(object):
                 break
 
         if not mn:
+            return
+
+        if not 'result' in response:
             return
 
         status = response['result']

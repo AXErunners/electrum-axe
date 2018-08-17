@@ -9,6 +9,7 @@ import base64
 
 import electrum_axe
 from electrum_axe.plugins import BasePlugin, hook
+from electrum_axe.crypto import aes_encrypt_with_iv, aes_decrypt_with_iv
 from electrum_axe.i18n import _
 
 
@@ -21,14 +22,14 @@ class LabelsPlugin(BasePlugin):
 
     def encode(self, wallet, msg):
         password, iv, wallet_id = self.wallets[wallet]
-        encrypted = electrum_axe.bitcoin.aes_encrypt_with_iv(password, iv,
+        encrypted = aes_encrypt_with_iv(password, iv,
                                                          msg.encode('utf8'))
         return base64.b64encode(encrypted).decode()
 
     def decode(self, wallet, message):
         password, iv, wallet_id = self.wallets[wallet]
         decoded = base64.b64decode(message)
-        decrypted = electrum_axe.bitcoin.aes_decrypt_with_iv(password, iv, decoded)
+        decrypted = aes_decrypt_with_iv(password, iv, decoded)
         return decrypted.decode('utf8')
 
     def get_nonce(self, wallet):

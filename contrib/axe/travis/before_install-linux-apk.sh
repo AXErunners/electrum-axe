@@ -7,4 +7,4 @@ if [[ -z $TRAVIS_TAG ]]; then
 fi
 
 docker pull axerunners/electrum-axe-winebuild:Linux
-docker pull axerunners/electrum-axe-winebuild:Kivy
+docker pull axerunners/electrum-axe-winebuild:KivyPy36

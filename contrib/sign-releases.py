@@ -1,20 +1,29 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Sign releases on github, make/upload ppa to launchpad.net
+
 NOTE on ppa: To build a ppa you may need to install some more packages.
 On ubuntu:
+
      sudo apt-get install devscripts libssl-dev python3-dev \
           debhelper python3-setuptools dh-python
+
 NOTE on apk signing: To create a keystore and sign the apk you need to install
       java-8-openjdk, or java-7-openjdk on older systems.
+
 To create a keystore run the following command:
+
     mkdir ~/.jks && keytool -genkey -v -keystore ~/.jks/keystore \
         -alias axerunners.com -keyalg RSA -keysize 2048 \
         -validity 10000
+
 Then it shows a warning about the proprietary format and a command to migrate:
+
     keytool -importkeystore -srckeystore ~/.jks/keystore \
             -destkeystore ~/.jks/keystore -deststoretype pkcs12
+
 Manual signing:
+
     jarsigner -verbose \
         -tsa http://sha256timestamp.ws.symantec.com/sha256/timestamp \
         -sigalg SHA1withRSA -digestalg SHA1 \
@@ -22,8 +31,10 @@ Manual signing:
         -keystore ~/.jks/keystore \
         Electrum_AXE-3.0.6.1-release-unsigned.apk \
         axerunners.com
+
 Zipalign from Android SDK build tools is also required (set path to bin in
 settings file or with key -z). To install:
+
     wget http://dl.google.com/android/android-sdk_r24-linux.tgz \
     && tar xzf android-sdk_r24-linux.tgz \
     && rm android-sdk_r24-linux.tgz \
@@ -33,28 +44,41 @@ settings file or with key -z). To install:
     && (while sleep 3; do echo "y"; done) \
         | android-sdk-linux/tools/android update sdk -u -a -t \
             'tools, platform-tools, build-tools-27.0.3'
+
 Manual zip aligning:
+
     android-sdk-linux/build-tools/27.0.3/zipalign -v 4 \
         Electrum_AXE-3.0.6.1-release-unsigned.apk \
         Electrum_AXE-3.0.6.1-release.apk
+
+
+
 About script settings:
+
 Settings is read from options, then config file is read.
 If setting is already set from options, then it value does
 not changes.
+
 Config file can have one repo form or multiple repo form.
+
 In one repo form config settings read from root JSON object.
 Keys are "repo", "keyid", "token", "count", "sign_drafts",
 and others, which is corresponding to program options.
+
 Example:
+
     {
         "repo": "value"
         ...
     }
+
 In multiple repo form, if root "default_repo" key is set, then code
 try to read "repos" key as list and cycle through it to find suitable
 repo, or if no repo is set before, then "default_repo" is used to match.
 If match found, then that list object is used ad one repo form config.
+
 Example:
+
     {
         "default_repo": "value"
         "repos": [
@@ -111,7 +135,6 @@ SHA_FNAME = 'SHA256SUMS.txt'
 PPA_SERIES = {
     'trusty': '14.04.1',
     'xenial': '16.04.1',
-    'artful': '17.10.1',
     'bionic': '18.04.1',
 }
 PEP440_PUBVER_PATTERN = re.compile('^((\d+)!)?'
@@ -268,6 +291,7 @@ class SignApp(object):
         self.tag_name = kwargs.pop('tag_name', None)
         self.repo = kwargs.pop('repo', None)
         self.ppa = kwargs.pop('ppa', None)
+        self.ppa_upstream_suffix = kwargs.pop('ppa_upstream_suffix', None)
         self.token = kwargs.pop('token', None)
         self.keyid = kwargs.pop('keyid', None)
         self.count = kwargs.pop('count', None)
@@ -514,6 +538,9 @@ class SignApp(object):
             sdist_name = sdist_match.group(0)
             version = sdist_match.group(1)
             ppa_upstr_version = pep440_to_deb(version)
+            ppa_upstream_suffix = self.ppa_upstream_suffix
+            if ppa_upstream_suffix:
+                ppa_upstr_version += ('+%s' % ppa_upstream_suffix)
             ppa_orig_name = PPA_ORIG_NAME_TEMPLATE.format(
                 version=ppa_upstr_version)
             series = list(map(lambda x: x[0],
@@ -668,6 +695,8 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               help='jks keystore path')
 @click.option('-l', '--ppa',
               help='PPA in format uzername/ppa')
+@click.option('-S', '--ppa-upstream-suffix',
+              help='upload upstream source with version suffix (ex p1)')
 @click.option('-L', '--no-ppa', is_flag=True,
               help='Do not make launchpad ppa')
 @click.option('-n', '--dry-run', is_flag=True,

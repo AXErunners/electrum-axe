@@ -50,7 +50,7 @@ class Plugins(DaemonThread):
             find = imp.find_module('plugins')
             plugins = imp.load_module('electrum_axe_plugins', *find)
         else:
-            plugins = __import__('electrum_axe_plugins')
+            import electrum_axe_plugins as plugins
         self.pkgpath = os.path.dirname(plugins.__file__)
         self.config = config
         self.hw_wallets = {}
@@ -273,25 +273,31 @@ DeviceInfo = namedtuple("DeviceInfo", "device label initialized")
 class DeviceMgr(ThreadJob, PrintError):
     '''Manages hardware clients.  A client communicates over a hardware
     channel with the device.
+
     In addition to tracking device HID IDs, the device manager tracks
     hardware wallets and manages wallet pairing.  A HID ID may be
     paired with a wallet when it is confirmed that the hardware device
     matches the wallet, i.e. they have the same master public key.  A
     HID ID can be unpaired if e.g. it is wiped.
+
     Because of hotplugging, a wallet must request its client
     dynamically each time it is required, rather than caching it
     itself.
+
     The device manager is shared across plugins, so just one place
     does hardware scans when needed.  By tracking HID IDs, if a device
     is plugged into a different port the wallet is automatically
     re-paired.
+
     Wallets are informed on connect / disconnect events.  It must
     implement connected(), disconnected() callbacks.  Being connected
     implies a pairing.  Callbacks can happen in any thread context,
     and we do them without holding the lock.
+
     Confusingly, the HID ID (serial number) reported by the HID system
     doesn't match the device ID reported by the device itself.  We use
     the HID IDs.
+
     This plugin is thread-safe.  Currently only devices supported by
     hidapi are implemented.'''
 
@@ -447,7 +453,7 @@ class DeviceMgr(ThreadJob, PrintError):
         # or it is not pairable
         raise DeviceUnpairableError(
             _('Electrum-AXE cannot pair with your {}.\n\n'
-              'Before you request Axe coins to be sent to addresses in this '
+              'Before you request AXE coins to be sent to addresses in this '
               'wallet, ensure you can pair with your device, or that you have '
               'its seed (and passphrase, if any).  Otherwise all coins you '
               'receive will be unspendable.').format(plugin.device))

@@ -40,13 +40,19 @@ if platform.system() in ['Linux', 'FreeBSD', 'DragonFly']:
         (os.path.join(usr_share, icons_dirname), ['icons/electrum-axe.png'])
     ]
 
+extras_require = {
+    'hardware': requirements_hw,
+    'fast': ['pycryptodomex'],
+    ':python_version < "3.5"': ['typing>=3.0.0'],
+}
+extras_require['full'] = extras_require['hardware'] + extras_require['fast']
+
+
 setup(
     name="Electrum-AXE",
     version=version.ELECTRUM_VERSION,
     install_requires=requirements,
-    extras_require={
-        'full': requirements_hw + ['pycryptodomex'],
-    },
+    extras_require=extras_require,
     packages=[
         'electrum_axe',
         'electrum_axe_gui',
@@ -59,6 +65,7 @@ setup(
         'electrum_axe_plugins.keepkey',
         'electrum_axe_plugins.labels',
         'electrum_axe_plugins.ledger',
+        'electrum_axe_plugins.revealer',
         'electrum_axe_plugins.trezor',
         'electrum_axe_plugins.digitalbitbox',
         'electrum_axe_plugins.virtualkeyboard',
@@ -69,16 +76,11 @@ setup(
         'electrum_axe_plugins': 'plugins',
     },
     package_data={
+        '': ['*.txt', '*.json', '*.ttf', '*.otf'],
         'electrum_axe': [
-            'servers.json',
-            'servers_testnet.json',
-            'servers_regtest.json',
-            'currencies.json',
-            'www/index.html',
-            'checkpoints.json',
             'wordlist/*.txt',
             'locale/*/LC_MESSAGES/electrum.mo',
-        ]
+        ],
     },
     scripts=['electrum-axe'],
     data_files=data_files,

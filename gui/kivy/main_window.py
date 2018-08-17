@@ -36,8 +36,9 @@ from kivy.lang import Builder
 #Factory.register('OutputItem', module='electrum_axe_gui.kivy.uix.dialogs')
 
 from .uix.dialogs.installwizard import InstallWizard
-from .uix.dialogs import InfoBubble
+from .uix.dialogs import InfoBubble, crash_reporter
 from .uix.dialogs import OutputList, OutputItem
+from .uix.dialogs import TopLabel, RefLabel
 
 #from kivy.core.window import Window
 #Window.softinput_mode = 'below_target'
@@ -67,7 +68,7 @@ Label.register('Roboto',
                'gui/kivy/data/fonts/Roboto-Bold.ttf')
 
 
-from electrum_axe.util import base_units
+from electrum_axe.util import base_units, NoDynamicFeeEstimates
 
 
 class ElectrumWindow(App):
@@ -112,12 +113,12 @@ class ElectrumWindow(App):
         chains = self.network.get_blockchains()
         def cb(name):
             for index, b in self.network.blockchains.items():
-                if name == self.network.get_blockchain_name(b):
+                if name == b.get_name():
                     self.network.follow_chain(index)
-                    #self.block
         names = [self.network.blockchains[b].get_name() for b in chains]
-        if len(names) >1:
-            ChoiceDialog(_('Choose your chain'), names, '', cb).open()
+        if len(names) > 1:
+            cur_chain = self.network.blockchain().get_name()
+            ChoiceDialog(_('Choose your chain'), names, cur_chain, cb).open()
 
     use_change = BooleanProperty(False)
     def on_use_change(self, instance, x):
@@ -214,6 +215,7 @@ class ElectrumWindow(App):
                                 bind=('_orientation',))
     '''Tries to ascertain the kind of device the app is running on.
     Cane be one of `tablet` or `phone`.
+
     :data:`orientation` is a read only `AliasProperty` Defaults to 'landscape'
     '''
 
@@ -227,6 +229,7 @@ class ElectrumWindow(App):
                             bind=('_ui_mode',))
     '''Defines tries to ascertain the kind of device the app is running on.
     Cane be one of `tablet` or `phone`.
+
     :data:`ui_mode` is a read only `AliasProperty` Defaults to 'phone'
     '''
 
@@ -442,6 +445,7 @@ class ElectrumWindow(App):
         #win.softinput_mode = 'below_target'
         self.on_size(win, win.size)
         self.init_ui()
+        crash_reporter.ExceptionHook(self)
         # init plugins
         run_hook('init_kivy', self)
         # fiat currency
@@ -477,13 +481,17 @@ class ElectrumWindow(App):
         else:
             return ''
 
-    def on_wizard_complete(self, instance, wallet):
-        if wallet:
+    def on_wizard_complete(self, wizard, wallet):
+        if wallet:  # wizard returned a wallet
             wallet.start_threads(self.daemon.network)
             self.daemon.add_wallet(wallet)
             self.load_wallet(wallet)
+        elif not self.wallet:
+            # wizard did not return a wallet; and there is no wallet open atm
+            # try to open last saved wallet (potentially start wizard again)
+            self.load_wallet_by_name(self.electrum_config.get_wallet_path(), ask_if_wizard=True)
 
-    def load_wallet_by_name(self, path):
+    def load_wallet_by_name(self, path, ask_if_wizard=False):
         if not path:
             return
         if self.wallet and self.wallet.storage.path == path:
@@ -495,15 +503,33 @@ class ElectrumWindow(App):
             else:
                 self.load_wallet(wallet)
         else:
-            Logger.debug('Electrum-AXE: Wallet not found. Launching install wizard')
-            storage = WalletStorage(path)
-            wizard = Factory.InstallWizard(self.electrum_config, storage)
-            wizard.bind(on_wizard_complete=self.on_wizard_complete)
-            action = wizard.storage.get_action()
-            wizard.run(action)
+            Logger.debug('Electrum-AXE: Wallet not found or action needed. Launching install wizard')
+
+            def launch_wizard():
+                storage = WalletStorage(path, manual_upgrades=True)
+                wizard = Factory.InstallWizard(self.electrum_config, self.plugins, storage)
+                wizard.bind(on_wizard_complete=self.on_wizard_complete)
+                action = wizard.storage.get_action()
+                wizard.run(action)
+            if not ask_if_wizard:
+                launch_wizard()
+            else:
+                from .uix.dialogs.question import Question
+
+                def handle_answer(b: bool):
+                    if b:
+                        launch_wizard()
+                    else:
+                        try: os.unlink(path)
+                        except FileNotFoundError: pass
+                        self.stop()
+                d = Question(_('Do you want to launch the wizard again?'), handle_answer)
+                d.open()
 
     def on_stop(self):
         Logger.info('on_stop')
+        if self.wallet:
+            self.electrum_config.save_last_wallet(self.wallet)
         self.stop_wallet()
 
     def stop_wallet(self):
@@ -554,6 +580,16 @@ class ElectrumWindow(App):
             from .uix.dialogs.wallets import WalletDialog
             d = WalletDialog()
             d.open()
+        elif name == 'status':
+            popup = Builder.load_file('gui/kivy/uix/ui_screens/'+name+'.kv')
+            master_public_keys_layout = popup.ids.master_public_keys
+            for xpub in self.wallet.get_master_public_keys()[1:]:
+                master_public_keys_layout.add_widget(TopLabel(text=_('Master Public Key')))
+                ref = RefLabel()
+                ref.name = _('Master Public Key')
+                ref.data = xpub
+                master_public_keys_layout.add_widget(ref)
+            popup.open()
         else:
             popup = Builder.load_file('gui/kivy/uix/ui_screens/'+name+'.kv')
             popup.open()
@@ -598,8 +634,9 @@ class ElectrumWindow(App):
         chain = self.network.blockchain()
         self.blockchain_checkpoint = chain.get_checkpoint()
         self.blockchain_name = chain.get_name()
-        if self.network.interface:
-            self.server_host = self.network.interface.host
+        interface = self.network.interface
+        if interface:
+            self.server_host = interface.host
 
     def on_network_event(self, event, *args):
         Logger.info('network event: '+ event)
@@ -654,17 +691,25 @@ class ElectrumWindow(App):
         self.fiat_balance = self.fx.format_amount(c+u+x) + ' [size=22dp]%s[/size]'% self.fx.ccy
 
     def get_max_amount(self):
+        if run_hook('abort_send', self):
+            return ''
         inputs = self.wallet.get_spendable_coins(None, self.electrum_config)
         if not inputs:
             return ''
         addr = str(self.send_screen.screen.address) or self.wallet.dummy_address()
         outputs = [(TYPE_ADDRESS, addr, '!')]
-        tx = self.wallet.make_unsigned_transaction(inputs, outputs, self.electrum_config)
+        try:
+            tx = self.wallet.make_unsigned_transaction(inputs, outputs, self.electrum_config)
+        except NoDynamicFeeEstimates as e:
+            Clock.schedule_once(lambda dt, bound_e=e: self.show_error(str(bound_e)))
+            return ''
         amount = tx.output_value()
-        return format_satoshis_plain(amount, self.decimal_point())
+        __, x_fee_amount = run_hook('get_tx_extra_fee', self.wallet, tx) or (None, 0)
+        amount_after_all_fees = amount - x_fee_amount
+        return format_satoshis_plain(amount_after_all_fees, self.decimal_point())
 
     def format_amount(self, x, is_diff=False, whitespaces=False):
-        return format_satoshis(x, is_diff, 0, self.decimal_point(), whitespaces)
+        return format_satoshis(x, 0, self.decimal_point(), is_diff=is_diff, whitespaces=whitespaces)
 
     def format_amount_and_units(self, x):
         return format_satoshis_plain(x, self.decimal_point()) + ' ' + self.base_unit
@@ -696,7 +741,7 @@ class ElectrumWindow(App):
 
     def on_resume(self):
         now = time.time()
-        if self.wallet.has_password and now - self.pause_time > 60:
+        if self.wallet and self.wallet.has_password() and now - self.pause_time > 60:
             self.password_dialog(self.wallet, _('Enter PIN'), None, self.stop)
         if self.nfcscanner:
             self.nfcscanner.nfc_enable()
@@ -738,6 +783,7 @@ class ElectrumWindow(App):
     def show_info_bubble(self, text=_('Hello World'), pos=None, duration=0,
         arrow_pos='bottom_mid', width=None, icon='', modal=False, exit=False):
         '''Method to show an Information Bubble
+
         .. parameters::
             text: Message to be displayed
             pos: position for the bubble
@@ -798,10 +844,11 @@ class ElectrumWindow(App):
         except InvalidPassword:
             Clock.schedule_once(lambda dt: on_failure(_("Invalid PIN")))
             return
+        on_success = run_hook('tc_sign_wrapper', self.wallet, tx, on_success, on_failure) or on_success
         Clock.schedule_once(lambda dt: on_success(tx))
 
     def _broadcast_thread(self, tx, on_complete):
-        ok, txid = self.network.broadcast(tx)
+        ok, txid = self.network.broadcast_transaction(tx)
         Clock.schedule_once(lambda dt: on_complete(ok, txid))
 
     def broadcast(self, tx, pr=None):
@@ -910,10 +957,8 @@ class ElectrumWindow(App):
                 return
         self.stop_wallet()
         os.unlink(wallet_path)
-        self.show_error("Wallet removed:" + basename)
-        d = os.listdir(dirname)
-        name = 'default_wallet'
-        new_path = os.path.join(dirname, name)
+        self.show_error(_("Wallet removed: {}").format(basename))
+        new_path = self.electrum_config.get_wallet_path()
         self.load_wallet_by_name(new_path)
 
     def show_seed(self, label):
