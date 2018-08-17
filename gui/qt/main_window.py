@@ -2846,7 +2846,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             self.config.set_key('qt_gui_color_theme', colortheme_combo.itemData(x), True)
             self.need_restart = True
         colortheme_combo.currentIndexChanged.connect(on_colortheme)
-        #gui_widgets.append((colortheme_label, colortheme_combo))
+        gui_widgets.append((colortheme_label, colortheme_combo))
 
         usechange_cb = QCheckBox(_('Use change addresses'))
         usechange_cb.setChecked(self.wallet.use_change)
