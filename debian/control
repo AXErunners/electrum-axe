@@ -26,6 +26,8 @@ Package: python3-electrum-axe
 Architecture: all
 Section: python
 Depends:
+ libsecp256k1-0,
+ python3-pycryptodome,
  trezor (>= 0.10.1),
  python3-trezor (>= 0.10.1),
  keepkey (>= 4.0.2),
@@ -48,7 +50,7 @@ Depends:
  ${misc:Depends},
  ${python3:Depends},
  python3-electrum-axe (= ${binary:Version}),
-Recommends: python3-pyqt5, libsecp256k1
+Recommends: python3-pyqt5
 Description: Easy to use AXE client
  This package provides a lightweight AXE client which protects
  you from losing your AXE coins in a backup mistake or computer
