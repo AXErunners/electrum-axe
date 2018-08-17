@@ -1,7 +1,10 @@
 # Release 3.2.2
 
+ * Fix vcrun2015 in win64 builds
  * Fix DNS resolution on Windows
  * Fix websocket bug in daemon
+ * PPA built with libsecp256k1-0, python3-pycryptodome dependencies
+ * Added dark theme
 
 
 # Release 3.2.1
