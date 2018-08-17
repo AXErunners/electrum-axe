@@ -11,7 +11,7 @@ from electrum_dash.bitcoin import (
     deserialize_privkey, serialize_privkey,
     is_b58_address, address_to_scripthash, is_minikey, is_compressed, is_xpub,
     xpub_type, is_xprv, is_bip32_derivation, seed_type, EncodeBase58Check,
-    script_num_to_hex, push_script, add_number_to_script, int_to_hex, convert_bip32_path_to_list_of_uint32
+    script_num_to_hex, push_script, add_number_to_script, int_to_hex, convert_bip32_path_to_list_of_uint32,
     deserialize_xprv, deserialize_xpub, deserialize_drkv, deserialize_drkp)
 from electrum_dash import ecc, crypto, constants
 from electrum_dash.ecc import number_to_string, string_to_number
