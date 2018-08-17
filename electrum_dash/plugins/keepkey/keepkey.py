@@ -346,8 +346,7 @@ class KeepKeyPlugin(HW_PluginBase):
 
     def tx_outputs(self, derivation, tx):
 
-        def create_output_by_derivation(info):
-            index, xpubs, m = info
+        def create_output_by_derivation():
             if len(xpubs) == 1:
                 script_type = self.types.PAYTOADDRESS
                 address_n = self.client_class.expand_path(derivation + "/%d/%d" % index)
@@ -399,7 +398,7 @@ class KeepKeyPlugin(HW_PluginBase):
 
             info = tx.output_info.get(address)
             if info is not None and not has_change:
-                index, xpubs, m = info
+                index, xpubs, m = info.address_index, info.sorted_xpubs, info.num_sig
                 on_change_branch = index[0] == 1
                 # prioritise hiding outputs on the 'change' branch from user
                 # because no more than one change address allowed
@@ -408,7 +407,7 @@ class KeepKeyPlugin(HW_PluginBase):
                     has_change = True
 
             if use_create_by_derivation:
-                txoutputtype = create_output_by_derivation(info)
+                txoutputtype = create_output_by_derivation()
             else:
                 txoutputtype = create_output_by_address()
             outputs.append(txoutputtype)
