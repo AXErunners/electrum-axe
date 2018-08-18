@@ -5,31 +5,14 @@ import sys
 import pkgutil
 
 
-_old_find_module = imp.find_module
-def _new_find_module(name, *args, **kwargs):
-    if name in ['lib', 'gui', 'plugins']:
-        return (None, name, ('', '', 5))
-    else:
-        return _old_find_module(name, *args, **kwargs)
-imp.find_module = _new_find_module
-
-
-_old_load_module = imp.load_module
-def _new_load_module(name, file, pathname, description):
-    if pathname in ['lib', 'gui', 'plugins']:
-        return __import__(name)
-    else:
-        return _old_load_module(name, file, pathname, description)
-imp.load_module = _new_load_module
-
-
-PLUGINS_PREFIX = 'electrum_dash_plugins'
+PLUGINS_PREFIX = 'electrum_dash.plugins'
 
 KEYSTORE_PLUGINS = [
     'hw_wallet',
     'digitalbitbox',
     'keepkey',
     'ledger',
+    'safe_t',
     'trezor',
 ]
 
@@ -38,6 +21,7 @@ OTHER_PLUGINS= [
     'cosigner_pool',
     'email_requests',
     'labels',
+    'revealer',
     'virtualkeyboard',
 ]
 
