@@ -1,6 +1,7 @@
 Electrum-AXE
 ============
-
+.. image:: icons/electrum-axe.png
+    :alt: Electrum-AXE logo
 .. image:: https://travis-ci.org/AXErunners/electrum-axe.svg?branch=master
     :target: https://travis-ci.org/AXErunners/electrum-axe
     :alt: Build Status
