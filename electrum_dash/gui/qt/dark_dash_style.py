@@ -371,8 +371,8 @@ QPushButton:pressed {
 
 QPushButton:disabled
 {
-    color: #D3E8FE;
-    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #A5CFFA, stop: 1 #72B2F8);
+    color: #ccc;
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #A1A1A1, stop: 1 #898989);
 }
 
 QStatusBar {
