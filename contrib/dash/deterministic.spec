@@ -60,7 +60,7 @@ datas += collect_data_files('btchip')
 datas += collect_data_files('keepkeylib')
 
 # Add libusb so Trezor and Safe-T mini will work
-binaries = [('C:/Python35/libusb-1.0.dll', '.')]
+binaries = [('C:/Python36/libusb-1.0.dll', '.')]
 binaries += [('C:/x11_hash/libx11hash-0.dll', '.')]
 binaries += [('C:/libsecp256k1/libsecp256k1.dll', '.')]
 
@@ -145,7 +145,7 @@ conexe = EXE(pyz,
                             'console-%s' % cmdline_name))
 
 # trezorctl separate executable
-tctl_a = Analysis(['C:/Python35/Scripts/trezorctl'],
+tctl_a = Analysis(['C:/Python36/Scripts/trezorctl'],
                   hiddenimports=[
                     'pkgutil',
                     'win32api',
