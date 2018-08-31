@@ -1037,7 +1037,6 @@ class Network(util.DaemonThread):
         else:
             raise Exception(interface.mode)
         # If not finished, get the next header
-        interface.request = None
         if next_height is not None:
             if next_height < 0:
                 self.connection_down(interface.server)
@@ -1048,6 +1047,7 @@ class Network(util.DaemonThread):
                 self.request_header(interface, next_height)
         if next_height is None:
             interface.mode = 'default'
+            interface.request = None
             self.notify('updated')
 
         # refresh network dialog
