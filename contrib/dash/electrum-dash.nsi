@@ -80,6 +80,7 @@
 ;Pages
 
   !insertmacro MUI_PAGE_DIRECTORY
+  !insertmacro MUI_PAGE_COMPONENTS
   !insertmacro MUI_PAGE_INSTFILES
   !insertmacro MUI_UNPAGE_CONFIRM
   !insertmacro MUI_UNPAGE_INSTFILES
@@ -113,7 +114,7 @@ Function .onInit
     ${EndIf}
 FunctionEnd
 
-Section
+Section "Electrum-DASH" SectionED
   SetOutPath $INSTDIR
 
   ;Uninstall previous version files
@@ -164,8 +165,22 @@ Section
   WriteRegDWORD HKCU "${PRODUCT_UNINST_KEY}" "EstimatedSize" "$0"
 SectionEnd
 
+Section "Tor Proxy" SectionTor
+  GetTempFileName $0
+  File /oname=$0 "dist\tor-proxy-setup.exe"
+  ExecWait "$0"
+  Delete "$0"
+SectionEnd
+
 ;--------------------------------
 ;Descriptions
+LangString DESC_ED ${LANG_ENGLISH} "Electrum-DASH Wallet"
+LangString DESC_TOR ${LANG_ENGLISH} "The Tor Project Socks Proxy"
+
+!insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
+!insertmacro MUI_DESCRIPTION_TEXT ${SectionED} $(DESC_ED)
+!insertmacro MUI_DESCRIPTION_TEXT ${SectionTor} $(DESC_TOR)
+!insertmacro MUI_FUNCTION_DESCRIPTION_END
 
 ;--------------------------------
 ;Uninstaller Section
