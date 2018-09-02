@@ -292,8 +292,8 @@ class ProposalsTab(QWidget):
         self.unsubmitted_proposals = []
         for p in self.parent.masternode_manager.proposals:
             if p.fee_txid and not p.submitted and not p.rejected:
-                height, conf, timestamp = self.wallet.get_tx_height(p.fee_txid)
-                if conf < BUDGET_FEE_CONFIRMATIONS:
+                tx_height = self.wallet.get_tx_height(p.fee_txid)
+                if tx_height.conf < BUDGET_FEE_CONFIRMATIONS:
                     continue
 
                 item = (p.proposal_name, p.fee_txid)

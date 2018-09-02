@@ -209,8 +209,8 @@ class MasternodeManager(object):
             raise Exception('Masternode has no IP address')
 
         # Ensure that the collateral payment has >= MASTERNODE_MIN_CONFIRMATIONS.
-        height, conf, timestamp = self.wallet.get_tx_height(mn.vin['prevout_hash'])
-        if conf < MASTERNODE_MIN_CONFIRMATIONS:
+        tx_height = self.wallet.get_tx_height(mn.vin['prevout_hash'])
+        if tx_height.conf < MASTERNODE_MIN_CONFIRMATIONS:
             raise Exception('Collateral payment must have at least %d confirmations (current: %d)' % (MASTERNODE_MIN_CONFIRMATIONS, conf))
         # Ensure that the masternode's vin is valid.
         if mn.vin.get('value', 0) != bitcoin.COIN * 1000:
@@ -487,8 +487,8 @@ class MasternodeManager(object):
         if not self.wallet.network.is_connected():
             raise Exception('Not connected')
 
-        height, conf, timestamp = self.wallet.get_tx_height(proposal.fee_txid)
-        if conf < BUDGET_FEE_CONFIRMATIONS:
+        tx_height = self.wallet.get_tx_height(proposal.fee_txid)
+        if tx_height.conf < BUDGET_FEE_CONFIRMATIONS:
             raise Exception('Collateral requires at least %d confirmations' % BUDGET_FEE_CONFIRMATIONS)
 
         payments_count = proposal.get_payments_count()

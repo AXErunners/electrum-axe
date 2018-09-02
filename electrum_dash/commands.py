@@ -745,8 +745,8 @@ class Commands:
         results = {}
         proposals = filter(lambda p: p.fee_txid and not p.submitted and not p.rejected, self.masternode_manager.proposals)
         for p in proposals:
-            height, conf, timestamp = self.wallet.get_tx_height(p.fee_txid)
-            if conf < BUDGET_FEE_CONFIRMATIONS:
+            tx_height = self.wallet.get_tx_height(p.fee_txid)
+            if tx_height.conf < BUDGET_FEE_CONFIRMATIONS:
                 continue
 
             errmsg, success = self.masternode_manager.submit_proposal(p.proposal_name)
@@ -768,8 +768,8 @@ class Commands:
         results = {}
         proposals = filter(lambda p: p.fee_txid and not p.submitted and not p.rejected, self.masternode_manager.proposals)
         for p in proposals:
-            height, conf, timestamp = self.wallet.get_tx_height(p.fee_txid)
-            if conf < BUDGET_FEE_CONFIRMATIONS:
+            tx_height = self.wallet.get_tx_height(p.fee_txid)
+            if tx_height.conf < BUDGET_FEE_CONFIRMATIONS:
                 continue
             results[p.proposal_name] = p.dump()
 
