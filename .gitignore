@@ -12,6 +12,7 @@ locale/
 *_trial_temp
 packages
 env/
+env
 .tox/
 .buildozer/
 bin/
