@@ -398,7 +398,7 @@ class ProposalsTab(QWidget):
 
 
 
-class ProposalsTreeWidget(util.MyTreeWidget):
+class ProposalsTreeWidget(util.MyTreeView):
     """Widget compatible with other wallet GUI tabs."""
     def __init__(self, parent=None):
         super(ProposalsTreeWidget, self).__init__(parent, self.create_menu, [_('Name'), _('URL'), _('Yes Votes'), _('No Votes'),

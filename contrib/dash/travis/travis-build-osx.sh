@@ -19,14 +19,21 @@ export PATH=$PATH:$PY36BINDIR
 source ./contrib/dash/travis/electrum_dash_version_env.sh;
 echo wine build version is $DASH_ELECTRUM_VERSION
 
-sudo pip3 install --upgrade pip==18.1
+info "Building CalinsQRReader..."
+d=contrib/osx/CalinsQRReader
+pushd $d
+rm -fr build
+xcodebuild || fail "Could not build CalinsQRReader"
+popd
+
+sudo pip3 install --upgrade pip
 sudo pip3 install -r contrib/deterministic-build/requirements.txt
 sudo pip3 install \
     x11_hash>=1.4 \
-    pycryptodomex==3.6.1 \
-    btchip-python==0.1.27 \
+    pycryptodomex==3.6.6 \
+    btchip-python==0.1.28 \
     keepkey==4.0.2 \
-    safet==0.1.3 \
+    safet==0.1.4 \
     trezor==0.10.2
 
 pyrcc5 icons.qrc -o electrum_dash/gui/qt/icons_rc.py

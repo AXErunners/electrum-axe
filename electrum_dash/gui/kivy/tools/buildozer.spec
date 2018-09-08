@@ -31,14 +31,14 @@ version.filename = %(source.dir)s/electrum_dash/version.py
 #version = 1.9.8
 
 # (list) Application requirements
-requirements = python3crystax==3.6, android, openssl, plyer, pyjnius==1.1.2, kivy_local==master, libsecp256k1, x11_hash
+requirements = python3, android, openssl, plyer, kivy==b47f669f44dbda4f463bcb7d2cada639f7fed3bc, libffi, libsecp256k1, x11_hash
 
 # (str) Presplash of the application
 #presplash.filename = %(source.dir)s/gui/kivy/theming/splash.png
-presplash.filename = %(source.dir)s/icons/electrum_presplash.png
+presplash.filename = %(source.dir)s/electrum_dash/gui/icons/electrum_presplash.png
 
 # (str) Icon of the application
-icon.filename = %(source.dir)s/icons/electrum-dash.png
+icon.filename = %(source.dir)s/electrum_dash/gui/icons/electrum-dash.png
 
 # (str) Supported orientation (one of landscape, portrait or all)
 orientation = portrait
@@ -52,30 +52,31 @@ fullscreen = False
 #
 
 # (list) Permissions
-android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, CAMERA
+android.permissions = INTERNET, CAMERA
 
 # (int) Android API to use
-#android.api = 14
+android.api = 28
 
-# (int) Minimum API required (8 = Android 2.2 devices)
-#android.minapi = 8
+# (int) Minimum API required. You will need to set the android.ndk_api to be as low as this value.
+android.minapi = 21
 
 # (int) Android SDK version to use
-#android.sdk = 21
+android.sdk = 24
 
 # (str) Android NDK version to use
-#android.ndk = 9
+android.ndk = 14b
+
+# (int) Android NDK API to use (optional). This is the minimum API your app will support.
+android.ndk_api = 21
 
 # (bool) Use --private data storage (True) or --dir public storage (False)
 android.private_storage = True
 
 # (str) Android NDK directory (if empty, it will be automatically downloaded.)
-android.ndk_path = /opt/crystax-ndk-10.3.2
+android.ndk_path = /opt/android/android-ndk
 
 # (str) Android SDK directory (if empty, it will be automatically downloaded.)
-android.sdk_path = /opt/android-sdk-linux
-android.ant_path = /opt/apache-ant-1.9.11
-android.skip_update = True
+android.sdk_path = /opt/android/android-sdk
 
 # (str) Android entry point, default is ok for Kivy-based app
 #android.entrypoint = org.renpy.android.PythonActivity
@@ -148,7 +149,7 @@ p4a.local_recipes = %(source.dir)s/contrib/p4a
 [buildozer]
 
 # (int) Log level (0 = error only, 1 = info, 2 = debug (with command output))
-log_level = 2
+log_level = 1
 
 
 # -----------------------------------------------------------------------------

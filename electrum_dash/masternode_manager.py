@@ -109,9 +109,15 @@ class MasternodeManager(object):
             if not '-' in collateral or len(collateral.split('-')[0]) != 64:
                 continue
             if self.masternode_statuses.get(collateral) is None:
-                req = ('masternode.subscribe', [collateral])
-                self.wallet.network.send([req], self.masternode_subscription_response)
-                self.masternode_statuses[collateral] = ''
+                network = self.wallet.network
+                method = network.interface.session.send_request
+                request = ('masternode.subscribe', [collateral])
+                async def update_collateral_status():
+                    self.masternode_statuses[collateral] = ''
+                    res = await method(*request)
+                    response = {'params': request[1], 'result': res}
+                    self.masternode_subscription_response(response)
+                network.run_from_another_thread(update_collateral_status())
 
     def get_masternode(self, alias):
         """Get the masternode labelled as alias."""
