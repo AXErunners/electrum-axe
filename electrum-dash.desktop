@@ -3,19 +3,20 @@
 
 [Desktop Entry]
 Comment=Dash Electrum Wallet
-Exec=sh -c "PATH=\"\\$HOME/.local/bin:\\$PATH\" electrum-dash %u"
+Exec=sh -c "PATH=\"\\$HOME/.local/bin:\\$PATH\"; electrum-dash %u"
 GenericName[en_US]=Dash Electrum
 GenericName=Dash Electrum
 Icon=electrum-dash
 Name[en_US]=Dash Electrum
 Name=Dash Electrum
 Categories=Network;
-StartupNotify=false
+StartupNotify=true
+StartupWMClass=dash-electrum
 Terminal=false
 Type=Application
 MimeType=x-scheme-handler/dashpay;
 Actions=Testnet;
 
 [Desktop Action Testnet]
-Exec=sh -c "PATH=\"\\$HOME/.local/bin:\\$PATH\" electrum-dash --testnet %u"
+Exec=sh -c "PATH=\"\\$HOME/.local/bin:\\$PATH\"; electrum-dash --testnet %u"
 Name=Testnet mode

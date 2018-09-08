@@ -21,9 +21,10 @@ from kivy.utils import platform
 from electrum_dash.util import profiler, parse_URI, format_time, InvalidPassword, NotEnoughFunds, Fiat
 from electrum_dash import bitcoin
 from electrum_dash .transaction import TxOutput
-from electrum_dash.util import timestamp_to_datetime
+from electrum_dash.util import send_exception_to_crash_reporter
 from electrum_dash.paymentrequest import PR_UNPAID, PR_PAID, PR_UNKNOWN, PR_EXPIRED
 from electrum_dash.plugin import run_hook
+from electrum_dash.wallet import InternalAddressCorruption
 
 from .context_menu import ContextMenu
 
@@ -324,18 +325,24 @@ class ReceiveScreen(CScreen):
         self.screen.amount = ''
         self.screen.message = ''
 
-    def get_new_address(self):
+    def get_new_address(self) -> bool:
+        """Sets the address field, and returns whether the set address
+        is unused."""
         if not self.app.wallet:
             return False
         self.clear()
-        addr = self.app.wallet.get_unused_address()
-        if addr is None:
-            addr = self.app.wallet.get_receiving_address() or ''
-            b = False
-        else:
-            b = True
+        unused = True
+        try:
+            addr = self.app.wallet.get_unused_address()
+            if addr is None:
+                addr = self.app.wallet.get_receiving_address() or ''
+                unused = False
+        except InternalAddressCorruption as e:
+            addr = ''
+            self.app.show_error(str(e))
+            send_exception_to_crash_reporter(e)
         self.screen.address = addr
-        return b
+        return unused
 
     def on_address(self, addr):
         req = self.app.wallet.get_payment_request(addr, self.app.electrum_config)
@@ -394,8 +401,8 @@ class ReceiveScreen(CScreen):
         Clock.schedule_once(lambda dt: self.update_qr())
 
     def do_new(self):
-        addr = self.get_new_address()
-        if not addr:
+        is_unused = self.get_new_address()
+        if not is_unused:
             self.app.show_info(_('Please use the existing requests first.'))
 
     def do_save(self):

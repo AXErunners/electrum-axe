@@ -4,6 +4,7 @@ import base64
 from electrum_dash.masternode import MasternodeAnnounce, MasternodePing, NetworkAddress
 from electrum_dash.masternode_manager import parse_masternode_conf, MasternodeConfLine
 from electrum_dash import bitcoin
+from electrum_dash.crypto import sha256d
 from electrum_dash import ecc
 from electrum_dash.util import bfh, to_bytes
 
@@ -44,7 +45,7 @@ class TestMasternode(unittest.TestCase):
         expected_hash = 'a8a3dc1782191f28f613c8971709a57ee58a4d0d7a11138804f89a0b088d67d1'
         msg = announce.serialize_for_sig()
 
-        h = bitcoin.Hash(ecc.msg_magic(msg))
+        h = sha256d(ecc.msg_magic(msg))
         h = bitcoin.hash_encode(h)
         self.assertEqual(expected_hash, h)
 
@@ -152,7 +153,7 @@ class TestMasternode70210(unittest.TestCase):
         expected_hash = '5f69e59f5ea327be16e649fb6c72ed02e39ef9dae8ecb27d222419e94dcd89b7'
         msg = announce.serialize_for_sig()
 
-        h = bitcoin.Hash(ecc.msg_magic(msg))
+        h = sha256d(ecc.msg_magic(msg))
         h = bitcoin.hash_encode(h)
         self.assertEqual(expected_hash, h)
 

@@ -11,7 +11,7 @@ prepare:
 	@cp tools/buildozer.spec ../../../buildozer.spec
 	# copy electrum-dash to main.py
 	@cp ../../../electrum-dash ../../../main.py
-	@-if [ ! -d "../../.buildozer" ];then \
+	@-if [ ! -d "../../../.buildozer" ];then \
 		cd ../../..; buildozer android debug;\
 		cp -f electrum_dash/gui/kivy/tools/blacklist.txt .buildozer/android/platform/python-for-android/src/blacklist.txt;\
 		rm -rf ./.buildozer/android/platform/python-for-android/dist;\
