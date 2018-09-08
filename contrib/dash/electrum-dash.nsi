@@ -7,18 +7,21 @@
 ;--------------------------------
 ;Variables
 
-  !define PRODUCT_NAME "Electrum-DASH"
+  !define PRODUCT_NAME "Dash-Electrum"
+  !define PREV_PROD_NAME "Electrum-DASH"
   !define PRODUCT_WEB_SITE "https://github.com/akhavr/electrum-dash"
   !define PRODUCT_PUBLISHER "Electrum Technologies GmbH"
   !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
+  !define PREV_PROD_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PREV_PROD_NAME}"
   !define BUILD_ARCH "${WINEARCH}"
 
+  Var PREVINSTDIR
 ;--------------------------------
 ;General
 
   ;Name and file
   Name "${PRODUCT_NAME}"
-  OutFile "dist/electrum-dash-${PRODUCT_VERSION}-setup-${BUILD_ARCH}.exe"
+  OutFile "dist/${PRODUCT_NAME}-${PRODUCT_VERSION}-setup-${BUILD_ARCH}.exe"
 
   ;Default installation folder
   InstallDir "$PROGRAMFILES\${PRODUCT_NAME}"
@@ -66,7 +69,7 @@
   VIAddVersionKey ProductVersion ${PRODUCT_VERSION}
   VIAddVersionKey InternalName "${PRODUCT_NAME} Installer"
   VIAddVersionKey LegalTrademarks "${PRODUCT_NAME} is a trademark of ${PRODUCT_PUBLISHER}" 
-  VIAddVersionKey OriginalFilename "${PRODUCT_NAME}.exe"
+  VIAddVersionKey OriginalFilename "${PRODUCT_NAME}-${PRODUCT_VERSION}-setup-${BUILD_ARCH}.exe"
 
 ;--------------------------------
 ;Interface Settings
@@ -114,8 +117,23 @@ Function .onInit
     ${EndIf}
 FunctionEnd
 
-Section "Electrum-DASH" SectionED
+Section "Dash-Electrum" SectionDE
   SetOutPath $INSTDIR
+
+  ;Uninstall prev product name versions
+  ReadRegStr $PREVINSTDIR HKCU "Software\${PREV_PROD_NAME}" ""
+  ${If} ${PREVINSTDIR} != ""
+    RMDir /r "$PREVINSTDIR\*.*"
+    RMDir "$PREVINSTDIR"
+
+    Delete "$DESKTOP\${PREV_PROD_NAME}.lnk"
+    Delete "$SMPROGRAMS\${PREV_PROD_NAME}\*.*"
+    RMDir  "$SMPROGRAMS\${PREV_PROD_NAME}"
+
+    DeleteRegKey HKCU "Software\Classes\dash"
+    DeleteRegKey HKCU "Software\${PREV_PROD_NAME}"
+    DeleteRegKey HKCU "${PREV_PROD_UNINST_KEY}"
+  ${EndIf}
 
   ;Uninstall previous version files
   RMDir /r "$INSTDIR\*.*"
@@ -174,11 +192,11 @@ SectionEnd
 
 ;--------------------------------
 ;Descriptions
-LangString DESC_ED ${LANG_ENGLISH} "Electrum-DASH Wallet"
+LangString DESC_DE ${LANG_ENGLISH} "Dash-Electrum Wallet"
 LangString DESC_TOR ${LANG_ENGLISH} "The Tor Project Socks Proxy"
 
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
-!insertmacro MUI_DESCRIPTION_TEXT ${SectionED} $(DESC_ED)
+!insertmacro MUI_DESCRIPTION_TEXT ${SectionDE} $(DESC_DE)
 !insertmacro MUI_DESCRIPTION_TEXT ${SectionTor} $(DESC_TOR)
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
 

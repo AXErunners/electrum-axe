@@ -1,7 +1,7 @@
 #!/bin/bash
 
 source ./contrib/dash/travis/electrum_dash_version_env.sh;
-echo wine build version is $ELECTRUM_DASH_VERSION
+echo wine build version is $DASH_ELECTRUM_VERSION
 
 mv /opt/zbarw $WINEPREFIX/drive_c/
 
@@ -41,7 +41,7 @@ mkdir $WINEPREFIX/drive_c/Qt
 ln -s $PYHOME/Lib/site-packages/PyQt5/ $WINEPREFIX/drive_c/Qt/5.11.2
 
 wine pyinstaller -y \
-    --name electrum-dash-$ELECTRUM_DASH_VERSION.exe \
+    --name electrum-dash-$DASH_ELECTRUM_VERSION.exe \
     deterministic.spec
 
 if [[ $WINEARCH == win32 ]]; then
@@ -51,6 +51,6 @@ else
 fi
 
 wine "$NSIS_EXE" /NOCD -V3 \
-    /DPRODUCT_VERSION=$ELECTRUM_DASH_VERSION \
+    /DPRODUCT_VERSION=$DASH_ELECTRUM_VERSION \
     /DWINEARCH=$WINEARCH \
     contrib/dash/electrum-dash.nsi

@@ -336,7 +336,7 @@ class Commands:
 
     @command('n')
     def getmerkle(self, txid, height):
-        """Get Merkle branch of a transaction included in a block. Electrum-DASH
+        """Get Merkle branch of a transaction included in a block. Dash-Electrum
         uses this to verify transactions (Simple Payment Verification)."""
         return self.network.get_merkle_for_transaction(txid, int(height))
 
@@ -347,7 +347,7 @@ class Commands:
 
     @command('')
     def version(self):
-        """Return the version of Electrum-DASH."""
+        """Return the version of Dash-Electrum."""
         from .version import ELECTRUM_VERSION
         return ELECTRUM_VERSION
 
@@ -1037,7 +1037,7 @@ def get_parser():
     add_global_options(parser)
     subparsers = parser.add_subparsers(dest='cmd', metavar='<command>')
     # gui
-    parser_gui = subparsers.add_parser('gui', description="Run Electrum-DASH Graphical User Interface.", help="Run GUI (default)")
+    parser_gui = subparsers.add_parser('gui', description="Run Dash-Electrum Graphical User Interface.", help="Run GUI (default)")
     parser_gui.add_argument("url", nargs='?', default=None, help="dash URI (or bip70 file)")
     parser_gui.add_argument("-g", "--gui", dest="gui", help="select graphical user interface", choices=['qt', 'kivy', 'text', 'stdio'])
     parser_gui.add_argument("-o", "--offline", action="store_true", dest="offline", default=False, help="Run offline")
