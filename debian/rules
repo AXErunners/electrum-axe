@@ -16,9 +16,17 @@ override_dh_auto_install::
 	dh_auto_install
 	mkdir -p debian/electrum-dash/usr/bin \
              debian/electrum-dash/usr/share
-	mv debian/python3-electrum-dash/usr/bin \
+	cp -r debian/python3-electrum-dash/usr/bin \
        debian/electrum-dash/usr
+	cp -r debian/python3-electrum-dash/usr/share/applications \
+       debian/electrum-dash/usr/share
+	cp -r debian/python3-electrum-dash/usr/share/pixmaps \
+       debian/electrum-dash/usr/share
+	mkdir -p debian/dash-electrum/usr/bin \
+             debian/dash-electrum/usr/share
+	mv debian/python3-electrum-dash/usr/bin \
+       debian/dash-electrum/usr
 	mv debian/python3-electrum-dash/usr/share/applications \
-       debian/electrum-dash/usr/share
+       debian/dash-electrum/usr/share
 	mv debian/python3-electrum-dash/usr/share/pixmaps \
-       debian/electrum-dash/usr/share
+       debian/dash-electrum/usr/share
