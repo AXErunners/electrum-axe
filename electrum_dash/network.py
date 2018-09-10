@@ -182,6 +182,17 @@ class Network(util.DaemonThread):
             config = {}  # Do not use mutables as default values!
         util.DaemonThread.__init__(self)
         self.config = SimpleConfig(config) if isinstance(config, dict) else config
+
+        # Autodetect and enable Tor proxy on Network init
+        self.tor_auto_on = self.config.get('tor_auto_on', True)
+        self.tor_detected = self.detect_tor_proxy(self.config.get('proxy'))
+        if self.tor_auto_on and self.tor_detected:
+            self.config.set_key('proxy', self.tor_detected, False)
+        if self.config.get('proxy') and self.tor_detected:
+            self.tor_on = True
+        else:
+            self.tor_on = False
+
         self.num_server = 10 if not self.config.get('oneserver') else 0
         self.blockchains = blockchain.read_blockchains(self.config)  # note: needs self.blockchains_lock
         self.print_error("blockchains", self.blockchains.keys())
