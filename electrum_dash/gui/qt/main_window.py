@@ -221,6 +221,9 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             backup_message = self.wallet.storage.backup_message
             self.show_warning(backup_message, title=_('Information'))
 
+        if not self.network.tor_on:
+            self.show_warning(self.network.tor_warn_msg)
+
     def on_history(self, b):
         self.new_fx_history_signal.emit()
 
