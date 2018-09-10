@@ -1364,6 +1364,35 @@ class Network(util.DaemonThread):
     def max_checkpoint(cls):
         return max(0, len(constants.net.CHECKPOINTS) * 2016 - 1)
 
+    @classmethod
+    def detect_tor_proxy(cls, proxy=None):
+        detected = None
+        tor_ip = '127.0.0.1'
+        tor_ports = [9050, 9150]
+        proxies = [('socks5', tor_ip, p) for p in tor_ports]
+        if proxy:
+            try:
+                psplit = proxy.split(':')[:3]
+                proxies.insert(0, (psplit[0], psplit[1], int(psplit[2])))
+            except:
+                pass
+        if hasattr(socket, "_socketobject"):
+            s = socket._socketobject(socket.AF_INET, socket.SOCK_STREAM)
+        else:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(0.1)
+        for p in proxies:
+            try:
+                s.connect(p[1:])
+                # Tor responds uniquely to HTTP-like requests
+                s.send(b"GET\n")
+                if b"Tor is not an HTTP Proxy" in s.recv(1024):
+                    detected = p
+                    break
+            except socket.error:
+                continue
+        return "%s:%s:%s::" % detected if detected else None
+
 #    def on_proposals(self, result):
 #        """Handle new information on all budget proposals."""
 #        all_proposals = masternode_manager.parse_proposals_subscription_result(result)
