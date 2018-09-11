@@ -97,6 +97,11 @@ class ElectrumWindow(App):
     def toggle_auto_connect(self, x):
         self.auto_connect = not self.auto_connect
 
+    tor_auto_on = BooleanProperty()
+    def toggle_tor_auto_on(self, x):
+        self.tor_auto_on = not self.electrum_config.get('tor_auto_on', True)
+        self.electrum_config.set_key('tor_auto_on', self.tor_auto_on, True)
+
     def choose_server_dialog(self, popup):
         from .uix.dialogs.choice_dialog import ChoiceDialog
         protocol = 's'
@@ -255,6 +260,7 @@ class ElectrumWindow(App):
         self.electrum_config = config = kwargs.get('config', None)
         self.language = config.get('language', 'en')
         self.network = network = kwargs.get('network', None)
+        self.tor_auto_on = self.electrum_config.get('tor_auto_on', True)
         if self.network:
             self.num_blocks = self.network.get_local_height()
             self.num_nodes = len(self.network.get_interfaces())

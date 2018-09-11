@@ -33,6 +33,12 @@ Popup:
 
                 CardSeparator
                 SettingsItem:
+                    title: _("Use Tor Proxy on startup: ") + ('ON' if app.tor_auto_on else 'OFF')
+                    description: _('During wallet startup try to detect and use Tor Proxy.')
+                    action: app.toggle_tor_auto_on
+
+                CardSeparator
+                SettingsItem:
                     title: _("Auto-connect") + ': ' + ('ON' if app.auto_connect else 'OFF')
                     description: _("Select your server automatically")
                     action: app.toggle_auto_connect
