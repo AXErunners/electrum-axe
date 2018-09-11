@@ -186,9 +186,11 @@ class Network(util.DaemonThread):
         # Autodetect and enable Tor proxy on Network init
         self.tor_docs_uri = ('https://github.com/akhavr/electrum-dash/'
                              'blob/%s/docs/tor.md' % ELECTRUM_VERSION)
+        self.tor_docs_title = 'Tor Setup Docs'
+        self.tor_docs_uri_qt = ('<br><br><a href="%s">%s</a>' %
+                                (self.tor_docs_uri, self.tor_docs_title))
         self.tor_warn_msg = ('Tor proxy is disabled, to enable it read'
-                             ' the docs:<br><a href="%s">Tor Settings'
-                             ' Docs</a>' % self.tor_docs_uri)
+                             ' the docs.')
         self.tor_auto_on = self.config.get('tor_auto_on', True)
         self.tor_detected = self.detect_tor_proxy(self.config.get('proxy'))
         if self.tor_auto_on and self.tor_detected:
