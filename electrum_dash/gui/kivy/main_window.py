@@ -490,7 +490,7 @@ class ElectrumWindow(App):
             self.network.register_callback(self.on_fee_histogram, ['fee_histogram'])
             self.network.register_callback(self.on_quotes, ['on_quotes'])
             self.network.register_callback(self.on_history, ['on_history'])
-            if not self.network.tor_on:
+            if self.network.tor_auto_on and not self.network.tor_on:
                 self.show_tor_warning()
         # load wallet
         self.load_wallet_by_name(self.electrum_config.get_wallet_path())
