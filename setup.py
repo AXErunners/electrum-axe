@@ -2,12 +2,15 @@
 
 # python setup.py sdist --format=zip,gztar
 
-from setuptools import setup
 import os
 import sys
 import platform
 import imp
 import argparse
+import subprocess
+
+from setuptools import setup, find_packages
+from setuptools.command.install import install
 
 with open('contrib/requirements/requirements.txt') as f:
     requirements = f.read().splitlines()
@@ -15,7 +18,7 @@ with open('contrib/requirements/requirements.txt') as f:
 with open('contrib/requirements/requirements-hw.txt') as f:
     requirements_hw = f.read().splitlines()
 
-version = imp.load_source('version', 'lib/version.py')
+version = imp.load_source('version', 'electrum_dash/version.py')
 
 if sys.version_info[:3] < (3, 4, 0):
     sys.exit("Error: Electrum-DASH requires Python version >= 3.4.0...")
@@ -43,9 +46,26 @@ if platform.system() in ['Linux', 'FreeBSD', 'DragonFly']:
 extras_require = {
     'hardware': requirements_hw,
     'fast': ['pycryptodomex'],
-    ':python_version < "3.5"': ['typing>=3.0.0'],
+    'gui': ['pyqt5'],
 }
-extras_require['full'] = extras_require['hardware'] + extras_require['fast']
+extras_require['full'] = [pkg for sublist in list(extras_require.values()) for pkg in sublist]
+
+
+class CustomInstallCommand(install):
+    def run(self):
+        install.run(self)
+        # potentially build Qt icons file
+        try:
+            import PyQt5
+        except ImportError:
+            pass
+        else:
+            try:
+                path = os.path.join(self.install_lib, "electrum_dash/gui/qt/icons_rc.py")
+                if not os.path.exists(path):
+                    subprocess.call(["pyrcc5", "icons.qrc", "-o", path])
+            except Exception as e:
+                print('Warning: building icons file failed with {}'.format(e))
 
 
 setup(
@@ -55,25 +75,11 @@ setup(
     extras_require=extras_require,
     packages=[
         'electrum_dash',
-        'electrum_dash_gui',
-        'electrum_dash_gui.qt',
-        'electrum_dash_plugins',
-        'electrum_dash_plugins.audio_modem',
-        'electrum_dash_plugins.cosigner_pool',
-        'electrum_dash_plugins.email_requests',
-        'electrum_dash_plugins.hw_wallet',
-        'electrum_dash_plugins.keepkey',
-        'electrum_dash_plugins.labels',
-        'electrum_dash_plugins.ledger',
-        'electrum_dash_plugins.revealer',
-        'electrum_dash_plugins.trezor',
-        'electrum_dash_plugins.digitalbitbox',
-        'electrum_dash_plugins.virtualkeyboard',
-    ],
+        'electrum_dash.gui',
+        'electrum_dash.gui.qt',
+    ] + [('electrum_dash.plugins.'+pkg) for pkg in find_packages('electrum_dash/plugins')],
     package_dir={
-        'electrum_dash': 'lib',
-        'electrum_dash_gui': 'gui',
-        'electrum_dash_plugins': 'plugins',
+        'electrum_dash': 'electrum_dash'
     },
     package_data={
         '': ['*.txt', '*.json', '*.ttf', '*.otf'],
@@ -82,12 +88,15 @@ setup(
             'locale/*/LC_MESSAGES/electrum.mo',
         ],
     },
-    scripts=['electrum-dash'],
+    scripts=['electrum_dash/electrum-dash'],
     data_files=data_files,
     description="Lightweight Dashpay Wallet",
     maintainer="akhavr",
     maintainer_email="akhavr@khavr.com",
     license="MIT License",
     url="https://electrum.dash.org",
-    long_description="""Lightweight Dashpay Wallet"""
+    long_description="""Lightweight Dashpay Wallet""",
+    cmdclass={
+        'install': CustomInstallCommand,
+    },
 )

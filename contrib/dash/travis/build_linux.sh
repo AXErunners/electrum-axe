@@ -1,6 +1,6 @@
 #!/bin/sh
 
-pyrcc5 icons.qrc -o gui/qt/icons_rc.py
+pyrcc5 icons.qrc -o electrum_dash/gui/qt/icons_rc.py
 ./contrib/make_locale
 ./contrib/make_packages
 mv contrib/packages .

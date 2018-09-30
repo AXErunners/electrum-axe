@@ -15,48 +15,54 @@ else:
 PY36BINDIR =  os.environ.get('PY36BINDIR')
 
 hiddenimports = collect_submodules('trezorlib')
+hiddenimports += collect_submodules('safetlib')
 hiddenimports += collect_submodules('btchip')
 hiddenimports += collect_submodules('keepkeylib')
 hiddenimports += collect_submodules('websocket')
 hiddenimports += [
-    'lib',
-    'lib.base_crash_reporter',
-    'lib.base_wizard',
-    'lib.plot',
-    'lib.qrscanner',
-    'lib.websockets',
-    'gui.qt',
+    'electrum_dash',
+    'electrum_dash.base_crash_reporter',
+    'electrum_dash.base_wizard',
+    'electrum_dash.plot',
+    'electrum_dash.qrscanner',
+    'electrum_dash.websockets',
+    'electrum_dash.gui.qt',
     'PyQt5.sip',
 
-    'plugins',
+    'electrum_dash.plugins',
 
-    'plugins.hw_wallet.qt',
+    'electrum_dash.plugins.hw_wallet.qt',
 
-    'plugins.audio_modem.qt',
-    'plugins.cosigner_pool.qt',
-    'plugins.digitalbitbox.qt',
-    'plugins.email_requests.qt',
-    'plugins.keepkey.qt',
-    'plugins.revealer.qt',
-    'plugins.labels.qt',
-    'plugins.trezor.qt',
-    'plugins.ledger.qt',
-    'plugins.virtualkeyboard.qt',
+    'electrum_dash.plugins.audio_modem.qt',
+    'electrum_dash.plugins.cosigner_pool.qt',
+    'electrum_dash.plugins.digitalbitbox.qt',
+    'electrum_dash.plugins.email_requests.qt',
+    'electrum_dash.plugins.keepkey.qt',
+    'electrum_dash.plugins.revealer.qt',
+    'electrum_dash.plugins.labels.qt',
+    'electrum_dash.plugins.trezor.client',
+    'electrum_dash.plugins.trezor.qt',
+    'electrum_dash.plugins.safe_t.client',
+    'electrum_dash.plugins.safe_t.qt',
+    'electrum_dash.plugins.ledger.qt',
+    'electrum_dash.plugins.virtualkeyboard.qt',
 ]
 
 datas = [
-    ('lib/servers.json', 'electrum_dash'),
-    ('lib/servers_testnet.json', 'electrum_dash'),
-    ('lib/servers_regtest.json', 'electrum_dash'),
-    ('lib/currencies.json', 'electrum_dash'),
-    ('lib/checkpoints.json', 'electrum_dash'),
-    ('lib/locale', 'electrum_dash/locale'),
-    ('lib/wordlist', 'electrum_dash/wordlist'),
+    ('electrum_dash/servers.json', 'electrum_dash'),
+    ('electrum_dash/servers_testnet.json', 'electrum_dash'),
+    ('electrum_dash/servers_regtest.json', 'electrum_dash'),
+    ('electrum_dash/currencies.json', 'electrum_dash'),
+    ('electrum_dash/checkpoints.json', 'electrum_dash'),
+    ('electrum_dash/locale', 'electrum_dash/locale'),
+    ('electrum_dash/wordlist', 'electrum_dash/wordlist'),
 ]
 datas += collect_data_files('trezorlib')
+datas += collect_data_files('safetlib')
 datas += collect_data_files('btchip')
 datas += collect_data_files('keepkeylib')
 
+# Add libusb so Trezor and Safe-T mini will work
 binaries = [('../libusb-1.0.dylib', '.')]
 binaries += [('../libsecp256k1.0.dylib', '.')]
 binaries += [('/usr/local/lib/libgmp.10.dylib', '.')]
@@ -105,7 +111,6 @@ excludes += [
 ]
 
 a = Analysis(['electrum-dash'],
-             pathex=['plugins'],
              hiddenimports=hiddenimports,
              datas=datas,
              binaries=binaries,
@@ -117,15 +122,6 @@ for d in a.datas:
     if 'pyconfig' in d[0]:
         a.datas.remove(d)
         break
-
-# Add TOC to electrum_dash, electrum_dash_gui, electrum_dash_plugins
-for p in sorted(a.pure):
-    if p[0].startswith('lib') and p[2] == 'PYMODULE':
-        a.pure += [('electrum_dash%s' % p[0][3:] , p[1], p[2])]
-    if p[0].startswith('gui') and p[2] == 'PYMODULE':
-        a.pure += [('electrum_dash_gui%s' % p[0][3:] , p[1], p[2])]
-    if p[0].startswith('plugins') and p[2] == 'PYMODULE':
-        a.pure += [('electrum_dash_plugins%s' % p[0][7:] , p[1], p[2])]
 
 pyz = PYZ(a.pure)
 

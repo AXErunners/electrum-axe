@@ -12,6 +12,10 @@ cd build
 
 git clone --branch $TRAVIS_TAG $BUILD_REPO_URL electrum-dash
 
+mkdir -p electrum-dash/dist
+wget -O electrum-dash/dist/tor-proxy-setup.exe \
+    https://github.com/zebra-lucky/tor-proxy/releases/download/0.3.3.9/tor-proxy-0.3.3.9-setup.exe
+
 docker run --rm \
     -v $(pwd):/opt \
     -w /opt/electrum-dash \
@@ -22,7 +26,7 @@ sudo find . -name '*.pot' -delete
 
 export WINEARCH=win32
 export WINEPREFIX=/root/.wine-32
-export PYHOME=$WINEPREFIX/drive_c/Python35
+export PYHOME=$WINEPREFIX/drive_c/Python36
 
 wget https://github.com/zebra-lucky/zbarw/releases/download/20180620/zbarw-zbarcam-0.10-win32.zip
 unzip zbarw-zbarcam-0.10-win32.zip && rm zbarw-zbarcam-0.10-win32.zip
@@ -40,11 +44,11 @@ docker run --rm \
     -v $(pwd):/opt \
     -v $(pwd)/electrum-dash/:$WINEPREFIX/drive_c/electrum-dash \
     -w /opt/electrum-dash \
-    -t zebralucky/electrum-dash-winebuild:WinePy35 /opt/build_wine.sh
+    -t zebralucky/electrum-dash-winebuild:WinePy36 /opt/build_wine.sh
 
 export WINEARCH=win64
 export WINEPREFIX=/root/.wine-64
-export PYHOME=$WINEPREFIX/drive_c/Python35
+export PYHOME=$WINEPREFIX/drive_c/Python36
 
 wget https://github.com/zebra-lucky/zbarw/releases/download/20180620/zbarw-zbarcam-0.10-win64.zip
 unzip zbarw-zbarcam-0.10-win64.zip && rm zbarw-zbarcam-0.10-win64.zip
@@ -62,4 +66,4 @@ docker run --rm \
     -v $(pwd):/opt \
     -v $(pwd)/electrum-dash/:$WINEPREFIX/drive_c/electrum-dash \
     -w /opt/electrum-dash \
-    -t zebralucky/electrum-dash-winebuild:WinePy35 /opt/build_wine.sh
+    -t zebralucky/electrum-dash-winebuild:WinePy36 /opt/build_wine.sh

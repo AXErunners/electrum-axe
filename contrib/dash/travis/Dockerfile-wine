@@ -1,10 +1,13 @@
-FROM debian:buster-slim
+FROM ubuntu:18.04
 LABEL maintainer "Andriy Khavryuchenko <akhavr@khavr.com>"
 
 USER root
 WORKDIR /root
 
 RUN dpkg --add-architecture i386 \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends software-properties-common \
+    && apt-add-repository -y ppa:zebra-lucky/ed-bdeps \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
         wine-development wine32-development wine64-development libwine-development libwine-development:i386 \
@@ -13,17 +16,17 @@ RUN dpkg --add-architecture i386 \
     && chmod +x winetricks && mv winetricks /usr/local/bin \
     && rm -rf /var/lib/apt/lists/*
 
-ENV WINEPATH c:/git/cmd;c:/Python35;c:/Python35/Scripts
+ENV WINEPATH c:/git/cmd;c:/Python36;c:/Python36/Scripts
 ENV WINEDEBUG -all
 ENV WINEPREFIX /root/.wine-32
 ENV WINEARCH win32
-ENV PYHOME $WINEPREFIX/drive_c/Python35
+ENV PYHOME $WINEPREFIX/drive_c/Python36
 
 RUN echo 'download and install 32-bit Python/pywin32/PyQt/git/NSIS' \
     && wineboot -i \
     && xvfb-run -a winetricks -q vcrun2015 && winetricks win10 \
     \
-    && wget -nv -O python.exe https://www.python.org/ftp/python/3.5.4/python-3.5.4.exe \
+    && wget -nv -O python.exe https://www.python.org/ftp/python/3.6.6/python-3.6.6.exe \
     && xvfb-run -a wine python.exe /quiet InstallAllUsers=1 TargetDir=$PYHOME && rm python.exe \
     && wine python -m pip install -U pip \
     \
@@ -31,7 +34,7 @@ RUN echo 'download and install 32-bit Python/pywin32/PyQt/git/NSIS' \
     && 7z x -olibusb libusb.7z -aos && rm libusb.7z  \
     && cp libusb/MS32/dll/libusb-1.0.dll $PYHOME/ \
     \
-    && wget -nv -O pywin32.exe https://github.com/mhammond/pywin32/releases/download/b223/pywin32-223.win32-py3.5.exe \
+    && wget -nv -O pywin32.exe https://github.com/mhammond/pywin32/releases/download/b223/pywin32-223.win32-py3.6.exe \
     && unzip -qq -d pywin32 pywin32.exe; echo && rm pywin32.exe \
     && cp -r pywin32/PLATLIB/* $PYHOME/Lib/site-packages/ \
     && cp -r pywin32/SCRIPTS/* $PYHOME/Scripts/ && rm -rf pywin32 \
@@ -50,7 +53,7 @@ RUN echo 'download and install 32-bit Python/pywin32/PyQt/git/NSIS' \
 
 ENV WINEPREFIX /root/.wine-64
 ENV WINEARCH win64
-ENV PYHOME $WINEPREFIX/drive_c/Python35
+ENV PYHOME $WINEPREFIX/drive_c/Python36
 
 RUN echo 'download and install 64-bit Python/pywin32/PyQt/git/NSIS' \
     && wineboot -i && winetricks win10 \
@@ -62,13 +65,13 @@ RUN echo 'download and install 64-bit Python/pywin32/PyQt/git/NSIS' \
     && cp ex/a11ex/* $WINEPREFIX/drive_c/windows/system32 \
     && rm -rf ex \
     \
-    && wget -nv -O python.exe https://www.python.org/ftp/python/3.5.4/python-3.5.4-amd64.exe \
+    && wget -nv -O python.exe https://www.python.org/ftp/python/3.6.6/python-3.6.6-amd64.exe \
     && xvfb-run -a wine python.exe /quiet InstallAllUsers=1 TargetDir=$PYHOME && rm python.exe \
     && wine python -m pip install -U pip \
     \
     && cp libusb/MS64/dll/libusb-1.0.dll $PYHOME/ && rm -rf libusb \
     \
-    && wget -nv -O pywin32.exe https://github.com/mhammond/pywin32/releases/download/b223/pywin32-223.win-amd64-py3.5.exe \
+    && wget -nv -O pywin32.exe https://github.com/mhammond/pywin32/releases/download/b223/pywin32-223.win-amd64-py3.6.exe \
     && unzip -qq -d pywin32 pywin32.exe; echo && rm pywin32.exe \
     && cp -r pywin32/PLATLIB/* $PYHOME/Lib/site-packages/ \
     && cp -r pywin32/SCRIPTS/* $PYHOME/Scripts/ && rm -rf pywin32 \

@@ -73,12 +73,12 @@ Render the SVG icons to PNGs (optional)::
 Compile the icons file for Qt::
 
     sudo apt-get install pyqt5-dev-tools
-    pyrcc5 icons.qrc -o gui/qt/icons_rc.py
+    pyrcc5 icons.qrc -o electrum_dash/gui/qt/icons_rc.py
 
 Compile the protobuf description file::
 
     sudo apt-get install protobuf-compiler
-    protoc --proto_path=lib/ --python_out=lib/ lib/paymentrequest.proto
+    protoc --proto_path=electrum_dash --python_out=electrum_dash electrum_dash/paymentrequest.proto
 
 Create translations (optional)::
 
@@ -101,4 +101,4 @@ This directory contains the python dependencies used by Electrum-DASH.
 Android
 -------
 
-See `gui/kivy/Readme.txt` file.
+See `electrum_dash/gui/kivy/Readme.txt` file.

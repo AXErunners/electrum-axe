@@ -23,12 +23,13 @@ sudo pip3 install --upgrade pip
 sudo pip3 install -r contrib/deterministic-build/requirements.txt
 sudo pip3 install \
     x11_hash>=1.4 \
-    pycryptodomex==3.6.0 \
+    pycryptodomex==3.6.1 \
     btchip-python==0.1.27 \
     keepkey==4.0.2 \
-    trezor==0.10.1
+    safet==0.1.3 \
+    trezor==0.10.2
 
-pyrcc5 icons.qrc -o gui/qt/icons_rc.py
+pyrcc5 icons.qrc -o electrum_dash/gui/qt/icons_rc.py
 
 export PATH="/usr/local/opt/gettext/bin:$PATH"
 ./contrib/make_locale
