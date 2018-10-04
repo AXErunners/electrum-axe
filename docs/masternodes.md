@@ -1,6 +1,6 @@
 # Masternodes
 
-Electrum-DASH supports masternode creation through an interface called the Masternode Manager.
+Dash-Electrum supports masternode creation through an interface called the Masternode Manager.
 
 ## Masternode Manager
 
@@ -24,14 +24,14 @@ The manager displays the following data about each masternode you have set up:
 
 ### Delegate Key
 
-A masternode requires a "delegate" key, which is known to both Electrum-DASH and your masternode.
+A masternode requires a "delegate" key, which is known to both Dash-Electrum and your masternode.
 Your masternode will use this key to sign messages, and the DASH network will know that you authorized
 it to.
 
-A delegate key can either be one of your Electrum-DASH keys, or an imported key. Either way, your masternode
-and Electrum-DASH will both need to know the private key. (See *Importing Masternode.conf* below.)
+A delegate key can either be one of your Dash-Electrum keys, or an imported key. Either way, your masternode
+and Dash-Electrum will both need to know the private key. (See *Importing Masternode.conf* below.)
 
-To use one of your Electrum-DASH keys as a delegate key, put its address in the `Masternode DASH Address`
+To use one of your Dash-Electrum keys as a delegate key, put its address in the `Masternode DASH Address`
 field of the `View Masternode` tab.
 
 ### IP Address and Protocol Version
@@ -56,7 +56,7 @@ After selecting a collateral payment and specifying a delegate key, you can acti
 Do this by clicking `Activate Masternode` in the `Activate Masternode` tab of the Masternode Manager.
 
 This will require your password if your wallet is encrypted, because a message must be signed. After
-waiting for Electrum-DASH to sign and broadcast your masternode announcement, you will be presented with
+waiting for Dash-Electrum to sign and broadcast your masternode announcement, you will be presented with
 a message detailing the result.
 
 ## Importing Masternode.conf

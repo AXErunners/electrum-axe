@@ -17,7 +17,7 @@ cd electrum-dash
 export PY36BINDIR=/Library/Frameworks/Python.framework/Versions/3.6/bin/
 export PATH=$PATH:$PY36BINDIR
 source ./contrib/dash/travis/electrum_dash_version_env.sh;
-echo wine build version is $ELECTRUM_DASH_VERSION
+echo wine build version is $DASH_ELECTRUM_VERSION
 
 sudo pip3 install --upgrade pip
 sudo pip3 install -r contrib/deterministic-build/requirements.txt
@@ -42,9 +42,15 @@ cp contrib/dash/pyi_tctl_runtimehook.py .
 
 pyinstaller \
     -y \
-    --name electrum-dash-$ELECTRUM_DASH_VERSION.bin \
+    --name electrum-dash-$DASH_ELECTRUM_VERSION.bin \
     osx.spec
 
-sudo hdiutil create -fs HFS+ -volname "Electrum-DASH" \
-    -srcfolder dist/Electrum-DASH.app \
-    dist/electrum-dash-$ELECTRUM_DASH_VERSION-macosx.dmg
+info "Adding Dash URI types to Info.plist"
+plutil -insert 'CFBundleURLTypes' \
+   -xml '<array><dict> <key>CFBundleURLName</key> <string>dash</string> <key>CFBundleURLSchemes</key> <array><string>dash</string></array> </dict></array>' \
+   -- dist/Dash-Electrum.app/Contents/Info.plist \
+   || fail "Could not add keys to Info.plist. Make sure the program 'plutil' exists and is installed."
+
+sudo hdiutil create -fs HFS+ -volname "Dash-Electrum" \
+    -srcfolder dist/Dash-Electrum.app \
+    dist/Dash-Electrum-$DASH_ELECTRUM_VERSION-macosx.dmg

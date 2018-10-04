@@ -3,9 +3,6 @@
 *.swp
 build/
 dist/
-*.egg/
-contrib/pyinstaller/
-Electrum.egg-info/
 electrum_dash/gui/qt/icons_rc.py
 locale/
 .devlocaltmp/
@@ -24,6 +21,6 @@ bin/
 .coverage
 
 electrum_data/
-gui/kivy/theming/light-0.png
-gui/kivy/theming/light.atlas
-Electrum_DASH.egg-info/
+electrum_dash/gui/kivy/theming/light-0.png
+electrum_dash/gui/kivy/theming/light.atlas
+*.egg-info/

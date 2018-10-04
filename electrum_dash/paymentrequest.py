@@ -45,8 +45,8 @@ from .util import export_meta, import_meta
 from .bitcoin import TYPE_ADDRESS
 from .transaction import TxOutput
 
-REQUEST_HEADERS = {'Accept': 'application/dash-paymentrequest', 'User-Agent': 'Electrum-DASH'}
-ACK_HEADERS = {'Content-Type':'application/dash-payment','Accept':'application/dash-paymentack','User-Agent':'Electrum-DASH'}
+REQUEST_HEADERS = {'Accept': 'application/dash-paymentrequest', 'User-Agent': 'Dash-Electrum'}
+ACK_HEADERS = {'Content-Type':'application/dash-payment','Accept':'application/dash-paymentack','User-Agent':'Dash-Electrum'}
 
 ca_path = requests.certs.where()
 ca_list = None
@@ -266,7 +266,7 @@ class PaymentRequest:
         paymnt.transactions.append(bfh(raw_tx))
         ref_out = paymnt.refund_to.add()
         ref_out.script = util.bfh(transaction.Transaction.pay_script(TYPE_ADDRESS, refund_addr))
-        paymnt.memo = "Paid using Electrum-DASH"
+        paymnt.memo = "Paid using Dash-Electrum"
         pm = paymnt.SerializeToString()
         payurl = urllib.parse.urlparse(pay_det.payment_url)
         try:
