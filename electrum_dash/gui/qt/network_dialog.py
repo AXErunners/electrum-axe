@@ -268,6 +268,11 @@ class NetworkChoiceLayout(object):
         self.tor_cb.hide()
         self.tor_cb.clicked.connect(self.use_tor_proxy)
 
+        self.tor_auto_on = QCheckBox(_("Use Tor Proxy on startup"))
+        self.tor_auto_on.setIcon(QIcon(":icons/tor_logo.png"))
+        self.tor_auto_on.setChecked(self.config.get('tor_auto_on', True))
+        self.tor_auto_on.clicked.connect(self.use_tor_auto_on)
+
         grid.addWidget(self.tor_cb, 1, 0, 1, 3)
         grid.addWidget(self.proxy_cb, 2, 0, 1, 3)
         grid.addWidget(HelpButton(_('Proxy settings apply to all connections: with Dash-Electrum servers, but also with third-party services.')), 2, 4)
@@ -276,6 +281,8 @@ class NetworkChoiceLayout(object):
         grid.addWidget(self.proxy_port, 4, 3)
         grid.addWidget(self.proxy_user, 5, 2)
         grid.addWidget(self.proxy_password, 5, 3)
+        grid.addWidget(self.tor_auto_on, 6, 0, 1, 3)
+        grid.addWidget(HelpButton(_('During wallet startup try to detect and use Tor Proxy.')), 6, 4)
         grid.setRowStretch(7, 1)
 
         # Blockchain Tab
@@ -488,6 +495,9 @@ class NetworkChoiceLayout(object):
 
     def proxy_settings_changed(self):
         self.tor_cb.setChecked(False)
+
+    def use_tor_auto_on(self, use_it):
+        self.config.set_key('tor_auto_on', use_it, True)
 
 
 class TorDetector(QThread):

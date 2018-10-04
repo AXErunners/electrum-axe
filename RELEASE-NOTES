@@ -1,4 +1,10 @@
-# Release 3.2.3 - (September 3, 2018)
+# Release 3.2.3.1
+
+ * Rename to Dash-Electrum
+ * Add "Use Tor Proxy on startup" option, add Tor Proxy setup to Win builds,
+   add docs to setup Tor Proxy on other platforms. Warning if run without Tor.
+
+# Release 3.2.3
 
  * hardware wallet: the Safe-T mini from Archos is now supported.
  * BIP39 seeds: if a seed extension (aka passphrase) contained
