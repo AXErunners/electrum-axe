@@ -7,4 +7,4 @@ if [[ -z $TRAVIS_TAG ]]; then
 fi
 
 docker pull axerunners/electrum-axe-winebuild:Linux
-docker pull axerunners/electrum-axe-winebuild:WinePy35
+docker pull axerunners/electrum-axe-winebuild:WinePy36
