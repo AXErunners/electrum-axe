@@ -1,4 +1,4 @@
-AXE#!/usr/bin/env python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Search and replaces BTC addresses and private keys in WIF to AXE variant"""
 
