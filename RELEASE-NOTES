@@ -1,10 +1,29 @@
-# Release 3.2.2
+# Release 3.2.3 - (September 3, 2018)
 
- * Fix vcrun2015 in win64 builds
- * Fix DNS resolution on Windows
- * Fix websocket bug in daemon
+ * hardware wallet: the Safe-T mini from Archos is now supported.
+ * BIP39 seeds: if a seed extension (aka passphrase) contained
+   multiple consecutive whitespaces or leading/trailing whitespaces
+   then the derived addresses were not following spec. This has been
+   fixed, and affected should move their coins. The wizard will show a
+   warning in this case. (#4566)
+ * Revealer: the PRNG used has been changed (#4649)
+ * fix Linux distributables: 'typing' was not bundled, needed for python 3.4
+ * fix #4491: on Android, if user had set "uAXE" as base unit, app crashed
+ * fix #4497: on Android, paying bip70 invoices from cold start did not work
+ * Several other minor bugfixes and usability improvements.
+
+
+# Release 3.2.2.1
+
  * PPA built with libsecp256k1-0, python3-pycryptodome dependencies
  * Added dark theme
+ * Fix ecc_fast.py for win64
+ * Fix vcrun2015 in win64 builds
+
+# Release 3.2.2
+
+ * Fix DNS resolution on Windows
+ * Fix websocket bug in daemon
 
 
 # Release 3.2.1
@@ -68,17 +87,13 @@
  * Several other minor bugfixes and usability improvements.
 
 
-# Release 3.1.4
-
- * QR scan fixed
- * Minor bugfixes
-
 # Release 3.1.3
 
  * Qt GUI: seed word auto-complete during restore
  * Android: fix some crashes
  * performance improvements (wallet, and Qt GUI)
  * hardware wallets: show debug message during device scan
+ * add regtest support (via --regtest flag)
  * other minor bugfixes and usability improvements
 
 # Release 3.1.2
@@ -146,16 +161,25 @@
    (version 1.2). Servers using older versions of the protocol will
    not be displayed in the GUI.
 
-# Release 3.0.6.4.1 :
-
- * amount fields fixed
- * SendFrom/InvoiceList/RequestList css fixed
- * logo color changed
- * minor bugs squashed
-
 # Release 3.0.6.4 :
 
- * increase amount field width
+ * Fix amount fields width
+ * Fix SendFrom/InvoiceList/RequestList CSS
+
+# Release 3.0.6.3 :
+
+ * Fix bip44_derivation call
+ * Refresh AXE logo
+
+# Release 3.0.6.2 :
+
+ * Fix ledger plugin to python3
+ * Fix QComboBox CSS
+
+# Release 3.0.6.1 :
+
+ * Build with locale
+ * Android build
 
 # Release 3.0.6 :
 
