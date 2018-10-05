@@ -15,48 +15,54 @@ else:
 PY36BINDIR =  os.environ.get('PY36BINDIR')
 
 hiddenimports = collect_submodules('trezorlib')
+hiddenimports += collect_submodules('safetlib')
 hiddenimports += collect_submodules('btchip')
 hiddenimports += collect_submodules('keepkeylib')
 hiddenimports += collect_submodules('websocket')
 hiddenimports += [
-    'lib',
-    'lib.base_crash_reporter',
-    'lib.base_wizard',
-    'lib.plot',
-    'lib.qrscanner',
-    'lib.websockets',
-    'gui.qt',
+    'electrum_axe',
+    'electrum_axe.base_crash_reporter',
+    'electrum_axe.base_wizard',
+    'electrum_axe.plot',
+    'electrum_axe.qrscanner',
+    'electrum_axe.websockets',
+    'electrum_axe.gui.qt',
     'PyQt5.sip',
 
-    'plugins',
+    'electrum_axe.plugins',
 
-    'plugins.hw_wallet.qt',
+    'electrum_axe.plugins.hw_wallet.qt',
 
-    'plugins.audio_modem.qt',
-    'plugins.cosigner_pool.qt',
-    'plugins.digitalbitbox.qt',
-    'plugins.email_requests.qt',
-    'plugins.keepkey.qt',
-    'plugins.revealer.qt',
-    'plugins.labels.qt',
-    'plugins.trezor.qt',
-    'plugins.ledger.qt',
-    'plugins.virtualkeyboard.qt',
+    'electrum_axe.plugins.audio_modem.qt',
+    'electrum_axe.plugins.cosigner_pool.qt',
+    'electrum_axe.plugins.digitalbitbox.qt',
+    'electrum_axe.plugins.email_requests.qt',
+    'electrum_axe.plugins.keepkey.qt',
+    'electrum_axe.plugins.revealer.qt',
+    'electrum_axe.plugins.labels.qt',
+    'electrum_axe.plugins.trezor.client',
+    'electrum_axe.plugins.trezor.qt',
+    'electrum_axe.plugins.safe_t.client',
+    'electrum_axe.plugins.safe_t.qt',
+    'electrum_axe.plugins.ledger.qt',
+    'electrum_axe.plugins.virtualkeyboard.qt',
 ]
 
 datas = [
-    ('lib/servers.json', 'electrum_axe'),
-    ('lib/servers_testnet.json', 'electrum_axe'),
-    ('lib/servers_regtest.json', 'electrum_axe'),
-    ('lib/currencies.json', 'electrum_axe'),
-    ('lib/checkpoints.json', 'electrum_axe'),
-    ('lib/locale', 'electrum_axe/locale'),
-    ('lib/wordlist', 'electrum_axe/wordlist'),
+    ('electrum_axe/servers.json', 'electrum_axe'),
+    ('electrum_axe/servers_testnet.json', 'electrum_axe'),
+    ('electrum_axe/servers_regtest.json', 'electrum_axe'),
+    ('electrum_axe/currencies.json', 'electrum_axe'),
+    ('electrum_axe/checkpoints.json', 'electrum_axe'),
+    ('electrum_axe/locale', 'electrum_axe/locale'),
+    ('electrum_axe/wordlist', 'electrum_axe/wordlist'),
 ]
 datas += collect_data_files('trezorlib')
+datas += collect_data_files('safetlib')
 datas += collect_data_files('btchip')
 datas += collect_data_files('keepkeylib')
 
+# Add libusb so Trezor and Safe-T mini will work
 binaries = [('../libusb-1.0.dylib', '.')]
 binaries += [('../libsecp256k1.0.dylib', '.')]
 binaries += [('/usr/local/lib/libgmp.10.dylib', '.')]
@@ -105,7 +111,6 @@ excludes += [
 ]
 
 a = Analysis(['electrum-axe'],
-             pathex=['plugins'],
              hiddenimports=hiddenimports,
              datas=datas,
              binaries=binaries,
@@ -117,15 +122,6 @@ for d in a.datas:
     if 'pyconfig' in d[0]:
         a.datas.remove(d)
         break
-
-# Add TOC to electrum_axe, electrum_axe_gui, electrum_axe_plugins
-for p in sorted(a.pure):
-    if p[0].startswith('lib') and p[2] == 'PYMODULE':
-        a.pure += [('electrum_axe%s' % p[0][3:] , p[1], p[2])]
-    if p[0].startswith('gui') and p[2] == 'PYMODULE':
-        a.pure += [('electrum_axe_gui%s' % p[0][3:] , p[1], p[2])]
-    if p[0].startswith('plugins') and p[2] == 'PYMODULE':
-        a.pure += [('electrum_axe_plugins%s' % p[0][7:] , p[1], p[2])]
 
 pyz = PYZ(a.pure)
 
