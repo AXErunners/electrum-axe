@@ -29,7 +29,7 @@ Manual signing:
         -sigalg SHA1withRSA -digestalg SHA1 \
         -sigfile dash-electrum \
         -keystore ~/.jks/keystore \
-        Dash_Electrum-3.0.6.1-release-unsigned.apk \
+        Electrum_DASH-3.0.6.1-release-unsigned.apk \
         electrum.dash.org
 
 Zipalign from Android SDK build tools is also required (set path to bin in
@@ -48,8 +48,8 @@ settings file or with key -z). To install:
 Manual zip aligning:
 
     android-sdk-linux/build-tools/27.0.3/zipalign -v 4 \
-        Dash_Electrum-3.0.6.1-release-unsigned.apk \
-        Dash_Electrum-3.0.6.1-release.apk
+        Electrum_DASH-3.0.6.1-release-unsigned.apk \
+        Dash-Electrum-3.0.6.1-release.apk
 
 
 
@@ -168,8 +168,8 @@ JARSIGNER_ARGS = [
     '-storepass:env', JKS_STOREPASS,
     '-keypass:env', JKS_KEYPASS,
 ]
-UNSIGNED_APK_PATTERN = re.compile('^Dash_Electrum-(.*)-release-unsigned.apk$')
-SIGNED_APK_TEMPLATE = 'Dash_Electrum-{version}-release.apk'
+UNSIGNED_APK_PATTERN = re.compile('^Electrum_DASH-(.*)-release-unsigned.apk$')
+SIGNED_APK_TEMPLATE = 'Dash-Electrum-{version}-release.apk'
 
 
 os.environ['QUILT_PATCHES'] = 'debian/patches'
