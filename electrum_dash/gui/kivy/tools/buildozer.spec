@@ -4,7 +4,7 @@
 title = Dash-Electrum
 
 # (str) Package name
-package.name = Dash_Electrum
+package.name = Electrum_DASH
 
 # (str) Package domain (needed for android/ios packaging)
 package.domain = org.dash.electrum
