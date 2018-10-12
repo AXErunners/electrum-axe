@@ -29,7 +29,7 @@ Manual signing:
         -sigalg SHA1withRSA -digestalg SHA1 \
         -sigfile dash-electrum \
         -keystore ~/.jks/keystore \
-        Dash_Electrum-3.0.6.1-release-unsigned.apk \
+        Electrum_DASH-3.0.6.1-release-unsigned.apk \
         electrum.dash.org
 
 Zipalign from Android SDK build tools is also required (set path to bin in
@@ -48,8 +48,8 @@ settings file or with key -z). To install:
 Manual zip aligning:
 
     android-sdk-linux/build-tools/27.0.3/zipalign -v 4 \
-        Dash_Electrum-3.0.6.1-release-unsigned.apk \
-        Dash_Electrum-3.0.6.1-release.apk
+        Electrum_DASH-3.0.6.1-release-unsigned.apk \
+        Dash-Electrum-3.0.6.1-release.apk
 
 
 
@@ -113,7 +113,8 @@ try:
     import colorama
     from colorama import Fore, Style
     from github_release import (get_releases, gh_asset_download,
-                                gh_asset_upload, gh_asset_delete)
+                                gh_asset_upload, gh_asset_delete,
+                                gh_release_edit)
     from urllib3 import PoolManager
 except ImportError as e:
     print('Import error:', e)
@@ -168,8 +169,8 @@ JARSIGNER_ARGS = [
     '-storepass:env', JKS_STOREPASS,
     '-keypass:env', JKS_KEYPASS,
 ]
-UNSIGNED_APK_PATTERN = re.compile('^Dash_Electrum-(.*)-release-unsigned.apk$')
-SIGNED_APK_TEMPLATE = 'Dash_Electrum-{version}-release.apk'
+UNSIGNED_APK_PATTERN = re.compile('^Electrum_DASH-(.*)-release-unsigned.apk$')
+SIGNED_APK_TEMPLATE = 'Dash-Electrum-{version}-release.apk'
 
 
 os.environ['QUILT_PATCHES'] = 'debian/patches'
@@ -511,7 +512,7 @@ class SignApp(object):
                             dry_run=self.dry_run)
 
             if sdist_match and is_newest_release:
-                self.make_ppa(sdist_match, tmpdir)
+                self.make_ppa(sdist_match, tmpdir, tag)
 
     def sign_apk(self, unsigned_name, version):
         """Sign unsigned release apk"""
@@ -533,8 +534,10 @@ class SignApp(object):
 
         return name
 
-    def make_ppa(self, sdist_match, tmpdir):
+    def make_ppa(self, sdist_match, tmpdir, tag):
         """Build, sign and upload dsc to launchpad.net ppa from sdist.tar.gz"""
+        repo = self.repo
+
         with ChdirTemporaryDirectory() as ppa_tmpdir:
             sdist_name = sdist_match.group(0)
             version = sdist_match.group(1)
@@ -573,6 +576,10 @@ class SignApp(object):
                     changes = '\n'.join(changes)
                 else:
                     changes = '\n  * Porting to ppa\n\n'
+
+            if not self.dry_run:
+                gh_release_edit(repo, tag, name=version)
+                gh_release_edit(repo, tag, body=changes)
 
             os.chdir(sdist_dir)
             print('  Making PPAs for series: %s' % (', '.join(series)))

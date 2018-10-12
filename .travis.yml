@@ -70,7 +70,7 @@ deploy:
   - build/electrum-dash/dist/Dash-Electrum-$DASH_ELECTRUM_VERSION.tar.gz
   - build/electrum-dash/dist/Dash-Electrum-$DASH_ELECTRUM_VERSION-setup-win32.exe
   - build/electrum-dash/dist/Dash-Electrum-$DASH_ELECTRUM_VERSION-setup-win64.exe
-  - build/electrum-dash/bin/Dash_Electrum-$DASH_ELECTRUM_APK_VERSION-release-unsigned.apk
+  - build/electrum-dash/bin/Electrum_DASH-$DASH_ELECTRUM_APK_VERSION-release-unsigned.apk
   on:
     repo: akhavr/electrum-dash
     tags: true
