@@ -48,9 +48,9 @@ pyinstaller \
 info "Adding Dash URI types to Info.plist"
 plutil -insert 'CFBundleURLTypes' \
    -xml '<array><dict> <key>CFBundleURLName</key> <string>dash</string> <key>CFBundleURLSchemes</key> <array><string>dash</string></array> </dict></array>' \
-   -- dist/Dash-Electrum.app/Contents/Info.plist \
+   -- dist/Dash\ Electrum.app/Contents/Info.plist \
    || fail "Could not add keys to Info.plist. Make sure the program 'plutil' exists and is installed."
 
-sudo hdiutil create -fs HFS+ -volname "Dash-Electrum" \
-    -srcfolder dist/Dash-Electrum.app \
+sudo hdiutil create -fs HFS+ -volname "Dash Electrum" \
+    -srcfolder dist/Dash\ Electrum.app \
     dist/Dash-Electrum-$DASH_ELECTRUM_VERSION-macosx.dmg

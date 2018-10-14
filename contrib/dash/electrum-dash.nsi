@@ -7,12 +7,15 @@
 ;--------------------------------
 ;Variables
 
-  !define PRODUCT_NAME "Dash-Electrum"
+  !define PRODUCT_NAME "Dash Electrum"
+  !define PRODUCT_NAME_NO_SPACE "Dash-Electrum"
   !define PREV_PROD_NAME "Electrum-DASH"
+  !define PREV_PROD_NAME2 "Dash-Electrum"
   !define PRODUCT_WEB_SITE "https://github.com/akhavr/electrum-dash"
   !define PRODUCT_PUBLISHER "Electrum Technologies GmbH"
   !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
   !define PREV_PROD_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PREV_PROD_NAME}"
+  !define PREV_PROD_UNINST_KEY2 "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PREV_PROD_NAME2}"
   !define BUILD_ARCH "${WINEARCH}"
 
   Var PREVINSTDIR
@@ -21,7 +24,7 @@
 
   ;Name and file
   Name "${PRODUCT_NAME}"
-  OutFile "dist/${PRODUCT_NAME}-${PRODUCT_VERSION}-setup-${BUILD_ARCH}.exe"
+  OutFile "dist/${PRODUCT_NAME_NO_SPACE}-${PRODUCT_VERSION}-setup-${BUILD_ARCH}.exe"
 
   ;Default installation folder
   InstallDir "$PROGRAMFILES\${PRODUCT_NAME}"
@@ -51,7 +54,7 @@
   SetCompressorDictSize 64
   
   ;Sets the text that is shown (by default it is 'Nullsoft Install System vX.XX') in the bottom of the install window. Setting this to an empty string ("") uses the default; to set the string to blank, use " " (a space).
-  BrandingText "${PRODUCT_NAME} Installer v${PRODUCT_VERSION}" 
+  BrandingText "${PRODUCT_NAME} Installer v${PRODUCT_VERSION}"
   
   ;Sets what the titlebars of the installer will display. By default, it is 'Name Setup', where Name is specified with the Name command. You can, however, override it with 'MyApp Installer' or whatever. If you specify an empty string (""), the default will be used (you can however specify " " to achieve a blank string)
   Caption "${PRODUCT_NAME}"
@@ -117,7 +120,7 @@ Function .onInit
     ${EndIf}
 FunctionEnd
 
-Section "Dash-Electrum" SectionDE
+Section "${PRODUCT_NAME}" SectionDE
   SetOutPath $INSTDIR
 
   ;Uninstall prev product name versions
@@ -133,6 +136,21 @@ Section "Dash-Electrum" SectionDE
     DeleteRegKey HKCU "Software\Classes\dash"
     DeleteRegKey HKCU "Software\${PREV_PROD_NAME}"
     DeleteRegKey HKCU "${PREV_PROD_UNINST_KEY}"
+  ${EndIf}
+
+  ;Uninstall prev2 product name versions
+  ReadRegStr $PREVINSTDIR HKCU "Software\${PREV_PROD_NAME2}" ""
+  ${If} ${PREVINSTDIR} != ""
+    RMDir /r "$PREVINSTDIR\*.*"
+    RMDir "$PREVINSTDIR"
+
+    Delete "$DESKTOP\${PREV_PROD_NAME2}.lnk"
+    Delete "$SMPROGRAMS\${PREV_PROD_NAME2}\*.*"
+    RMDir  "$SMPROGRAMS\${PREV_PROD_NAME2}"
+
+    DeleteRegKey HKCU "Software\Classes\dash"
+    DeleteRegKey HKCU "Software\${PREV_PROD_NAME2}"
+    DeleteRegKey HKCU "${PREV_PROD_UNINST_KEY2}"
   ${EndIf}
 
   ;Uninstall previous version files
@@ -192,7 +210,7 @@ SectionEnd
 
 ;--------------------------------
 ;Descriptions
-LangString DESC_DE ${LANG_ENGLISH} "Dash-Electrum Wallet"
+LangString DESC_DE ${LANG_ENGLISH} "Dash Electrum Wallet"
 LangString DESC_TOR ${LANG_ENGLISH} "The Tor Project Socks Proxy"
 
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN

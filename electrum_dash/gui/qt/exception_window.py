@@ -42,7 +42,7 @@ class Exception_Window(BaseCrashReporter, QWidget, MessageBoxMixin):
         BaseCrashReporter.__init__(self, exctype, value, tb)
         self.main_window = main_window
         QWidget.__init__(self)
-        self.setWindowTitle('Dash-Electrum - ' + _('An Error Occurred'))
+        self.setWindowTitle('Dash Electrum - ' + _('An Error Occurred'))
         self.setMinimumSize(600, 300)
 
         main_box = QVBoxLayout()

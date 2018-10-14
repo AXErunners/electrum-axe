@@ -1,14 +1,14 @@
-# If you want Dash-Electrum to appear in a Linux app launcher ("start menu"), install this by doing:
+# If you want Dash Electrum to appear in a Linux app launcher ("start menu"), install this by doing:
 # sudo desktop-file-install electrum-dash.desktop
 
 [Desktop Entry]
-Comment=Dash-Electrum Wallet
+Comment=Dash Electrum Wallet
 Exec=sh -c "PATH=\"\\$HOME/.local/bin:\\$PATH\" electrum-dash %u"
-GenericName[en_US]=Dash-Electrum
-GenericName=Dash-Electrum
+GenericName[en_US]=Dash Electrum
+GenericName=Dash Electrum
 Icon=electrum-dash
-Name[en_US]=Dash-Electrum Wallet
-Name=Dash-Electrum Wallet
+Name[en_US]=Dash Electrum
+Name=Dash Electrum
 Categories=Network;
 StartupNotify=false
 Terminal=false
