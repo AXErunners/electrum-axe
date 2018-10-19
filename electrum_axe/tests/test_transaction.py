@@ -86,8 +86,8 @@ class TestTransaction(SequentialTestCase):
         self.assertEqual(tx.deserialize(), None)
 
         self.assertEqual(tx.as_dict(), {'hex': unsigned_blob, 'complete': False, 'final': True})
-        self.assertEqual(tx.get_outputs(), [('Xdt8NqE5wSX9ytfP958t4tKdXoZDo6Bm6T', 1000000)])
-        self.assertEqual(tx.get_output_addresses(), ['Xdt8NqE5wSX9ytfP958t4tKdXoZDo6Bm6T'])
+        self.assertEqual(tx.get_outputs(), [('PQCuFncFVzYhuoyv9MCSE5nQU2gwr56uh4', 99999040)])
+        self.assertEqual(tx.get_output_addresses(), ['PQCuFncFVzYhuoyv9MCSE5nQU2gwr56uh4'])
 
         self.assertTrue(tx.has_address('PQCuFncFVzYhuoyv9MCSE5nQU2gwr56uh4'))
         self.assertTrue(tx.has_address('PQMDbX7KC3Z6nkpkptBb19vkoEaaFo5K5o'))
@@ -132,10 +132,10 @@ class TestTransaction(SequentialTestCase):
 
         tx.update_signatures(signed_blob_signatures)
 
-        self.assertEqual(tx.estimated_total_size(), 193)
-        self.assertEqual(tx.estimated_base_size(), 193)
-        self.assertEqual(tx.estimated_weight(), 772)
-        self.assertEqual(tx.estimated_size(), 193)
+        self.assertEqual(tx.estimated_total_size(), 191)
+        self.assertEqual(tx.estimated_base_size(), 191)
+        self.assertEqual(tx.estimated_weight(), 764)
+        self.assertEqual(tx.estimated_size(), 191)
 
     def test_estimated_output_size(self):
         estimated_output_size = transaction.Transaction.estimated_output_size
@@ -151,7 +151,7 @@ class TestTransaction(SequentialTestCase):
 
     def test_parse_xpub(self):
         res = xpubkey_to_address('fe4e13b0f311a55b8a5db9a32e959da9f011b131019d4cebe6141b9e2c93edcbfc0954c358b062a9f94111548e50bde5847a3096b8b7872dcffadb0e9579b9017b01000200')
-        self.assertEqual(res, ('04ee98d63800824486a1cf5b4376f2f574d86e0a3009a6448105703453f3368e8e1d8d090aaecdd626a45cc49876709a3bbb6dc96a4311b3cac03e225df5f63dfc', 'XjNytJHxbRZCF4s7MzaKvw4Rrf6bPRuPnW'))
+        self.assertEqual(res, ('04ee98d63800824486a1cf5b4376f2f574d86e0a3009a6448105703453f3368e8e1d8d090aaecdd626a45cc49876709a3bbb6dc96a4311b3cac03e225df5f63dfc', 'PHHKD22ugdpo4xwHrBadkJLue4gnRTxAsK'))
 
     def test_version_field(self):
         tx = transaction.Transaction(v2_blob)
