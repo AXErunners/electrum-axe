@@ -2,7 +2,7 @@
 
 ## Use Tor Proxy on startup
 
-Starting from Dash-Electrum release 3.2.3 automatic Tor Proxy
+Starting from Dash-Electrum release 3.2.3.1 automatic Tor Proxy
 detection and use on wallet startup is added to
 [Network](tor/tor-proxy-on-startup.md) preferences.
 

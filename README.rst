@@ -53,6 +53,19 @@ before you can run Dash-Electrum. Read the next section, "Development
 Version".
 
 
+Using Tor proxy
+===============
+
+Starting from Dash-Electrum release 3.2.3.1 automatic Tor Proxy
+detection and use on wallet startup is added to
+`Network <docs/tor/tor-proxy-on-startup.md>`_ preferences.
+
+To use Tor Proxy on Ubuntu set it up with::
+
+    sudo apt-get install tor
+    sudo service tor start
+
+Other platforms setup is described at `docs/tor.md <docs/tor.md>`_
 
 Development version
 ===================
