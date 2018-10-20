@@ -20,6 +20,20 @@ Dash-Electrum - Lightweight Dashpay client
 Getting started
 ===============
 
+
+Use PPA setup
+-------------
+
+On Ubuntu/Linux Mint you can try to install Dash-Electrum with next commands::
+
+    sudo add-apt-repository ppa:akhavr/dash-electrum
+    sudo apt-get update
+    sudo apt-get install dash-electrum
+
+
+Use source distribution
+-----------------------
+
 Dash-Electrum is a pure python application. If you want to use the
 Qt interface, install the Qt dependencies::
 
