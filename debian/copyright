@@ -9,11 +9,11 @@ Comment:
  Various authors are described in the AUTHORS file, including parts on
  which they worked and hold license.
 
-Files: lib/*
+Files: electrum_axe/*
 Copyright: 2011-2018 Thomas Voegtlin
 License: Expat
 
-Files: plugins/*
+Files: electrum_axe/plugins/*
 Copyright: 2014-2018 Thomas Voegtlin
 License: Expat
 

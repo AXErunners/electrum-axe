@@ -1,1 +1,5 @@
-port to ppa
+electrum-axe (3.0.6~rc2-0ppa1~ubuntu18.04.1) bionic; urgency=medium
+
+  * Port to ppa
+
+ -- Andriy Khavryuchenko <axerunners@khavr.com>  Sun, 18 Mar 2018 00:09:53 +0200

@@ -1,4 +1,4 @@
-AXE#!/usr/bin/env python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Search and replaces BTC addresses and private keys in WIF to AXE variant"""
 
@@ -6,12 +6,12 @@ import click
 import imp
 import re
 
-imp.load_module('lib', *imp.find_module('../../lib'))
+imp.load_module('electrum_axe', *imp.find_module('../../electrum_axe'))
 
-from lib import constants
-from lib.bitcoin import (b58_address_to_hash160, hash160_to_b58_address,
+from electrum_axe import constants
+from electrum_axe.bitcoin import (b58_address_to_hash160, hash160_to_b58_address,
                          serialize_privkey, DecodeBase58Check, WIF_SCRIPT_TYPES)
-from lib.util import inv_dict
+from electrum_axe.util import inv_dict
 
 
 ADDR_PATTERN = re.compile(
