@@ -149,7 +149,7 @@ class TestWalletKeystoreAddressIntegrityForMainnet(SequentialTestCase):
         self.assertEqual(w.txin_type, 'p2pkh')
 
         self.assertEqual(w.get_receiving_addresses()[0], 'PKw29oaGehGgwxMxch4Q5sLrqq1nhArwXY')
-        self.assertEqual(w.get_change_addresses()[0], 'PSjEodULoy8W3GMnxPSi14ku2b8Y1yhRBS')
+        self.assertEqual(w.get_change_addresses()[0], 'PG3hNC2ENBk4susfcfTmyjfsAe5szFbghu')
 
     @needs_test_with_all_ecc_implementations
     @mock.patch.object(storage.WalletStorage, '_write')
