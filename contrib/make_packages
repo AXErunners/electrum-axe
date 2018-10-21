@@ -10,3 +10,4 @@ rm "$contrib"/../packages/ -r
 
 #Install pure python modules in electrum directory
 pip3 install -r $contrib/deterministic-build/requirements.txt -t $contrib/../packages
+

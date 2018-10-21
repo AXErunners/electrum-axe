@@ -62,12 +62,12 @@ Render the SVG icons to PNGs (optional)::
 Compile the icons file for Qt::
 
     sudo apt-get install pyqt5-dev-tools
-    pyrcc5 icons.qrc -o gui/qt/icons_rc.py
+    pyrcc5 icons.qrc -o electrum_axe/gui/qt/icons_rc.py
 
 Compile the protobuf description file::
 
     sudo apt-get install protobuf-compiler
-    protoc --proto_path=lib/ --python_out=lib/ lib/paymentrequest.proto
+    protoc --proto_path=electrum_axe --python_out=electrum_axe electrum_axe/paymentrequest.proto
 
 Create translations (optional)::
 
@@ -90,4 +90,4 @@ This directory contains the python dependencies used by Electrum-AXE.
 Android
 `````````````
 
-See `gui/kivy/Readme.txt` file.
+See `electrum_axe/gui/kivy/Readme.txt` file.

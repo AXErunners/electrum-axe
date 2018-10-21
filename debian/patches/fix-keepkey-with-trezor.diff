@@ -5,7 +5,7 @@ Index: electrum-axe-3.x.x/electrum-axe
 @@ -26,6 +26,8 @@
  import os
  import sys
-
+ 
 +os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION']='python'
 +
  script_dir = os.path.dirname(os.path.realpath(__file__))

@@ -32,7 +32,7 @@ is_local = not is_bundle and os.path.exists(os.path.join(script_dir, "electrum-a
 is_android = 'ANDROID_DATA' in os.environ
 
 # move this back to gui/kivy/__init.py once plugins are moved
-os.environ['KIVY_DATA_DIR'] = os.path.abspath(os.path.dirname(__file__)) + '/gui/kivy/data/'
+os.environ['KIVY_DATA_DIR'] = os.path.abspath(os.path.dirname(__file__)) + '/electrum_axe/gui/kivy/data/'
 
 if is_local or is_android:
     sys.path.insert(0, os.path.join(script_dir, 'packages'))
@@ -46,7 +46,6 @@ def check_imports():
         import ecdsa
         import requests
         import qrcode
-        import pbkdf2
         import google.protobuf
         import jsonrpclib
     except ImportError as e:
@@ -64,18 +63,12 @@ def check_imports():
 if not is_android:
     check_imports()
 
-# load local module as electrum
-if is_local or is_android:
-    import imp
-    imp.load_module('electrum_axe', *imp.find_module('lib'))
-    imp.load_module('electrum_axe_gui', *imp.find_module('gui'))
-
-
 
 from electrum_axe import bitcoin, util
 from electrum_axe import constants
 from electrum_axe import SimpleConfig, Network
 from electrum_axe.wallet import Wallet, Imported_Wallet
+from electrum_axe import bitcoin, util, constants
 from electrum_axe.storage import WalletStorage, get_derivation_used_for_hw_device_encryption
 from electrum_axe.util import print_msg, print_stderr, json_encode, json_decode, UserCancelled
 from electrum_axe.util import set_verbosity, InvalidPassword
@@ -331,7 +324,7 @@ def run_offline_command(config, config_options, plugins):
     return result
 
 def init_plugins(config, gui_name):
-    from electrum_axe.plugins import Plugins
+    from electrum_axe.plugin import Plugins
     return Plugins(config, is_local or is_android, gui_name)
 
 
@@ -345,6 +338,14 @@ if __name__ == '__main__':
     if len(sys.argv) > 1 and sys.argv[1] == 'help':
         sys.argv.remove('help')
         sys.argv.append('-h')
+
+    # old '-v' syntax
+    try:
+        i = sys.argv.index('-v')
+    except ValueError:
+        pass
+    else:
+        sys.argv[i] = '-v*'
 
     # read arguments from stdin pipe and prompt
     for i, arg in enumerate(sys.argv):
@@ -366,7 +367,7 @@ if __name__ == '__main__':
     # config is an object passed to the various constructors (wallet, interface, gui)
     if is_android:
         config_options = {
-            'verbose': True,
+            'verbosity': '',
             'cmd': 'gui',
             'gui': 'kivy',
         }
@@ -387,7 +388,7 @@ if __name__ == '__main__':
         config_options['electrum_path'] = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'electrum_data')
 
     # kivy sometimes freezes when we write to sys.stderr
-    set_verbosity(config_options.get('verbose') and config_options.get('gui')!='kivy')
+    set_verbosity(config_options.get('verbosity') if config_options.get('gui') != 'kivy' else '')
 
     # check uri
     uri = config_options.get('url')
