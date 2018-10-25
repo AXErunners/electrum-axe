@@ -20,6 +20,20 @@ Dash-Electrum - Lightweight Dashpay client
 Getting started
 ===============
 
+
+Use PPA setup
+-------------
+
+On Ubuntu/Linux Mint you can try to install Dash-Electrum with next commands::
+
+    sudo add-apt-repository ppa:akhavr/dash-electrum
+    sudo apt-get update
+    sudo apt-get install dash-electrum
+
+
+Use source distribution
+-----------------------
+
 Dash-Electrum is a pure python application. If you want to use the
 Qt interface, install the Qt dependencies::
 
@@ -53,6 +67,19 @@ before you can run Dash-Electrum. Read the next section, "Development
 Version".
 
 
+Using Tor proxy
+===============
+
+Starting from Dash-Electrum release 3.2.3.1 automatic Tor Proxy
+detection and use on wallet startup is added to
+`Network <docs/tor/tor-proxy-on-startup.md>`_ preferences.
+
+To use Tor Proxy on Ubuntu set it up with::
+
+    sudo apt-get install tor
+    sudo service tor start
+
+Other platforms setup is described at `docs/tor.md <docs/tor.md>`_
 
 Development version
 ===================
