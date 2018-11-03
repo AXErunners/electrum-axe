@@ -105,9 +105,9 @@ class MasternodeManager(object):
 
     def subscribe_to_masternodes(self):
         for mn in self.masternodes:
-            if not mn.announced:
-                continue
             collateral = mn.get_collateral_str()
+            if not '-' in collateral or len(collateral.split('-')[0]) != 64:
+                continue
             if self.masternode_statuses.get(collateral) is None:
                 req = ('masternode.subscribe', [collateral])
                 self.wallet.network.send([req], self.masternode_subscription_response)
