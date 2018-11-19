@@ -1,7 +1,7 @@
 [app]
 
 # (str) Title of your application
-title = Dash-Electrum
+title = Dash Electrum
 
 # (str) Package name
 package.name = Electrum_DASH
@@ -31,7 +31,7 @@ version.filename = %(source.dir)s/electrum_dash/version.py
 #version = 1.9.8
 
 # (list) Application requirements
-requirements = python3crystax==3.6, android, openssl, plyer, kivy==master, libsecp256k1, x11_hash
+requirements = python3crystax==3.6, android, openssl, plyer, pyjnius==1.1.2, kivy==master, libsecp256k1, x11_hash
 
 # (str) Presplash of the application
 #presplash.filename = %(source.dir)s/gui/kivy/theming/splash.png

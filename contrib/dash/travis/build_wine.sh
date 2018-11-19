@@ -20,11 +20,8 @@ cp contrib/dash/deterministic.spec .
 cp contrib/dash/pyi_runtimehook.py .
 cp contrib/dash/pyi_tctl_runtimehook.py .
 
-wine pip install --upgrade pip
-export PYINSTALLER_TAG=dev180610
-wget https://github.com/zebra-lucky/pyinstaller/archive/$PYINSTALLER_TAG.tar.gz
-wine pip install $PYINSTALLER_TAG.tar.gz
-rm $PYINSTALLER_TAG.tar.gz
+wine python -m pip install --upgrade pip
+wine pip install PyInstaller==3.4
 
 wine pip install eth-hash==0.1.2
 wine pip install -r contrib/dash/requirements-win.txt

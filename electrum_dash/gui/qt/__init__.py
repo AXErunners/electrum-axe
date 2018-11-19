@@ -112,7 +112,7 @@ class ElectrumGui:
         # init tray
         self.dark_icon = self.config.get("dark_icon", False)
         self.tray = QSystemTrayIcon(self.tray_icon(), None)
-        self.tray.setToolTip('Dash-Electrum')
+        self.tray.setToolTip('Dash Electrum')
         self.tray.activated.connect(self.tray_activated)
         self.build_tray_menu()
         self.tray.show()
@@ -148,7 +148,7 @@ class ElectrumGui:
             submenu.addAction(_("Close"), window.close)
         m.addAction(_("Dark/Light"), self.toggle_tray_icon)
         m.addSeparator()
-        m.addAction(_("Exit Dash-Electrum"), self.close)
+        m.addAction(_("Exit Dash Electrum"), self.close)
 
     def tray_icon(self):
         if self.dark_icon:
@@ -180,7 +180,7 @@ class ElectrumGui:
 
     def show_network_dialog(self, parent):
         if not self.daemon.network:
-            parent.show_warning(_('You are using Dash-Electrum in offline mode; restart Dash-Electrum if you want to get connected'), title=_('Offline'))
+            parent.show_warning(_('You are using Dash Electrum in offline mode; restart Dash Electrum if you want to get connected'), title=_('Offline'))
             return
         if self.nd:
             self.nd.on_update()

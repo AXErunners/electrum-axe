@@ -40,7 +40,7 @@ Depends:
 Description: Easy to use Dash client - Python module
  This package provides a lightweight Dash client which protects
  you from losing your Dashcoins in a backup mistake or computer
- failure. Also, Dash-Electrum does not require waiting time because it does
+ failure. Also, Dash Electrum does not require waiting time because it does
  not download the Dash blockchain.
  .
  This package provides the "electrum_dash" Python 3 module which can be used
@@ -58,10 +58,10 @@ Recommends: python3-pyqt5
 Description: Easy to use Dash client
  This package provides a lightweight Dash client which protects
  you from losing your Dashcoins in a backup mistake or computer
- failure. Also, Dash-Electrum does not require waiting time because it does
+ failure. Also, Dash Electrum does not require waiting time because it does
  not download the Dash blockchain.
  .
- Features of Dash-Electrum:
+ Features of Dash Electrum:
  .
    * Instant on: Your client does not download the blockchain. It uses a
      network of specialized servers that index the blockchain.
@@ -78,7 +78,7 @@ Description: Easy to use Dash client
      offline. Broadcast them using a machine that does not have your keys.
    * Reachable: You can export your private keys into other Dash
      clients.
-   * Established: Dash-Electrum is open source and was first released in
+   * Established: Dash Electrum is open source and was first released in
      November 2011.
 
 Package: dash-electrum
@@ -93,10 +93,10 @@ Breaks: electrum-dash (<= ${binary:Version})
 Description: Easy to use Dash client
  This package provides a lightweight Dash client which protects
  you from losing your Dashcoins in a backup mistake or computer
- failure. Also, Dash-Electrum does not require waiting time because it does
+ failure. Also, Dash Electrum does not require waiting time because it does
  not download the Dash blockchain.
  .
- Features of Dash-Electrum:
+ Features of Dash Electrum:
  .
    * Instant on: Your client does not download the blockchain. It uses a
      network of specialized servers that index the blockchain.
@@ -113,5 +113,5 @@ Description: Easy to use Dash client
      offline. Broadcast them using a machine that does not have your keys.
    * Reachable: You can export your private keys into other Dash
      clients.
-   * Established: Dash-Electrum is open source and was first released in
+   * Established: Dash Electrum is open source and was first released in
      November 2011.
