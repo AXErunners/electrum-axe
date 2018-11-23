@@ -80,6 +80,8 @@ class TestTransaction(SequentialTestCase):
                 'value': 1000000}],
             'partial': True,
             'version': 1,
+            'tx_type': 0,
+            'extra_payload': b''
         }
         tx = transaction.Transaction(unsigned_blob)
         self.assertEqual(tx.deserialize(), expected)
@@ -121,7 +123,9 @@ class TestTransaction(SequentialTestCase):
                 'type': TYPE_ADDRESS,
                 'value': 1000000}],
             'partial': False,
-            'version': 1
+            'version': 1,
+            'tx_type': 0,
+            'extra_payload': b''
         }
         tx = transaction.Transaction(signed_blob)
         self.assertEqual(tx.deserialize(), expected)
@@ -215,8 +219,8 @@ class TestTransaction(SequentialTestCase):
         self._run_naive_tests_on_tx(raw_tx, txid)
 
     def test_txid_negative_version_num(self):
-        raw_tx = 'f0b47b9a01ecf5e5c3bbf2cf1f71ecdc7f708b0b222432e914b394e24aad1494a42990ddfc000000008b483045022100852744642305a99ad74354e9495bf43a1f96ded470c256cd32e129290f1fa191022030c11d294af6a61b3da6ed2c0c296251d21d113cfd71ec11126517034b0dcb70014104a0fe6e4a600f859a0932f701d3af8e0ecd4be886d91045f06a5a6b931b95873aea1df61da281ba29cadb560dad4fc047cf47b4f7f2570da4c0b810b3dfa7e500ffffffff0240420f00000000001976a9147eeacb8a9265cd68c92806611f704fc55a21e1f588ac05f00d00000000001976a914eb3bd8ccd3ba6f1570f844b59ba3e0a667024a6a88acff7f0000'
-        txid = 'c659729a7fea5071361c2c1a68551ca2bf77679b27086cc415adeeb03852e369'
+        raw_tx = '01007b9a01ecf5e5c3bbf2cf1f71ecdc7f708b0b222432e914b394e24aad1494a42990ddfc000000008b483045022100852744642305a99ad74354e9495bf43a1f96ded470c256cd32e129290f1fa191022030c11d294af6a61b3da6ed2c0c296251d21d113cfd71ec11126517034b0dcb70014104a0fe6e4a600f859a0932f701d3af8e0ecd4be886d91045f06a5a6b931b95873aea1df61da281ba29cadb560dad4fc047cf47b4f7f2570da4c0b810b3dfa7e500ffffffff0240420f00000000001976a9147eeacb8a9265cd68c92806611f704fc55a21e1f588ac05f00d00000000001976a914eb3bd8ccd3ba6f1570f844b59ba3e0a667024a6a88acff7f0000'
+        txid = '57d40e31e4ff032f452b3211d01a40c5e492410d512d339013aa69c48a271f99'
         self._run_naive_tests_on_tx(raw_tx, txid)
 
     def test_txid_regression_issue_4333(self):
