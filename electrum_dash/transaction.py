@@ -34,6 +34,7 @@ from .util import print_error, profiler
 from . import ecc
 from . import bitcoin
 from .bitcoin import *
+from .dash_tx import read_extra_payload, serialize_extra_payload, to_varbytes
 import struct
 import traceback
 import sys
@@ -514,12 +515,30 @@ def deserialize(raw: str, force_full_parse=False) -> dict:
     full_parse = force_full_parse or is_partial
     vds = BCDataStream()
     vds.write(raw_bytes)
-    d['version'] = vds.read_int32()
+
+    # support DIP2 deserialization
+    header = vds.read_uint32()
+    tx_type = header >> 16  # DIP2 tx type
+    if tx_type:
+        version = header & 0x0000ffff
+    else:
+        version = header
+
+    if tx_type and version < 3:
+        version = header
+        tx_type = 0
+
+    d['version'] = version
+    d['tx_type'] = tx_type
     n_vin = vds.read_compact_size()
     d['inputs'] = [parse_input(vds, full_parse=full_parse) for i in range(n_vin)]
     n_vout = vds.read_compact_size()
     d['outputs'] = [parse_output(vds, i) for i in range(n_vout)]
     d['lockTime'] = vds.read_uint32()
+    if tx_type:
+        d['extra_payload'] = read_extra_payload(vds, tx_type)
+    else:
+        d['extra_payload'] = b''
     if vds.can_read_more():
         raise SerializationError('extra junk at the end')
     return d
@@ -650,6 +669,8 @@ class Transaction:
         self._outputs = [TxOutput(x['type'], x['address'], x['value']) for x in d['outputs']]
         self.locktime = d['lockTime']
         self.version = d['version']
+        self.tx_type = d['tx_type']
+        self.extra_payload = d['extra_payload']
         self.is_partial_originally = d['partial']
         return d
 
@@ -856,13 +877,19 @@ class Transaction:
             return network_ser
 
     def serialize_to_network(self, estimate_size=False):
-        nVersion = int_to_hex(self.version, 4)
         nLocktime = int_to_hex(self.locktime, 4)
         inputs = self.inputs()
         outputs = self.outputs()
         txins = var_int(len(inputs)) + ''.join(self.serialize_input(txin, self.input_script(txin, estimate_size)) for txin in inputs)
         txouts = var_int(len(outputs)) + ''.join(self.serialize_output(o) for o in outputs)
-        return nVersion + txins + txouts + nLocktime
+        if self.tx_type:
+            uVersion = int_to_hex(self.version, 2)
+            uTxType = int_to_hex(self.tx_type, 2)
+            vExtra = bh2u(to_varbytes(serialize_extra_payload(self)))
+            return uVersion + uTxType + txins + txouts + nLocktime + vExtra
+        else:
+            nVersion = int_to_hex(self.version, 4)
+            return nVersion + txins + txouts + nLocktime
 
     def txid(self):
         self.deserialize()
