@@ -160,7 +160,7 @@ coll = COLLECT(exe, #tctl_exe,
                name=os.path.join('dist', 'electrum-axe'))
 
 app = BUNDLE(coll,
-             name=os.path.join('dist', 'Electrum-AXE.app'),
-             appname="Electrum-AXE",
+             name=os.path.join('dist', 'AXE Electrum.app'),
+             appname="AXE Electrum",
 	         icon='electrum-axe.icns',
              version = 'ELECTRUM_VERSION')
