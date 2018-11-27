@@ -1,19 +1,19 @@
-# If you want Electrum-AXE to appear in a Linux app launcher ("start menu"), install this by doing:
+# If you want AXE Electrum to appear in a Linux app launcher ("start menu"), install this by doing:
 # sudo desktop-file-install electrum-axe.desktop
 
 [Desktop Entry]
-Comment=Lightweight AXE Client
+Comment=AXE Electrum Wallet
 Exec=sh -c "PATH=\"\\$HOME/.local/bin:\\$PATH\" electrum-axe %u"
-GenericName[en_US]=Electrum-AXE
-GenericName=Electrum-AXE
+GenericName[en_US]=AXE Electrum
+GenericName=AXE Electrum
 Icon=electrum-axe
-Name[en_US]=Electrum AXE Wallet
-Name=Electrum AXE Wallet
+Name[en_US]=AXE Electrum
+Name=AXE Electrum
 Categories=Network;
 StartupNotify=false
 Terminal=false
 Type=Application
-MimeType=x-scheme-handler/axe;
+MimeType=x-scheme-handler/axerunners;
 Actions=Testnet;
 
 [Desktop Action Testnet]
