@@ -13,7 +13,7 @@ Popup:
                 SettingsItem:
                     value: _("{} connections.").format(app.num_nodes) if app.num_nodes else _("Not connected")
                     title: _("Status") + ': ' + self.value
-                    description: _("Connections with Electrum-AXE servers")
+                    description: _("Connections with AXE Electrum servers")
                     action: lambda x: None
 
                 CardSeparator
@@ -30,6 +30,12 @@ Popup:
                     title: _("Proxy") + ': ' + ((self.host +':' + self.port) if self.proxy else _('None'))
                     description: _('Proxy configuration')
                     action: lambda x: app.popup_dialog('proxy')
+
+                CardSeparator
+                SettingsItem:
+                    title: _("Use Tor Proxy on startup: ") + ('ON' if app.tor_auto_on else 'OFF')
+                    description: _('During wallet startup try to detect and use Tor Proxy.')
+                    action: app.toggle_tor_auto_on
 
                 CardSeparator
                 SettingsItem:

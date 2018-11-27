@@ -17,7 +17,7 @@ Builder.load_string('''
 
 <SettingsDialog@Popup>
     id: settings
-    title: _('Electrum-AXE Settings')
+    title: _('AXE Electrum Settings')
     disable_pin: False
     use_encryption: False
     BoxLayout:
