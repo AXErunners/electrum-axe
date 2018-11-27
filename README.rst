@@ -1,24 +1,13 @@
-AXE Electrum - Lightweight AXEpay client
-=====================================
-
-::
-
-  Licence: MIT Licence
-  Author: Thomas Voegtlin
-  Language: Python
-  Homepage: https://axerunners.com/
-
-
+AXE Electrum - Lightweight AXE client
+============
+.. image:: icons/electrum-axe.png
+    :alt: Electrum-AXE logo
 .. image:: https://travis-ci.org/AXErunners/electrum-axe.svg?branch=master
     :target: https://travis-ci.org/AXErunners/electrum-axe
     :alt: Build Status
 
-
-
-
-
 Getting started
-===============
+---------------
 
 
 Use PPA setup
