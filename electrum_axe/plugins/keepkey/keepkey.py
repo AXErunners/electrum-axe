@@ -156,7 +156,7 @@ class KeepKeyPlugin(HW_PluginBase):
         return client
 
     def get_coin_name(self):
-        return "AXETestnet" if constants.net.TESTNET else "AXE"
+        return "AxeTestnet" if constants.net.TESTNET else "Axe"
 
     def initialize_device(self, device_id, wizard, handler):
         # Initialization method
