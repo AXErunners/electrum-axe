@@ -81,6 +81,8 @@ class TestTransaction(SequentialTestCase):
                 'value': 99999040}],
             'partial': True,
             'version': 1,
+            'tx_type': 0,
+            'extra_payload': b''
         }
         tx = transaction.Transaction(unsigned_blob)
         self.assertEqual(tx.deserialize(), expected)
@@ -124,6 +126,9 @@ class TestTransaction(SequentialTestCase):
                 'value': 99999040}],
             'partial': False,
             'version': 1
+            'version': 1,
+            'tx_type': 0,
+            'extra_payload': b''
         }
         tx = transaction.Transaction(signed_blob)
         self.assertEqual(tx.deserialize(), expected)
