@@ -517,7 +517,7 @@ def deserialize(raw: str, force_full_parse=False) -> dict:
     vds.write(raw_bytes)
 
     # support DIP2 deserialization
-    header = vds.read_uint32()
+    header = vds.read_int32()
     tx_type = header >> 16  # DIP2 tx type
     print(header,tx_type)
     if tx_type:
