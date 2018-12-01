@@ -182,6 +182,24 @@ class Network(util.DaemonThread):
             config = {}  # Do not use mutables as default values!
         util.DaemonThread.__init__(self)
         self.config = SimpleConfig(config) if isinstance(config, dict) else config
+
+        # Autodetect and enable Tor proxy on Network init
+        self.tor_docs_uri = ('https://github.com/axerunners/electrum-axe/'
+                             'blob/%s/docs/tor.md' % ELECTRUM_VERSION)
+        self.tor_docs_title = 'Tor Setup Docs'
+        self.tor_docs_uri_qt = ('<br><br><a href="%s">%s</a>' %
+                                (self.tor_docs_uri, self.tor_docs_title))
+        self.tor_warn_msg = ('Tor proxy is disabled, to enable it read'
+                             ' the docs.')
+        self.tor_auto_on = self.config.get('tor_auto_on', True)
+        self.tor_detected = self.detect_tor_proxy(self.config.get('proxy'))
+        if self.tor_auto_on and self.tor_detected:
+            self.config.set_key('proxy', self.tor_detected, False)
+        if self.config.get('proxy') and self.tor_detected:
+            self.tor_on = True
+        else:
+            self.tor_on = False
+
         self.num_server = 10 if not self.config.get('oneserver') else 0
         self.blockchains = blockchain.read_blockchains(self.config)  # note: needs self.blockchains_lock
         self.print_error("blockchains", self.blockchains.keys())
@@ -1363,6 +1381,35 @@ class Network(util.DaemonThread):
     @classmethod
     def max_checkpoint(cls):
         return max(0, len(constants.net.CHECKPOINTS) * 2016 - 1)
+
+    @classmethod
+    def detect_tor_proxy(cls, proxy=None):
+        detected = None
+        tor_ip = '127.0.0.1'
+        tor_ports = [9050, 9150]
+        proxies = [('socks5', tor_ip, p) for p in tor_ports]
+        if proxy:
+            try:
+                psplit = proxy.split(':')[:3]
+                proxies.insert(0, (psplit[0], psplit[1], int(psplit[2])))
+            except:
+                pass
+        if hasattr(socket, "_socketobject"):
+            s = socket._socketobject(socket.AF_INET, socket.SOCK_STREAM)
+        else:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(0.1)
+        for p in proxies:
+            try:
+                s.connect(p[1:])
+                # Tor responds uniquely to HTTP-like requests
+                s.send(b"GET\n")
+                if b"Tor is not an HTTP Proxy" in s.recv(1024):
+                    detected = p
+                    break
+            except socket.error:
+                continue
+        return "%s:%s:%s::" % detected if detected else None
 
 #    def on_proposals(self, result):
 #        """Handle new information on all budget proposals."""

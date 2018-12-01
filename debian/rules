@@ -16,9 +16,17 @@ override_dh_auto_install::
 	dh_auto_install
 	mkdir -p debian/electrum-axe/usr/bin \
              debian/electrum-axe/usr/share
-	mv debian/python3-electrum-axe/usr/bin \
+	cp -r debian/python3-electrum-axe/usr/bin \
        debian/electrum-axe/usr
+	cp -r debian/python3-electrum-axe/usr/share/applications \
+       debian/electrum-axe/usr/share
+	cp -r debian/python3-electrum-axe/usr/share/pixmaps \
+       debian/electrum-axe/usr/share
+	mkdir -p debian/axe-electrum/usr/bin \
+             debian/axe-electrum/usr/share
+	mv debian/python3-electrum-axe/usr/bin \
+       debian/axe-electrum/usr
 	mv debian/python3-electrum-axe/usr/share/applications \
-       debian/electrum-axe/usr/share
+       debian/axe-electrum/usr/share
 	mv debian/python3-electrum-axe/usr/share/pixmaps \
-       debian/electrum-axe/usr/share
+       debian/axe-electrum/usr/share

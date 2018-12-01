@@ -97,6 +97,11 @@ class ElectrumWindow(App):
     def toggle_auto_connect(self, x):
         self.auto_connect = not self.auto_connect
 
+    tor_auto_on = BooleanProperty()
+    def toggle_tor_auto_on(self, x):
+        self.tor_auto_on = not self.electrum_config.get('tor_auto_on', True)
+        self.electrum_config.set_key('tor_auto_on', self.tor_auto_on, True)
+
     def choose_server_dialog(self, popup):
         from .uix.dialogs.choice_dialog import ChoiceDialog
         protocol = 's'
@@ -251,10 +256,11 @@ class ElectrumWindow(App):
 
         App.__init__(self)#, **kwargs)
 
-        title = _('Electrum-AXE App')
+        title = _('AXE Electrum App')
         self.electrum_config = config = kwargs.get('config', None)
         self.language = config.get('language', 'en')
         self.network = network = kwargs.get('network', None)
+        self.tor_auto_on = self.electrum_config.get('tor_auto_on', True)
         if self.network:
             self.num_blocks = self.network.get_local_height()
             self.num_nodes = len(self.network.get_interfaces())
@@ -484,6 +490,8 @@ class ElectrumWindow(App):
             self.network.register_callback(self.on_fee_histogram, ['fee_histogram'])
             self.network.register_callback(self.on_quotes, ['on_quotes'])
             self.network.register_callback(self.on_history, ['on_history'])
+            if self.network.tor_auto_on and not self.network.tor_on:
+                self.show_tor_warning()
         # load wallet
         self.load_wallet_by_name(self.electrum_config.get_wallet_path())
         # URI passed in config
@@ -491,6 +499,32 @@ class ElectrumWindow(App):
         if uri:
             self.set_URI(uri)
 
+    def show_tor_warning(self):
+        from kivy.uix.button import Button
+        from kivy.uix.image import Image
+        from kivy.uix.label import Label
+        from kivy.uix.popup import Popup
+        from kivy.uix.gridlayout import GridLayout
+
+        docs_uri = self.network.tor_docs_uri
+        def on_docs_press(a):
+            import webbrowser
+            webbrowser.open(docs_uri)
+
+        warn_box = GridLayout(rows=4, padding=20, spacing=20)
+        popup = Popup(title='Warning', title_align='center',
+                      content=warn_box, auto_dismiss=False)
+        img_error = 'atlas://electrum_axe/gui/kivy/theming/light/error'
+        warn_box.add_widget(Image(source=img_error, size_hint_y=0.1))
+        warn_box.add_widget(Label(text=self.network.tor_warn_msg,
+                            text_size=(Window.size[0]-40-32, None)))
+        docs_btn = Button(text=self.network.tor_docs_title, size_hint_y=0.1)
+        warn_box.add_widget(docs_btn)
+        dismiss_btn = Button(text=_('Close'), size_hint_y=0.1)
+        warn_box.add_widget(dismiss_btn)
+        dismiss_btn.bind(on_press=popup.dismiss)
+        docs_btn.bind(on_press=on_docs_press)
+        popup.open()
 
     def get_wallet_path(self):
         if self.wallet:
@@ -520,7 +554,7 @@ class ElectrumWindow(App):
             else:
                 self.load_wallet(wallet)
         else:
-            Logger.debug('Electrum-AXE: Wallet not found or action needed. Launching install wizard')
+            Logger.debug('AXE Electrum: Wallet not found or action needed. Launching install wizard')
 
             def launch_wizard():
                 storage = WalletStorage(path, manual_upgrades=True)
@@ -747,8 +781,8 @@ class ElectrumWindow(App):
                 from plyer import notification
             icon = (os.path.dirname(os.path.realpath(__file__))
                     + '/../../' + self.icon)
-            notification.notify('Electrum-AXE', message,
-                            app_icon=icon, app_name='Electrum-AXE')
+            notification.notify('AXE Electrum', message,
+                            app_icon=icon, app_name='AXE Electrum')
         except ImportError:
             Logger.Error('Notification: needs plyer; `sudo pip install plyer`')
 

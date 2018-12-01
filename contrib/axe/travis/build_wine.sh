@@ -1,7 +1,7 @@
 #!/bin/bash
 
 source ./contrib/axe/travis/electrum_axe_version_env.sh;
-echo wine build version is $ELECTRUM_AXE_VERSION
+echo wine build version is $AXE_ELECTRUM_VERSION
 
 mv /opt/zbarw $WINEPREFIX/drive_c/
 
@@ -20,11 +20,8 @@ cp contrib/axe/deterministic.spec .
 cp contrib/axe/pyi_runtimehook.py .
 cp contrib/axe/pyi_tctl_runtimehook.py .
 
-wine pip install --upgrade pip
-export PYINSTALLER_TAG=dev180610
-wget https://github.com/zebra-lucky/pyinstaller/archive/$PYINSTALLER_TAG.tar.gz
-wine pip install $PYINSTALLER_TAG.tar.gz
-rm $PYINSTALLER_TAG.tar.gz
+wine python -m pip install --upgrade pip
+wine pip install PyInstaller==3.4
 
 wine pip install eth-hash==0.1.2
 wine pip install -r contrib/axe/requirements-win.txt
@@ -41,7 +38,7 @@ mkdir $WINEPREFIX/drive_c/Qt
 ln -s $PYHOME/Lib/site-packages/PyQt5/ $WINEPREFIX/drive_c/Qt/5.11.2
 
 wine pyinstaller -y \
-    --name electrum-axe-$ELECTRUM_AXE_VERSION.exe \
+    --name electrum-axe-$AXE_ELECTRUM_VERSION.exe \
     deterministic.spec
 
 if [[ $WINEARCH == win32 ]]; then
@@ -51,6 +48,6 @@ else
 fi
 
 wine "$NSIS_EXE" /NOCD -V3 \
-    /DPRODUCT_VERSION=$ELECTRUM_AXE_VERSION \
+    /DPRODUCT_VERSION=$AXE_ELECTRUM_VERSION \
     /DWINEARCH=$WINEARCH \
     contrib/axe/electrum-axe.nsi

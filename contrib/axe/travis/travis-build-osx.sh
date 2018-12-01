@@ -6,7 +6,7 @@ if [[ -z $TRAVIS_TAG ]]; then
   exit 1
 fi
 
-BUILD_REPO_URL=https://github.com/AXErunners/electrum-axe.git
+BUILD_REPO_URL=https://github.com/axerunners/electrum-axe.git
 
 cd build
 
@@ -17,7 +17,7 @@ cd electrum-axe
 export PY36BINDIR=/Library/Frameworks/Python.framework/Versions/3.6/bin/
 export PATH=$PATH:$PY36BINDIR
 source ./contrib/axe/travis/electrum_axe_version_env.sh;
-echo wine build version is $ELECTRUM_AXE_VERSION
+echo wine build version is $AXE_ELECTRUM_VERSION
 
 sudo pip3 install --upgrade pip
 sudo pip3 install -r contrib/deterministic-build/requirements.txt
@@ -42,9 +42,15 @@ cp contrib/axe/pyi_tctl_runtimehook.py .
 
 pyinstaller \
     -y \
-    --name electrum-axe-$ELECTRUM_AXE_VERSION.bin \
+    --name electrum-axe-$AXE_ELECTRUM_VERSION.bin \
     osx.spec
 
-sudo hdiutil create -fs HFS+ -volname "Electrum-AXE" \
-    -srcfolder dist/Electrum-AXE.app \
-    dist/electrum-axe-$ELECTRUM_AXE_VERSION-macosx.dmg
+info "Adding AXE URI types to Info.plist"
+plutil -insert 'CFBundleURLTypes' \
+   -xml '<array><dict> <key>CFBundleURLName</key> <string>axe</string> <key>CFBundleURLSchemes</key> <array><string>axe</string></array> </dict></array>' \
+   -- dist/AXE\ Electrum.app/Contents/Info.plist \
+   || fail "Could not add keys to Info.plist. Make sure the program 'plutil' exists and is installed."
+
+sudo hdiutil create -fs HFS+ -volname "AXE Electrum" \
+    -srcfolder dist/AXE\ Electrum.app \
+    dist/AXE-Electrum-$AXE_ELECTRUM_VERSION-macosx.dmg
