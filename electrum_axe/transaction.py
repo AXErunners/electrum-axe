@@ -519,7 +519,7 @@ def deserialize(raw: str, force_full_parse=False) -> dict:
     # support DIP2 deserialization
     header = vds.read_int32()
     tx_type = header >> 16  # DIP2 tx type
-    print(header,tx_type,version)
+    print(header,tx_type)
     if tx_type:
         version = header & 0x0000ffff
     else:
