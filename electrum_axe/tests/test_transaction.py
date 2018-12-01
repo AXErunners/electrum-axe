@@ -123,7 +123,6 @@ class TestTransaction(SequentialTestCase):
                 'type': TYPE_ADDRESS,
                 'value': 99999040}],
             'partial': False,
-            'version': 1
             'version': 1,
             'tx_type': 0,
             'extra_payload': b''
