@@ -60,6 +60,7 @@ class TestTransaction(SequentialTestCase):
     @needs_test_with_all_ecc_implementations
     def test_tx_unsigned(self):
         expected = {
+            'tx_type': 0, 'extra_payload': b'',
             'inputs': [{
                 'type': 'p2pkh',
                 'address': 'PQMDbX7KC3Z6nkpkptBb19vkoEaaFo5K5o',
@@ -106,6 +107,7 @@ class TestTransaction(SequentialTestCase):
     @needs_test_with_all_ecc_implementations
     def test_tx_signed(self):
         expected = {
+            'tx_type': 0, 'extra_payload': b'',
             'inputs': [{'address': None,
                 'num_sig': 0,
                 'prevout_hash': '94ff0738bee075823a566db3e1011f1adae98c6e31950da4475126d81b4fb580',
