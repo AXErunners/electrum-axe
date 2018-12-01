@@ -517,20 +517,20 @@ def deserialize(raw: str, force_full_parse=False) -> dict:
     vds.write(raw_bytes)
 
     # support DIP2 deserialization
-    header = vds.read_int32()
+    header = vds.read_uint32()
     tx_type = header >> 16  # DIP2 tx type
-    print(header,tx_type)
+    #print(header,tx_type)
     if tx_type:
         version = header & 0x0000ffff
     else:
         version = header
 
-    print(header,tx_type,version)
+    #print(header,tx_type,version)
     if tx_type and version < 3:
         version = header
         tx_type = 0
 
-    print(header,tx_type,version)
+    #print(header,tx_type,version)
     d['version'] = version
     d['tx_type'] = tx_type
     n_vin = vds.read_compact_size()
