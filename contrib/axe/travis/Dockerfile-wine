@@ -1,5 +1,5 @@
-LABEL maintainer "AXErunners"
 FROM ubuntu:18.04
+LABEL maintainer "AXErunners"
 
 USER root
 WORKDIR /root

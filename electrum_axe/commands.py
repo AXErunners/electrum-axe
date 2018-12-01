@@ -336,7 +336,7 @@ class Commands:
 
     @command('n')
     def getmerkle(self, txid, height):
-        """Get Merkle branch of a transaction included in a block. Electrum-AXE
+        """Get Merkle branch of a transaction included in a block. AXE Electrum
         uses this to verify transactions (Simple Payment Verification)."""
         return self.network.get_merkle_for_transaction(txid, int(height))
 
@@ -347,7 +347,7 @@ class Commands:
 
     @command('')
     def version(self):
-        """Return the version of Electrum-AXE."""
+        """Return the version of AXE Electrum."""
         from .version import ELECTRUM_VERSION
         return ELECTRUM_VERSION
 
@@ -954,10 +954,10 @@ config_variables = {
         'requests_dir': 'directory where a bip70 file will be written.',
         'ssl_privkey': 'Path to your SSL private key, needed to sign the request.',
         'ssl_chain': 'Chain of SSL certificates, needed for signed requests. Put your certificate at the top and the root CA at the end',
-        'url_rewrite': 'Parameters passed to str.replace(), in order to create the r= part of axe: URIs. Example: \"(\'file:///var/www/\',\'https://electrum.axe.org/\')\"',
+        'url_rewrite': 'Parameters passed to str.replace(), in order to create the r= part of axe: URIs. Example: \"(\'file:///var/www/\',\'https://axerunners.com/\')\"',
     },
     'listrequests':{
-        'url_rewrite': 'Parameters passed to str.replace(), in order to create the r= part of axe: URIs. Example: \"(\'file:///var/www/\',\'https://electrum.axe.org/\')\"',
+        'url_rewrite': 'Parameters passed to str.replace(), in order to create the r= part of axe: URIs. Example: \"(\'file:///var/www/\',\'https://axerunners.com/\')\"',
     }
 }
 
@@ -1037,7 +1037,7 @@ def get_parser():
     add_global_options(parser)
     subparsers = parser.add_subparsers(dest='cmd', metavar='<command>')
     # gui
-    parser_gui = subparsers.add_parser('gui', description="Run Electrum-AXE Graphical User Interface.", help="Run GUI (default)")
+    parser_gui = subparsers.add_parser('gui', description="Run AXE Electrum Graphical User Interface.", help="Run GUI (default)")
     parser_gui.add_argument("url", nargs='?', default=None, help="axe URI (or bip70 file)")
     parser_gui.add_argument("-g", "--gui", dest="gui", help="select graphical user interface", choices=['qt', 'kivy', 'text', 'stdio'])
     parser_gui.add_argument("-o", "--offline", action="store_true", dest="offline", default=False, help="Run offline")

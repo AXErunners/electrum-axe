@@ -98,7 +98,7 @@ class WsClientThread(util.DaemonThread):
             method = r.get('method')
             result = r.get('result')
             if result is None:
-                continue
+                continue    
             if method == 'blockchain.scripthash.subscribe':
                 addr = r.get('params')[0]
                 scripthash = bitcoin.address_to_scripthash(addr)
@@ -136,3 +136,5 @@ class WebSocketServer(threading.Thread):
         keyfile = self.config.get('ssl_privkey')
         self.server = SimpleSSLWebSocketServer(host, port, ElectrumWebSocket, certfile, keyfile)
         self.server.serveforever()
+
+

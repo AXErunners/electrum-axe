@@ -390,7 +390,7 @@ def assert_datadir_available(config_path):
         return
     else:
         raise FileNotFoundError(
-            'Electrum-AXE datadir does not exist. Was it deleted while running?' + '\n' +
+            'AXE Electrum datadir does not exist. Was it deleted while running?' + '\n' +
             'Should be at {}'.format(path))
 
 
