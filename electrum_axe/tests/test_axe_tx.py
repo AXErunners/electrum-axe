@@ -174,7 +174,7 @@ WRONG_SPEC_TX = (  # Tx version < 3
     '4d22769c3a4f90b2dcd0de88ac00000000')
 
 
-class TestAXESpecTxSerialization(SequentialTestCase):
+class TestAxeSpecTxSerialization(SequentialTestCase):
 
     def test_axe_tx_v2(self):
         tx = transaction.Transaction(V2_TX)
