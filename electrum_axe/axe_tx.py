@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 #
 # AXE-Electrum - lightweight AXE client
+# Copyright (C) 2018 Dash Developers
 # Copyright (C) 2018 AXE Developers
 #
 # Permission is hereby granted, free of charge, to any person
@@ -53,8 +54,8 @@ def read_outpoint(vds):
     return TxOutPoint.read_vds(vds)
 
 
-class AXETxError(Exception):
-    """Thrown when there's a problem with AXE serialize/deserialize"""
+class AxeTxError(Exception):
+    """Thrown when there's a problem with Axe serialize/deserialize"""
 
 
 # https://axe-docs.github.io/en/developer-reference#outpoint
@@ -76,7 +77,7 @@ class TxOutPoint(namedtuple('TxOutPoint', 'hash index')):
 
 
 # https://github.com/axepay/dips/blob/master/dip-0002-special-transactions.md
-class AXEProRegTx(namedtuple('AXEProRegTx',
+class AxeProRegTx(namedtuple('AxeProRegTx',
                               'version type mode collateralOutpoint '
                               'ipAddress port KeyIdOwner PubKeyOperator '
                               'KeyIdVoting operatorReward scriptPayout '
@@ -106,7 +107,7 @@ class AXEProRegTx(namedtuple('AXEProRegTx',
 
     @classmethod
     def read_vds(cls, vds):
-        return AXEProRegTx(
+        return AxeProRegTx(
             vds.read_uint16(),                          # version
             vds.read_uint16(),                          # type
             vds.read_uint16(),                          # mode
@@ -123,7 +124,7 @@ class AXEProRegTx(namedtuple('AXEProRegTx',
         )
 
 
-class AXEProUpServTx(namedtuple('AXEProUpServTx',
+class AxeProUpServTx(namedtuple('AxeProUpServTx',
                                  'version proTxHash ipAddress port '
                                  'scriptOperatorPayout inputsHash '
                                  'payloadSig')):
@@ -145,7 +146,7 @@ class AXEProUpServTx(namedtuple('AXEProUpServTx',
 
     @classmethod
     def read_vds(cls, vds):
-        return AXEProUpServTx(
+        return AxeProUpServTx(
             vds.read_uint16(),                          # version
             vds.read_bytes(32),                         # proTxHash
             vds.read_bytes(16),                         # ipAddress
@@ -156,7 +157,7 @@ class AXEProUpServTx(namedtuple('AXEProUpServTx',
         )
 
 
-class AXEProUpRegTx(namedtuple('AXEProUpRegTx',
+class AxeProUpRegTx(namedtuple('AxeProUpRegTx',
                                 'version proTxHash mode PubKeyOperator '
                                 'KeyIdVoting scriptPayout inputsHash '
                                 'payloadSig')):
@@ -179,7 +180,7 @@ class AXEProUpRegTx(namedtuple('AXEProUpRegTx',
 
     @classmethod
     def read_vds(cls, vds):
-        return AXEProUpRegTx(
+        return AxeProUpRegTx(
             vds.read_uint16(),                          # version
             vds.read_bytes(32),                         # proTxHash
             vds.read_uint16(),                          # mode
@@ -191,7 +192,7 @@ class AXEProUpRegTx(namedtuple('AXEProUpRegTx',
         )
 
 
-class AXEProUpRevTx(namedtuple('AXEProUpRevTx',
+class AxeProUpRevTx(namedtuple('AxeProUpRevTx',
                                 'version proTxHash reason '
                                 'inputsHash payloadSig')):
     '''Class representing DIP3 ProUpRevTx'''
@@ -209,7 +210,7 @@ class AXEProUpRevTx(namedtuple('AXEProUpRevTx',
 
     @classmethod
     def read_vds(cls, vds):
-        return AXEProUpRevTx(
+        return AxeProUpRevTx(
             vds.read_uint16(),                          # version
             vds.read_bytes(32),                         # proTxHash
             vds.read_uint16(),                          # reason
@@ -218,7 +219,7 @@ class AXEProUpRevTx(namedtuple('AXEProUpRevTx',
         )
 
 
-class AXECbTx(namedtuple('AXECbTx', 'version height merkleRootMNList')):
+class AxeCbTx(namedtuple('AxeCbTx', 'version height merkleRootMNList')):
     '''Class representing DIP4 coinbase special tx'''
     def serialize(self):
         assert len(self.merkleRootMNList) == 32
@@ -230,14 +231,14 @@ class AXECbTx(namedtuple('AXECbTx', 'version height merkleRootMNList')):
 
     @classmethod
     def read_vds(cls, vds):
-        return AXECbTx(
+        return AxeCbTx(
             vds.read_uint16(),                          # version
             vds.read_uint32(),                          # height
             vds.read_bytes(32)                          # merkleRootMNList
         )
 
 
-class AXESubTxRegister(namedtuple('AXESubTxRegister',
+class AxeSubTxRegister(namedtuple('AxeSubTxRegister',
                                    'version userName pubKey payloadSig')):
     '''Class representing DIP5 SubTxRegister'''
     def serialize(self):
@@ -252,7 +253,7 @@ class AXESubTxRegister(namedtuple('AXESubTxRegister',
 
     @classmethod
     def read_vds(cls, vds):
-        return AXESubTxRegister(
+        return AxeSubTxRegister(
             vds.read_uint16(),                          # version
             read_varbytes(vds),                         # userName
             vds.read_bytes(48),                         # pubKey
@@ -260,7 +261,7 @@ class AXESubTxRegister(namedtuple('AXESubTxRegister',
         )
 
 
-class AXESubTxTopup(namedtuple('AXESubTxTopup', 'version regTxHash')):
+class AxeSubTxTopup(namedtuple('AxeSubTxTopup', 'version regTxHash')):
     '''Class representing DIP5 SubTxTopup'''
     def serialize(self):
         assert len(self.regTxHash) == 32
@@ -271,13 +272,13 @@ class AXESubTxTopup(namedtuple('AXESubTxTopup', 'version regTxHash')):
 
     @classmethod
     def read_vds(cls, vds):
-        return AXESubTxTopup(
+        return AxeSubTxTopup(
             vds.read_uint16(),                          # version
             vds.read_bytes(32)                          # regTxHash
         )
 
 
-class AXESubTxResetKey(namedtuple('AXESubTxResetKey',
+class AxeSubTxResetKey(namedtuple('AxeSubTxResetKey',
                                    'version regTxHash hashPrevSubTx '
                                    'creditFee newPubKey payloadSig')):
     '''Class representing DIP5 SubTxResetKey'''
@@ -297,7 +298,7 @@ class AXESubTxResetKey(namedtuple('AXESubTxResetKey',
 
     @classmethod
     def read_vds(cls, vds):
-        return AXESubTxResetKey(
+        return AxeSubTxResetKey(
             vds.read_uint16(),                          # version
             vds.read_bytes(32),                         # regTxHash
             vds.read_bytes(32),                         # hashPrevSubTx
@@ -307,7 +308,7 @@ class AXESubTxResetKey(namedtuple('AXESubTxResetKey',
         )
 
 
-class AXESubTxCloseAccount(namedtuple('AXESubTxCloseAccount',
+class AxeSubTxCloseAccount(namedtuple('AxeSubTxCloseAccount',
                                        'version regTxHash hashPrevSubTx '
                                        'creditFee payloadSig')):
     '''Class representing DIP5 SubTxCloseAccount'''
@@ -325,7 +326,7 @@ class AXESubTxCloseAccount(namedtuple('AXESubTxCloseAccount',
 
     @classmethod
     def read_vds(cls, vds):
-        return AXESubTxCloseAccount(
+        return AxeSubTxCloseAccount(
             vds.read_uint16(),                          # version
             vds.read_bytes(32),                         # regTxHash
             vds.read_bytes(32),                         # hashPrevSubTx
@@ -347,15 +348,15 @@ SPEC_SUB_TX_CLOSE_ACCOUNT = 11
 
 
 SPEC_TX_HANDLERS = {
-    SPEC_PRO_REG_TX: AXEProRegTx,
-    SPEC_PRO_UP_SERV_TX: AXEProUpServTx,
-    SPEC_PRO_UP_REG_TX: AXEProUpRegTx,
-    SPEC_PRO_UP_REV_TX: AXEProUpRevTx,
-    SPEC_CB_TX: AXECbTx,
-    SPEC_SUB_TX_REGISTER: AXESubTxRegister,
-    SPEC_SUB_TX_TOPUP: AXESubTxTopup,
-    SPEC_SUB_TX_RESET_KEY: AXESubTxResetKey,
-    SPEC_SUB_TX_CLOSE_ACCOUNT: AXESubTxCloseAccount,
+    SPEC_PRO_REG_TX: AxeProRegTx,
+    SPEC_PRO_UP_SERV_TX: AxeProUpServTx,
+    SPEC_PRO_UP_REG_TX: AxeProUpRegTx,
+    SPEC_PRO_UP_REV_TX: AxeProUpRevTx,
+    SPEC_CB_TX: AxeCbTx,
+    SPEC_SUB_TX_REGISTER: AxeSubTxRegister,
+    SPEC_SUB_TX_TOPUP: AxeSubTxTopup,
+    SPEC_SUB_TX_RESET_KEY: AxeSubTxResetKey,
+    SPEC_SUB_TX_CLOSE_ACCOUNT: AxeSubTxCloseAccount,
 }
 
 
@@ -382,7 +383,7 @@ def read_extra_payload(vds, tx_type):
 def serialize_extra_payload(tx):
     tx_type = tx.tx_type
     if not tx_type:
-        raise AXETxError('No special tx type set to serialize')
+        raise AxeTxError('No special tx type set to serialize')
 
     extra = tx.extra_payload
     spec_tx_class = SPEC_TX_HANDLERS.get(tx_type)
@@ -391,6 +392,6 @@ def serialize_extra_payload(tx):
         return extra
 
     if not isinstance(extra, spec_tx_class):
-        raise AXETxError('AXE tx_type not conform with extra'
+        raise AxeTxError('Axe tx_type not conform with extra'
                           ' payload class: %s, %s' % (tx_type, extra))
     return extra.serialize()
