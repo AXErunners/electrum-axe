@@ -223,7 +223,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
 
         if self.network.tor_auto_on and not self.network.tor_on:
             self.show_warning(self.network.tor_warn_msg +
-                              self.network.tor_docs_uri_qt)
+                              self.network.tor_docs_uri_qt, rich_text=True)
 
     def on_history(self, b):
         self.new_fx_history_signal.emit()
