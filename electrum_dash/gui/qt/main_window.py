@@ -223,7 +223,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
 
         if self.network.tor_auto_on and not self.network.tor_on:
             self.show_warning(self.network.tor_warn_msg +
-                              self.network.tor_docs_uri_qt)
+                              self.network.tor_docs_uri_qt, rich_text=True)
 
     def on_history(self, b):
         self.new_fx_history_signal.emit()
@@ -616,7 +616,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             _("Before reporting a bug, upgrade to the most recent version of Dash Electrum (latest release or git HEAD), and include the version number in your report."),
             _("Try to explain not only what the bug is, but how it occurs.")
          ])
-        self.show_message(msg, title="Dash Electrum - " + _("Reporting Bugs"))
+        self.show_message(msg, title="Dash Electrum - " + _("Reporting Bugs"), rich_text=True)
 
     def notify_transactions(self):
         if not self.network or not self.network.is_connected():
@@ -1674,7 +1674,10 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
                     self.invoice_list.update()
                     self.do_clear()
                 else:
-                    parent.show_error(msg)
+                    display_msg = _('The server returned an error when broadcasting the transaction.')
+                    if msg:
+                        display_msg += '\n' + msg
+                    parent.show_error(display_msg)
 
         WaitingDialog(self, _('Broadcasting transaction...'),
                       broadcast_thread, broadcast_done, self.on_error)

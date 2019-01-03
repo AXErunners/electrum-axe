@@ -580,6 +580,8 @@ class Transaction:
         self._outputs = None
         self.locktime = 0
         self.version = 1
+        self.tx_type = 0
+        self.extra_payload = b''
         # by default we assume this is a partial txn;
         # this value will get properly set when deserializing
         self.is_partial_originally = True
