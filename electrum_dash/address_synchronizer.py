@@ -27,7 +27,9 @@ from collections import defaultdict
 
 from . import bitcoin
 from .bitcoin import COINBASE_MATURITY, TYPE_ADDRESS, TYPE_PUBKEY
+from .dash_tx import tx_header_to_tx_type
 from .util import PrintError, profiler, bfh, VerifiedTxInfo, TxMinedStatus
+from .protx import ProTxManager
 from .transaction import Transaction, TxOutput
 from .synchronizer import Synchronizer
 from .verifier import SPV
@@ -74,6 +76,7 @@ class AddressSynchronizer(PrintError):
         self.up_to_date = False
         # thread local storage for caching stuff
         self.threadlocal_cache = threading.local()
+        self.protx_manager = ProTxManager(self)
 
         self.load_and_cleanup()
 
@@ -83,6 +86,7 @@ class AddressSynchronizer(PrintError):
         self.check_history()
         self.load_unverified_transactions()
         self.remove_local_transactions_we_dont_have()
+        self.protx_manager.load()
 
     def is_mine(self, address):
         return address in self.history
@@ -143,6 +147,7 @@ class AddressSynchronizer(PrintError):
         else:
             self.verifier = None
             self.synchronizer = None
+        self.protx_manager.on_network_state_changed(self.network)
 
     def stop_threads(self):
         if self.network:
@@ -502,7 +507,16 @@ class AddressSynchronizer(PrintError):
         balance = c + u + x
         h2 = []
         for tx_hash, tx_mined_status, delta in history:
-            h2.append((tx_hash, tx_mined_status, delta, balance))
+            show_dip2 = self.network.config.get('show_dip2_tx_type', False)
+            if show_dip2:
+                tx = self.transactions.get(tx_hash)
+                if tx:
+                    tx_type = tx_header_to_tx_type(bfh(tx.raw[:8]))
+                else:
+                    tx_type = 0
+            else:
+                tx_type = 0
+            h2.append((tx_hash, tx_type, tx_mined_status, delta, balance))
             if balance is None or delta is None:
                 balance = None
             else:

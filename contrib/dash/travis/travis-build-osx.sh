@@ -27,7 +27,8 @@ sudo pip3 install \
     btchip-python==0.1.27 \
     keepkey==4.0.2 \
     safet==0.1.3 \
-    trezor==0.10.2
+    trezor==0.10.2 \
+    python-bls==0.1.0
 
 pyrcc5 icons.qrc -o electrum_dash/gui/qt/icons_rc.py
 

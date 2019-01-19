@@ -191,6 +191,7 @@ class TestDashSpecTxSerialization(SequentialTestCase):
         assert deser['version'] == 3
         assert deser['tx_type'] == 5
         extra = deser['extra_payload']
+        assert(str(extra))
         assert extra.version == 1
         assert extra.height == 264132
         assert len(extra.merkleRootMNList) == 32
@@ -205,6 +206,7 @@ class TestDashSpecTxSerialization(SequentialTestCase):
         assert deser['version'] == 3
         assert deser['tx_type'] == 1
         extra = deser['extra_payload']
+        assert(str(extra))
         assert extra.version == 1
         assert extra.type == 0
         assert extra.mode == 0
@@ -212,9 +214,8 @@ class TestDashSpecTxSerialization(SequentialTestCase):
         assert extra.collateralOutpoint.hash == bfh(
             '4de1afa0a321bc88c34978d4eeba739256b86f8d8cdf47651b6f60e451f0a3de')
         assert extra.collateralOutpoint.index == 1
-        assert len(extra.ipAddress) == 16
-        assert extra.ipAddress == bfh('00000000000000000000ffff12ca34aa')
-        assert extra.port == 12149
+        assert extra.ipAddress == '18.202.52.170'
+        assert extra.port == 29999
         assert len(extra.KeyIdOwner) == 20
         assert extra.KeyIdOwner == bfh(
             '2b3edeed6842db1f59cf35de1ab5721094f049d0')
@@ -244,13 +245,13 @@ class TestDashSpecTxSerialization(SequentialTestCase):
         assert deser['version'] == 3
         assert deser['tx_type'] == 2
         extra = deser['extra_payload']
+        assert(str(extra))
         assert extra.version == 1
         assert len(extra.proTxHash) == 32
         assert extra.proTxHash == bfh(
             '3c6dca244f49f19d3f09889753ffff1fec5bb8f9f5bd5bc09dabd999da21198f')
-        assert len(extra.ipAddress) == 16
-        assert extra.ipAddress == bfh('00000000000000000000ffff5fb73580')
-        assert extra.port == 4391
+        assert extra.ipAddress == '95.183.53.128'
+        assert extra.port == 10001
         assert extra.scriptOperatorPayout == bfh(
             '76a91421851058431a7d722e8e8dd9509e7f2b8e7042ec88ac')
         assert len(extra.inputsHash) == 32
@@ -272,6 +273,7 @@ class TestDashSpecTxSerialization(SequentialTestCase):
         assert deser['version'] == 3
         assert deser['tx_type'] == 3
         extra = deser['extra_payload']
+        assert(str(extra))
         assert extra.version == 1
         assert len(extra.proTxHash) == 32
         assert extra.proTxHash == bfh(
@@ -302,6 +304,7 @@ class TestDashSpecTxSerialization(SequentialTestCase):
         assert deser['version'] == 3
         assert deser['tx_type'] == 4
         extra = deser['extra_payload']
+        assert(str(extra))
         assert extra.version == 1
         assert len(extra.proTxHash) == 32
         assert extra.proTxHash == bfh(
@@ -325,6 +328,7 @@ class TestDashSpecTxSerialization(SequentialTestCase):
         assert deser['version'] == 3
         assert deser['tx_type'] == 8
         extra = deser['extra_payload']
+        assert(str(extra))
         assert extra.version == 1
         assert extra.userName == b'abc'
         assert len(extra.pubKey) == 48
@@ -346,6 +350,7 @@ class TestDashSpecTxSerialization(SequentialTestCase):
         assert deser['version'] == 3
         assert deser['tx_type'] == 9
         extra = deser['extra_payload']
+        assert(str(extra))
         assert extra.version == 1
         assert len(extra.regTxHash) == 32
         assert extra.regTxHash == bfh(
@@ -359,6 +364,7 @@ class TestDashSpecTxSerialization(SequentialTestCase):
         assert deser['version'] == 3
         assert deser['tx_type'] == 10
         extra = deser['extra_payload']
+        assert(str(extra))
         assert extra.version == 1
         assert len(extra.regTxHash) == 32
         assert extra.regTxHash == bfh(
@@ -386,6 +392,7 @@ class TestDashSpecTxSerialization(SequentialTestCase):
         assert deser['version'] == 3
         assert deser['tx_type'] == 11
         extra = deser['extra_payload']
+        assert(str(extra))
         assert extra.version == 1
         assert len(extra.regTxHash) == 32
         assert extra.regTxHash == bfh(

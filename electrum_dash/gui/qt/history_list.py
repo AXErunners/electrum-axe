@@ -53,10 +53,16 @@ TX_ICONS = [
 
 
 class HistoryList(MyTreeWidget, AcceptFileDragDrop):
-    filter_columns = [2, 3, 4]  # Date, Description, Amount
+    filter_columns = []
 
     def __init__(self, parent=None):
-        MyTreeWidget.__init__(self, parent, self.create_menu, [], 3)
+        self.show_dip2 = parent.config.get('show_dip2_tx_type', False)
+        if self.show_dip2:
+            MyTreeWidget.__init__(self, parent, self.create_menu, [], 4)
+            filter_columns = [2, 3, 4, 5]  # Date, Dip2, Description, Amount
+        else:
+            MyTreeWidget.__init__(self, parent, self.create_menu, [], 3)
+            filter_columns = [2, 3, 4]  # Date, Description, Amount
         AcceptFileDragDrop.__init__(self, ".txn")
         self.refresh_headers()
         self.setColumnHidden(1, True)
@@ -72,16 +78,28 @@ class HistoryList(MyTreeWidget, AcceptFileDragDrop):
         return str(datetime.date(d.year, d.month, d.day)) if d else _('None')
 
     def refresh_headers(self):
-        headers = ['', '', _('Date'), _('Description'), _('Amount'), _('Balance')]
+        self.show_dip2 = self.config.get('show_dip2_tx_type', False)
+        if self.show_dip2:
+            EDITABLE_COLUMN = 7
+            self.stretch_column = 4
+            self.editable_columns = {4}
+            headers = ['', '', _('Date'), 'DIP2', _('Description'),
+                       _('Amount'), _('Balance')]
+        else:
+            EDITABLE_COLUMN = 6
+            self.stretch_column = 3
+            self.editable_columns = {3}
+            headers = ['', '', _('Date'), _('Description'),
+                       _('Amount'), _('Balance')]
         fx = self.parent.fx
         if fx and fx.show_history():
             headers.extend(['%s '%fx.ccy + _('Value')])
-            self.editable_columns |= {6}
+            self.editable_columns |= {EDITABLE_COLUMN}
             if fx.get_history_capital_gains_config():
                 headers.extend(['%s '%fx.ccy + _('Acquisition price')])
                 headers.extend(['%s '%fx.ccy + _('Capital Gains')])
         else:
-            self.editable_columns -= {6}
+            self.editable_columns -= {EDITABLE_COLUMN}
         self.update_headers(headers)
 
     def get_domain(self):
@@ -214,6 +232,7 @@ class HistoryList(MyTreeWidget, AcceptFileDragDrop):
 
     @profiler
     def on_update(self):
+        self.show_dip2 = self.config.get('show_dip2_tx_type', False)
         self.wallet = self.parent.wallet
         fx = self.parent.fx
         r = self.wallet.get_full_history(domain=self.get_domain(), from_timestamp=self.start_timestamp, to_timestamp=self.end_timestamp, fx=fx)
@@ -231,9 +250,11 @@ class HistoryList(MyTreeWidget, AcceptFileDragDrop):
         if fx: fx.history_used_spot = False
         blue_brush = QBrush(QColor("#1E1EFF"))
         red_brush = QBrush(QColor("#BC1E1E"))
+        dip2_brush = QBrush(QColor("#1c75bc"))
         monospace_font = QFont(MONOSPACE_FONT)
         for tx_item in self.transactions:
             tx_hash = tx_item['txid']
+            dip2 = tx_item.get('dip2', '')
             height = tx_item['height']
             conf = tx_item['confirmations']
             timestamp = tx_item['timestamp']
@@ -246,7 +267,12 @@ class HistoryList(MyTreeWidget, AcceptFileDragDrop):
             icon = self.icon_cache.get(":icons/" + TX_ICONS[status])
             v_str = self.parent.format_amount(value, is_diff=True, whitespaces=True)
             balance_str = self.parent.format_amount(balance, whitespaces=True)
-            entry = ['', tx_hash, status_str, label, v_str, balance_str]
+            if self.show_dip2:
+                entry = ['', tx_hash, status_str, dip2, label, v_str, balance_str]
+                LABEL_COLUMN = 4
+            else:
+                entry = ['', tx_hash, status_str, label, v_str, balance_str]
+                LABEL_COLUMN = 3
             fiat_value = None
             if value is not None and fx and fx.show_history():
                 fiat_value = tx_item['fiat_value'].value
@@ -260,17 +286,20 @@ class HistoryList(MyTreeWidget, AcceptFileDragDrop):
             item.setIcon(0, icon)
             item.setToolTip(0, str(conf) + " confirmation" + ("s" if conf != 1 else ""))
             item.setData(0, SortableTreeWidgetItem.DataRole, (status, conf))
+            if self.show_dip2:
+                item.setForeground(3, dip2_brush)
+                item.setTextAlignment(3, Qt.AlignRight | Qt.AlignVCenter)
             if has_invoice:
-                item.setIcon(3, self.icon_cache.get(":icons/seal"))
+                item.setIcon(LABEL_COLUMN, self.icon_cache.get(":icons/seal"))
             for i in range(len(entry)):
-                if i>3:
+                if i > LABEL_COLUMN:
                     item.setTextAlignment(i, Qt.AlignRight | Qt.AlignVCenter)
                 item.setFont(i, monospace_font)
             if value and value < 0:
-                item.setForeground(3, red_brush)
-                item.setForeground(4, red_brush)
+                item.setForeground(LABEL_COLUMN, red_brush)
+                item.setForeground(LABEL_COLUMN+1, red_brush)
             if fiat_value and not tx_item['fiat_default']:
-                item.setForeground(6, blue_brush)
+                item.setForeground(LABEL_COLUMN+3, blue_brush)
             if tx_hash:
                 item.setData(0, Qt.UserRole, tx_hash)
             self.insertTopLevelItem(0, item)
@@ -281,12 +310,14 @@ class HistoryList(MyTreeWidget, AcceptFileDragDrop):
         '''Called only when the text actually changes'''
         key = item.data(0, Qt.UserRole)
         text = item.text(column)
+        self.show_dip2 = self.config.get('show_dip2_tx_type', False)
+        LABEL_COLUMN = (4 if self.show_dip2 else 3)
         # fixme
-        if column == 3:
+        if column == LABEL_COLUMN:
             self.parent.wallet.set_label(key, text)
             self.update_labels()
             self.parent.update_completions()
-        elif column == 6:
+        elif column == (LABEL_COLUMN + 3):
             self.parent.wallet.set_fiat_value(key, self.parent.fx.ccy, text)
             self.on_update()
 
@@ -301,11 +332,13 @@ class HistoryList(MyTreeWidget, AcceptFileDragDrop):
     def update_labels(self):
         root = self.invisibleRootItem()
         child_count = root.childCount()
+        self.show_dip2 = self.config.get('show_dip2_tx_type', False)
+        LABEL_COLUMN = (4 if self.show_dip2 else 3)
         for i in range(child_count):
             item = root.child(i)
             txid = item.data(0, Qt.UserRole)
             label = self.wallet.get_label(txid)
-            item.setText(3, label)
+            item.setText(LABEL_COLUMN, label)
 
     def update_item(self, tx_hash, tx_mined_status):
         if self.wallet is None:

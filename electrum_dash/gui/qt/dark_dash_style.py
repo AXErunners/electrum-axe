@@ -44,17 +44,17 @@ QGroupBox::title {
     border:0;
 }
 
-#main_window_nav_bar QStackedWidget {
+#main_window_nav_bar > QStackedWidget {
     border-top: 2px solid #FF0000;
     background-color: #232629;
 }
 
-#main_window_nav_bar QTabBar{
+#main_window_nav_bar > QTabBar{
     color: #fff;
     border:0;
 }
 
-#main_window_nav_bar QTabBar {
+#main_window_nav_bar > QTabBar {
     background: url(:/icons/navlogo.png) no-repeat left top;
 }
 
@@ -66,7 +66,7 @@ QTabWidget#main_window_nav_bar::pane {
     position: absolute;
 }
 
-#main_window_nav_bar QTabBar::tab {
+#main_window_nav_bar > QTabBar::tab {
     background-color:#1e75b4;
     color:#fff;
     min-height: 44px;
@@ -74,16 +74,16 @@ QTabWidget#main_window_nav_bar::pane {
     padding-right:1em;
 }
 
-#main_window_nav_bar QTabBar::tab:first {
+#main_window_nav_bar > QTabBar::tab:first {
     border-left: 0 solid #fff;
     margin-left:180px;
 }
 
-#main_window_nav_bar QTabBar::tab:last {
+#main_window_nav_bar > QTabBar::tab:last {
     border-right: 0 solid #fff;
 }
 
-#main_window_nav_bar QTabBar::tab:selected, #main_window_nav_bar QTabBar::tab:hover {
+#main_window_nav_bar > QTabBar::tab:selected, #main_window_nav_bar > QTabBar::tab:hover {
     background-color:#0d436e;
     color:#fff;
 }
@@ -730,5 +730,53 @@ QDialog #settings_tab {
 
 MasternodeDialog {
     min-height: 650px;
+}
+
+MasternodeDialog #dip3_warn {
+    color: #FF0000;
+}
+
+Dip3TabWidget {
+    border-bottom:1px solid #333;
+}
+
+Dip3TabWidget::pane {
+    border: 1px solid #53565b;
+    color: #ccc;
+    background-color: #232629;
+}
+
+Dip3TabWidget Dip3TabBar::tab {
+    background-color: #232629;
+    color: #ccc;
+    padding-left:10px;
+    padding-right:10px;
+    padding-top:5px;
+    padding-bottom:5px;
+    border-top: 1px solid #53565b;
+}
+
+Dip3TabWidget Dip3TabBar::tab:first {
+    border-left: 1px solid #53565b;
+}
+
+Dip3TabWidget Dip3TabBar::tab:last {
+    border-right: 1px solid #53565b;
+}
+
+Dip3TabWidget Dip3TabBar::tab:selected, Dip3TabWidget Dip3TabBar::tab:hover {
+    background-color: #53565b;
+    color: #ccc;
+}
+
+QWizard {
+    background-color: #232629;
+}
+
+QWizard #err-label {
+    color: #ff0000;
+}
+QWizard #info-label {
+    color: #00cc00;
 }
 """
