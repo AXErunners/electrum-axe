@@ -20,7 +20,7 @@ cp contrib/dash/deterministic.spec .
 cp contrib/dash/pyi_runtimehook.py .
 cp contrib/dash/pyi_tctl_runtimehook.py .
 
-wine python -m pip install --upgrade pip
+wine python -m pip install --upgrade pip==18.1
 wine pip install PyInstaller==3.4
 
 wine pip install eth-hash==0.1.2
@@ -33,7 +33,7 @@ wine pip install btchip-python==0.1.27
 wine pip install keepkey==4.0.2
 wine pip install safet==0.1.3
 wine pip install trezor==0.10.2
-wine pip install python-bls==0.1.0
+wine pip install python-bls==0.1.4
 
 mkdir $WINEPREFIX/drive_c/Qt
 ln -s $PYHOME/Lib/site-packages/PyQt5/ $WINEPREFIX/drive_c/Qt/5.11.2

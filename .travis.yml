@@ -16,12 +16,12 @@ matrix:
     os: osx
     language: ruby
     osx_image: xcode7.3
-  - os: linux
+  - if: NOT tag =~ .+
+    os: linux
     python: "3.4"
   - os: linux
     python: "3.5"
-  - if: NOT tag =~ .+
-    os: linux
+  - os: linux
     python: "3.6"
 before_install:
 - source contrib/dash/travis/electrum_dash_version_env.sh
@@ -30,10 +30,10 @@ before_install:
 - if [[ -n $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'osx' ]]; then
       ./build/before_install-osx.sh;
   fi
-- if [[ -n $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]] && [[ $TRAVIS_PYTHON_VERSION == '3.4' ]]; then
+- if [[ -n $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]] && [[ $TRAVIS_PYTHON_VERSION == '3.5' ]]; then
       ./build/before_install-linux.sh;
   fi
-- if [[ -n $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]] && [[ $TRAVIS_PYTHON_VERSION == '3.5' ]]; then
+- if [[ -n $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]] && [[ $TRAVIS_PYTHON_VERSION == '3.6' ]]; then
       ./build/before_install-linux-apk.sh;
   fi
 install:
@@ -47,10 +47,10 @@ script:
 - if [[ -n $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'osx' ]]; then
       ./build/travis-build-osx.sh ;
   fi
-- if [[ -n $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]] && [[ $TRAVIS_PYTHON_VERSION == '3.4' ]]; then
+- if [[ -n $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]] && [[ $TRAVIS_PYTHON_VERSION == '3.5' ]]; then
       ./build/travis-build-linux.sh;
   fi
-- if [[ -n $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]] && [[ $TRAVIS_PYTHON_VERSION == '3.5' ]]; then
+- if [[ -n $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]] && [[ $TRAVIS_PYTHON_VERSION == '3.6' ]]; then
       ./build/travis-build-linux-apk.sh;
   fi
 deploy:

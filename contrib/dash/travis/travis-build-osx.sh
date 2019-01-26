@@ -19,7 +19,7 @@ export PATH=$PATH:$PY36BINDIR
 source ./contrib/dash/travis/electrum_dash_version_env.sh;
 echo wine build version is $DASH_ELECTRUM_VERSION
 
-sudo pip3 install --upgrade pip
+sudo pip3 install --upgrade pip==18.1
 sudo pip3 install -r contrib/deterministic-build/requirements.txt
 sudo pip3 install \
     x11_hash>=1.4 \
@@ -28,7 +28,7 @@ sudo pip3 install \
     keepkey==4.0.2 \
     safet==0.1.3 \
     trezor==0.10.2 \
-    python-bls==0.1.0
+    python-bls==0.1.4
 
 pyrcc5 icons.qrc -o electrum_dash/gui/qt/icons_rc.py
 
