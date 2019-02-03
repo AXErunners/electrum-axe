@@ -27,8 +27,7 @@ sudo pip3 install \
     btchip-python==0.1.27 \
     keepkey==4.0.2 \
     safet==0.1.3 \
-    trezor==0.10.2 \
-    python-bls==0.1.4
+    trezor==0.10.2
 
 pyrcc5 icons.qrc -o electrum_dash/gui/qt/icons_rc.py
 
@@ -46,7 +45,6 @@ pyinstaller \
     --name electrum-dash-$DASH_ELECTRUM_VERSION.bin \
     osx.spec
 
-info "Adding Dash URI types to Info.plist"
 plutil -insert 'CFBundleURLTypes' \
    -xml '<array><dict> <key>CFBundleURLName</key> <string>dash</string> <key>CFBundleURLSchemes</key> <array><string>dash</string></array> </dict></array>' \
    -- dist/Dash\ Electrum.app/Contents/Info.plist \

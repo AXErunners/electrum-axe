@@ -8,8 +8,7 @@ locale/
 .devlocaltmp/
 *_trial_temp
 packages
-env/
-env
+env*
 .tox/
 .buildozer/
 bin/
