@@ -96,7 +96,7 @@ class ProTxService (namedtuple('ProTxService', 'ip port')):
 class TxOutPoint(namedtuple('TxOutPoint', 'hash index')):
     '''Class representing tx output outpoint'''
     def __str__(self):
-        return '%s:%s' % (bh2u(self.hash[::-1] if self.hash else ''),
+        return '%s:%s' % (bh2u(self.hash[::-1]) if self.hash else '',
                           self.index)
 
     def serialize(self):
