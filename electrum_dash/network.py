@@ -227,7 +227,7 @@ class Network(util.DaemonThread):
         self.blockchains_lock = threading.Lock()
         self.protx_diff_resp_lock = threading.Lock()
         self.protx_info_resp_lock = threading.Lock()
-        self.broadcast_txids_lock = threading.Lock()
+        self.broadcast_txs_lock = threading.Lock()
 
         self.pending_sends = []
         self.message_id = 0
@@ -273,7 +273,7 @@ class Network(util.DaemonThread):
 
         self.protx_diff_resp = []
         self.protx_info_resp = []
-        self.broadcast_txids = []
+        self.broadcast_txs = []
 
     def with_interface_lock(func):
         def func_wrapper(self, *args, **kwargs):
@@ -423,10 +423,10 @@ class Network(util.DaemonThread):
                     value = self.protx_info_resp.pop()
                 else:
                     value = {}
-        elif key == 'broadcast-txid':
-            with self.broadcast_txids_lock:
-                if self.broadcast_txids:
-                    value = self.broadcast_txids.pop()
+        elif key == 'broadcast-tx':
+            with self.broadcast_txs_lock:
+                if self.broadcast_txs:
+                    value = self.broadcast_txs.pop()
                 else:
                     value = ''
         else:
@@ -1383,10 +1383,10 @@ class Network(util.DaemonThread):
         if out != transaction.txid():
             return False, "error: " + out
 
-        with self.broadcast_txids_lock:
-            self.broadcast_txids.insert(0, transaction.txid())
+        with self.broadcast_txs_lock:
+            self.broadcast_txs.insert(0, str(transaction))
 
-        self.notify('broadcast-txid')
+        self.notify('broadcast-tx')
 
         return True, out
 

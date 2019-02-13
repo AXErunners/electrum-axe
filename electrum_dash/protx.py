@@ -166,8 +166,8 @@ class ProTxManager(PrintError):
                                            ['protx-diff'])
             self.network.register_callback(self.on_protx_info,
                                            ['protx-info'])
-            self.network.register_callback(self.on_broadcast_txid,
-                                           ['broadcast-txid'])
+            self.network.register_callback(self.on_broadcast_tx,
+                                           ['broadcast-tx'])
             self.network.register_callback(self.on_network_updated,
                                            ['updated'])
             self.network.request_protx_diff(self.protx_base_height)
@@ -177,7 +177,7 @@ class ProTxManager(PrintError):
             self.subscribed = False
             self.network.unregister_callback(self.on_protx_diff)
             self.network.unregister_callback(self.on_protx_info)
-            self.network.unregister_callback(self.on_broadcast_txid)
+            self.network.unregister_callback(self.on_broadcast_tx)
             self.network.unregister_callback(self.on_network_updated)
 
     def on_network_state_changed(self, network):
@@ -611,8 +611,7 @@ class ProTxManager(PrintError):
         self.info_hash = protx_hash
         self.notify('manager-info-updated')
 
-    def on_broadcast_txid(self, key, txid):
-        rawtx = self.wallet.transactions.get(txid)
+    def on_broadcast_tx(self, key, rawtx):
         if not rawtx:
             return
         transaction = Transaction(rawtx)

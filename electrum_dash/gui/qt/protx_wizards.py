@@ -423,7 +423,7 @@ class SelectAddressesWizardPage(QWizardPage):
             if owner_addr:
                 self.o_addr.setEditText(owner_addr)
             else:
-                self.v_addr.setEditText(unused[0])
+                self.o_addr.setEditText(unused[0])
 
         if not self.v_addr.currentText():
             voting_addr = new_mn.voting_addr
