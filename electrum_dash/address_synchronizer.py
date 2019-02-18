@@ -506,16 +506,13 @@ class AddressSynchronizer(PrintError):
         c, u, x = self.get_balance(domain)
         balance = c + u + x
         h2 = []
+        show_dip2 = self.network.config.get('show_dip2_tx_type', False)
         for tx_hash, tx_mined_status, delta in history:
-            show_dip2 = self.network.config.get('show_dip2_tx_type', False)
+            tx_type = 0
             if show_dip2:
                 tx = self.transactions.get(tx_hash)
                 if tx:
                     tx_type = tx_header_to_tx_type(bfh(tx.raw[:8]))
-                else:
-                    tx_type = 0
-            else:
-                tx_type = 0
             h2.append((tx_hash, tx_type, tx_mined_status, delta, balance))
             if balance is None or delta is None:
                 balance = None
