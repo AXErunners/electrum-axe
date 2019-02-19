@@ -39,13 +39,13 @@ import dns.resolver
 import socks
 
 from . import util
-from .util import print_error
+from .util import print_error, versiontuple
 from . import bitcoin
 from .bitcoin import COIN
 from . import constants
 from .interface import Connection, Interface
 from . import blockchain
-from .version import ELECTRUM_VERSION, PROTOCOL_VERSION
+from .version import ELECTRUM_VERSION, PROTOCOL_VERSION, PROTOCOL_MIN_VER
 from .i18n import _
 from .blockchain import InvalidHeader
 from . import masternode_manager
@@ -225,6 +225,9 @@ class Network(util.DaemonThread):
         self.recent_servers_lock = threading.RLock()       # <- re-entrant
         self.subscribed_addresses_lock = threading.Lock()
         self.blockchains_lock = threading.Lock()
+        self.protx_diff_resp_lock = threading.Lock()
+        self.protx_info_resp_lock = threading.Lock()
+        self.broadcast_txs_lock = threading.Lock()
 
         self.pending_sends = []
         self.message_id = 0
@@ -267,6 +270,10 @@ class Network(util.DaemonThread):
         self.socket_queue = queue.Queue()
         self.start_network(deserialize_server(self.default_server)[2],
                            deserialize_proxy(self.config.get('proxy')))
+
+        self.protx_diff_resp = []
+        self.protx_info_resp = []
+        self.broadcast_txs = []
 
     def with_interface_lock(func):
         def func_wrapper(self, *args, **kwargs):
@@ -404,6 +411,26 @@ class Network(util.DaemonThread):
             value = self.get_servers()
         elif key == 'interfaces':
             value = self.get_interfaces()
+        elif key == 'protx-diff':
+            with self.protx_diff_resp_lock:
+                if self.protx_diff_resp:
+                    value = self.protx_diff_resp.pop()
+                else:
+                    value = {}
+        elif key == 'protx-info':
+            with self.protx_info_resp_lock:
+                if self.protx_info_resp:
+                    value = self.protx_info_resp.pop()
+                else:
+                    value = {}
+        elif key == 'broadcast-tx':
+            with self.broadcast_txs_lock:
+                if self.broadcast_txs:
+                    value = self.broadcast_txs.pop()
+                else:
+                    value = ''
+        else:
+            value = None
         return value
 
     def notify(self, key):
@@ -687,6 +714,19 @@ class Network(util.DaemonThread):
             self.on_block_headers(interface, response)
         elif method == 'blockchain.block.get_header':
             self.on_get_header(interface, response)
+        elif method == 'blockchain.block.header':
+            self.on_block_header(interface, response)
+        elif method == 'protx.diff':
+            with self.protx_diff_resp_lock:
+                self.protx_diff_resp.insert(0, {'error': error,
+                                                'result': result,
+                                                'params': params})
+            self.notify('protx-diff')
+        elif method == 'protx.info':
+            with self.protx_info_resp_lock:
+                self.protx_info_resp.insert(0, {'error': error,
+                                                'result': result})
+            self.notify('protx-info')
 
         for callback in callbacks:
             callback(response)
@@ -829,9 +869,9 @@ class Network(util.DaemonThread):
         with self.interface_lock:
             self.interfaces[server] = interface
         # server.version should be the first message
-        params = [ELECTRUM_VERSION, PROTOCOL_VERSION]
+        interface.protocol_version = None
+        params = [ELECTRUM_VERSION, (PROTOCOL_MIN_VER, PROTOCOL_VERSION)]
         self.queue_request('server.version', params, interface)
-        self.queue_request('blockchain.headers.subscribe', [True], interface)
         if server == self.default_server:
             self.switch_to_interface(server)
         #self.notify('interfaces')
@@ -932,8 +972,22 @@ class Network(util.DaemonThread):
         self.notify('updated')
 
     def on_get_header(self, interface, response):
-        '''Handle receiving a single block header'''
         header = response.get('result')
+        self.on_deserialized_header(interface, response, header)
+
+    def on_block_header(self, interface, response):
+        params = response.get('params')
+        height = params[0] if len(params) else -1
+        header_hex = response.get('result')
+        if height < 0 or len(header_hex) != 160:
+            interface.print_error(response)
+            self.connection_down(interface.server)
+            return
+        header = blockchain.deserialize_header(util.bfh(header_hex), height)
+        self.on_deserialized_header(interface, response, header)
+
+    def on_deserialized_header(self, interface, response, header):
+        '''Handle receiving a single block header'''
         if not header:
             interface.print_error(response)
             self.connection_down(interface.server)
@@ -1140,9 +1194,17 @@ class Network(util.DaemonThread):
             if not server_version.startswith('ElectrumX '):
                 raise Exception('Not ElectrumX server')
 
-            if protocol_version != PROTOCOL_VERSION:
-                raise Exception('Electrum protocol not equals %s' % PROTOCOL_VERSION)
-
+            pmv_tuple = versiontuple(PROTOCOL_MIN_VER)
+            spv_tuple = versiontuple(protocol_version)
+            pv_tuple = versiontuple(PROTOCOL_VERSION)
+            if not pmv_tuple <= spv_tuple <= pv_tuple:
+                raise Exception('Not suitable electrum protocol version: %s' %
+                                server_version)
+            i.protocol_version = protocol_version
+            if i.protocol_version == PROTOCOL_MIN_VER:
+                self.queue_request('blockchain.headers.subscribe', [True], i)
+            else:
+                self.queue_request('blockchain.headers.subscribe', [], i)
         except Exception as e:
             self.print_error(
                 'Disconnecting %s with version %s (parse version error: %s)' %
@@ -1269,7 +1331,13 @@ class Network(util.DaemonThread):
         invocation(callback)
 
     def request_header(self, interface, height):
-        self.queue_request('blockchain.block.get_header', [height], interface)
+        proto_ver = interface.protocol_version
+        if proto_ver is None or proto_ver == PROTOCOL_MIN_VER:
+            self.queue_request('blockchain.block.get_header',
+                               [height], interface)
+        else:
+            self.queue_request('blockchain.block.header',
+                               [height], interface)
         interface.request = height
         interface.req_time = time.time()
 
@@ -1314,6 +1382,11 @@ class Network(util.DaemonThread):
 
         if out != transaction.txid():
             return False, "error: " + out
+
+        with self.broadcast_txs_lock:
+            self.broadcast_txs.insert(0, str(transaction))
+
+        self.notify('broadcast-tx')
 
         return True, out
 
@@ -1410,6 +1483,27 @@ class Network(util.DaemonThread):
             except socket.error:
                 continue
         return "%s:%s:%s::" % detected if detected else None
+
+    def request_protx_diff(self, base_height):
+        '''
+        Request a diff between two deterministic masternode lists.
+        The result also contains proof data.
+
+        base_height: The starting block height (starting from 1).
+        height: The ending block height.
+        '''
+        height = self.get_server_height()
+        if not height:
+            return
+        self.queue_request('protx.diff', [base_height, height])
+
+    def request_protx_info(self, protx_hash):
+        '''
+        Request detailed information about a deterministic masternode.
+
+        protx_hash: The hash of the initial ProRegTx
+        '''
+        self.queue_request('protx.info', [protx_hash])
 
 #    def on_proposals(self, result):
 #        """Handle new information on all budget proposals."""

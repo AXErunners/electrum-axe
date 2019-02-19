@@ -25,4 +25,4 @@ sudo chown -R 1000 electrum-dash
 docker run --rm \
     -v $(pwd)/electrum-dash:/home/buildozer/build \
     -t zebralucky/electrum-dash-winebuild:KivyPy36 bash -c \
-    'rm -rf packages && ./contrib/make_packages && ./contrib/make_apk'
+    'export LANG=en_US.utf-8 && rm -rf packages && ./contrib/make_packages && ./contrib/make_apk'

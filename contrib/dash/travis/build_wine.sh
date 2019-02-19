@@ -20,7 +20,7 @@ cp contrib/dash/deterministic.spec .
 cp contrib/dash/pyi_runtimehook.py .
 cp contrib/dash/pyi_tctl_runtimehook.py .
 
-wine python -m pip install --upgrade pip
+wine python -m pip install --upgrade pip==18.1
 wine pip install PyInstaller==3.4
 
 wine pip install eth-hash==0.1.2

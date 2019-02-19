@@ -19,7 +19,7 @@ export PATH=$PATH:$PY36BINDIR
 source ./contrib/dash/travis/electrum_dash_version_env.sh;
 echo wine build version is $DASH_ELECTRUM_VERSION
 
-sudo pip3 install --upgrade pip
+sudo pip3 install --upgrade pip==18.1
 sudo pip3 install -r contrib/deterministic-build/requirements.txt
 sudo pip3 install \
     x11_hash>=1.4 \
@@ -45,7 +45,6 @@ pyinstaller \
     --name electrum-dash-$DASH_ELECTRUM_VERSION.bin \
     osx.spec
 
-info "Adding Dash URI types to Info.plist"
 plutil -insert 'CFBundleURLTypes' \
    -xml '<array><dict> <key>CFBundleURLName</key> <string>dash</string> <key>CFBundleURLSchemes</key> <array><string>dash</string></array> </dict></array>' \
    -- dist/Dash\ Electrum.app/Contents/Info.plist \
