@@ -49,7 +49,7 @@ Manual zip aligning:
 
     android-sdk-linux/build-tools/27.0.3/zipalign -v 4 \
         Electrum_AXE-3.0.6.1-release-unsigned.apk \
-        AXE-Electrum-3.0.6.1-release.apk
+        Axe-Electrum-3.0.6.1-release.apk
 
 
 
@@ -144,8 +144,8 @@ PEP440_PUBVER_PATTERN = re.compile('^((\d+)!)?'
                                    '([a-zA-Z]+\d+)?'
                                    '((\.[a-zA-Z]+\d+)*)$')
 REL_NOTES_PATTERN = re.compile('^#.+?(^[^#].+?)^#.+?', re.M | re.S)
-SDIST_NAME_PATTERN = re.compile('^AXE-Electrum-(.*).tar.gz$')
-SDIST_DIR_TEMPLATE = 'AXE-Electrum-{version}'
+SDIST_NAME_PATTERN = re.compile('^Axe-Electrum-(.*).tar.gz$')
+SDIST_DIR_TEMPLATE = 'Axe-Electrum-{version}'
 PPA_SOURCE_NAME = 'electrum-axe'
 PPA_ORIG_NAME_TEMPLATE = '%s_{version}.orig.tar.gz' % PPA_SOURCE_NAME
 CHANGELOG_TEMPLATE = """%s ({ppa_version}) {series}; urgency=medium
@@ -170,7 +170,7 @@ JARSIGNER_ARGS = [
     '-keypass:env', JKS_KEYPASS,
 ]
 UNSIGNED_APK_PATTERN = re.compile('^Electrum_AXE-(.*)-release-unsigned.apk$')
-SIGNED_APK_TEMPLATE = 'AXE-Electrum-{version}-release.apk'
+SIGNED_APK_TEMPLATE = 'Axe-Electrum-{version}-release.apk'
 
 
 os.environ['QUILT_PATCHES'] = 'debian/patches'
