@@ -17,7 +17,7 @@ Builder.load_string('''
 
 <SettingsDialog@Popup>
     id: settings
-    title: _('AXE Electrum Settings')
+    title: _('Axe Electrum Settings')
     disable_pin: False
     use_encryption: False
     BoxLayout:
@@ -44,7 +44,7 @@ Builder.load_string('''
                 SettingsItem:
                     bu: app.base_unit
                     title: _('Denomination') + ': ' + self.bu
-                    description: _("Base unit for AXE amounts.")
+                    description: _("Base unit for Axe amounts.")
                     action: partial(root.unit_dialog, self)
                 CardSeparator
                 SettingsItem:
