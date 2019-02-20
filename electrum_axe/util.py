@@ -23,7 +23,7 @@
 import binascii
 import os, sys, re, json
 from collections import defaultdict
-from typing import NamedTuple
+from typing import NamedTuple, Union
 from datetime import datetime
 import decimal
 from decimal import Decimal
@@ -281,10 +281,13 @@ class DaemonThread(threading.Thread, PrintError):
         self.print_error("stopped")
 
 
-verbosity = '*'
-def set_verbosity(b):
+verbosity = ''
+def set_verbosity(filters: Union[str, bool]):
     global verbosity
-    verbosity = b
+    if type(filters) is bool:  # backwards compat
+        verbosity = '*' if filters else ''
+        return
+    verbosity = filters
 
 
 def print_error(*args):
@@ -390,7 +393,7 @@ def assert_datadir_available(config_path):
         return
     else:
         raise FileNotFoundError(
-            'AXE Electrum datadir does not exist. Was it deleted while running?' + '\n' +
+            'Axe Electrum datadir does not exist. Was it deleted while running?' + '\n' +
             'Should be at {}'.format(path))
 
 
@@ -635,12 +638,12 @@ def parse_URI(uri, on_pr=None):
 
     if ':' not in uri:
         if not bitcoin.is_address(uri):
-            raise Exception("Not a AXE address")
+            raise Exception("Not a Axe address")
         return {'address': uri}
 
     u = urllib.parse.urlparse(uri)
     if u.scheme != 'axe':
-        raise Exception("Not a AXE URI")
+        raise Exception("Not a Axe URI")
     address = u.path
 
     # python for android fails to parse query
@@ -657,7 +660,7 @@ def parse_URI(uri, on_pr=None):
     out = {k: v[0] for k, v in pq.items()}
     if address:
         if not bitcoin.is_address(address):
-            raise Exception("Invalid AXE address:" + address)
+            raise Exception("Invalid Axe address:" + address)
         out['address'] = address
     if 'amount' in out:
         am = out['amount']
