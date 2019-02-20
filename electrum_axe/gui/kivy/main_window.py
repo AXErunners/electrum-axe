@@ -256,7 +256,7 @@ class ElectrumWindow(App):
 
         App.__init__(self)#, **kwargs)
 
-        title = _('AXE Electrum App')
+        title = _('Axe Electrum App')
         self.electrum_config = config = kwargs.get('config', None)
         self.language = config.get('language', 'en')
         self.network = network = kwargs.get('network', None)
@@ -554,7 +554,7 @@ class ElectrumWindow(App):
             else:
                 self.load_wallet(wallet)
         else:
-            Logger.debug('AXE Electrum: Wallet not found or action needed. Launching install wizard')
+            Logger.debug('Axe Electrum: Wallet not found or action needed. Launching install wizard')
 
             def launch_wizard():
                 storage = WalletStorage(path, manual_upgrades=True)
@@ -781,8 +781,8 @@ class ElectrumWindow(App):
                 from plyer import notification
             icon = (os.path.dirname(os.path.realpath(__file__))
                     + '/../../' + self.icon)
-            notification.notify('AXE Electrum', message,
-                            app_icon=icon, app_name='AXE Electrum')
+            notification.notify('Axe Electrum', message,
+                            app_icon=icon, app_name='Axe Electrum')
         except ImportError:
             Logger.Error('Notification: needs plyer; `sudo pip install plyer`')
 
@@ -916,8 +916,11 @@ class ElectrumWindow(App):
                     self.wallet.invoices.save()
                     self.update_tab('invoices')
             else:
-                msg = msg[:500] if msg else _('There was an error broadcasting the transaction.')
-                self.show_error(msg)
+                display_msg = _('The server returned an error when broadcasting the transaction.')
+                if msg:
+                    display_msg += '\n' + msg
+                display_msg = display_msg[:500]
+                self.show_error(display_msg)
 
         if self.network and self.network.is_connected():
             self.show_info(_('Sending'))

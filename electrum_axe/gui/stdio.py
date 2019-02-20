@@ -2,6 +2,7 @@ from decimal import Decimal
 _ = lambda x:x
 #from i18n import _
 from electrum_axe import WalletStorage, Wallet
+from electrum_axe.axe_tx import SPEC_TX_NAMES
 from electrum_axe.util import format_satoshis, set_verbosity
 from electrum_axe.bitcoin import is_address, COIN, TYPE_ADDRESS
 from electrum_axe.transaction import TxOutput
@@ -82,13 +83,9 @@ class ElectrumGui:
         self.print_list(self.commands, "Available commands")
 
     def print_history(self):
-        width = [20, 40, 14, 14]
-        delta = (80 - sum(width) - 4)/3
-        format_str = "%"+"%d"%width[0]+"s"+"%"+"%d"%(width[1]+delta)+"s"+"%" \
-        + "%d"%(width[2]+delta)+"s"+"%"+"%d"%(width[3]+delta)+"s"
         messages = []
 
-        for tx_hash, tx_mined_status, delta, balance in self.wallet.get_history():
+        for tx_hash, tx_type, tx_mined_status, value, balance in self.wallet.get_history():
             if tx_mined_status.conf:
                 timestamp = tx_mined_status.timestamp
                 try:
@@ -99,9 +96,39 @@ class ElectrumGui:
                 time_str = 'unconfirmed'
 
             label = self.wallet.get_label(tx_hash)
-            messages.append( format_str%( time_str, label, format_satoshis(delta, whitespaces=True), format_satoshis(balance, whitespaces=True) ) )
+            if self.config.get('show_dip2_tx_type', False):
+                tx_type_name = SPEC_TX_NAMES.get(tx_type, str(tx_type))
+                width = [20, 18, 22, 14, 14]
+                delta = (80 - sum(width) - 5) // 3
+                format_str = ("%" + "%d" % width[0] + "s" +
+                              "%" + "%d" % width[1] + "s" +
+                              "%" + "%d" % (width[2] + delta) + "s" +
+                              "%" + "%d" % (width[3] + delta) + "s" +
+                              "%" + "%d" % (width[4] + delta) + "s")
+                msg = format_str % (time_str, tx_type_name, label,
+                                    format_satoshis(value, whitespaces=True),
+                                    format_satoshis(balance, whitespaces=True))
+                messages.append(msg)
+                self.print_list(messages[::-1],
+                                format_str % (_("Date"), 'DIP2',
+                                              _("Description"), _("Amount"),
+                                              _("Balance")))
+            else:
+                width = [20, 40, 14, 14]
+                delta = (80 - sum(width) - 4) // 3
+                format_str = ("%" + "%d" % width[0] + "s" +
+                              "%" + "%d" % (width[1] + delta) + "s" +
+                              "%" + "%d" % (width[2] + delta) + "s" +
+                              "%" + "%d" % (width[3] + delta) + "s")
+                msg = format_str % (time_str, label,
+                                    format_satoshis(value, whitespaces=True),
+                                    format_satoshis(balance, whitespaces=True))
+                messages.append(msg)
+                self.print_list(messages[::-1],
+                                format_str % (_("Date"),
+                                              _("Description"), _("Amount"),
+                                              _("Balance")))
 
-        self.print_list(messages[::-1], format_str%( _("Date"), _("Description"), _("Amount"), _("Balance")))
 
 
     def print_balance(self):
@@ -164,7 +191,7 @@ class ElectrumGui:
 
     def do_send(self):
         if not is_address(self.str_recipient):
-            print(_('Invalid AXE address'))
+            print(_('Invalid Axe address'))
             return
         try:
             amount = int(Decimal(self.str_amount) * COIN)
@@ -207,7 +234,9 @@ class ElectrumGui:
             #self.do_clear()
             #self.update_contacts_tab()
         else:
-            print(_('Error'))
+            display_msg = _('The server returned an error when broadcasting the transaction.')
+            display_msg += '\n' + repr(e)
+            print(display_msg)
 
     def network_dialog(self):
         print("use 'electrum-axe setconfig server/proxy' to change your network settings")
