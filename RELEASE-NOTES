@@ -1,4 +1,33 @@
-# Release 3.2.3 - (September 3, 2018)
+# Release 3.2.5
+
+ * Enhance support of DIP2 (send v3 transactions with extra payload
+   supplied via send tab, show extra payload info in tx dialog).
+ * Display DIP2 tx type in transaction history list (enabled in
+   appearance preferences).
+ * Support of DIP3 masternodes (new masternode manager and UI placed
+   in DIP3 tab, import legacy masternodes from wallet or conf file).
+ * Fix stdio and text wallet gui.
+ * Switch to electrum protocol 1.4, ElectrumX>=1.9.1 recommended to
+   support DIP3 electrum protocol methods.
+ * Switch mainnet block explorer to insight.axe.org.
+
+# Release 3.2.4 (Security update)
+
+ * backport anti-phishing measures from master
+
+# Release 3.2.3.2
+
+ * Support of DIP2 special tx
+ * Fix Kivy SettingsItem layout for small screens
+ * Fix Testnet blockexplorer URI
+
+# Release 3.2.3.1
+
+ * Rename to Axe-Electrum
+ * Add "Use Tor Proxy on startup" option, add Tor Proxy setup to Win builds,
+   add docs to setup Tor Proxy on other platforms. Warning if run without Tor.
+
+# Release 3.2.3
 
  * hardware wallet: the Safe-T mini from Archos is now supported.
  * BIP39 seeds: if a seed extension (aka passphrase) contained
@@ -75,7 +104,7 @@
  * Hardware wallets: a "show address" button is now displayed in the
    Receive tab of the Qt GUI. (#4316)
  * Trezor One: implemented advanced/matrix recovery (#4329)
- * Qt/Kivy: added "duff" as optional base unit.
+ * Qt/Kivy: added "hak" as optional base unit.
  * Kivy GUI: significant performance improvements when displaying
    history and address list of large wallets; and transaction dialog
    of large transactions.
