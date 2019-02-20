@@ -10,6 +10,13 @@
     <file>icons/copy.png</file>
     <file>icons/digitalbitbox.png</file>
     <file>icons/digitalbitbox_unpaired.png</file>
+    <file>icons/dip3_banned.png</file>
+    <file>icons/dip3_op.png</file>
+    <file>icons/dip3_own.png</file>
+    <file>icons/dip3_own_op.png</file>
+    <file>icons/dip3_removed.png</file>
+    <file>icons/dip3_unregistered.png</file>
+    <file>icons/dip3_valid.png</file>
     <file>icons/expired.png</file>
     <file>icons/electrum_light_icon.png</file>
     <file>icons/electrum_dark_icon.png</file>
@@ -44,9 +51,11 @@
     <file>icons/tab_coins.png</file>
     <file>icons/tab_console.png</file>
     <file>icons/tab_contacts.png</file>
+    <file>icons/tab_dip3.png</file>
     <file>icons/tab_history.png</file>
     <file>icons/tab_receive.png</file>
     <file>icons/tab_send.png</file>
+    <file>icons/tab_search.png</file>
     <file>icons/tor_logo.png</file>
     <file>icons/speaker.png</file>
     <file>icons/trezor_unpaired.png</file>

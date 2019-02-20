@@ -132,7 +132,7 @@ class HistoryScreen(CScreen):
         d = LabelDialog(_('Enter Transaction Label'), text, callback)
         d.open()
 
-    def get_card(self, tx_hash, tx_mined_status, value, balance):
+    def get_card(self, tx_hash, tx_type, tx_mined_status, value, balance):
         status, status_str = self.app.wallet.get_tx_status(tx_hash, tx_mined_status)
         icon = "atlas://electrum_axe/gui/kivy/theming/light/" + TX_ICONS[status]
         label = self.app.wallet.get_label(tx_hash) if tx_hash else _('Pruned transaction outputs')
@@ -176,7 +176,7 @@ class SendScreen(CScreen):
         try:
             uri = electrum_axe.util.parse_URI(text, self.app.on_pr)
         except:
-            self.app.show_info(_("Not an AXE URI"))
+            self.app.show_info(_("Not a Axe URI"))
             return
         amount = uri.get('amount')
         self.screen.address = uri.get('address', '')
@@ -247,10 +247,10 @@ class SendScreen(CScreen):
         else:
             address = str(self.screen.address)
             if not address:
-                self.app.show_error(_('Recipient not specified.') + ' ' + _('Please scan an AXE address or a payment request'))
+                self.app.show_error(_('Recipient not specified.') + ' ' + _('Please scan a Axe address or a payment request'))
                 return
             if not bitcoin.is_address(address):
-                self.app.show_error(_('Invalid AXE address') + ':\n' + address)
+                self.app.show_error(_('Invalid Axe Address') + ':\n' + address)
                 return
             try:
                 amount = self.app.get_amount(self.screen.amount)
@@ -365,7 +365,7 @@ class ReceiveScreen(CScreen):
 
     def do_share(self):
         uri = self.get_URI()
-        self.app.do_share(uri, _("Share AXE Request"))
+        self.app.do_share(uri, _("Share Axe Request"))
 
     def do_copy(self):
         uri = self.get_URI()

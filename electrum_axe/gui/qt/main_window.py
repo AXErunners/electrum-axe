@@ -42,6 +42,7 @@ from PyQt5.QtWidgets import *
 from electrum_axe  import (keystore, simple_config, ecc, constants, util, bitcoin, commands,
                             coinchooser, paymentrequest)
 from electrum_axe.bitcoin import COIN, is_address, TYPE_ADDRESS
+from electrum_axe.axe_tx import AxeTxError
 from electrum_axe.plugin import run_hook
 from electrum_axe.i18n import _
 from electrum_axe.util import (format_time, format_satoshis, format_fee_satoshis,
@@ -64,6 +65,8 @@ from .fee_slider import FeeSlider
 from .util import *
 from .installwizard import WIF_HELP_TEXT
 from .masternode_dialog import MasternodeDialog
+from .axe_qt import ExtraPayloadWidget
+from .protx_qt import create_dip3_tab
 
 
 class StatusBarButton(QPushButton):
@@ -143,6 +146,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         self.receive_tab = self.create_receive_tab()
         self.addresses_tab = self.create_addresses_tab()
         self.utxo_tab = self.create_utxo_tab()
+        self.dip3_tab = create_dip3_tab(self, wallet)
         self.console_tab = self.create_console_tab()
         self.contacts_tab = self.create_contacts_tab()
         # Disabled until API is stable.
@@ -164,6 +168,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         add_optional_tab(tabs, self.addresses_tab, QIcon(":icons/tab_addresses.png"), _("&Addresses"), "addresses")
         add_optional_tab(tabs, self.utxo_tab, QIcon(":icons/tab_coins.png"), _("Co&ins"), "utxo")
         add_optional_tab(tabs, self.contacts_tab, QIcon(":icons/tab_contacts.png"), _("Con&tacts"), "contacts")
+        add_optional_tab(tabs, self.dip3_tab, QIcon(":icons/tab_dip3.png"), _("&DIP3"), "dip3")
         add_optional_tab(tabs, self.console_tab, QIcon(":icons/tab_console.png"), _("Con&sole"), "console")
 
         tabs.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -223,7 +228,14 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
 
         if self.network.tor_auto_on and not self.network.tor_on:
             self.show_warning(self.network.tor_warn_msg +
-                              self.network.tor_docs_uri_qt)
+                              self.network.tor_docs_uri_qt, rich_text=True)
+        self.tabs.currentChanged.connect(self.on_tabs_current_changed)
+
+    @pyqtSlot()
+    def on_tabs_current_changed(self):
+        cur_widget = self.tabs.currentWidget()
+        if cur_widget == self.dip3_tab and not cur_widget.have_been_shown:
+            cur_widget.on_first_showing()
 
     def on_history(self, b):
         self.new_fx_history_signal.emit()
@@ -370,6 +382,8 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         wallet.thread = TaskThread(self, self.on_error)
         self.wallet = wallet
         self.masternode_manager = MasternodeManager(self.wallet, self.config)
+        self.dip3_tab.w_model.reload_data()
+        self.dip3_tab.update_wallet_label()
         self.update_recently_visited(wallet.storage.path)
         # address used to create a dummy transaction and estimate transaction fee
         self.history_list.update()
@@ -405,7 +419,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             self.setGeometry(100, 100, 840, 400)
 
     def watching_only_changed(self):
-        name = "AXE Electrum Testnet" if constants.net.TESTNET else "AXE Electrum"
+        name = "Axe Electrum Testnet" if constants.net.TESTNET else "Axe Electrum"
         title = '%s %s  -  %s' % (name, self.wallet.electrum_version,
                                         self.wallet.basename())
         extra = [self.wallet.storage.get('wallet_type', '?')]
@@ -423,8 +437,8 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         if self.wallet.is_watching_only():
             msg = ' '.join([
                 _("This wallet is watching-only."),
-                _("This means you will not be able to spend AXE coins with it."),
-                _("Make sure you own the seed phrase or the private keys, before you request AXE coins to be sent to this wallet.")
+                _("This means you will not be able to spend Axe coins with it."),
+                _("Make sure you own the seed phrase or the private keys, before you request Axe coins to be sent to this wallet.")
             ])
             self.show_warning(msg, title=_('Information'))
 
@@ -452,7 +466,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
                 shutil.copy2(path, new_path)
                 self.show_message(_("A copy of your wallet file was created in")+" '%s'" % str(new_path), title=_("Wallet backup created"))
             except BaseException as reason:
-                self.show_critical(_("AXE Electrum was unable to copy your wallet file to the specified location.") + "\n" + str(reason), title=_("Unable to create backup"))
+                self.show_critical(_("Axe Electrum was unable to copy your wallet file to the specified location.") + "\n" + str(reason), title=_("Unable to create backup"))
 
     def update_recently_visited(self, filename):
         recent = self.config.get('recently_open', [])
@@ -546,6 +560,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         add_toggle_action(view_menu, self.addresses_tab)
         add_toggle_action(view_menu, self.utxo_tab)
         add_toggle_action(view_menu, self.contacts_tab)
+        add_toggle_action(view_menu, self.dip3_tab)
         add_toggle_action(view_menu, self.console_tab)
 
         wallet_menu.addSeparator()
@@ -554,7 +569,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         tools_menu = menubar.addMenu(_("&Tools"))
 
         # Settings / Preferences are all reserved keywords in macOS using this as work around
-        tools_menu.addAction(_("AXE Electrum preferences") if sys.platform == 'darwin' else _("Preferences"), self.settings_dialog)
+        tools_menu.addAction(_("Axe Electrum preferences") if sys.platform == 'darwin' else _("Preferences"), self.settings_dialog)
         tools_menu.addAction(_("&Network"), lambda: self.gui_object.show_network_dialog(self))
         tools_menu.addAction(_("&Plugins"), self.plugins_dialog)
         tools_menu.addSeparator()
@@ -574,7 +589,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
 
         help_menu = menubar.addMenu(_("&Help"))
         help_menu.addAction(_("&About"), self.show_about)
-        help_menu.addAction(_("&Official website"), lambda: webbrowser.open("https://axerunners.com"))
+        help_menu.addAction(_("&Official website"), lambda: webbrowser.open("https://electrum.axe.org"))
         help_menu.addSeparator()
         help_menu.addAction(_("&Documentation"), lambda: webbrowser.open("https://docs.axe.org/en/latest/wallets/index.html#axe-electrum-wallet")).setShortcut(QKeySequence.HelpContents)
         self._auto_crash_reports = QAction(_("&Automated Crash Reports"), self, checkable=True)
@@ -600,23 +615,23 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             self.show_error(_('No donation address for this server'))
 
     def show_about(self):
-        QMessageBox.about(self, "AXE Electrum",
+        QMessageBox.about(self, "Axe Electrum",
                           (_("Version")+" %s" % self.wallet.electrum_version + "\n\n" +
-                           _("Electrum's focus is speed, with low resource usage and simplifying AXE.") + " " +
+                           _("Electrum's focus is speed, with low resource usage and simplifying Axe.") + " " +
                            _("You do not need to perform regular backups, because your wallet can be "
                               "recovered from a secret phrase that you can memorize or write on paper.") + " " +
                            _("Startup times are instant because it operates in conjunction with high-performance "
-                              "servers that handle the most complicated parts of the AXE system.") + "\n\n" +
+                              "servers that handle the most complicated parts of the Axe system.") + "\n\n" +
                            _("Uses icons from the Icons8 icon pack (icons8.com).")))
 
     def show_report_bug(self):
         msg = ' '.join([
             _("Please report any bugs as issues on github:<br/>"),
             "<a href=\"https://github.com/axerunners/electrum-axe/issues\">https://github.com/axerunners/electrum-axe/issues</a><br/><br/>",
-            _("Before reporting a bug, upgrade to the most recent version of AXE Electrum (latest release or git HEAD), and include the version number in your report."),
+            _("Before reporting a bug, upgrade to the most recent version of Axe Electrum (latest release or git HEAD), and include the version number in your report."),
             _("Try to explain not only what the bug is, but how it occurs.")
          ])
-        self.show_message(msg, title="AXE Electrum - " + _("Reporting Bugs"))
+        self.show_message(msg, title="Axe Electrum - " + _("Reporting Bugs"), rich_text=True)
 
     def notify_transactions(self):
         if not self.network or not self.network.is_connected():
@@ -646,9 +661,9 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         if self.tray:
             try:
                 # this requires Qt 5.9
-                self.tray.showMessage("AXE Electrum", message, QIcon(":icons/electrum_dark_icon"), 20000)
+                self.tray.showMessage("Axe Electrum", message, QIcon(":icons/electrum_dark_icon"), 20000)
             except TypeError:
-                self.tray.showMessage("AXE Electrum", message, QSystemTrayIcon.Information, 20000)
+                self.tray.showMessage("Axe Electrum", message, QSystemTrayIcon.Information, 20000)
 
 
 
@@ -833,7 +848,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         self.receive_address_e = ButtonsLineEdit()
         self.receive_address_e.addCopyButton(self.app)
         self.receive_address_e.setReadOnly(True)
-        msg = _('AXE address where the payment should be received. Note that each payment request uses a different AXE address.')
+        msg = _('Axe address where the payment should be received. Note that each payment request uses a different Axe address.')
         self.receive_address_label = HelpLabel(_('Receiving address'), msg)
         self.receive_address_e.textChanged.connect(self.update_receive_qr)
         self.receive_address_e.setFocusPolicy(Qt.ClickFocus)
@@ -863,8 +878,8 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         msg = ' '.join([
             _('Expiration date of your request.'),
             _('This information is seen by the recipient if you send them a signed payment request.'),
-            _('Expired requests have to be deleted manually from your list, in order to free the corresponding AXE addresses.'),
-            _('The AXE address never expires and will always be part of this AXE Electrum wallet.'),
+            _('Expired requests have to be deleted manually from your list, in order to free the corresponding Axe addresses.'),
+            _('The Axe address never expires and will always be part of this Axe Electrum wallet.'),
         ])
         grid.addWidget(HelpLabel(_('Request expires'), msg), 3, 0)
         grid.addWidget(self.expires_combo, 3, 1)
@@ -1091,7 +1106,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         self.amount_e = BTCAmountEdit(self.get_decimal_point)
         self.payto_e = PayToEdit(self)
         msg = _('Recipient of the funds.') + '\n\n'\
-              + _('You may enter a AXE address, a label from your list of contacts (a list of completions will be proposed), or an alias (email-like address that forwards to a AXE address)')
+              + _('You may enter a Axe address, a label from your list of contacts (a list of completions will be proposed), or an alias (email-like address that forwards to a Axe address)')
         payto_label = HelpLabel(_('Pay to'), msg)
         grid.addWidget(payto_label, 1, 0)
         grid.addWidget(self.payto_e, 1, 1, 1, -1)
@@ -1138,10 +1153,19 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         hbox.addStretch(1)
         grid.addLayout(hbox, 4, 4)
 
-        msg = _('AXE transactions are in general not free. A transaction fee is paid by the sender of the funds.') + '\n\n'\
+        msg = _('Axe transactions are in general not free. A transaction fee is paid by the sender of the funds.') + '\n\n'\
               + _('The amount of fee can be decided freely by the sender. However, transactions with low fees take more time to be processed.') + '\n\n'\
               + _('A suggested fee is automatically added to this field. You may override it. The suggested fee increases with the size of the transaction.')
         self.fee_e_label = HelpLabel(_('Fee'), msg)
+
+        self.extra_payload = ExtraPayloadWidget(self)
+        self.extra_payload.hide()
+        msg = _('Extra payload.') + '\n\n'\
+              + _('Axe DIP2 Special Transations extra payload.')
+        self.extra_payload_label = HelpLabel(_('Extra payload'), msg)
+        self.extra_payload_label.hide()
+        grid.addWidget(self.extra_payload_label, 7, 0)
+        grid.addWidget(self.extra_payload, 7, 1, 1, -1)
 
         def fee_cb(dyn, pos, fee_rate):
             if dyn:
@@ -1200,7 +1224,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
 
         def feerounding_onclick():
             text = (self.feerounding_text + '\n\n' +
-                    _('To somewhat protect your privacy, AXE Electrum tries to create change with similar precision to other outputs.') + ' ' +
+                    _('To somewhat protect your privacy, Axe Electrum tries to create change with similar precision to other outputs.') + ' ' +
                     _('At most 100 haks might be lost due to this rounding.') + ' ' +
                     _("You can disable this setting in '{}'.").format(_('Preferences')) + '\n' +
                     _('Also, dust is not kept as change, but added to the fee.'))
@@ -1350,10 +1374,12 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
                 _type, addr = self.get_payto_or_dummy()
                 outputs = [TxOutput(_type, addr, amount)]
             is_sweep = bool(self.tx_external_keypairs)
+            tx_type, extra_payload = self.extra_payload.get_extra_data()
             make_tx = lambda fee_est: \
                 self.wallet.make_unsigned_transaction(
                     self.get_coins(), outputs, self.config,
-                    fixed_fee=fee_est, is_sweep=is_sweep)
+                    fixed_fee=fee_est, is_sweep=is_sweep,
+                    tx_type=tx_type, extra_payload=extra_payload)
             try:
                 tx = make_tx(fee_estimator)
                 self.not_enough_funds = False
@@ -1529,10 +1555,10 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
 
         for o in outputs:
             if o.address is None:
-                self.show_error(_('AXE Address is None'))
+                self.show_error(_('Axe Address is None'))
                 return
             if o.type == TYPE_ADDRESS and not bitcoin.is_address(o.address):
-                self.show_error(_('Invalid AXE Address'))
+                self.show_error(_('Invalid Axe Address'))
                 return
             if o.value is None:
                 self.show_error(_('Invalid Amount'))
@@ -1540,7 +1566,8 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
 
         fee_estimator = self.get_send_fee_estimator()
         coins = self.get_coins()
-        return outputs, fee_estimator, label, coins
+        tx_type, extra_payload = self.extra_payload.get_extra_data()
+        return outputs, fee_estimator, label, coins, tx_type, extra_payload
 
     def do_preview(self):
         self.do_send(preview = True)
@@ -1551,12 +1578,13 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         r = self.read_send_tab()
         if not r:
             return
-        outputs, fee_estimator, tx_desc, coins = r
+        outputs, fee_estimator, tx_desc, coins, tx_type, extra_payload = r
         try:
             is_sweep = bool(self.tx_external_keypairs)
             tx = self.wallet.make_unsigned_transaction(
                 coins, outputs, self.config, fixed_fee=fee_estimator,
-                is_sweep=is_sweep)
+                is_sweep=is_sweep,
+                tx_type=tx_type, extra_payload=extra_payload)
         except NotEnoughFunds:
             self.show_message(_("Insufficient funds"))
             return
@@ -1564,6 +1592,12 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             traceback.print_exc(file=sys.stdout)
             self.show_message(str(e))
             return
+        if tx.tx_type:
+            try:
+                tx.extra_payload.check_after_tx_prepared(tx)
+            except AxeTxError as e:
+                self.show_message(str(e))
+                return
 
         amount = tx.output_value() if self.is_max else sum(map(lambda x:x[2], outputs))
         fee = tx.get_fee()
@@ -1674,7 +1708,10 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
                     self.invoice_list.update()
                     self.do_clear()
                 else:
-                    parent.show_error(msg)
+                    display_msg = _('The server returned an error when broadcasting the transaction.')
+                    if msg:
+                        display_msg += '\n' + msg
+                    parent.show_error(display_msg)
 
         WaitingDialog(self, _('Broadcasting transaction...'),
                       broadcast_thread, broadcast_done, self.on_error)
@@ -1746,7 +1783,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         try:
             out = util.parse_URI(URI, self.on_pr)
         except BaseException as e:
-            self.show_error(_('Invalid AXE URI:') + '\n' + str(e))
+            self.show_error(_('Invalid Axe URI:') + '\n' + str(e))
             return
         self.show_send_tab()
         r = out.get('r')
@@ -1786,6 +1823,8 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         self.feerounding_icon.setVisible(False)
         self.set_pay_from([])
         self.tx_external_keypairs = {}
+        self.extra_payload.clear()
+        self.hide_extra_payload()
         self.update_status()
         run_hook('do_clear', self)
 
@@ -1851,6 +1890,14 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             return self.pay_from
         else:
             return self.wallet.get_spendable_coins(None, self.config)
+
+    def hide_extra_payload(self):
+        self.extra_payload.hide()
+        self.extra_payload_label.hide()
+
+    def show_extra_payload(self):
+        self.extra_payload.show()
+        self.extra_payload_label.show()
 
     def spend_coins(self, coins):
         self.set_pay_from(coins)
@@ -2204,14 +2251,14 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
                 "private key, and verifying with the corresponding public key. The "
                 "address you have entered does not have a unique public key, so these "
                 "operations cannot be performed.") + '\n\n' + \
-               _('The operation is undefined. Not just in AXE Electrum, but in general.')
+               _('The operation is undefined. Not just in Axe Electrum, but in general.')
 
     @protected
     def do_sign(self, address, message, signature, password):
         address  = address.text().strip()
         message = message.toPlainText().strip()
         if not bitcoin.is_address(address):
-            self.show_message(_('Invalid AXE address.'))
+            self.show_message(_('Invalid Axe address.'))
             return
         if self.wallet.is_watching_only():
             self.show_message(_('This is a watching-only wallet.'))
@@ -2239,7 +2286,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         address  = address.text().strip()
         message = message.toPlainText().strip().encode('utf-8')
         if not bitcoin.is_address(address):
-            self.show_message(_('Invalid AXE address.'))
+            self.show_message(_('Invalid Axe address.'))
             return
         try:
             # This can throw on invalid base64
@@ -2312,8 +2359,8 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         try:
             public_key = ecc.ECPubkey(bfh(pubkey_e.text()))
         except BaseException as e:
-            traceback.print_exc(file=sys.stdout)
-            self.show_warning(_('Invalid Public key'))
+            traceback.print_exc(file=sys.stdout)            
+            self.show_warning(_('Invalid Public key')) 
             return
         encrypted = public_key.encrypt_message(message)
         encrypted_e.setText(encrypted.decode('ascii'))
@@ -2369,7 +2416,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             tx = tx_from_str(txt)
             return Transaction(tx)
         except BaseException as e:
-            self.show_critical(_("AXE Electrum was unable to parse your transaction") + ":\n" + str(e))
+            self.show_critical(_("Axe Electrum was unable to parse your transaction") + ":\n" + str(e))
             return
 
     def read_tx_from_qrcode(self):
@@ -2404,7 +2451,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             with open(fileName, "r") as f:
                 file_content = f.read()
         except (ValueError, IOError, os.error) as reason:
-            self.show_critical(_("AXE Electrum was unable to open your transaction file") + "\n" + str(reason), title=_("Unable to read file or no transaction found"))
+            self.show_critical(_("Axe Electrum was unable to open your transaction file") + "\n" + str(reason), title=_("Unable to read file or no transaction found"))
             return
         return self.tx_from_text(file_content)
 
@@ -2515,7 +2562,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             self.do_export_privkeys(filename, private_keys, csv_button.isChecked())
         except (IOError, os.error) as reason:
             txt = "\n".join([
-                _("AXE Electrum was unable to produce a private key-export."),
+                _("Axe Electrum was unable to produce a private key-export."),
                 str(reason)
             ])
             self.show_critical(txt, title=_("Unable to create csv"))
@@ -2814,6 +2861,19 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         unit_combo.currentIndexChanged.connect(lambda x: on_unit(x, nz))
         gui_widgets.append((unit_label, unit_combo))
 
+        msg = _('Display DIP2 special transactions type name as separete '
+                'column in wallet history')
+        show_dip2_ex_label = HelpLabel('Show DIP2 tx type in wallet history:', msg)
+        show_dip2_cb = QCheckBox()
+        show_dip2_cb.setChecked(self.config.get('show_dip2_tx_type', False))
+        def on_dip2_state_changed(x):
+            show_dip2 = (x == Qt.Checked)
+            self.config.set_key('show_dip2_tx_type', show_dip2, True)
+            self.history_list.refresh_headers()
+            self.history_list.update()
+        show_dip2_cb.stateChanged.connect(on_dip2_state_changed)
+        gui_widgets.append((show_dip2_ex_label, show_dip2_cb))
+
         block_explorers = sorted(util.block_explorer_info().keys())
         msg = _('Choose which online block explorer to use for functions that open a web browser')
         block_ex_label = HelpLabel(_('Online Block Explorer') + ':', msg)
@@ -3059,7 +3119,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
 
         run_hook('close_settings_dialog')
         if self.need_restart:
-            self.show_warning(_('Please restart AXE Electrum to activate the new GUI settings'), title=_('Success'))
+            self.show_warning(_('Please restart Axe Electrum to activate the new GUI settings'), title=_('Success'))
 
 
     def closeEvent(self, event):
@@ -3073,6 +3133,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         self.wallet.thread.stop()
         if self.network:
             self.network.unregister_callback(self.on_network)
+        self.wallet.protx_manager.clean_up()
         self.config.set_key("is_maximized", self.isMaximized())
         if not self.isMaximized():
             g = self.geometry()
@@ -3086,7 +3147,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         self.gui_object.close_window(self)
 
     def plugins_dialog(self):
-        self.pluginsdialog = d = WindowModalDialog(self, _('AXE Electrum Plugins'))
+        self.pluginsdialog = d = WindowModalDialog(self, _('Axe Electrum Plugins'))
 
         plugins = self.gui_object.plugins
 

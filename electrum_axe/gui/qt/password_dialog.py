@@ -247,7 +247,7 @@ class ChangePasswordDialogForSW(ChangePasswordDialogBase):
             msg += ' ' + _('Use this dialog to add a password to your wallet.')
         else:
             if not is_encrypted:
-                msg = _('Your AXE coins are password protected. However, your wallet file is not encrypted.')
+                msg = _('Your Axe coins are password protected. However, your wallet file is not encrypted.')
             else:
                 msg = _('Your wallet is password protected and encrypted.')
             msg += ' ' + _('Use this dialog to change your password.')

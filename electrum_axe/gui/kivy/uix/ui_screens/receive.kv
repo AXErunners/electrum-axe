@@ -68,7 +68,7 @@ ReceiveScreen:
                     pos_hint: {'center_y': .5}
                 BlueButton:
                     id: address_label
-                    text: s.address if s.address else _('AXE Address')
+                    text: s.address if s.address else _('Axe Address')
                     shorten: True
                     on_release: Clock.schedule_once(lambda dt: app.addresses_dialog(s))
             CardSeparator:

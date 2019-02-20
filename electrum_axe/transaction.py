@@ -519,18 +519,15 @@ def deserialize(raw: str, force_full_parse=False) -> dict:
     # support DIP2 deserialization
     header = vds.read_uint32()
     tx_type = header >> 16  # DIP2 tx type
-    #print(header,tx_type)
     if tx_type:
         version = header & 0x0000ffff
     else:
         version = header
 
-    #print(header,tx_type,version)
     if tx_type and version < 3:
         version = header
         tx_type = 0
 
-    #print(header,tx_type,version)
     d['version'] = version
     d['tx_type'] = tx_type
     n_vin = vds.read_compact_size()
@@ -583,6 +580,8 @@ class Transaction:
         self._outputs = None
         self.locktime = 0
         self.version = 1
+        self.tx_type = 0
+        self.extra_payload = b''
         # by default we assume this is a partial txn;
         # this value will get properly set when deserializing
         self.is_partial_originally = True
@@ -678,11 +677,16 @@ class Transaction:
         return d
 
     @classmethod
-    def from_io(klass, inputs, outputs, locktime=0):
+    def from_io(klass, inputs, outputs, locktime=0,
+                tx_type=0, extra_payload=b''):
         self = klass(None)
         self._inputs = inputs
         self._outputs = outputs
         self.locktime = locktime
+        if tx_type:
+            self.version = 3
+            self.tx_type = tx_type
+            self.extra_payload = extra_payload
         return self
 
     @classmethod
@@ -857,7 +861,6 @@ class Transaction:
         return s
 
     def serialize_preimage(self, i):
-        nVersion = int_to_hex(self.version, 4)
         nHashType = int_to_hex(1, 4)
         nLocktime = int_to_hex(self.locktime, 4)
         inputs = self.inputs()
@@ -866,7 +869,14 @@ class Transaction:
         # TODO: py3 hex
         txins = var_int(len(inputs)) + ''.join(self.serialize_input(txin, self.get_preimage_script(txin) if i==k else '') for k, txin in enumerate(inputs))
         txouts = var_int(len(outputs)) + ''.join(self.serialize_output(o) for o in outputs)
-        preimage = nVersion + txins + txouts + nLocktime + nHashType
+        if self.tx_type:
+            uVersion = int_to_hex(self.version, 2)
+            uTxType = int_to_hex(self.tx_type, 2)
+            vExtra = bh2u(to_varbytes(serialize_extra_payload(self)))
+            preimage = uVersion + uTxType + txins + txouts + nLocktime + vExtra + nHashType
+        else:
+            nVersion = int_to_hex(self.version, 4)
+            preimage = nVersion + txins + txouts + nLocktime + nHashType
         return preimage
 
     def serialize(self, estimate_size=False):

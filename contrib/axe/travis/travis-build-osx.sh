@@ -19,7 +19,7 @@ export PATH=$PATH:$PY36BINDIR
 source ./contrib/axe/travis/electrum_axe_version_env.sh;
 echo wine build version is $AXE_ELECTRUM_VERSION
 
-sudo pip3 install --upgrade pip
+sudo pip3 install --upgrade pip==18.1
 sudo pip3 install -r contrib/deterministic-build/requirements.txt
 sudo pip3 install \
     x11_hash>=1.4 \
@@ -45,12 +45,11 @@ pyinstaller \
     --name electrum-axe-$AXE_ELECTRUM_VERSION.bin \
     osx.spec
 
-info "Adding AXE URI types to Info.plist"
 plutil -insert 'CFBundleURLTypes' \
    -xml '<array><dict> <key>CFBundleURLName</key> <string>axe</string> <key>CFBundleURLSchemes</key> <array><string>axe</string></array> </dict></array>' \
-   -- dist/AXE\ Electrum.app/Contents/Info.plist \
+   -- dist/Axe\ Electrum.app/Contents/Info.plist \
    || fail "Could not add keys to Info.plist. Make sure the program 'plutil' exists and is installed."
 
-sudo hdiutil create -fs HFS+ -volname "AXE Electrum" \
-    -srcfolder dist/AXE\ Electrum.app \
-    dist/AXE-Electrum-$AXE_ELECTRUM_VERSION-macosx.dmg
+sudo hdiutil create -fs HFS+ -volname "Axe Electrum" \
+    -srcfolder dist/Axe\ Electrum.app \
+    dist/Axe-Electrum-$AXE_ELECTRUM_VERSION-macosx.dmg

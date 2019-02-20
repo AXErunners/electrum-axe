@@ -87,7 +87,7 @@ class CrashReporter(BaseCrashReporter, Factory.Popup):
 
 
 [b]Additional information[/b]
- * AXE Electrum version: {app_version}
+ * Axe Electrum version: {app_version}
  * Operating system: {os}
  * Wallet type: {wallet_type}
  * Locale: {locale}
