@@ -252,6 +252,15 @@ class ECPubkey(object):
     def __ne__(self, other):
         return not (self == other)
 
+    def verify_digest_for_address(self, sig65: bytes, digest: bytes) -> None:
+        assert_bytes(digest)
+        public_key, compressed = self.from_signature65(sig65, digest)
+        # check public key
+        if public_key != self:
+            raise Exception("Bad signature")
+        # check message
+        self.verify_message_hash(sig65[1:], digest)
+
     def verify_message_for_address(self, sig65: bytes, message: bytes) -> None:
         assert_bytes(message)
         h = Hash(msg_magic(message))
@@ -383,6 +392,24 @@ class ECPrivkey(ECPubkey):
         return self.sign(hashed_preimage,
                          sigencode=der_sig_from_r_and_s,
                          sigdecode=get_r_and_s_from_der_sig)
+
+    def sign_digest(self, data: bytes, is_compressed: bool) -> bytes:
+        def bruteforce_recid(sig_string):
+            for recid in range(4):
+                sig65 = construct_sig65(sig_string, recid, is_compressed)
+                try:
+                    self.verify_digest_for_address(sig65, data)
+                    return sig65, recid
+                except Exception as e:
+                    continue
+            else:
+                raise Exception("error: cannot sign digest. no recid fits..")
+
+        sig_string = self.sign(data,
+                               sigencode=sig_string_from_r_and_s,
+                               sigdecode=get_r_and_s_from_sig_string)
+        sig65, recid = bruteforce_recid(sig_string)
+        return sig65
 
     def sign_message(self, message: bytes, is_compressed: bool) -> bytes:
         def bruteforce_recid(sig_string):

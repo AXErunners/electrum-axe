@@ -41,13 +41,13 @@ class ExchangeBase(PrintError):
     def get_json(self, site, get_string):
         # APIs must have https
         url = ''.join(['https://', site, get_string])
-        response = requests.request('GET', url, headers={'User-Agent' : 'AXE-Electrum'}, timeout=10)
+        response = requests.request('GET', url, headers={'User-Agent' : 'Axe-Electrum'}, timeout=10)
         return response.json()
 
     def get_csv(self, site, get_string):
         url = ''.join(['https://', site, get_string])
         response = requests.request('GET', url, headers={
-            'User-Agent': 'AXE-Electrum'
+            'User-Agent': 'Axe-Electrum'
         })
         reader = csv.DictReader(response.content.decode().split('\n'))
         return list(reader)

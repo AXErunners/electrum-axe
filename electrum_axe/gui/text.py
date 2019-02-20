@@ -4,6 +4,7 @@ from decimal import Decimal
 import getpass
 
 import electrum_axe
+from electrum_axe.axe_tx import SPEC_TX_NAMES
 from electrum_axe.util import format_satoshis, set_verbosity
 from electrum_axe.bitcoin import is_address, COIN, TYPE_ADDRESS
 from electrum_axe.transaction import TxOutput
@@ -57,6 +58,7 @@ class ElectrumGui:
         self.str_amount = ""
         self.str_fee = ""
         self.history = None
+        self.show_dip2 = self.config.get('show_dip2_tx_type', False)
 
         if self.network:
             self.network.register_callback(self.update, ['updated'])
@@ -94,23 +96,34 @@ class ElectrumGui:
 
     def print_history(self):
 
-        width = [20, 40, 14, 14]
-        delta = (self.maxx - sum(width) - 4)/3
-        format_str = "%"+"%d"%width[0]+"s"+"%"+"%d"%(width[1]+delta)+"s"+"%"+"%d"%(width[2]+delta)+"s"+"%"+"%d"%(width[3]+delta)+"s"
-
         if self.history is None:
             self.update_history()
 
-        self.print_list(self.history[::-1], format_str%( _("Date"), _("Description"), _("Amount"), _("Balance")))
+        if self.show_dip2:
+            width = [20, 18, 22, 14, 14]
+            delta = (self.maxx - sum(width) - 5) // 3
+            format_str = ("%" + "%d" % width[0] + "s" +
+                          "%" + "%d" % width[1] + "s" +
+                          "%" + "%d" % (width[2] + delta) + "s" +
+                          "%" + "%d" % (width[3] + delta) + "s" +
+                          "%" + "%d" % (width[4] + delta) + "s")
+            headers = (format_str % (_("Date"), 'DIP2',  _("Description"),
+                                     _("Amount"), _("Balance")))
+        else:
+            width = [20, 40, 14, 14]
+            delta = (self.maxx - sum(width) - 4) // 3
+            format_str = ("%" + "%d" % width[0] + "s" +
+                          "%" + "%d" % (width[1] + delta) + "s" +
+                          "%" + "%d" % (width[2] + delta) + "s" +
+                          "%" + "%d" % (width[3] + delta) + "s")
+            headers = (format_str % (_("Date"), _("Description"),
+                                     _("Amount"), _("Balance")))
+        self.print_list(self.history[::-1], headers)
 
     def update_history(self):
-        width = [20, 40, 14, 14]
-        delta = (self.maxx - sum(width) - 4)/3
-        format_str = "%"+"%d"%width[0]+"s"+"%"+"%d"%(width[1]+delta)+"s"+"%"+"%d"%(width[2]+delta)+"s"+"%"+"%d"%(width[3]+delta)+"s"
-
         b = 0
         self.history = []
-        for tx_hash, tx_mined_status, value, balance in self.wallet.get_history():
+        for tx_hash, tx_type, tx_mined_status, value, balance in self.wallet.get_history():
             if tx_mined_status.conf:
                 timestamp = tx_mined_status.timestamp
                 try:
@@ -121,9 +134,34 @@ class ElectrumGui:
                 time_str = 'unconfirmed'
 
             label = self.wallet.get_label(tx_hash)
-            if len(label) > 40:
-                label = label[0:37] + '...'
-            self.history.append( format_str%( time_str, label, format_satoshis(value, whitespaces=True), format_satoshis(balance, whitespaces=True) ) )
+            if self.show_dip2:
+                if len(label) > 22:
+                    label = label[0:19] + '...'
+                tx_type_name = SPEC_TX_NAMES.get(tx_type, str(tx_type))
+                width = [20, 18, 22, 14, 14]
+                delta = (self.maxx - sum(width) - 5) // 3
+                format_str = ("%" + "%d" % width[0] + "s" +
+                              "%" + "%d" % width[1] + "s" +
+                              "%" + "%d" % (width[2] + delta) + "s" +
+                              "%" + "%d" % (width[3] + delta) + "s" +
+                              "%" + "%d" % (width[4] + delta) + "s")
+                msg = format_str % (time_str, tx_type_name, label,
+                                    format_satoshis(value, whitespaces=True),
+                                    format_satoshis(balance, whitespaces=True))
+                self.history.append(msg)
+            else:
+                if len(label) > 40:
+                    label = label[0:37] + '...'
+                width = [20, 40, 14, 14]
+                delta = (self.maxx - sum(width) - 4) // 3
+                format_str = ("%" + "%d" % width[0] + "s" +
+                              "%" + "%d" % (width[1] + delta) + "s" +
+                              "%" + "%d" % (width[2] + delta) + "s" +
+                              "%" + "%d" % (width[3] + delta) + "s")
+                msg = format_str % (time_str, label,
+                                    format_satoshis(value, whitespaces=True),
+                                    format_satoshis(balance, whitespaces=True))
+                self.history.append(msg)
 
 
     def print_balance(self):
@@ -321,7 +359,7 @@ class ElectrumGui:
 
     def do_send(self):
         if not is_address(self.str_recipient):
-            self.show_message(_('Invalid AXE address'))
+            self.show_message(_('Invalid Axe address'))
             return
         try:
             amount = int(Decimal(self.str_amount) * COIN)
@@ -358,8 +396,9 @@ class ElectrumGui:
             self.do_clear()
             #self.update_contacts_tab()
         else:
-            self.show_message(_('Error'))
-
+            display_msg = _('The server returned an error when broadcasting the transaction.')
+            display_msg += '\n' + repr(e)
+            self.show_message(display_msg)
 
     def show_message(self, message, getchar = True):
         w = self.w

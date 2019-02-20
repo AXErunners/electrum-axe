@@ -9,13 +9,14 @@ fi
 cd build
 
 brew update
-brew install zebra-lucky/qt5/qt5
+brew tap zebra-lucky/qt5
+brew install zebra-lucky/qt5/qt
 brew install gettext
 brew upgrade gmp
 
-curl -O https://www.python.org/ftp/python/3.6.5/python-3.6.5-macosx10.6.pkg
+curl -O https://www.python.org/ftp/python/3.6.8/python-3.6.8-macosx10.6.pkg
 curl -O https://bootstrap.pypa.io/get-pip.py
-sudo installer -pkg python-3.6.5-macosx10.6.pkg -target /
+sudo installer -pkg python-3.6.8-macosx10.6.pkg -target /
 sudo python3 get-pip.py
 
 mkdir libusb
@@ -26,7 +27,7 @@ curl -O -L https://github.com/zebra-lucky/secp256k1/releases/download/0.1/libsec
 tar -xzf libsecp256k1-0.1-osx.tgz
 cp libsecp256k1/libsecp256k1.0.dylib .
 
-sudo pip3 install SIP==4.19.8
-sudo pip3 install PyQt5==5.7.1
-sudo pip3 install Cython==0.28.1
-sudo pip3 install PyInstaller==3.3.1
+sudo pip3 install --upgrade pip==18.1
+sudo pip3 install PyQt5==5.11.2
+sudo pip3 install Cython==0.29.4
+sudo pip3 install PyInstaller==3.4

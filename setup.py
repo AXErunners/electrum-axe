@@ -21,7 +21,7 @@ with open('contrib/requirements/requirements-hw.txt') as f:
 version = imp.load_source('version', 'electrum_axe/version.py')
 
 if sys.version_info[:3] < (3, 4, 0):
-    sys.exit("Error: AXE Electrum requires Python version >= 3.4.0...")
+    sys.exit("Error: Axe Electrum requires Python version >= 3.4.0...")
 
 data_files = []
 
@@ -69,7 +69,7 @@ class CustomInstallCommand(install):
 
 
 setup(
-    name="AXE-Electrum",
+    name="Axe-Electrum",
     version=version.ELECTRUM_VERSION,
     install_requires=requirements,
     extras_require=extras_require,
