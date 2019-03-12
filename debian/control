@@ -5,7 +5,7 @@ Maintainer: Andriy Khavryuchenko <akhavr@khavr.com>
 Build-Depends:
  debhelper (>= 9),
  dh-python,
- python3-all-dev,
+ python3-all-dev (>= 3.6),
  python3-setuptools,
  pyqt5-dev-tools,
  python3-pyaes (>= 1.6.1),
@@ -28,13 +28,13 @@ Section: python
 Depends:
  libsecp256k1-0,
  python3-pycryptodome,
- safet (>= 0.1.3),
- python3-safet (>= 0.1.3),
+ safet (>= 0.1.4),
+ python3-safet (>= 0.1.4),
  trezor (>= 0.10.1),
  python3-trezor (>= 0.10.1),
  keepkey (>= 4.0.2),
  python3-keepkey (>= 4.0.2),
- python3-btchip (>= 0.1.27),
+ python3-btchip (>= 0.1.28),
  ${misc:Depends},
  ${python3:Depends},
 Description: Easy to use Dash client - Python module

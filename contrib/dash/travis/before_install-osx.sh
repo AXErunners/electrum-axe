@@ -9,7 +9,7 @@ fi
 cd build
 
 brew update
-brew install zebra-lucky/qt5/qt5
+brew install qt5
 brew install gettext
 brew upgrade gmp
 
@@ -27,6 +27,6 @@ tar -xzf libsecp256k1-0.1-osx.tgz
 cp libsecp256k1/libsecp256k1.0.dylib .
 
 sudo pip3 install SIP==4.19.8
-sudo pip3 install PyQt5==5.7.1
+sudo pip3 install PyQt5==5.11.2
 sudo pip3 install Cython==0.28.1
-sudo pip3 install PyInstaller==3.3.1
+sudo pip3 install PyInstaller==3.4

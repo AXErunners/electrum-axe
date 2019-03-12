@@ -15,6 +15,12 @@ hiddenimports += collect_submodules('safetlib')
 hiddenimports += collect_submodules('btchip')
 hiddenimports += collect_submodules('keepkeylib')
 hiddenimports += collect_submodules('websocket')
+
+# safetlib imports PyQt5.Qt.  We use a local updated copy of pinmatrix.py until they
+# release a new version that includes https://github.com/archos-safe-t/python-safet/commit/b1eab3dba4c04fdfc1fcf17b66662c28c5f2380e
+hiddenimports.remove('safetlib.qt.pinmatrix')
+
+
 hiddenimports += [
     'electrum_dash',
     'electrum_dash.base_crash_reporter',
@@ -36,7 +42,6 @@ hiddenimports += [
     'electrum_dash.plugins.keepkey.qt',
     'electrum_dash.plugins.revealer.qt',
     'electrum_dash.plugins.labels.qt',
-    'electrum_dash.plugins.trezor.client',
     'electrum_dash.plugins.trezor.qt',
     'electrum_dash.plugins.safe_t.client',
     'electrum_dash.plugins.safe_t.qt',
@@ -53,6 +58,7 @@ datas = [
     ('electrum_dash/locale', 'electrum_dash/locale'),
     ('electrum_dash/wordlist', 'electrum_dash/wordlist'),
     ('C:\\zbarw', '.'),
+    ('electrum_dash/gui/icons', 'electrum_dash/gui/icons'),
 ]
 datas += collect_data_files('trezorlib')
 datas += collect_data_files('safetlib')
@@ -129,7 +135,7 @@ exe = EXE(pyz,
           strip=False,
           upx=False,
           console=False,
-          icon='icons/electrum-dash.ico',
+          icon='electrum_dash/gui/icons/electrum-dash.ico',
           name=os.path.join('build\\pyi.win32\\electrum', cmdline_name))
 
 # exe with console output
@@ -140,7 +146,7 @@ conexe = EXE(pyz,
           strip=False,
           upx=False,
           console=True,
-          icon='icons/electrum-dash.ico',
+          icon='electrum_dash/gui/icons/electrum-dash.ico',
           name=os.path.join('build\\pyi.win32\\electrum',
                             'console-%s' % cmdline_name))
 
