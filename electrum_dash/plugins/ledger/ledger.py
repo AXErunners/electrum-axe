@@ -440,6 +440,7 @@ class Ledger_KeyStore(Hardware_KeyStore):
             txin_prev_tx.deserialize()
             tx_type = txin_prev_tx.tx_type
             extra_payload = txin_prev_tx.extra_payload
+            extra_data = b''
             if tx_type and extra_payload:
                 extra_payload = extra_payload.serialize()
                 extra_data = bfh(var_int(len(extra_payload))) + extra_payload
