@@ -1,3 +1,8 @@
+# Release 3.2.5.1
+
+ * ledger plugin: fix signing transactions with DIP2 inputs (CbTx)
+ * merge fresh fr_FR translations
+
 # Release 3.2.5
 
  * Enhance support of DIP2 (send v3 transactions with extra payload
