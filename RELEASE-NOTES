@@ -62,6 +62,25 @@
  * Several other minor bugfixes and usability improvements.
 
 
+# Release 3.2.5.1
+
+ * ledger plugin: fix signing transactions with DIP2 inputs (CbTx)
+ * merge fresh fr_FR translations
+
+# Release 3.2.5
+
+ * Enhance support of DIP2 (send v3 transactions with extra payload
+   supplied via send tab, show extra payload info in tx dialog).
+ * Display DIP2 tx type in transaction history list (enabled in
+   appearance preferences).
+ * Support of DIP3 masternodes (new masternode manager and UI placed
+   in DIP3 tab, import legacy masternodes from wallet or conf file).
+ * Fix stdio and text wallet gui.
+ * Switch to electrum protocol 1.4, ElectrumX>=1.9.1 recommended to
+   support DIP3 electrum protocol methods.
+ * Switch mainnet block explorer to insight.dash.org.
+
+
 # Release 3.2.4 (Security update)
 
  * backport anti-phishing measures from master

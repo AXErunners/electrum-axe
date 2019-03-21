@@ -717,13 +717,18 @@ class Transaction:
         return d
 
     @classmethod
-    def from_io(klass, inputs, outputs, locktime=0, version=None):
+    def from_io(klass, inputs, outputs, locktime=0, version=None,
+                tx_type=0, extra_payload=b''):
         self = klass(None)
         self._inputs = inputs
         self._outputs = outputs
         self.locktime = locktime
         if version is not None:
             self.version = version
+        if tx_type:
+            self.version = 3
+            self.tx_type = tx_type
+            self.extra_payload = extra_payload
         self.BIP69_sort()
         return self
 
@@ -901,7 +906,6 @@ class Transaction:
         return s
 
     def serialize_preimage(self, i):
-        nVersion = int_to_hex(self.version, 4)
         nHashType = int_to_hex(1, 4)
         nLocktime = int_to_hex(self.locktime, 4)
         inputs = self.inputs()
@@ -910,7 +914,14 @@ class Transaction:
         # TODO: py3 hex
         txins = var_int(len(inputs)) + ''.join(self.serialize_input(txin, self.get_preimage_script(txin) if i==k else '') for k, txin in enumerate(inputs))
         txouts = var_int(len(outputs)) + ''.join(self.serialize_output(o) for o in outputs)
-        preimage = nVersion + txins + txouts + nLocktime + nHashType
+        if self.tx_type:
+            uVersion = int_to_hex(self.version, 2)
+            uTxType = int_to_hex(self.tx_type, 2)
+            vExtra = bh2u(to_varbytes(serialize_extra_payload(self)))
+            preimage = uVersion + uTxType + txins + txouts + nLocktime + vExtra + nHashType
+        else:
+            nVersion = int_to_hex(self.version, 4)
+            preimage = nVersion + txins + txouts + nLocktime + nHashType
         return preimage
 
     def serialize(self, estimate_size=False):

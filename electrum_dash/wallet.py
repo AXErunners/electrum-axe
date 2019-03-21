@@ -49,6 +49,7 @@ from .util import (NotEnoughFunds, PrintError, UserCancelled, profiler,
 from .bitcoin import (COIN, TYPE_ADDRESS, is_address, address_to_script,
                       is_minikey, relayfee, dust_threshold)
 from .crypto import sha256d
+from .dash_tx import SPEC_TX_NAMES
 from .keystore import load_keystore, Hardware_KeyStore
 from .storage import multisig_type, STO_EV_PLAINTEXT, STO_EV_USER_PW, STO_EV_XPUB_PW, WalletStorage
 from . import transaction, bitcoin, coinchooser, paymentrequest, ecc, bip32
@@ -410,7 +411,7 @@ class Abstract_Wallet(AddressSynchronizer):
     def balance_at_timestamp(self, domain, target_timestamp):
         h = self.get_history(domain)
         balance = 0
-        for tx_hash, tx_mined_status, value, balance in h:
+        for tx_hash, tx_type, tx_mined_status, value, balance in h:
             if tx_mined_status.timestamp > target_timestamp:
                 return balance - value
         # return last balance
@@ -431,7 +432,8 @@ class Abstract_Wallet(AddressSynchronizer):
         fiat_expenditures = Decimal(0)
         h = self.get_history(domain)
         now = time.time()
-        for tx_hash, tx_mined_status, value, balance in h:
+        show_dip2 = self.network.config.get('show_dip2_tx_type', False)
+        for tx_hash, tx_type, tx_mined_status, value, balance in h:
             timestamp = tx_mined_status.timestamp
             if from_timestamp and (timestamp or now) < from_timestamp:
                 continue
@@ -455,6 +457,9 @@ class Abstract_Wallet(AddressSynchronizer):
                 'label': self.get_label(tx_hash),
                 'txpos_in_block': tx_mined_status.txpos,
             }
+            if show_dip2:
+                tx_type_name = SPEC_TX_NAMES.get(tx_type, str(tx_type))
+                item['dip2'] = tx_type_name
             tx_fee = None
             if show_fees:
                 tx_fee = self.get_tx_fee(tx)
@@ -603,7 +608,8 @@ class Abstract_Wallet(AddressSynchronizer):
         return dust_threshold(self.network)
 
     def make_unsigned_transaction(self, coins, outputs, config, fixed_fee=None,
-                                  change_addr=None, is_sweep=False):
+                                  change_addr=None, is_sweep=False,
+                                  tx_type=0, extra_payload=b''):
         # check outputs
         i_max = None
         for i, o in enumerate(outputs):
@@ -660,21 +666,30 @@ class Abstract_Wallet(AddressSynchronizer):
             txi = []
             txo = []
             tx = coin_chooser.make_tx(coins, txi, outputs[:] + txo, change_addrs[:max_change],
-                                      fee_estimator, self.dust_threshold())
+                                      fee_estimator, self.dust_threshold(),
+                                      tx_type=tx_type,
+                                      extra_payload=extra_payload)
         else:
             # FIXME?? this might spend inputs with negative effective value...
             sendable = sum(map(lambda x:x['value'], coins))
             outputs[i_max] = outputs[i_max]._replace(value=0)
-            tx = Transaction.from_io(coins, outputs[:])
+            tx = Transaction.from_io(coins, outputs[:],
+                                     tx_type=tx_type,
+                                     extra_payload=extra_payload)
             fee = fee_estimator(tx.estimated_size())
             amount = sendable - tx.output_value() - fee
             if amount < 0:
                 raise NotEnoughFunds()
             outputs[i_max] = outputs[i_max]._replace(value=amount)
-            tx = Transaction.from_io(coins, outputs[:])
+            tx = Transaction.from_io(coins, outputs[:],
+                                     tx_type=tx_type,
+                                     extra_payload=extra_payload)
 
         # Timelock tx to current height.
         tx.locktime = get_locktime_for_new_transaction(self.network)
+        # Update extra payload with tx data
+        if tx_type:
+            tx.extra_payload.update_with_tx_data(tx)
         run_hook('make_unsigned_transaction', self, tx)
         return tx
 
@@ -810,6 +825,9 @@ class Abstract_Wallet(AddressSynchronizer):
         for k in sorted(self.get_keystores(), key=lambda ks: ks.ready_to_sign(), reverse=True):
             try:
                 if k.can_sign(tx):
+                    if tx.tx_type:
+                        ex_p = tx.extra_payload
+                        ex_p.update_with_keystore_password(tx, self, k, password)
                     k.sign_transaction(tx, password)
             except UserCancelled:
                 continue
@@ -1082,6 +1100,14 @@ class Abstract_Wallet(AddressSynchronizer):
         self.storage.set_keystore_encryption(bool(new_pw) and encrypt_keystore)
 
         self.storage.write()
+
+    def sign_digest(self, address, data, password):
+        keystore = self.keystore
+        if not hasattr(keystore, 'sign_digest'):
+            raise NotImplementedError('sign_digest not implemented '
+                                      'in keystore type %s' % type(keystore))
+        index = self.get_address_index(address)
+        return keystore.sign_digest(index, data, password)
 
     def sign_message(self, address, message, password):
         index = self.get_address_index(address)

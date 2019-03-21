@@ -20,7 +20,6 @@ hiddenimports += collect_submodules('websocket')
 # release a new version that includes https://github.com/archos-safe-t/python-safet/commit/b1eab3dba4c04fdfc1fcf17b66662c28c5f2380e
 hiddenimports.remove('safetlib.qt.pinmatrix')
 
-
 hiddenimports += [
     'electrum_dash',
     'electrum_dash.base_crash_reporter',
@@ -50,16 +49,14 @@ hiddenimports += [
 ]
 
 datas = [
-    ('electrum_dash/servers.json', 'electrum_dash'),
-    ('electrum_dash/servers_testnet.json', 'electrum_dash'),
-    ('electrum_dash/servers_regtest.json', 'electrum_dash'),
-    ('electrum_dash/currencies.json', 'electrum_dash'),
-    ('electrum_dash/checkpoints.json', 'electrum_dash'),
+    ('electrum_dash/*.json', 'electrum_dash'),
     ('electrum_dash/locale', 'electrum_dash/locale'),
     ('electrum_dash/wordlist', 'electrum_dash/wordlist'),
+    ('electrum_dash/gui/icons', 'electrum_dash/gui/icons'),
     ('C:\\zbarw', '.'),
     ('electrum_dash/gui/icons', 'electrum_dash/gui/icons'),
 ]
+
 datas += collect_data_files('trezorlib')
 datas += collect_data_files('safetlib')
 datas += collect_data_files('btchip')

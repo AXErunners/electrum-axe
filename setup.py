@@ -81,6 +81,8 @@ setup(
         ],
         'electrum_dash.gui': [
             'icons/*',
+            'icons/radio/*',
+            'icons/checkbox/*',
         ],
     },
     scripts=['electrum_dash/electrum-dash'],

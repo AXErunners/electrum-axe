@@ -473,6 +473,7 @@ def to_bytes(something, encoding='utf8') -> bytes:
 
 
 bfh = bytes.fromhex
+hfu = binascii.hexlify
 
 
 def bh2u(x: bytes) -> str:
@@ -654,16 +655,16 @@ def time_difference(distance_in_time, include_seconds):
 
 mainnet_block_explorers = {
     'Dash.org': ('https://explorer.dash.org/',
-                       {'tx': 'tx/', 'addr': 'address/'}),
-    'Bchain.info': ('https://bchain.info/DASH/',
-                       {'tx': 'tx/', 'addr': 'addr/'}),
+                 {'tx': 'tx/', 'addr': 'address/'}),
+    'Insight.dash.org': ('https://insight.dash.org/insight/',
+                         {'tx': 'tx/', 'addr': 'address/'}),
     'system default': ('blockchain:/',
                        {'tx': 'tx/', 'addr': 'address/'}),
 }
 
 testnet_block_explorers = {
     'Dash.org': ('https://testnet-insight.dashevo.org/insight/',
-                       {'tx': 'tx/', 'addr': 'address/'}),
+                 {'tx': 'tx/', 'addr': 'address/'}),
     'system default': ('blockchain:/',
                        {'tx': 'tx/', 'addr': 'address/'}),
 }

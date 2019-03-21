@@ -1,5 +1,8 @@
 """Dash look and feel."""
 
+from electrum_dash.util import pkg_dir
+
+
 dash_stylesheet = """
 
 /**********************/
@@ -44,18 +47,18 @@ QGroupBox::title {
     border:0;
 }
 
-#main_window_nav_bar QStackedWidget {
+#main_window_nav_bar > QStackedWidget {
     border-top: 2px solid #FF0000;
     background:qradialgradient(cx:0.5, cy:0.5, radius: 0.5, fx:0.5, fy:0.5, stop:0 rgba(255, 255, 255, 255), stop: 1 rgba(246, 246, 246, 255));
 }
 
-#main_window_nav_bar QTabBar{
+#main_window_nav_bar > QTabBar{
     color: #fff;
     border:0;
 }
 
-#main_window_nav_bar QTabBar {
-    background: url(electrum_dash/gui/icons/navlogo.png) no-repeat left top;
+#main_window_nav_bar > QTabBar {
+    background: url({pkg_dir}/gui/icons/navlogo.png) no-repeat left top;
 }
 
 QTabWidget#main_window_nav_bar::tab-bar {
@@ -66,7 +69,7 @@ QTabWidget#main_window_nav_bar::pane {
     position: absolute;
 }
 
-#main_window_nav_bar QTabBar::tab {
+#main_window_nav_bar > QTabBar::tab {
     background-color:#1e75b4;
     color:#fff;
     min-height: 44px;
@@ -74,16 +77,16 @@ QTabWidget#main_window_nav_bar::pane {
     padding-right:1em;
 }
 
-#main_window_nav_bar QTabBar::tab:first {
+#main_window_nav_bar > QTabBar::tab:first {
     border-left: 0 solid #fff;
     margin-left:180px;
 }
 
-#main_window_nav_bar QTabBar::tab:last {
+#main_window_nav_bar > QTabBar::tab:last {
     border-right: 0 solid #fff;
 }
 
-#main_window_nav_bar QTabBar::tab:selected, #main_window_nav_bar QTabBar::tab:hover {
+#main_window_nav_bar > QTabBar::tab:selected, #main_window_nav_bar > QTabBar::tab:hover {
     background-color:#0d436e;
     color:#fff;
 }
@@ -111,39 +114,39 @@ QCheckBox::indicator {
 }
 
 QCheckBox::indicator:unchecked {
-    image:url('electrum_dash/gui/icons/checkbox/unchecked.png');
+    image:url({pkg_dir}/gui/icons/checkbox/unchecked.png);
 }
 
 QCheckBox::indicator:unchecked:disabled {
-    image:url('electrum_dash/gui/icons/checkbox/unchecked_disabled.png');
+    image:url({pkg_dir}/gui/icons/checkbox/unchecked_disabled.png);
 }
 
 QCheckBox::indicator:unchecked:pressed {
-    image:url('electrum_dash/gui/icons/checkbox/checked.png');
+    image:url({pkg_dir}/gui/icons/checkbox/checked.png);
 }
 
 QCheckBox::indicator:checked {
-    image:url('electrum_dash/gui/icons/checkbox/checked.png');
+    image:url({pkg_dir}/gui/icons/checkbox/checked.png);
 }
 
 QCheckBox::indicator:checked:disabled {
-    image:url('electrum_dash/gui/icons/checkbox/checked_disabled.png');
+    image:url({pkg_dir}/gui/icons/checkbox/checked_disabled.png);
 }
 
 QCheckBox::indicator:checked:pressed {
-    image:url('electrum_dash/gui/icons/checkbox/unchecked.png');
+    image:url({pkg_dir}/gui/icons/checkbox/unchecked.png);
 }
 
 QCheckBox::indicator:indeterminate {
-    image:url('electrum_dash/gui/icons/checkbox/indeterminate.png');
+    image:url({pkg_dir}/gui/icons/checkbox/indeterminate.png);
 }
 
 QCheckBox::indicator:indeterminate:disabled {
-    image:url('electrum_dash/gui/icons/checkbox/indeterminate_disabled.png');
+    image:url({pkg_dir}/gui/icons/checkbox/indeterminate_disabled.png);
 }
 
 QCheckBox::indicator:indeterminate:pressed {
-    image:url('electrum_dash/gui/icons/checkbox/checked.png');
+    image:url({pkg_dir}/gui/icons/checkbox/checked.png);
 }
 
 QRadioButton {
@@ -158,27 +161,27 @@ QRadioButton::indicator {
 }
 
 QRadioButton::indicator::unchecked {
-    image:url('electrum_dash/gui/icons/radio/unchecked.png');
+    image:url({pkg_dir}/gui/icons/radio/unchecked.png);
 }
 
 QRadioButton::indicator:unchecked:disabled {
-    image:url('electrum_dash/gui/icons/radio/unchecked_disabled.png');
+    image:url({pkg_dir}/gui/icons/radio/unchecked_disabled.png);
 }
 
 QRadioButton::indicator:unchecked:pressed {
-    image:url('electrum_dash/gui/icons/radio/checked.png');
+    image:url({pkg_dir}/gui/icons/radio/checked.png);
 }
 
 QRadioButton::indicator::checked {
-    image:url('electrum_dash/gui/icons/radio/checked.png');
+    image:url({pkg_dir}/gui/icons/radio/checked.png);
 }
 
 QRadioButton::indicator:checked:disabled {
-    image:url('electrum_dash/gui/icons/radio/checked_disabled.png');
+    image:url({pkg_dir}/gui/icons/radio/checked_disabled.png);
 }
 
 QRadioButton::indicator:checked:pressed {
-    image:url('electrum_dash/gui/icons/radio/checked.png');
+    image:url({pkg_dir}/gui/icons/radio/checked.png);
 }
 
 ScanQRTextEdit, ShowQRTextEdit, ButtonsTextEdit {
@@ -405,7 +408,7 @@ QComboBox::drop-down {
 }
 
 QComboBox::down-arrow {
-    border-image: url('electrum_dash/gui/icons/dash_downArrow.png') 0 0 0 0 stretch stretch;
+    border-image: url({pkg_dir}/gui/icons/dash_downArrow.png) 0 0 0 0 stretch stretch;
 }
 
 QComboBox QListView {
@@ -454,23 +457,23 @@ QAbstractSpinBox::down-button {
 }
 
 QAbstractSpinBox::up-arrow {
-    image: url(electrum_dash/gui/icons/dash_upArrow_small.png);
+    image: url({pkg_dir}/gui/icons/dash_upArrow_small.png);
     width: 10px;
     height: 10px;
 }
 
 QAbstractSpinBox::up-arrow:disabled, QAbstractSpinBox::up-arrow:off {
-    image: url(electrum_dash/gui/icons/dash_upArrow_small_disabled.png);
+    image: url({pkg_dir}/gui/icons/dash_upArrow_small_disabled.png);
 }
 
 QAbstractSpinBox::down-arrow {
-    image: url(electrum_dash/gui/icons/dash_downArrow_small.png);
+    image: url({pkg_dir}/gui/icons/dash_downArrow_small.png);
     width: 10px;
     height: 10px;
 }
 
 QAbstractSpinBox::down-arrow:disabled, QAbstractSpinBox::down-arrow:off {
-    image: url(electrum_dash/gui/icons/dash_downArrow_small_disabled.png);
+    image: url({pkg_dir}/gui/icons/dash_downArrow_small_disabled.png);
 }
 
 QSlider::groove:horizontal {
@@ -614,19 +617,19 @@ QScrollBar:up-arrow, QScrollBar:down-arrow, QScrollBar:left-arrow, QScrollBar:ri
 }
 
 QScrollBar:up-arrow {
-    background-image: url('electrum_dash/gui/icons/dash_upArrow_small.png');
+    background-image: url({pkg_dir}/gui/icons/dash_upArrow_small.png);
 }
 
 QScrollBar:down-arrow {
-    background-image: url('electrum_dash/gui/icons/dash_downArrow_small.png');
+    background-image: url({pkg_dir}/gui/icons/dash_downArrow_small.png);
 }
 
 QScrollBar:left-arrow {
-    background-image: url('electrum_dash/gui/icons/dash_leftArrow_small.png');
+    background-image: url({pkg_dir}/gui/icons/dash_leftArrow_small.png);
 }
 
 QScrollBar:right-arrow {
-    background-image: url('electrum_dash/gui/icons/dash_rightArrow_small.png');
+    background-image: url({pkg_dir}/gui/icons/dash_rightArrow_small.png);
 }
 
 
@@ -732,4 +735,55 @@ QDialog #settings_tab {
 MasternodeDialog {
     min-height: 650px;
 }
+
+MasternodeDialog #dip3_warn {
+    color: #FF0000;
+}
+
+Dip3TabWidget {
+    border-bottom:1px solid #333;
+}
+
+Dip3TabWidget::pane {
+    border: 1px solid #d7d7d7;
+    color:#818181;
+    background:qradialgradient(cx:0.5, cy:0.5, radius: 0.5, fx:0.5, fy:0.5, stop:0 rgba(255, 255, 255, 255), stop: 1 rgba(246, 246, 246, 255));
+}
+
+Dip3TabWidget Dip3TabBar::tab {
+    background-color:#f2f0f0;
+    color:#333;
+    padding-left:10px;
+    padding-right:10px;
+    padding-top:5px;
+    padding-bottom:5px;
+    border-top: 1px solid #d7d7d7;
+}
+
+Dip3TabWidget Dip3TabBar::tab:first {
+    border-left: 1px solid #d7d7d7;
+}
+
+Dip3TabWidget Dip3TabBar::tab:last {
+    border-right: 1px solid #d7d7d7;
+}
+
+Dip3TabWidget Dip3TabBar::tab:selected, Dip3TabWidget Dip3TabBar::tab:hover {
+    background-color:#ffffff;
+    color:#333;
+}
+
+QWizard {
+    background-color:#f2f0f0;
+}
+
+QWizard #err-label {
+    color: #800000;
+}
+QWizard #info-label {
+    color: #008000;
+}
 """
+
+
+dash_stylesheet = dash_stylesheet.replace('{pkg_dir}', '%s' % pkg_dir)

@@ -15,7 +15,7 @@ git clone --branch $TRAVIS_TAG $BUILD_REPO_URL electrum-dash
 docker run --rm \
     -v $(pwd):/opt \
     -w /opt/electrum-dash \
-    -t zebralucky/electrum-dash-winebuild:Linux /opt/build_linux.sh
+    -t zebralucky/electrum-dash-winebuild:LinuxPy36 /opt/build_linux.sh
 
 sudo find . -name '*.po' -delete
 sudo find . -name '*.pot' -delete
@@ -25,4 +25,4 @@ sudo chown -R 1000 electrum-dash
 docker run --rm \
     -v $(pwd)/electrum-dash:/home/buildozer/build \
     -t zebralucky/electrum-dash-winebuild:KivyPy36 bash -c \
-    'rm -rf packages && ./contrib/make_packages && ./contrib/make_apk'
+    'export LANG=en_US.utf-8 && rm -rf packages && ./contrib/make_packages && ./contrib/make_apk'

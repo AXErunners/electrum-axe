@@ -3,6 +3,7 @@ import getpass
 import datetime
 
 from electrum_dash import WalletStorage, Wallet
+from electrum_dash.dash_tx import SPEC_TX_NAMES
 from electrum_dash.util import format_satoshis, set_verbosity
 from electrum_dash.bitcoin import is_address, COIN, TYPE_ADDRESS
 from electrum_dash.transaction import TxOutput
@@ -86,13 +87,9 @@ class ElectrumGui:
         self.print_list(self.commands, "Available commands")
 
     def print_history(self):
-        width = [20, 40, 14, 14]
-        delta = (80 - sum(width) - 4)/3
-        format_str = "%"+"%d"%width[0]+"s"+"%"+"%d"%(width[1]+delta)+"s"+"%" \
-        + "%d"%(width[2]+delta)+"s"+"%"+"%d"%(width[3]+delta)+"s"
         messages = []
 
-        for tx_hash, tx_mined_status, delta, balance in reversed(self.wallet.get_history()):
+        for tx_hash, tx_type, tx_mined_status, delta, balance in reversed(self.wallet.get_history()):
             if tx_mined_status.conf:
                 timestamp = tx_mined_status.timestamp
                 try:
@@ -103,9 +100,39 @@ class ElectrumGui:
                 time_str = 'unconfirmed'
 
             label = self.wallet.get_label(tx_hash)
-            messages.append( format_str%( time_str, label, format_satoshis(delta, whitespaces=True), format_satoshis(balance, whitespaces=True) ) )
+            if self.config.get('show_dip2_tx_type', False):
+                tx_type_name = SPEC_TX_NAMES.get(tx_type, str(tx_type))
+                width = [20, 18, 22, 14, 14]
+                wdelta = (80 - sum(width) - 5) // 3
+                format_str = ("%" + "%d" % width[0] + "s" +
+                              "%" + "%d" % width[1] + "s" +
+                              "%" + "%d" % (width[2] + wdelta) + "s" +
+                              "%" + "%d" % (width[3] + wdelta) + "s" +
+                              "%" + "%d" % (width[4] + wdelta) + "s")
+                msg = format_str % (time_str, tx_type_name, label,
+                                    format_satoshis(delta, whitespaces=True),
+                                    format_satoshis(balance, whitespaces=True))
+                messages.append(msg)
+                self.print_list(messages[::-1],
+                                format_str % (_("Date"), 'DIP2',
+                                              _("Description"), _("Amount"),
+                                              _("Balance")))
+            else:
+                width = [20, 40, 14, 14]
+                wdelta = (80 - sum(width) - 4) // 3
+                format_str = ("%" + "%d" % width[0] + "s" +
+                              "%" + "%d" % (width[1] + wdelta) + "s" +
+                              "%" + "%d" % (width[2] + wdelta) + "s" +
+                              "%" + "%d" % (width[3] + wdelta) + "s")
+                msg = format_str % (time_str, label,
+                                    format_satoshis(delta, whitespaces=True),
+                                    format_satoshis(balance, whitespaces=True))
+                messages.append(msg)
+                self.print_list(messages[::-1],
+                                format_str % (_("Date"),
+                                              _("Description"), _("Amount"),
+                                              _("Balance")))
 
-        self.print_list(messages[::-1], format_str%( _("Date"), _("Description"), _("Amount"), _("Balance")))
 
 
     def print_balance(self):

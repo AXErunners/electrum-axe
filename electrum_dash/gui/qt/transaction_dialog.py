@@ -43,6 +43,7 @@ from electrum_dash import simple_config
 from electrum_dash.util import bfh
 from electrum_dash.transaction import SerializationError, Transaction
 
+from .dash_qt import ExtraPayloadWidget
 from .util import (MessageBoxMixin, read_QIcon, Buttons, CopyButton,
                    MONOSPACE_FONT, ColorScheme, ButtonsLineEdit)
 
@@ -119,6 +120,11 @@ class TxDialog(QDialog, MessageBoxMixin):
         vbox.addWidget(self.fee_label)
 
         self.add_io(vbox)
+        if tx.tx_type:
+            self.extra_pld_label = QLabel('Extra payload:')
+            vbox.addWidget(self.extra_pld_label)
+            self.extra_pld = ExtraPayloadWidget()
+            vbox.addWidget(self.extra_pld)
 
         self.sign_button = b = QPushButton(_("Sign"))
         b.clicked.connect(self.sign)
@@ -274,6 +280,10 @@ class TxDialog(QDialog, MessageBoxMixin):
         self.amount_label.setText(amount_str)
         self.fee_label.setText(fee_str)
         self.size_label.setText(size_str)
+        if self.tx.tx_type:
+            tx_type = self.tx.tx_type
+            extra_payload = self.tx.extra_payload
+            self.extra_pld.set_extra_data(tx_type, extra_payload)
         run_hook('transaction_dialog_update', self)
 
     def add_io(self, vbox):

@@ -10,6 +10,7 @@ from electrum_dash import bitcoin
 from electrum_dash.i18n import _
 from electrum_dash.masternode import MasternodeAnnounce
 from electrum_dash.masternode_manager import parse_masternode_conf
+from electrum_dash.protx import ProTxManager
 from electrum_dash.util import PrintError, bfh
 
 from .masternode_widgets import *
@@ -260,6 +261,7 @@ class MasternodesWidget(QWidget):
 
 class MasternodeDialog(QDialog, PrintError):
     """GUI for managing masternodes."""
+    diff_updated = pyqtSignal(int)
 
     def __init__(self, manager, parent):
         super(MasternodeDialog, self).__init__(parent)
@@ -273,6 +275,32 @@ class MasternodeDialog(QDialog, PrintError):
         if len(self.manager.masternodes) == 0:
             self.masternodes_widget.add_masternode(MasternodeAnnounce(alias='default'), save=False)
         self.masternodes_widget.view.selectRow(0)
+
+        manager = self.gui.dip3_tab.manager
+        manager.register_callback(self.on_manager_diff_updated,
+                                  ['manager-diff-updated'])
+        self.diff_updated.connect(self.on_diff_updated)
+        manager.subscribe_to_network_updates()
+
+    def closeEvent(self, event):
+        manager = self.gui.dip3_tab.manager
+        manager.unregister_callback(self.on_manager_diff_updated)
+
+    def on_manager_diff_updated(self, key, value):
+        self.diff_updated.emit(value.get('state'))
+
+    @pyqtSlot(int)
+    def on_diff_updated(self, state):
+        if state == ProTxManager.DIP3_ENABLED:
+            self.dip3_warn.show()
+            dip3_tab = self.gui.dip3_tab
+            i = self.gui.tabs.indexOf(dip3_tab)
+            if i == -1:
+                self.gui.toggle_tab(dip3_tab)
+                i = self.gui.tabs.indexOf(dip3_tab)
+            self.gui.tabs.setCurrentIndex(i)
+        else:
+            self.dip3_warn.hide()
 
     def sizeHint(self):
         return QSize(770, 600)
@@ -294,6 +322,14 @@ class MasternodeDialog(QDialog, PrintError):
         bottom_buttons = util.Buttons(util.CloseButton(self))
 
         vbox = QVBoxLayout()
+        self.dip3_warn = QLabel(_('Warning: DIP3 masternodes is active, '
+                                  'use DIP3 tab instead this dialog '
+                                  'to manage masternodes!'))
+        self.dip3_warn.setObjectName("dip3_warn")
+        protx_manager = self.gui.wallet.protx_manager
+        if protx_manager.protx_state != ProTxManager.DIP3_ENABLED:
+            self.dip3_warn.hide()
+        vbox.addWidget(self.dip3_warn)
         vbox.addWidget(QLabel(_('Masternodes:')))
         vbox.addWidget(self.masternodes_widget, stretch=1)
         vbox.addWidget(self.tabs)

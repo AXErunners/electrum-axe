@@ -10,3 +10,4 @@ aiohttp_socks
 certifi
 pycryptodomex
 x11_hash
+python-bls
