@@ -18,11 +18,12 @@ from electrum_dash.util import PrintError, make_aiohttp_session
 
 
 class UpdateCheck(QWidget, PrintError):
-    url = "https://electrum.dash.org/version"
-    download_url = "https://electrum.dash.org/#download"
+    url = "https://raw.githubusercontent.com/akhavr/electrum-dash/master/.latest-version"
+    download_url = "https://github.com/akhavr/electrum-dash/releases"
+
 
     VERSION_ANNOUNCEMENT_SIGNING_KEYS = (
-        "Xr8CXuHfEmiLrHzoggcfkP6DiFTCfdPcnG",
+        "XuKFPN7RDbrvNsPddPyUPzVqwdhvfB67cx",
     )
 
     def __init__(self, main_window, latest_version=None):
