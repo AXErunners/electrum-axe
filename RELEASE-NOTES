@@ -61,6 +61,7 @@
    QStandardItemModel. Performance should be better for large wallets.
  * Several other minor bugfixes and usability improvements.
 
+
 # Release 3.2.5.1
 
  * ledger plugin: fix signing transactions with DIP2 inputs (CbTx)
@@ -78,6 +79,7 @@
  * Switch to electrum protocol 1.4, ElectrumX>=1.9.1 recommended to
    support DIP3 electrum protocol methods.
  * Switch mainnet block explorer to insight.dash.org.
+
 
 # Release 3.2.4 (Security update)
 

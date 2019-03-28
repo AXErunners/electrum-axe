@@ -18,7 +18,7 @@ from electrum_dash import ecc
 from electrum_dash.protx import ProTxMN, ProTxService, ProRegTxExc
 from electrum_dash.util import bfh, bh2u
 
-from .util import MONOSPACE_FONT
+from .util import MONOSPACE_FONT, icon_path
 
 
 class ValidationError(Exception): pass
@@ -1450,12 +1450,12 @@ class Dip3MasternodeWizard(QWizard):
         else:
             title = 'Add DIP3 Masternode'
 
-        logo = QPixmap(':icons/tab_dip3.png')
+        logo = QPixmap(icon_path('tab_dip3.png'))
         logo = logo.scaledToWidth(32, mode=Qt.SmoothTransformation)
         self.setWizardStyle(QWizard.ClassicStyle)
         self.setPixmap(QWizard.LogoPixmap, logo)
         self.setWindowTitle(title)
-        self.setWindowIcon(QIcon(':icons/electrum-dash.png'))
+        self.setWindowIcon(QIcon('electrum-dash.png'))
         self.setMinimumSize(1000, 450)
 
     def validate_alias(self, alias):

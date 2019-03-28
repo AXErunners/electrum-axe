@@ -74,13 +74,14 @@ TX_ICONS = [
 class HistoryColumns(IntEnum):
     STATUS_ICON = 0
     STATUS_TEXT = 1
-    DESCRIPTION = 2
-    COIN_VALUE = 3
-    RUNNING_COIN_BALANCE = 4
-    FIAT_VALUE = 5
-    FIAT_ACQ_PRICE = 6
-    FIAT_CAP_GAINS = 7
-    TXID = 8
+    DIP2 = 2
+    DESCRIPTION = 3
+    COIN_VALUE = 4
+    RUNNING_COIN_BALANCE = 5
+    FIAT_VALUE = 6
+    FIAT_ACQ_PRICE = 7
+    FIAT_CAP_GAINS = 8
+    TXID = 9
 
 class HistorySortModel(QSortFilterProxyModel):
     def lessThan(self, source_left: QModelIndex, source_right: QModelIndex):
@@ -145,6 +146,7 @@ class HistoryModel(QAbstractItemModel, PrintError):
                     # txpos breaks ties for verified same block txns
                     (status, conf, -height, -txpos),
                 HistoryColumns.STATUS_TEXT: status_str,
+                HistoryColumns.DIP2: tx_item.get('dip2', ''),
                 HistoryColumns.DESCRIPTION: tx_item['label'],
                 HistoryColumns.COIN_VALUE:  tx_item['value'].value,
                 HistoryColumns.RUNNING_COIN_BALANCE: tx_item['balance'].value,
@@ -162,7 +164,7 @@ class HistoryModel(QAbstractItemModel, PrintError):
                 return QVariant(read_QIcon(TX_ICONS[status]))
             elif col == HistoryColumns.STATUS_ICON and role == Qt.ToolTipRole:
                 return QVariant(str(conf) + _(" confirmation" + ("s" if conf != 1 else "")))
-            elif col > HistoryColumns.DESCRIPTION and role == Qt.TextAlignmentRole:
+            elif col != HistoryColumns.DESCRIPTION and role == Qt.TextAlignmentRole:
                 return QVariant(Qt.AlignRight | Qt.AlignVCenter)
             elif col != HistoryColumns.DESCRIPTION and role == Qt.FontRole:
                 monospace_font = QFont(MONOSPACE_FONT)
@@ -170,6 +172,9 @@ class HistoryModel(QAbstractItemModel, PrintError):
             elif col == HistoryColumns.DESCRIPTION and role == Qt.DecorationRole \
                     and self.parent.wallet.invoices.paid.get(tx_hash):
                 return QVariant(read_QIcon("seal"))
+            elif col == HistoryColumns.DIP2 and role == Qt.ForegroundRole:
+                dip2_brush = QBrush(QColor("#1c75bc"))
+                return QVariant(dip2_brush)
             elif col in (HistoryColumns.DESCRIPTION, HistoryColumns.COIN_VALUE) \
                     and role == Qt.ForegroundRole and tx_item['value'].value < 0:
                 red_brush = QBrush(QColor("#BC1E1E"))
@@ -181,6 +186,8 @@ class HistoryModel(QAbstractItemModel, PrintError):
             return QVariant()
         if col == HistoryColumns.STATUS_TEXT:
             return QVariant(status_str)
+        elif col == HistoryColumns.DIP2:
+            return QVariant(tx_item.get('dip2', ''))
         elif col == HistoryColumns.DESCRIPTION:
             return QVariant(tx_item['label'])
         elif col == HistoryColumns.COIN_VALUE:
@@ -279,6 +286,8 @@ class HistoryModel(QAbstractItemModel, PrintError):
         set_visible(HistoryColumns.FIAT_VALUE, history)
         set_visible(HistoryColumns.FIAT_ACQ_PRICE, history and cap_gains)
         set_visible(HistoryColumns.FIAT_CAP_GAINS, history and cap_gains)
+        show_dip2 = self.view.config.get('show_dip2_tx_type', False)
+        set_visible(HistoryColumns.DIP2, show_dip2)
 
     def update_fiat(self, row, idx):
         tx_item = self.transactions.value_from_pos(row)
@@ -329,6 +338,7 @@ class HistoryModel(QAbstractItemModel, PrintError):
         return {
             HistoryColumns.STATUS_ICON: '',
             HistoryColumns.STATUS_TEXT: _('Date'),
+            HistoryColumns.DIP2: _('DIP2'),
             HistoryColumns.DESCRIPTION: _('Description'),
             HistoryColumns.COIN_VALUE: _('Amount'),
             HistoryColumns.RUNNING_COIN_BALANCE: _('Balance'),
@@ -353,6 +363,7 @@ class HistoryModel(QAbstractItemModel, PrintError):
 
 class HistoryList(MyTreeView, AcceptFileDragDrop):
     filter_columns = [HistoryColumns.STATUS_TEXT,
+                      HistoryColumns.DIP2,
                       HistoryColumns.DESCRIPTION,
                       HistoryColumns.COIN_VALUE,
                       HistoryColumns.TXID]

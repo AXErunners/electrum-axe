@@ -16,6 +16,7 @@ from electrum_dash.dash_tx import SPEC_PRO_REG_TX, SPEC_PRO_UP_REV_TX
 from electrum_dash.protx import ProRegTxExc, ProTxManagerExc
 
 from .protx_wizards import Dip3MasternodeWizard
+from .util import icon_path, read_QIcon
 
 
 VALID_MASTERNODE_COLOR = '#008000'
@@ -154,19 +155,19 @@ class WalletMNsModel(QAbstractTableModel):
 
         sz = row_h - 10
         mode = Qt.SmoothTransformation
-        imgfile = ':icons/dip3_unregistered.png'
+        imgfile = icon_path('dip3_unregistered.png')
         self.icon_unregistered = QPixmap(imgfile).scaledToWidth(sz, mode=mode)
-        imgfile = ':icons/dip3_valid.png'
+        imgfile = icon_path('dip3_valid.png')
         self.icon_valid = QPixmap(imgfile).scaledToWidth(sz, mode=mode)
-        imgfile = ':icons/dip3_banned.png'
+        imgfile = icon_path('dip3_banned.png')
         self.icon_banned = QPixmap(imgfile).scaledToWidth(sz, mode=mode)
-        imgfile = ':icons/dip3_removed.png'
+        imgfile = icon_path('dip3_removed.png')
         self.icon_removed = QPixmap(imgfile).scaledToWidth(sz, mode=mode)
-        imgfile = ':icons/dip3_own_op.png'
+        imgfile = icon_path('dip3_own_op.png')
         self.icon_own_op = QPixmap(imgfile).scaledToWidth(sz, mode=mode)
-        imgfile = ':icons/dip3_own.png'
+        imgfile = icon_path('dip3_own.png')
         self.icon_own = QPixmap(imgfile).scaledToWidth(sz, mode=mode)
-        imgfile = ':icons/dip3_op.png'
+        imgfile = icon_path('dip3_op.png')
         self.icon_op = QPixmap(imgfile).scaledToWidth(sz, mode=mode)
 
         headers = [
@@ -492,7 +493,7 @@ class Dip3TabWidget(QTabWidget):
         vbox.addWidget(hw)
         vbox.addWidget(self.reg_view)
         w.setLayout(vbox)
-        self.addTab(w, QIcon(':icons/tab_search.png'), 'Registerd MNs')
+        self.addTab(w, read_QIcon('tab_search.png'), 'Registerd MNs')
         return w
 
     def create_reg_menu(self, position):
@@ -563,7 +564,7 @@ class Dip3TabWidget(QTabWidget):
         vbox.addWidget(hw)
         vbox.addWidget(self.w_view)
         w.setLayout(vbox)
-        self.addTab(w, QIcon(':icons/tab_dip3.png'), 'Wallet MNs')
+        self.addTab(w, read_QIcon('tab_dip3.png'), 'Wallet MNs')
         return w
 
     @pyqtSlot()
@@ -791,7 +792,7 @@ class Dip3MNInfoDialog(QDialog):
         '''
         super(Dip3MNInfoDialog, self).__init__(parent)
         self.setMinimumSize(950, 450)
-        self.setWindowIcon(QIcon(':icons/electrum-dash.png'))
+        self.setWindowIcon(QIcon('electrum-dash.png'))
 
         self.parent = parent
         self.gui = parent.gui
@@ -820,7 +821,9 @@ class Dip3MNInfoDialog(QDialog):
                                            ['manager-info-updated'])
             self.info = manager.protx_info.get(self.protx_hash, {})
             if not self.info:
-                self.gui.network.request_protx_info(self.protx_hash)
+                self.gui.network.run_from_another_thread(
+                    self.gui.network.request_protx_info(self.protx_hash)
+                )
         else:
             self.diff_info = {}
             self.info = {}

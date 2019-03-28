@@ -15,7 +15,7 @@ git clone --branch $TRAVIS_TAG $BUILD_REPO_URL electrum-dash
 docker run --rm \
     -v $(pwd):/opt \
     -w /opt/electrum-dash \
-    -t zebralucky/electrum-dash-winebuild:Linux /opt/build_linux.sh
+    -t zebralucky/electrum-dash-winebuild:LinuxPy36 /opt/build_linux.sh
 
 sudo find . -name '*.po' -delete
 sudo find . -name '*.pot' -delete

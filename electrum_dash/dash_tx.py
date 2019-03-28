@@ -31,7 +31,7 @@ from bls_py import bls
 
 from .util import bh2u, bfh
 from .bitcoin import script_to_address, hash160_to_p2pkh
-from .crypto import Hash
+from .crypto import sha256d
 
 
 def tx_header_to_tx_type(tx_header_bytes):
@@ -157,7 +157,7 @@ class ProTxBase:
         '''Update spec tx signature when keystore password is accessible'''
         return
 
-    def after_broadcast(self, *args, **kwargs):
+    def after_confirmation(self, *args, **kwargs):
         '''Run after successful broadcast of spec tx'''
         return
 
@@ -250,7 +250,7 @@ class DashProRegTx(ProTxBase):
         outpoints = [TxOutPoint(bfh(i['prevout_hash'])[::-1], i['prevout_n'])
                      for i in tx.inputs()]
         outpoints_ser = [o.serialize() for o in outpoints]
-        self.inputsHash = Hash(b''.join(outpoints_ser))
+        self.inputsHash = sha256d(b''.join(outpoints_ser))
 
     def check_after_tx_prepared(self, tx):
         outpoints = [TxOutPoint(bfh(i['prevout_hash'])[::-1], i['prevout_n'])
@@ -273,13 +273,13 @@ class DashProRegTx(ProTxBase):
                             coins))
         if len(coins) == 1:
             coll_address = coins[0]['address']
-            payload_hash = bh2u(Hash(self.serialize(full=False))[::-1])
+            payload_hash = bh2u(sha256d(self.serialize(full=False))[::-1])
             payload_sig_msg = self.payload_sig_msg_part + payload_hash
             self.payloadSig = wallet.sign_message(coll_address,
                                                   payload_sig_msg,
                                                   password)
 
-    def after_broadcast(self, tx, manager):
+    def after_confirmation(self, tx, manager):
         ctx = self.collateralOutpoint
         for alias, mn in manager.mns.items():
             c_hash = mn.collateral.hash
@@ -353,7 +353,7 @@ class DashProUpServTx(ProTxBase):
         outpoints = [TxOutPoint(bfh(i['prevout_hash'])[::-1], i['prevout_n'])
                      for i in tx.inputs()]
         outpoints_ser = [o.serialize() for o in outpoints]
-        self.inputsHash = Hash(b''.join(outpoints_ser))
+        self.inputsHash = sha256d(b''.join(outpoints_ser))
 
     def update_with_keystore_password(self, tx, wallet, keystore, password):
         protx_hash = bh2u(self.proTxHash[::-1])
@@ -366,10 +366,10 @@ class DashProUpServTx(ProTxBase):
         if not bls_privk_bytes:
             return
         bls_privk = bls.PrivateKey.from_bytes(bls_privk_bytes)
-        bls_sig = bls_privk.sign_prehashed(Hash(self.serialize(full=False)))
+        bls_sig = bls_privk.sign_prehashed(sha256d(self.serialize(full=False)))
         self.payloadSig = bls_sig.serialize()
 
-    def after_broadcast(self, tx, manager):
+    def after_confirmation(self, tx, manager):
         protx_hash = bh2u(self.proTxHash[::-1])
         for alias, mn in manager.mns.items():
             if mn.protx_hash == protx_hash:
@@ -440,18 +440,18 @@ class DashProUpRegTx(ProTxBase):
         outpoints = [TxOutPoint(bfh(i['prevout_hash'])[::-1], i['prevout_n'])
                      for i in tx.inputs()]
         outpoints_ser = [o.serialize() for o in outpoints]
-        self.inputsHash = Hash(b''.join(outpoints_ser))
+        self.inputsHash = sha256d(b''.join(outpoints_ser))
 
     def update_with_keystore_password(self, tx, wallet, keystore, password):
         protx_hash = bh2u(self.proTxHash[::-1])
         for alias, mn in wallet.protx_manager.mns.items():
             if mn.protx_hash == protx_hash:
                 owner_addr = mn.owner_addr
-        payload_hash = Hash(self.serialize(full=False))
+        payload_hash = sha256d(self.serialize(full=False))
         self.payloadSig = wallet.sign_digest(owner_addr, payload_hash,
                                              password)
 
-    def after_broadcast(self, tx, manager):
+    def after_confirmation(self, tx, manager):
         protx_hash = bh2u(self.proTxHash[::-1])
         for alias, mn in manager.mns.items():
             if mn.protx_hash == protx_hash:
@@ -507,7 +507,7 @@ class DashProUpRevTx(ProTxBase):
         outpoints = [TxOutPoint(bfh(i['prevout_hash'])[::-1], i['prevout_n'])
                      for i in tx.inputs()]
         outpoints_ser = [o.serialize() for o in outpoints]
-        self.inputsHash = Hash(b''.join(outpoints_ser))
+        self.inputsHash = sha256d(b''.join(outpoints_ser))
 
     def update_with_keystore_password(self, tx, wallet, keystore, password):
         protx_hash = bh2u(self.proTxHash[::-1])
@@ -520,7 +520,7 @@ class DashProUpRevTx(ProTxBase):
         if not bls_privk_bytes:
             return
         bls_privk = bls.PrivateKey.from_bytes(bls_privk_bytes)
-        bls_sig = bls_privk.sign_prehashed(Hash(self.serialize(full=False)))
+        bls_sig = bls_privk.sign_prehashed(sha256d(self.serialize(full=False)))
         self.payloadSig = bls_sig.serialize()
 
 

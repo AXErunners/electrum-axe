@@ -26,6 +26,7 @@ wine python -m pip install -r contrib/deterministic-build/requirements-binaries.
 wine python -m pip install --upgrade pip==18.1
 wine pip install PyInstaller==3.4
 
+
 mkdir $WINEPREFIX/drive_c/Qt
 ln -s $PYHOME/Lib/site-packages/PyQt5/ $WINEPREFIX/drive_c/Qt/5.11.2
 

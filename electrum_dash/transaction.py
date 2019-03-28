@@ -723,12 +723,12 @@ class Transaction:
         self._inputs = inputs
         self._outputs = outputs
         self.locktime = locktime
+        if version is not None:
+            self.version = version
         if tx_type:
             self.version = 3
             self.tx_type = tx_type
             self.extra_payload = extra_payload
-        if version is not None:
-            self.version = version
         self.BIP69_sort()
         return self
 

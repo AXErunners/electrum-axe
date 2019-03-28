@@ -39,7 +39,7 @@ import queue
 import asyncio
 
 from PyQt5.QtGui import QPixmap, QKeySequence, QIcon, QCursor
-from PyQt5.QtCore import Qt, QRect, QStringListModel, QSize, pyqtSignal
+from PyQt5.QtCore import Qt, QRect, QStringListModel, QSize, pyqtSignal, pyqtSlot
 from PyQt5.QtWidgets import (QMessageBox, QComboBox, QSystemTrayIcon, QTabWidget,
                              QSpinBox, QMenuBar, QFileDialog, QCheckBox, QLabel,
                              QVBoxLayout, QGridLayout, QLineEdit, QTreeWidgetItem,
@@ -265,12 +265,6 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
                               self.network.tor_docs_uri_qt, rich_text=True)
         self.tabs.currentChanged.connect(self.on_tabs_current_changed)
 
-    @pyqtSlot()
-    def on_tabs_current_changed(self):
-        cur_widget = self.tabs.currentWidget()
-        if cur_widget == self.dip3_tab and not cur_widget.have_been_shown:
-            cur_widget.on_first_showing()
-
         # If the option hasn't been set yet
         if config.get('check_updates') is None:
             choice = QMessageBox.question(self,
@@ -292,6 +286,12 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
             self._update_check_thread = UpdateCheckThread(self)
             self._update_check_thread.checked.connect(on_version_received)
             self._update_check_thread.start()
+
+    @pyqtSlot()
+    def on_tabs_current_changed(self):
+        cur_widget = self.tabs.currentWidget()
+        if cur_widget == self.dip3_tab and not cur_widget.have_been_shown:
+            cur_widget.on_first_showing()
 
     def on_history(self, b):
         self.wallet.clear_coin_price_cache()
@@ -2986,18 +2986,14 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         unit_combo.currentIndexChanged.connect(lambda x: on_unit(x, nz))
         gui_widgets.append((unit_label, unit_combo))
 
-        msg = _('Display DIP2 special transactions type name as separete '
-                'column in wallet history')
-        show_dip2_ex_label = HelpLabel('Show DIP2 tx type in wallet history:', msg)
-        show_dip2_cb = QCheckBox()
+        show_dip2_cb = QCheckBox(_('Show DIP2 tx type in wallet history:'))
         show_dip2_cb.setChecked(self.config.get('show_dip2_tx_type', False))
         def on_dip2_state_changed(x):
             show_dip2 = (x == Qt.Checked)
             self.config.set_key('show_dip2_tx_type', show_dip2, True)
-            self.history_list.refresh_headers()
-            self.history_list.update()
+            self.history_model.refresh('on_dip2')
         show_dip2_cb.stateChanged.connect(on_dip2_state_changed)
-        gui_widgets.append((show_dip2_ex_label, show_dip2_cb))
+        gui_widgets.append((show_dip2_cb, None))
 
         block_explorers = sorted(util.block_explorer_info().keys())
         msg = _('Choose which online block explorer to use for functions that open a web browser')

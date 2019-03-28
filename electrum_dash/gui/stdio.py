@@ -103,14 +103,14 @@ class ElectrumGui:
             if self.config.get('show_dip2_tx_type', False):
                 tx_type_name = SPEC_TX_NAMES.get(tx_type, str(tx_type))
                 width = [20, 18, 22, 14, 14]
-                delta = (80 - sum(width) - 5) // 3
+                wdelta = (80 - sum(width) - 5) // 3
                 format_str = ("%" + "%d" % width[0] + "s" +
                               "%" + "%d" % width[1] + "s" +
-                              "%" + "%d" % (width[2] + delta) + "s" +
-                              "%" + "%d" % (width[3] + delta) + "s" +
-                              "%" + "%d" % (width[4] + delta) + "s")
+                              "%" + "%d" % (width[2] + wdelta) + "s" +
+                              "%" + "%d" % (width[3] + wdelta) + "s" +
+                              "%" + "%d" % (width[4] + wdelta) + "s")
                 msg = format_str % (time_str, tx_type_name, label,
-                                    format_satoshis(value, whitespaces=True),
+                                    format_satoshis(delta, whitespaces=True),
                                     format_satoshis(balance, whitespaces=True))
                 messages.append(msg)
                 self.print_list(messages[::-1],
@@ -119,13 +119,13 @@ class ElectrumGui:
                                               _("Balance")))
             else:
                 width = [20, 40, 14, 14]
-                delta = (80 - sum(width) - 4) // 3
+                wdelta = (80 - sum(width) - 4) // 3
                 format_str = ("%" + "%d" % width[0] + "s" +
-                              "%" + "%d" % (width[1] + delta) + "s" +
-                              "%" + "%d" % (width[2] + delta) + "s" +
-                              "%" + "%d" % (width[3] + delta) + "s")
+                              "%" + "%d" % (width[1] + wdelta) + "s" +
+                              "%" + "%d" % (width[2] + wdelta) + "s" +
+                              "%" + "%d" % (width[3] + wdelta) + "s")
                 msg = format_str % (time_str, label,
-                                    format_satoshis(value, whitespaces=True),
+                                    format_satoshis(delta, whitespaces=True),
                                     format_satoshis(balance, whitespaces=True))
                 messages.append(msg)
                 self.print_list(messages[::-1],
