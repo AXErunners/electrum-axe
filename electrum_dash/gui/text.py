@@ -417,10 +417,6 @@ class ElectrumGui:
             self.show_message(_('Payment sent.'))
             self.do_clear()
             #self.update_contacts_tab()
-        else:
-            display_msg = _('The server returned an error when broadcasting the transaction.')
-            display_msg += '\n' + repr(e)
-            self.show_message(display_msg)
 
     def show_message(self, message, getchar = True):
         w = self.w

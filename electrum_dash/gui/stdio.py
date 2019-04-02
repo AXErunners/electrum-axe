@@ -243,10 +243,6 @@ class ElectrumGui:
             print(_('Payment sent.'))
             #self.do_clear()
             #self.update_contacts_tab()
-        else:
-            display_msg = _('The server returned an error when broadcasting the transaction.')
-            display_msg += '\n' + repr(e)
-            print(display_msg)
 
     def network_dialog(self):
         print("use 'electrum-dash setconfig server/proxy' to change your network settings")
