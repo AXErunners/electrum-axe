@@ -673,7 +673,7 @@ class WalletStorage(JsonDB):
         if not seed_version:
             seed_version = OLD_SEED_VERSION if len(self.get('master_public_key','')) == 128 else NEW_SEED_VERSION
         if seed_version > FINAL_SEED_VERSION:
-            raise WalletFileException('This version of Electrum is too old to open this wallet.\n'
+            raise WalletFileException('This version of Dash Electrum is too old to open this wallet.\n'
                                       '(highest supported storage version: {}, version of this file: {})'
                                       .format(FINAL_SEED_VERSION, seed_version))
         if seed_version >=12:
