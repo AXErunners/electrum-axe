@@ -48,6 +48,10 @@ To install x11-hash dependency in the 'packages' dir run once::
 
     python3 -m pip install -t packages x11-hash
 
+To install precise tested versions of HW libs (trezor, ledeger, etc) run once::
+
+    python3 -m pip install -t packages -r contrib/deterministic-build/requirements-hw.txt
+
 To run Dash Electrum from its root directory, just do::
 
     ./electrum-dash
