@@ -664,7 +664,7 @@ def parse_URI(uri, on_pr=None):
         out['address'] = address
     if 'amount' in out:
         am = out['amount']
-        m = re.match('([0-9\.]+)X([0-9])', am)
+        m = re.match('([0-9\.]+)P([0-9])', am)
         if m:
             k = int(m.group(2)) - 8
             amount = Decimal(m.group(1)) * pow(  Decimal(10) , k)
