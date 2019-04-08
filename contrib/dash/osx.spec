@@ -16,6 +16,7 @@ PY36BINDIR =  os.environ.get('PY36BINDIR')
 DASH_ELECTRUM_VERSION =  os.environ.get('DASH_ELECTRUM_VERSION')
 
 hiddenimports = collect_submodules('trezorlib')
+hiddenimports += collect_submodules('hideezlib')
 hiddenimports += collect_submodules('safetlib')
 hiddenimports += collect_submodules('btchip')
 hiddenimports += collect_submodules('keepkeylib')
@@ -47,6 +48,8 @@ hiddenimports += [
     'electrum_dash.plugins.revealer.qt',
     'electrum_dash.plugins.labels.qt',
     'electrum_dash.plugins.trezor.qt',
+    'electrum_dash.plugins.hideez.client',
+    'electrum_dash.plugins.hideez.qt',
     'electrum_dash.plugins.safe_t.client',
     'electrum_dash.plugins.safe_t.qt',
     'electrum_dash.plugins.ledger.qt',
@@ -59,7 +62,9 @@ datas = [
     ('electrum_dash/wordlist', 'electrum_dash/wordlist'),
     ('electrum_dash/gui/icons', 'electrum_dash/gui/icons'),
 ]
+
 datas += collect_data_files('trezorlib')
+datas += collect_data_files('hideezlib')
 datas += collect_data_files('safetlib')
 datas += collect_data_files('btchip')
 datas += collect_data_files('keepkeylib')

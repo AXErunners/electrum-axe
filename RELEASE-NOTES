@@ -12,6 +12,7 @@
  * fix bugs in wallet creation wizard that resulted in corrupted
    wallets being created in rare cases (#5082, #5057)
  * fix compatibility with Qt 5.12 (#5109)
+ * hardware wallets: the Hideez Wallet is now supported
 
 
 # Release 3.3.3

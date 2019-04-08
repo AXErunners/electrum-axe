@@ -98,7 +98,7 @@ class StatusBarButton(QPushButton):
         QPushButton.__init__(self, icon, '')
         self.setToolTip(tooltip)
         self.setFlat(True)
-        self.setMaximumWidth(25)
+        self.setMaximumWidth(31)
         self.clicked.connect(self.onPress)
         self.func = func
         self.setIconSize(QSize(25,25))
