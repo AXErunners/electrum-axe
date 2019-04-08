@@ -584,13 +584,11 @@ class ProTxManager(PrintError):
         if not cbtx_header or not 'merkle_root' in cbtx_header:
             self.print_error('on_protx_diff: can not read blockchain'
                              'header to check merkle root')
-            self.connection_down(interface.server)
             return
 
         if cbtx_header['merkle_root'] != merkle_root_calculated:
             self.print_error('on_protx_diff: CbTx calculated merkle root '
                              'differs from blockchain merkle root')
-            self.connection_down(interface.server)
             return
 
         self.protx_mns = protx_new

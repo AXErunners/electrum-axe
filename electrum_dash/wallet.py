@@ -47,7 +47,7 @@ from .util import (NotEnoughFunds, PrintError, UserCancelled, profiler,
                    InvalidPassword, format_time, timestamp_to_datetime, Satoshis,
                    Fiat, bfh, bh2u, TxMinedInfo, AlreadyHaveAddress)
 from .bitcoin import (COIN, TYPE_ADDRESS, is_address, address_to_script,
-                      is_minikey, relayfee, dust_threshold)
+                      is_minikey, relayfee, dust_threshold, public_key_to_p2pkh)
 from .crypto import sha256d
 from .dash_tx import SPEC_TX_NAMES
 from .keystore import load_keystore, Hardware_KeyStore

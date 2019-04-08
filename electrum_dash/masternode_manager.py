@@ -218,7 +218,9 @@ class MasternodeManager(object):
         # Ensure that the collateral payment has >= MASTERNODE_MIN_CONFIRMATIONS.
         tx_height = self.wallet.get_tx_height(mn.vin['prevout_hash'])
         if tx_height.conf < MASTERNODE_MIN_CONFIRMATIONS:
-            raise Exception('Collateral payment must have at least %d confirmations (current: %d)' % (MASTERNODE_MIN_CONFIRMATIONS, conf))
+            raise Exception('Collateral payment must have at least %d '
+                            'confirmations (current: %d)' %
+                            (MASTERNODE_MIN_CONFIRMATIONS, tx_height.conf))
         # Ensure that the masternode's vin is valid.
         if mn.vin.get('value', 0) != bitcoin.COIN * 1000:
             raise Exception('Masternode requires a collateral 1000 DASH output.')
@@ -399,17 +401,19 @@ class MasternodeManager(object):
             status = self.masternode_statuses.get(mn.get_collateral_str())
             if status not in ['PRE_ENABLED', 'ENABLED']:
                 raise Exception('Masternode is not currently enabled')
+        return proposal
 
     def vote(self, alias, proposal_name, vote_choice):
         """Vote on a budget proposal."""
-        self.check_can_vote(alias, proposal_name)
+        proposal = self.check_can_vote(alias, proposal_name)
         # Validate vote choice.
         if vote_choice.upper() not in ('YES', 'NO'):
             raise ValueError('Invalid vote choice: "%s"' % vote_choice)
 
         # Create the vote.
         mn = self.get_masternode(alias)
-        vote = BudgetVote(vin=mn.vin, proposal_hash=proposal_hash, vote=vote_choice)
+        vote = BudgetVote(vin=mn.vin, proposal_hash=proposal.get_hash(),
+                          vote=vote_choice)
 
         # Sign the vote with delegate key.
         sig = self.wallet.sign_budget_vote(vote, mn.delegate_key)
