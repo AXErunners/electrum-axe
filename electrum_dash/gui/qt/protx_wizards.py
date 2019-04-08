@@ -4,9 +4,13 @@ import os
 import ipaddress
 from bls_py import bls
 
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
-from PyQt5.QtWidgets import *
+from PyQt5.QtGui import QFont, QPixmap
+from PyQt5.QtCore import Qt, pyqtSignal, pyqtSlot
+from PyQt5.QtWidgets import (QLineEdit, QComboBox, QListWidget, QDoubleSpinBox,
+                             QAbstractItemView, QListWidgetItem, QWizardPage,
+                             QRadioButton, QButtonGroup, QVBoxLayout, QLabel,
+                             QGroupBox, QCheckBox, QPushButton, QGridLayout,
+                             QFileDialog, QWizard)
 
 from electrum_dash import dash_tx
 from electrum_dash.bitcoin import (COIN, deserialize_privkey,
@@ -18,7 +22,7 @@ from electrum_dash import ecc
 from electrum_dash.protx import ProTxMN, ProTxService, ProRegTxExc
 from electrum_dash.util import bfh, bh2u
 
-from .util import MONOSPACE_FONT, icon_path
+from .util import MONOSPACE_FONT, icon_path, read_QIcon
 
 
 class ValidationError(Exception): pass
@@ -1455,7 +1459,7 @@ class Dip3MasternodeWizard(QWizard):
         self.setWizardStyle(QWizard.ClassicStyle)
         self.setPixmap(QWizard.LogoPixmap, logo)
         self.setWindowTitle(title)
-        self.setWindowIcon(QIcon('electrum-dash.png'))
+        self.setWindowIcon(read_QIcon('electrum-dash.png'))
         self.setMinimumSize(1000, 450)
 
     def validate_alias(self, alias):

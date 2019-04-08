@@ -1,0 +1,56 @@
+[flake8]
+# E123,E133,E226,E241,E242 are ignored by default by pep8 and flake8
+ignore = E123,E133,E226,E241,E242,
+    E111, # E111 indentation is not a multiple of four
+    E114, # E114 indentation is not a multiple of four (comment)
+    E116, # E116 unexpected indentation (comment)
+    E117, # E117 over-indented (comment)
+    E121, # E121 continuation line under-indented for hanging indent
+    E122, # E122 continuation line missing indentation or outdented
+    E124, # E124 closing bracket does not match visual indentation
+    E125, # E125 continuation line with same indent as next logical line
+    E126, # E126 continuation line over-indented for hanging indent
+    E127, # E127 continuation line over-indented for visual indent
+    E128, # E128 continuation line under-indented for visual indent
+    E201, # E201 whitespace after '{'
+    E202, # E202 whitespace before '}'
+    E203, # E203 whitespace before ':'
+    E211, # E211 whitespace before '('
+    E221, # E221 multiple spaces before operator
+    E222, # E222 multiple spaces after operator
+    E225, # E225 missing whitespace around operator
+    E227, # E227 missing whitespace around bitwise or shift operator
+    E228, # E228 missing whitespace around modulo operator
+    E231, # E231 missing whitespace after ','
+    E251, # E251 unexpected spaces around keyword / parameter equals
+    E252, # E252 missing whitespace around parameter equals
+    E261, # E261 at least two spaces before inline comment
+    E262, # E262 inline comment should start with '# '
+    E265, # E265 block comment should start with '# '
+    E266, # E266 too many leading '#' for block comment
+    E271, # E271 multiple spaces after keyword
+    E272, # E272 multiple spaces before keyword
+    W291, # W291 trailing whitespace
+    W293, # W293 blank line contains whitespace
+    E301, # E301 expected 1 blank line
+    E302, # E302 expected 2 blank lines
+    E303, # E303 too many blank lines
+    E305, # E305 expected 2 blank lines after class or function definition
+    E306, # E306 expected 1 blank line before a nested definition
+    W391, # W391 blank line at end of file
+    E401, # E401 multiple imports on one line
+    E402, # E402 module level import not at top of file
+    E501, # E501 line too long
+    E502, # E502 the backslash is redundant between brackets
+    W504, # W504 line break after binary operator
+    W503, # W503 line break before binary operator
+    E701, # E701 multiple statements on one line (colon)
+    E703, # E703 statement ends with a semicolon
+    E704, # E704 multiple statements on one line (def)
+    E722, # E722 do not use bare 'except'
+    E731, # E731 do not assign a lambda expression, use a def
+
+
+max-line-length = 79
+exclude = bin,build,.buildozer,*.egg-info,debian,dist,contrib,env,env36,.git,packages
+max-complexity = 10

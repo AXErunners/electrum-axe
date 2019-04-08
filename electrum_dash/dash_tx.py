@@ -742,8 +742,8 @@ def read_extra_payload(vds, tx_type):
         if spec_tx_class:
             read_method = getattr(spec_tx_class, 'read_vds', None)
             if not read_method:
-                raise NotImplementedError('Transaction method %s unknown' %
-                                          read_method_name)
+                raise NotImplementedError('%s has no read_vds method' %
+                                          spec_tx_class)
             extra_payload = read_method(vds)
             assert isinstance(extra_payload, spec_tx_class)
         else:

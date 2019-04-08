@@ -23,6 +23,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import os
 import sys
 import datetime
 import copy
@@ -748,7 +749,8 @@ class Commands:
         except Exception as e:
             return 'Error parsing: ' + str(e)
 
-        num = self.masternode_manager.import_masternode_conf_lines(conf_file, self.password)
+        mn_man = self.masternode_manager
+        num = mn_man.import_masternode_conf_lines(conf_lines, self.password)
         if not num:
             return 'Could not import any configurations. Please ensure that they are not already imported.'
         return '%d configuration%s imported.' % (num, 's' if num == 1 else '')
@@ -787,7 +789,7 @@ class Commands:
     @command('w')
     def listmasternodepayments(self):
         """List unused masternode-compatible payments."""
-        return self.masternode_manager.get_masternode_outputs(exclude_frozen = False)
+        return self.masternode_manager.get_masternode_outputs(exclude_frozen=False)
 
     @command('wnp')
     def activatemasternode(self, alias):

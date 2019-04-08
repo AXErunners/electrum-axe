@@ -223,8 +223,6 @@ class ProTxManager(PrintError):
 
     def notify(self, key):
         if key == 'manager-diff-updated':
-            diff_deleted_mns = self.diff_deleted_mns
-            diff_hashes = self.diff_hashes
             value = {
                 'state': self.protx_state,
                 'deleted_mns': self.diff_deleted_mns,
@@ -400,7 +398,6 @@ class ProTxManager(PrintError):
         else:
             scriptOpPayout = b''
 
-        bls_bytes = bfh(mn.bls_privk)
         tx = DashProUpServTx(1, bfh(mn.protx_hash)[::-1],
                              mn.service.ip, mn.service.port,
                              scriptOpPayout, b'\x00'*32, b'\x00'*96)
@@ -565,7 +562,6 @@ class ProTxManager(PrintError):
         # Check CbTx in blockchain
         cbtx_txid = cbtx.txid()
         cbtx_height = cbtx_extra.height
-        cbtx_block_hash = protx_diff.get('blockHash', '')
         cbtx_merkle_tree = protx_diff.get('cbTxMerkleTree', '')
         pmt = PartialMerkleTree.read_bytes(bfh(cbtx_merkle_tree)).hashes
 

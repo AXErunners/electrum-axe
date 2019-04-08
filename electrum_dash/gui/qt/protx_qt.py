@@ -792,7 +792,7 @@ class Dip3MNInfoDialog(QDialog):
         '''
         super(Dip3MNInfoDialog, self).__init__(parent)
         self.setMinimumSize(950, 450)
-        self.setWindowIcon(QIcon('electrum-dash.png'))
+        self.setWindowIcon(read_QIcon('electrum-dash.png'))
 
         self.parent = parent
         self.gui = parent.gui

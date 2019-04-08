@@ -496,7 +496,7 @@ class Ledger_KeyStore(Hardware_KeyStore):
                 else:
                     output = o.address
                     if not self.get_client_electrum().canAlternateCoinVersions:
-                        v, h = b58_address_to_hash160(address)
+                        v, h = b58_address_to_hash160(output)
                         if v == constants.net.ADDRTYPE_P2PKH:
                             output = hash160_to_b58_address(h, 0)
 

@@ -908,17 +908,8 @@ class Network(PrintError):
             r"OP_IF/NOTIF argument must be minimal",
             r"Signature must be zero for failed CHECK(MULTI)SIG operation",
             r"NOPx reserved for soft-fork upgrades",
-            r"Witness version reserved for soft-fork upgrades",
             r"Public key is neither compressed or uncompressed",
             r"Extra items left on stack after execution",
-            r"Witness program has incorrect length",
-            r"Witness program was passed an empty witness",
-            r"Witness program hash mismatch",
-            r"Witness requires empty scriptSig",
-            r"Witness requires only-redeemscript scriptSig",
-            r"Witness provided for non-witness script",
-            r"Using non-compressed keys in segwit",
-            r"Using OP_CODESEPARATOR in non-witness script",
             r"Signature is found in scriptCode",
         }
         for substring in script_error_messages:
@@ -936,7 +927,6 @@ class Network(PrintError):
             r"txn-already-known",
             r"non-BIP68-final",
             r"bad-txns-nonstandard-inputs",
-            r"bad-witness-nonstandard",
             r"bad-txns-too-many-sigops",
             r"mempool min fee not met",
             r"min relay fee not met",
@@ -1156,7 +1146,7 @@ class Network(PrintError):
         protx_hash: The hash of the initial ProRegTx
         '''
         if not is_hash256_str(protx_hash):
-            raise Exception(f"{repr(tx_hash)} is not a txid")
+            raise Exception(f"{repr(protx_hash)} is not a txid")
         try:
             err = None
             res = await self.interface.session.send_request('protx.info',
