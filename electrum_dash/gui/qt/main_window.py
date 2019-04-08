@@ -1959,7 +1959,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, PrintError):
         return self.create_list_tab(l)
 
     def create_proposals_tab(self):
-        from masternode_budget_widgets import ProposalsTab
+        from .masternode_budget_widgets import ProposalsTab
         self.proposals_list = ProposalsTab(self)
         return self.proposals_list
 
