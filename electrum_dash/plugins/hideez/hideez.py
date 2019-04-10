@@ -191,7 +191,8 @@ class HideezPlugin(HW_PluginBase):
                                         'correct state.'))
         # fixme: we should use: client.handler = wizard
         client.handler = self.create_handler(wizard)
-        if not device_info.initialized:
+        client.init_device()
+        if not client.is_initialized():
             msg = _("Hideez Wallet is not initialized.\n\n"
                     "To initialize your Hideez Wallet please switch to "
                     "Hideez Bridge window and do device initialization "
