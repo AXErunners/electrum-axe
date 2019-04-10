@@ -1,5 +1,6 @@
 """Dash look and feel."""
 
+import os
 from electrum_dash.util import pkg_dir
 
 
@@ -786,4 +787,5 @@ QWizard #info-label {
 """
 
 
-dash_stylesheet = dash_stylesheet.replace('{pkg_dir}', '%s' % pkg_dir)
+pkg_dir_for_css = pkg_dir.replace(os.sep, '/')
+dash_stylesheet = dash_stylesheet.replace('{pkg_dir}', '%s' % pkg_dir_for_css)
