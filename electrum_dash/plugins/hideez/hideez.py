@@ -169,20 +169,6 @@ class HideezPlugin(HW_PluginBase):
     def get_coin_name(self):
         return "Dash Testnet" if constants.net.TESTNET else "Dash"
 
-    def initialize_device(self, device_id, wizard, handler):
-        # Initialization method
-        msg = _("Hideez Wallet is not initialized.\n\n"
-                "To initialize your Hideez Wallet please switch to "
-                "Hideez Bridge window and do device initialization "
-                "and backup sequence.\n\n"
-                "When device initialization and backup is finished "
-                "press 'Next' to proceed.")
-        devmgr = self.device_manager()
-        client = devmgr.client_by_id(device_id)
-        while not client.features.initialized:
-            wizard.confirm_dialog(title=_('Initialize Device'), message=msg,
-                                  run_next=lambda res: client.init_device())
-
     def _make_node_path(self, xpub, address_n):
         _, depth, fingerprint, child_num, chain_code, key = deserialize_xpub(xpub)
         node = self.types.HDNodeType(
@@ -206,7 +192,13 @@ class HideezPlugin(HW_PluginBase):
         # fixme: we should use: client.handler = wizard
         client.handler = self.create_handler(wizard)
         if not device_info.initialized:
-            self.initialize_device(device_id, wizard, client.handler)
+            msg = _("Hideez Wallet is not initialized.\n\n"
+                    "To initialize your Hideez Wallet please switch to "
+                    "Hideez Bridge window and do device initialization "
+                    "and backup sequence.\n\n"
+                    "When device initialization and backup is finished "
+                    "press 'Next' to proceed.")
+            raise UserFacingException(msg)
         client.get_xpub('m', 'standard')
         client.used()
 
