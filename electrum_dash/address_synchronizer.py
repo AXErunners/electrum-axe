@@ -160,7 +160,7 @@ class AddressSynchronizer(PrintError):
         if self.network is not None:
             self.synchronizer = Synchronizer(self)
             self.verifier = SPV(self.network, self)
-        self.protx_manager.on_network_state_changed(self.network)
+        self.protx_manager.on_network_start(self.network)
 
     def stop_threads(self, write_to_disk=True):
         if self.network:

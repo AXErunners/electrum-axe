@@ -147,8 +147,8 @@ class ProTxManager(PrintError):
         self.callback_lock = threading.Lock()
         self.manager_lock = threading.Lock()
         self.callbacks = defaultdict(list)
-        self.subscribed = False
-        self.verified_tx_subscribed = False
+        self.network_subscribed = False
+        self.protx_subscribed = False
 
         self.protx_base_height = 1
         self.protx_state = ProTxManager.DIP3_UNKNOWN
@@ -170,8 +170,10 @@ class ProTxManager(PrintError):
         self.unsubscribe_from_network_updates()
 
     def subscribe_to_network_updates(self):
-        if self.network and not self.subscribed:
-            self.subscribed = True
+        if self.network and not self.protx_subscribed:
+            if not self.network.is_connected():
+                return
+            self.protx_subscribed = True
             self.network.register_callback(self.on_protx_diff,
                                            ['protx-diff'])
             self.network.register_callback(self.on_protx_info,
@@ -184,20 +186,24 @@ class ProTxManager(PrintError):
 
     def unsubscribe_from_network_updates(self):
         if self.network:
-            if self.subscribed:
-                self.subscribed = False
+            if self.protx_subscribed:
+                self.protx_subscribed = False
                 self.network.unregister_callback(self.on_protx_diff)
                 self.network.unregister_callback(self.on_protx_info)
                 self.network.unregister_callback(self.on_blockchain_updated)
-            if self.verified_tx_subscribed:
-                self.verified_tx_subscribed = False
+            if self.network_subscribed:
+                self.network_subscribed = False
                 self.network.unregister_callback(self.on_verified_tx)
+                self.network.unregister_callback(self.on_network_status)
 
-    def on_network_state_changed(self, network):
+    def on_network_start(self, network):
         self.network = network
-        if not self.verified_tx_subscribed:
-            self.verified_tx_subscribed = True
+        if not self.network_subscribed:
+            self.network_subscribed = True
             self.network.register_callback(self.on_verified_tx, ['verified'])
+            self.network.register_callback(self.on_network_status, ['status'])
+
+    def on_network_status(self, event):
         self.notify('manager-net-state-changed')
 
     async def on_blockchain_updated(self, key):
@@ -237,7 +243,7 @@ class ProTxManager(PrintError):
             value = self.alias_updated
             self.alias_updated = ''
         elif key == 'manager-net-state-changed':
-            value = True if self.network else False
+            value = True if self.network.is_connected() else False
         else:
             value = None
         self.trigger_callback(key, value)

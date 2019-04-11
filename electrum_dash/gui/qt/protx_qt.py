@@ -395,7 +395,7 @@ class Dip3TabWidget(QTabWidget):
         self.have_been_shown = True
         self.manager.subscribe_to_network_updates()
 
-    def on_manager_net_state_changed(self, value):
+    def on_manager_net_state_changed(self, key, value):
         self.net_state_changed.emit(value)
 
     def on_manager_diff_updated(self, key, value):
@@ -425,8 +425,8 @@ class Dip3TabWidget(QTabWidget):
         self.update_wallet_label()
 
     @pyqtSlot(bool)
-    def on_net_state_changed(self, net_enabled):
-        if net_enabled and self.have_been_shown:
+    def on_net_state_changed(self, is_connected):
+        if is_connected and self.have_been_shown:
             self.manager.subscribe_to_network_updates()
 
     def registered_label(self):
@@ -820,7 +820,7 @@ class Dip3MNInfoDialog(QDialog):
             self.manager.register_callback(self.on_manager_info_updated,
                                            ['manager-info-updated'])
             self.info = manager.protx_info.get(self.protx_hash, {})
-            if not self.info:
+            if not self.info and self.gui.network.is_connected():
                 self.gui.network.run_from_another_thread(
                     self.gui.network.request_protx_info(self.protx_hash)
                 )
