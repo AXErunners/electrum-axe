@@ -1,7 +1,5 @@
 #!/usr/bin/make -f
 
-export PYBUILD_INTERPRETERS=python{version}
-export PYBUILD_VERSIONS=3.6,3.7
 export PYBUILD_NAME=electrum-dash
 
 %:
