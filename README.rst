@@ -52,6 +52,10 @@ To install precise tested versions of HW libs (trezor, ledeger, etc) run once::
 
     python3 -m pip install -t packages -r contrib/deterministic-build/requirements-hw.txt
 
+To install precise tested version of pyqt5 run once::
+
+    python3 -m pip install -t packages -r contrib/deterministic-build/requirements-binaries.txt
+
 To run Dash Electrum from its root directory, just do::
 
     ./electrum-dash
