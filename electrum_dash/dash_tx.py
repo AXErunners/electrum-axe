@@ -527,30 +527,41 @@ class DashProUpRevTx(ProTxBase):
 class DashCbTx(ProTxBase):
     '''Class representing DIP4 coinbase special tx'''
 
-    fields = ('version height merkleRootMNList').split()
+    fields = ('version height merkleRootMNList merkleRootQuorums').split()
 
     def __str__(self):
-        return ('CbTx Version: %s\n'
-                'height: %s\n'
-                'merkleRootMNList: %s\n'
-                % (self.version, self.height,
-                   bh2u(self.merkleRootMNList[::-1])))
+        res = ('CbTx Version: %s\n'
+               'height: %s\n'
+               'merkleRootMNList: %s\n'
+               % (self.version, self.height,
+                  bh2u(self.merkleRootMNList[::-1])))
+        if self.version > 1:
+            res += ('merkleRootQuorums: %s\n' %
+                    bh2u(self.merkleRootQuorums[::-1]))
+        return res
 
     def serialize(self):
         assert len(self.merkleRootMNList) == 32
-        return (
+        res = (
             struct.pack('<H', self.version) +           # version
             struct.pack('<I', self.height) +            # height
             self.merkleRootMNList                       # merkleRootMNList
         )
+        if self.version > 1:
+            assert len(self.merkleRootQuorums) == 32
+            res += self.merkleRootQuorums               # merkleRootQuorums
+        return res
+
 
     @classmethod
     def read_vds(cls, vds):
-        return DashCbTx(
-            vds.read_uint16(),                          # version
-            vds.read_uint32(),                          # height
-            vds.read_bytes(32)                          # merkleRootMNList
-        )
+        version = vds.read_uint16()
+        height = vds.read_uint32()
+        merkleRootMNList = vds.read_bytes(32)
+        merkleRootQuorums = b''
+        if version > 1:
+            merkleRootQuorums = vds.read_bytes(32)
+        return DashCbTx(version, height, merkleRootMNList, merkleRootQuorums)
 
 
 class DashSubTxRegister(ProTxBase):

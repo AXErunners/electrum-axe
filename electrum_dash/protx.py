@@ -491,7 +491,7 @@ class ProTxManager(PrintError):
             self.notify('manager-diff-updated')
             return
 
-        if cbtx_extra.version != 1:
+        if cbtx_extra.version > 2:
             self.print_error('on_protx_diff: unkonw CbTx version %s' %
                              cbtx_extra.version)
             self.protx_state = ProTxManager.DIP3_DISABLED
