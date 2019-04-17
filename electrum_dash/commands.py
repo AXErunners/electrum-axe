@@ -23,6 +23,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import os
 import sys
 import datetime
 import copy
@@ -32,18 +33,29 @@ import ast
 import base64
 from functools import wraps
 from decimal import Decimal
+from typing import Optional, TYPE_CHECKING
 
 from .import util, ecc
 from .util import bfh, bh2u, format_satoshis, json_decode, print_error, json_encode
 from . import bitcoin
 from .bitcoin import is_address,  hash_160, COIN, TYPE_ADDRESS
+from . import bip32
 from .i18n import _
 from .transaction import Transaction, multisig_script, TxOutput
 from .paymentrequest import PR_PAID, PR_UNPAID, PR_UNKNOWN, PR_EXPIRED
-from .plugin import run_hook
+from .synchronizer import Notifier
+from .storage import WalletStorage
+from . import keystore
+from .wallet import Wallet, Imported_Wallet, Abstract_Wallet
+from .mnemonic import Mnemonic
 from .masternode import MasternodeAnnounce
 from .masternode_budget import BudgetProposal
 from .masternode_manager import MasternodeManager, parse_masternode_conf, BUDGET_FEE_CONFIRMATIONS
+
+if TYPE_CHECKING:
+    from .network import Network
+    from .simple_config import SimpleConfig
+
 
 known_commands = {}
 
@@ -94,7 +106,8 @@ def command(s):
 
 class Commands:
 
-    def __init__(self, config, wallet, network, callback = None):
+    def __init__(self, config: 'SimpleConfig', wallet: Abstract_Wallet,
+                 network: Optional['Network'], callback=None):
         self.config = config
         self.wallet = wallet
         self.network = network
@@ -130,17 +143,80 @@ class Commands:
         return ' '.join(sorted(known_commands.keys()))
 
     @command('')
-    def create(self):
+    def create(self, passphrase=None, password=None, encrypt_file=True):
         """Create a new wallet"""
-        raise Exception('Not a JSON-RPC command')
+        storage = WalletStorage(self.config.get_wallet_path())
+        if storage.file_exists():
+            raise Exception("Remove the existing wallet first!")
 
-    @command('wn')
-    def restore(self, text):
+        seed_type = 'standard'
+        seed = Mnemonic('en').make_seed(seed_type)
+        k = keystore.from_seed(seed, passphrase)
+        storage.put('keystore', k.dump())
+        storage.put('wallet_type', 'standard')
+        wallet = Wallet(storage)
+        wallet.update_password(old_pw=None, new_pw=password, encrypt_storage=encrypt_file)
+        wallet.synchronize()
+        msg = "Please keep your seed in a safe place; if you lose it, you will not be able to restore your wallet."
+
+        wallet.storage.write()
+        return {'seed': seed, 'path': wallet.storage.path, 'msg': msg}
+
+    @command('')
+    def restore(self, text, passphrase=None, password=None, encrypt_file=True):
         """Restore a wallet from text. Text can be a seed phrase, a master
         public key, a master private key, a list of Dash addresses
         or Dash private keys. If you want to be prompted for your
         seed, type '?' or ':' (concealed) """
-        raise Exception('Not a JSON-RPC command')
+        storage = WalletStorage(self.config.get_wallet_path())
+        if storage.file_exists():
+            raise Exception("Remove the existing wallet first!")
+
+        text = text.strip()
+        if keystore.is_address_list(text):
+            wallet = Imported_Wallet(storage)
+            addresses = text.split()
+            good_inputs, bad_inputs = wallet.import_addresses(addresses, write_to_disk=False)
+            # FIXME tell user about bad_inputs
+            if not good_inputs:
+                raise Exception("None of the given addresses can be imported")
+        elif keystore.is_private_key_list(text, allow_spaces_inside_key=False):
+            k = keystore.Imported_KeyStore({})
+            storage.put('keystore', k.dump())
+            wallet = Imported_Wallet(storage)
+            keys = keystore.get_private_keys(text)
+            good_inputs, bad_inputs = wallet.import_private_keys(keys, None, write_to_disk=False)
+            # FIXME tell user about bad_inputs
+            if not good_inputs:
+                raise Exception("None of the given privkeys can be imported")
+        else:
+            if keystore.is_seed(text):
+                k = keystore.from_seed(text, passphrase)
+            elif keystore.is_master_key(text):
+                k = keystore.from_master_key(text)
+            else:
+                raise Exception("Seed or key not recognized")
+            storage.put('keystore', k.dump())
+            storage.put('wallet_type', 'standard')
+            wallet = Wallet(storage)
+
+        assert not storage.file_exists(), "file was created too soon! plaintext keys might have been written to disk"
+        wallet.update_password(old_pw=None, new_pw=password, encrypt_storage=encrypt_file)
+        wallet.synchronize()
+
+        if self.network:
+            wallet.start_network(self.network)
+            print_error("Recovering wallet...")
+            wallet.wait_until_synchronized()
+            wallet.stop_threads()
+            # note: we don't wait for SPV
+            msg = "Recovery successful" if wallet.is_found() else "Found no history for this wallet"
+        else:
+            msg = ("This wallet was restored offline. It may contain more addresses than displayed. "
+                   "Start a daemon (not offline) to sync history.")
+
+        wallet.storage.write()
+        return {'path': wallet.storage.path, 'msg': msg}
 
     @command('wp')
     def password(self, password=None, new_password=None):
@@ -151,6 +227,11 @@ class Commands:
         self.wallet.update_password(password, new_password, b)
         self.wallet.storage.write()
         return {'password':self.wallet.has_password()}
+
+    @command('w')
+    def get(self, key):
+        """Return item from wallet storage"""
+        return self.wallet.storage.get(key)
 
     @command('')
     def getconfig(self, key):
@@ -188,7 +269,7 @@ class Commands:
         walletless server query, results are not checked by SPV.
         """
         sh = bitcoin.address_to_scripthash(address)
-        return self.network.get_history_for_scripthash(sh)
+        return self.network.run_from_another_thread(self.network.get_history_for_scripthash(sh))
 
     @command('w')
     def listunspent(self):
@@ -206,7 +287,7 @@ class Commands:
         is a walletless server query, results are not checked by SPV.
         """
         sh = bitcoin.address_to_scripthash(address)
-        return self.network.listunspent_for_scripthash(sh)
+        return self.network.run_from_another_thread(self.network.listunspent_for_scripthash(sh))
 
     @command('')
     def serialize(self, jsontx):
@@ -256,13 +337,14 @@ class Commands:
     def deserialize(self, tx):
         """Deserialize a serialized transaction"""
         tx = Transaction(tx)
-        return tx.deserialize()
+        return tx.deserialize(force_full_parse=True)
 
     @command('n')
     def broadcast(self, tx):
         """Broadcast a transaction to the network. """
         tx = Transaction(tx)
-        return self.network.broadcast_transaction(tx)
+        self.network.run_from_another_thread(self.network.broadcast_transaction(tx))
+        return tx.txid()
 
     @command('')
     def createmultisig(self, num, pubkeys):
@@ -329,7 +411,7 @@ class Commands:
         server query, results are not checked by SPV.
         """
         sh = bitcoin.address_to_scripthash(address)
-        out = self.network.get_balance_for_scripthash(sh)
+        out = self.network.run_from_another_thread(self.network.get_balance_for_scripthash(sh))
         out["confirmed"] =  str(Decimal(out["confirmed"])/COIN)
         out["unconfirmed"] =  str(Decimal(out["unconfirmed"])/COIN)
         return out
@@ -338,7 +420,7 @@ class Commands:
     def getmerkle(self, txid, height):
         """Get Merkle branch of a transaction included in a block. Dash Electrum
         uses this to verify transactions (Simple Payment Verification)."""
-        return self.network.get_merkle_for_transaction(txid, int(height))
+        return self.network.run_from_another_thread(self.network.get_merkle_for_transaction(txid, int(height)))
 
     @command('n')
     def getservers(self):
@@ -361,6 +443,16 @@ class Commands:
         """Get master private key. Return your wallet\'s master private key"""
         return str(self.wallet.keystore.get_master_private_key(password))
 
+    @command('')
+    def convert_xkey(self, xkey, xtype):
+        """Convert xtype of a master key. e.g. xpub -> ypub"""
+        is_xprv = bip32.is_xprv(xkey)
+        if not bip32.is_xpub(xkey) and not is_xprv:
+            raise Exception('xkey should be a master public/private key')
+        _, depth, fingerprint, child_number, c, cK = bip32.deserialize_xkey(xkey, is_xprv)
+        serialize = bip32.serialize_xprv if is_xprv else bip32.serialize_xpub
+        return serialize(xtype, c, cK, depth, fingerprint, child_number)
+
     @command('wp')
     def getseed(self, password=None):
         """Get seed phrase. Print the generation seed of your wallet."""
@@ -375,7 +467,7 @@ class Commands:
         try:
             addr = self.wallet.import_private_key(privkey, password)
             out = "Keypair imported: " + addr
-        except BaseException as e:
+        except Exception as e:
             out = "Error: " + str(e)
         return out
 
@@ -426,7 +518,7 @@ class Commands:
 
         coins = self.wallet.get_spendable_coins(domain, self.config)
         tx = self.wallet.make_unsigned_transaction(coins, final_outputs, self.config, fee, change_addr)
-        if locktime != None: 
+        if locktime != None:
             tx.locktime = locktime
         if not unsigned:
             self.wallet.sign_transaction(tx, password)
@@ -449,9 +541,15 @@ class Commands:
         return tx.as_dict()
 
     @command('w')
-    def history(self, year=None, show_addresses=False, show_fiat=False):
+    def history(self, year=None, show_addresses=False, show_fiat=False, show_fees=False,
+                from_height=None, to_height=None):
         """Wallet history. Returns the transaction history of your wallet."""
-        kwargs = {'show_addresses': show_addresses}
+        kwargs = {
+            'show_addresses': show_addresses,
+            'show_fees': show_fees,
+            'from_height': from_height,
+            'to_height': to_height,
+        }
         if year:
             import time
             start_date = datetime.datetime(year, 1, 1)
@@ -520,7 +618,7 @@ class Commands:
         if self.wallet and txid in self.wallet.transactions:
             tx = self.wallet.transactions[txid]
         else:
-            raw = self.network.get_transaction(txid)
+            raw = self.network.run_from_another_thread(self.network.get_transaction(txid))
             if raw:
                 tx = Transaction(raw)
             else:
@@ -651,7 +749,8 @@ class Commands:
         except Exception as e:
             return 'Error parsing: ' + str(e)
 
-        num = self.masternode_manager.import_masternode_conf_lines(conf_file, self.password)
+        mn_man = self.masternode_manager
+        num = mn_man.import_masternode_conf_lines(conf_lines, self.password)
         if not num:
             return 'Could not import any configurations. Please ensure that they are not already imported.'
         return '%d configuration%s imported.' % (num, 's' if num == 1 else '')
@@ -690,7 +789,7 @@ class Commands:
     @command('w')
     def listmasternodepayments(self):
         """List unused masternode-compatible payments."""
-        return self.masternode_manager.get_masternode_outputs(exclude_frozen = False)
+        return self.masternode_manager.get_masternode_outputs(exclude_frozen=False)
 
     @command('wnp')
     def activatemasternode(self, alias):
@@ -815,20 +914,11 @@ class Commands:
         return success
 
     @command('n')
-    def notify(self, address, URL):
+    def notify(self, address: str, URL: str):
         """Watch an address. Every time the address changes, a http POST is sent to the URL."""
-        def callback(x):
-            import urllib.request
-            headers = {'content-type':'application/json'}
-            data = {'address':address, 'status':x.get('result')}
-            serialized_data = util.to_bytes(json.dumps(data))
-            try:
-                req = urllib.request.Request(URL, serialized_data, headers)
-                response_stream = urllib.request.urlopen(req, timeout=5)
-                util.print_error('Got Response for %s' % address)
-            except BaseException as e:
-                util.print_error(str(e))
-        self.network.subscribe_to_addresses([address], callback)
+        if not hasattr(self, "_notifier"):
+            self._notifier = Notifier(self.network)
+        self.network.run_from_another_thread(self._notifier.start_watching_queue.put((address, URL)))
         return True
 
     @command('wn')
@@ -867,6 +957,16 @@ class Commands:
         # for the python console
         return sorted(known_commands.keys())
 
+
+def eval_bool(x: str) -> bool:
+    if x == 'false': return False
+    if x == 'true': return True
+    try:
+        return bool(ast.literal_eval(x))
+    except:
+        return bool(x)
+
+
 param_descriptions = {
     'privkey': 'Private key. Type \'?\' to get a prompt.',
     'destination': 'Dash address, contact or alias',
@@ -893,6 +993,7 @@ command_options = {
     'broadcast':   (None, "Broadcast the transaction to the Dash network"),
     'password':    ("-W", "Password"),
     'new_password':(None, "New Password"),
+    'encrypt_file':(None, "Whether the file on disk should be encrypted with the provided password"),
     'receiving':   (None, "Show only receiving addresses"),
     'change':      (None, "Show only change addresses"),
     'frozen':      (None, "Show only frozen addresses"),
@@ -907,6 +1008,7 @@ command_options = {
     'change_addr': ("-c", "Change address. Default is a spare address, or the source address if it's not in the wallet"),
     'nbits':       (None, "Number of bits of entropy"),
     'language':    ("-L", "Default language for wordlist"),
+    'passphrase':  (None, "Seed extension"),
     'privkey':     (None, "Private key. Set to '?' to get a prompt."),
     'unsigned':    ("-u", "Do not sign transaction"),
     'locktime':    (None, "Set locktime block number"),
@@ -920,9 +1022,12 @@ command_options = {
     'paid':        (None, "Show only paid requests."),
     'show_addresses': (None, "Show input and output addresses"),
     'show_fiat':   (None, "Show fiat value of transactions"),
+    'show_fees':   (None, "Show miner fees paid by transactions"),
     'year':        (None, "Show history for a given year"),
     'fee_method':  (None, "Fee estimation method to use"),
-    'fee_level':   (None, "Float between 0.0 and 1.0, representing fee slider position")
+    'fee_level':   (None, "Float between 0.0 and 1.0, representing fee slider position"),
+    'from_height': (None, "Only show transactions that confirmed after given block height"),
+    'to_height':   (None, "Only show transactions that confirmed before given block height"),
 }
 
 
@@ -936,6 +1041,8 @@ arg_types = {
     'payments_count': int,
     'imax': int,
     'year': int,
+    'from_height': int,
+    'to_height': int,
     'tx': tx_from_str,
     'pubkeys': json_loads,
     'jsontx': json_loads,
@@ -946,6 +1053,7 @@ arg_types = {
     'locktime': int,
     'fee_method': str,
     'fee_level': json_loads,
+    'encrypt_file': eval_bool,
 }
 
 config_variables = {
@@ -1018,6 +1126,7 @@ def add_network_options(parser):
     parser.add_argument("-s", "--server", dest="server", default=None, help="set server host:port:protocol, where protocol is either t (tcp) or s (ssl)")
     parser.add_argument("-p", "--proxy", dest="proxy", default=None, help="set proxy [type:]host[:port], where type is socks4,socks5 or http")
     parser.add_argument("--noonion", action="store_true", dest="noonion", default=None, help="do not try to connect to onion servers")
+    parser.add_argument("--skipmerklecheck", action="store_true", dest="skipmerklecheck", default=False, help="Tolerate invalid merkle proofs from server")
 
 def add_global_options(parser):
     group = parser.add_argument_group('global options')
@@ -1043,6 +1152,7 @@ def get_parser():
     parser_gui.add_argument("-o", "--offline", action="store_true", dest="offline", default=False, help="Run offline")
     parser_gui.add_argument("-m", action="store_true", dest="hide_gui", default=False, help="hide GUI on startup")
     parser_gui.add_argument("-L", "--lang", dest="language", default=None, help="default language used in GUI")
+    parser_gui.add_argument("--daemon", action="store_true", dest="daemon", default=False, help="keep daemon running after GUI is closed")
     add_network_options(parser_gui)
     add_global_options(parser_gui)
     # daemon
@@ -1056,12 +1166,10 @@ def get_parser():
         cmd = known_commands[cmdname]
         p = subparsers.add_parser(cmdname, help=cmd.help, description=cmd.description)
         add_global_options(p)
-        if cmdname == 'restore':
-            p.add_argument("-o", "--offline", action="store_true", dest="offline", default=False, help="Run offline")
         for optname, default in zip(cmd.options, cmd.defaults):
             a, help = command_options[optname]
             b = '--' + optname
-            action = "store_true" if type(default) is bool else 'store'
+            action = "store_true" if default is False else 'store'
             args = (a, b) if a else (b,)
             if action == 'store':
                 _type = arg_types.get(optname, str)

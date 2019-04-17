@@ -30,6 +30,19 @@ CB_TX = (
     '88f65889fd3ac0201be87aa227462b5643e8bb2ec1d7a82a')
 
 
+CB_TX_V2 = (
+    '0300050001000000000000000000000000000000000000000000000000000000000000'
+    '0000ffffffff1303c407040e2f5032506f6f6c2d74444153482fffffffff0448d6a73d'
+    '000000001976a914293859173a34194d445c2962b97383e2a93d7cb288ac22fc433e00'
+    '0000001976a914bf09c602c6b8f1db246aba5c37ad1cfdcb16b15e88ace9259c000000'
+    '00004341047559d13c3f81b1fadbd8dd03e4b5a1c73b05e2b980e00d467aa9440b29c7'
+    'de23664dde6428d75cafed22ae4f0d302e26c5c5a5dd4d3e1b796d7281bdc9430f35ac'
+    '00000000000000002a6a28be61411c3c79b7fd45923118ba74d340afb248ae2edafe78'
+    'c15e2d1aa337c942000000000000000000000000460200c407040076629a6e42fb5191'
+    '88f65889fd3ac0201be87aa227462b5643e8bb2ec1d7a82a76629a6e42fb519188f658'
+    '89fd3ac0201be87aa227462b5643e8bb2ec1d7a82a')
+
+
 PRO_REG_TX = (
     '030001000335f1c2ca44a1eb72e59f589df2852caacba39b7c0a5e61967f6b71d7a763'
     '3153000000006b483045022100b2d457bbe855abc365a7db9c8014ea106fdb6dae6327'
@@ -199,6 +212,24 @@ class TestDashSpecTxSerialization(SequentialTestCase):
             '76629a6e42fb519188f65889fd3ac0201be87aa227462b5643e8bb2ec1d7a82a')
         ser = tx.serialize()
         assert ser == CB_TX
+
+    def test_dash_tx_cb_tx_v2(self):
+        tx = transaction.Transaction(CB_TX_V2)
+        deser = tx.deserialize()
+        assert deser['version'] == 3
+        assert deser['tx_type'] == 5
+        extra = deser['extra_payload']
+        assert(str(extra))
+        assert extra.version == 2
+        assert extra.height == 264132
+        assert len(extra.merkleRootMNList) == 32
+        assert extra.merkleRootMNList == bfh(
+            '76629a6e42fb519188f65889fd3ac0201be87aa227462b5643e8bb2ec1d7a82a')
+        assert len(extra.merkleRootQuorums) == 32
+        assert extra.merkleRootQuorums == bfh(
+            '76629a6e42fb519188f65889fd3ac0201be87aa227462b5643e8bb2ec1d7a82a')
+        ser = tx.serialize()
+        assert ser == CB_TX_V2
 
     def test_dash_tx_pro_reg_tx(self):
         tx = transaction.Transaction(PRO_REG_TX)

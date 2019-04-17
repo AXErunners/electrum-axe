@@ -2,6 +2,21 @@
 
 set -e
 
+CONTRIB="$(dirname "$(readlink -e "$0")")"
+ROOT_FOLDER="$CONTRIB"/..
+PACKAGES="$ROOT_FOLDER"/packages/
+LOCALE="$ROOT_FOLDER"/electrum_dash/locale/
+
+if [ ! -d "$LOCALE" ]; then
+  echo "Run make_locale first!"
+  exit 1
+fi
+
+if [ ! -d "$PACKAGES" ]; then
+  echo "Run make_packages first!"
+  exit 1
+fi
+
 pushd ./electrum_dash/gui/kivy/
 make theming
 make release

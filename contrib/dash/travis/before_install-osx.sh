@@ -26,8 +26,3 @@ cp libusb/libusb/1.0.22/lib/libusb-1.0.dylib .
 curl -O -L https://github.com/zebra-lucky/secp256k1/releases/download/0.1/libsecp256k1-0.1-osx.tgz
 tar -xzf libsecp256k1-0.1-osx.tgz
 cp libsecp256k1/libsecp256k1.0.dylib .
-
-sudo pip3 install --upgrade pip==18.1
-sudo pip3 install PyQt5==5.11.2
-sudo pip3 install Cython==0.29.4
-sudo pip3 install PyInstaller==3.4

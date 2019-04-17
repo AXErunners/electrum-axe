@@ -66,7 +66,7 @@
   VIAddVersionKey ProductName "${PRODUCT_NAME} Installer"
   VIAddVersionKey Comments "The installer for ${PRODUCT_NAME}"
   VIAddVersionKey CompanyName "${PRODUCT_NAME}"
-  VIAddVersionKey LegalCopyright "2013-2016 ${PRODUCT_PUBLISHER}"
+  VIAddVersionKey LegalCopyright "2013-2018 ${PRODUCT_PUBLISHER}"
   VIAddVersionKey FileDescription "${PRODUCT_NAME} Installer"
   VIAddVersionKey FileVersion ${PRODUCT_VERSION}
   VIAddVersionKey ProductVersion ${PRODUCT_VERSION}
@@ -80,7 +80,7 @@
   !define MUI_ABORTWARNING
   !define MUI_ABORTWARNING_TEXT "Are you sure you wish to abort the installation of ${PRODUCT_NAME}?"
   
-  !define MUI_ICON "icons\electrum-dash.ico"
+  !define MUI_ICON "electrum_dash\gui\icons\electrum-dash.ico"
   
 ;--------------------------------
 ;Pages
@@ -160,7 +160,7 @@ Section "${PRODUCT_NAME}" SectionDE
 
   ;Files to pack into the installer
   File /r "dist\electrum-dash\*.*"
-  File "icons\electrum-dash.ico"
+  File "electrum_dash\gui\icons\electrum-dash.ico"
 
   ;Store installation folder
   WriteRegStr HKCU "Software\${PRODUCT_NAME}" "" $INSTDIR

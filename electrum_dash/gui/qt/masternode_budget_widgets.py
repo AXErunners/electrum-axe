@@ -1,8 +1,13 @@
 import webbrowser
 
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
-from PyQt5.QtWidgets import *
+from PyQt5.QtGui import QFont, QBrush, QColor
+from PyQt5.QtCore import (Qt, QVariant, QAbstractTableModel, QModelIndex,
+                          QSortFilterProxyModel)
+from PyQt5.QtWidgets import (QLineEdit, QComboBox, QAbstractItemView,
+                             QVBoxLayout, QLabel, QPushButton, QMenu,
+                             QWidget, QTableView, QHeaderView,
+                             QDataWidgetMapper, QHBoxLayout, QFormLayout,
+                             QSpinBox, QMessageBox, QTreeWidgetItem)
 
 from electrum_dash.i18n import _
 from electrum_dash.masternode_budget import BudgetProposal, BudgetVote
@@ -398,7 +403,7 @@ class ProposalsTab(QWidget):
 
 
 
-class ProposalsTreeWidget(util.MyTreeWidget):
+class ProposalsTreeWidget(util.MyTreeView):
     """Widget compatible with other wallet GUI tabs."""
     def __init__(self, parent=None):
         super(ProposalsTreeWidget, self).__init__(parent, self.create_menu, [_('Name'), _('URL'), _('Yes Votes'), _('No Votes'),

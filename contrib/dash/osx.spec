@@ -13,12 +13,19 @@ else:
     raise Exception('no name')
 
 PY36BINDIR =  os.environ.get('PY36BINDIR')
+DASH_ELECTRUM_VERSION =  os.environ.get('DASH_ELECTRUM_VERSION')
 
 hiddenimports = collect_submodules('trezorlib')
+hiddenimports += collect_submodules('hideezlib')
 hiddenimports += collect_submodules('safetlib')
 hiddenimports += collect_submodules('btchip')
 hiddenimports += collect_submodules('keepkeylib')
 hiddenimports += collect_submodules('websocket')
+
+# safetlib imports PyQt5.Qt.  We use a local updated copy of pinmatrix.py until they
+# release a new version that includes https://github.com/archos-safe-t/python-safet/commit/b1eab3dba4c04fdfc1fcf17b66662c28c5f2380e
+hiddenimports.remove('safetlib.qt.pinmatrix')
+
 hiddenimports += [
     'electrum_dash',
     'electrum_dash.base_crash_reporter',
@@ -40,8 +47,9 @@ hiddenimports += [
     'electrum_dash.plugins.keepkey.qt',
     'electrum_dash.plugins.revealer.qt',
     'electrum_dash.plugins.labels.qt',
-    'electrum_dash.plugins.trezor.client',
     'electrum_dash.plugins.trezor.qt',
+    'electrum_dash.plugins.hideez.client',
+    'electrum_dash.plugins.hideez.qt',
     'electrum_dash.plugins.safe_t.client',
     'electrum_dash.plugins.safe_t.qt',
     'electrum_dash.plugins.ledger.qt',
@@ -49,18 +57,20 @@ hiddenimports += [
 ]
 
 datas = [
-    ('electrum_dash/servers.json', 'electrum_dash'),
-    ('electrum_dash/servers_testnet.json', 'electrum_dash'),
-    ('electrum_dash/servers_regtest.json', 'electrum_dash'),
-    ('electrum_dash/currencies.json', 'electrum_dash'),
-    ('electrum_dash/checkpoints.json', 'electrum_dash'),
+    ('electrum_dash/*.json', 'electrum_dash'),
     ('electrum_dash/locale', 'electrum_dash/locale'),
     ('electrum_dash/wordlist', 'electrum_dash/wordlist'),
+    ('electrum_dash/gui/icons', 'electrum_dash/gui/icons'),
 ]
+
 datas += collect_data_files('trezorlib')
+datas += collect_data_files('hideezlib')
 datas += collect_data_files('safetlib')
 datas += collect_data_files('btchip')
 datas += collect_data_files('keepkeylib')
+
+# Add the QR Scanner helper app
+datas += [('contrib/CalinsQRReader/build/Release/CalinsQRReader.app', './contrib/CalinsQRReader/build/Release/CalinsQRReader.app')]
 
 # Add libusb so Trezor and Safe-T mini will work
 binaries = [('../libusb-1.0.dylib', '.')]
@@ -132,7 +142,7 @@ exe = EXE(pyz,
           strip=False,
           upx=False,
           console=False,
-          icon='icons/electrum-dash.ico',
+          icon='electrum_dash/gui/icons/electrum-dash.ico',
           name=os.path.join('build/electrum-dash/electrum-dash', cmdline_name))
 
 # trezorctl separate bin
@@ -163,4 +173,4 @@ app = BUNDLE(coll,
              name=os.path.join('dist', 'Dash Electrum.app'),
              appname="Dash Electrum",
 	         icon='electrum-dash.icns',
-             version = 'ELECTRUM_VERSION')
+             version=DASH_ELECTRUM_VERSION)
