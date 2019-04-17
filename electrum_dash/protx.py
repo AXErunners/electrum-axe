@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
+import asyncio
 import ipaddress
 import struct
 import threading
 from collections import namedtuple, defaultdict
-from copy import deepcopy
 
 from . import bitcoin
 from .bitcoin import TYPE_ADDRESS, is_b58_address, b58_address_to_hash160
@@ -155,10 +155,12 @@ class ProTxManager(PrintError):
         self.protx_mns = {}  # Network registered MNs
         self.protx_info = {} # Detailed info on registered ProTxHash
 
+        self.diffs_ready = False
         self.diff_deleted_mns = []
         self.diff_hashes = []
         self.info_hash = ''
         self.alias_updated = ''
+        self.sml_hashes_cache = {}
 
     def with_manager_lock(func):
         def func_wrapper(self, *args, **kwargs):
@@ -178,11 +180,11 @@ class ProTxManager(PrintError):
                                            ['protx-diff'])
             self.network.register_callback(self.on_protx_info,
                                            ['protx-info'])
-            self.network.register_callback(self.on_blockchain_updated,
-                                           ['blockchain_updated'])
-            self.network.run_from_another_thread(
-                self.network.request_protx_diff(self.protx_base_height)
-            )
+            self.network.register_callback(self.on_network_updated,
+                                           ['network_updated'])
+            coro = self.network.request_protx_diff(self.protx_base_height)
+            loop = self.network.asyncio_loop
+            asyncio.run_coroutine_threadsafe(coro, loop)
 
     def unsubscribe_from_network_updates(self):
         if self.network:
@@ -190,7 +192,7 @@ class ProTxManager(PrintError):
                 self.protx_subscribed = False
                 self.network.unregister_callback(self.on_protx_diff)
                 self.network.unregister_callback(self.on_protx_info)
-                self.network.unregister_callback(self.on_blockchain_updated)
+                self.network.unregister_callback(self.on_network_updated)
             if self.network_subscribed:
                 self.network_subscribed = False
                 self.network.unregister_callback(self.on_verified_tx)
@@ -206,8 +208,8 @@ class ProTxManager(PrintError):
     def on_network_status(self, event):
         self.notify('manager-net-state-changed')
 
-    async def on_blockchain_updated(self, key):
-        if not self.network:
+    async def on_network_updated(self, key):
+        if not self.network or not self.diffs_ready:
             return
         await self.network.request_protx_diff(self.protx_base_height)
 
@@ -479,7 +481,7 @@ class ProTxManager(PrintError):
         cbtx = Transaction(protx_diff.get('cbTx', ''))
         cbtx.deserialize()
         if cbtx.tx_type != 5:
-            self.print_error('on_protx_diff: wrong CbTx tx_type')
+            self.protx_base_height = height
             self.protx_state = ProTxManager.DIP3_DISABLED
             self.notify('manager-diff-updated')
             return
@@ -499,12 +501,12 @@ class ProTxManager(PrintError):
             return
 
         protx_new = {k: v.copy() for k, v in self.protx_mns.items()}
-        deleted_mns = deepcopy(protx_diff.get('deletedMNs', []))
+        deleted_mns = protx_diff.get('deletedMNs', [])
         for del_hash in deleted_mns:
             if del_hash in protx_new:
                 del protx_new[del_hash]
 
-        for mn in deepcopy(protx_diff.get('mnList', [])):
+        for mn in protx_diff.get('mnList', []):
             protx_hash = mn.get('proRegTxHash', '')
             protx_new[protx_hash] = mn
 
@@ -514,30 +516,43 @@ class ProTxManager(PrintError):
         # Calculate SML entries hashes
         sml_hashes = []
         for protx_entry in hash_sorted:
-            sml_entry = bfh(protx_entry.get('proRegTxHash', ''))[::-1]
-            sml_entry += bfh(protx_entry.get('confirmedHash', ''))[::-1]
-
-            service = protx_entry['service']
-            if ']' in service:          # IPv6
-                ip, port = service.split(']')
-                ip = ip[1:]             # remove opening square bracket
-                port = port[1:]         # remove colon before portnum
-                sml_entry += ipaddress.ip_address(ip).packed
-            else:                       # IPv4
-                ip, port = service.split(':')
-                sml_entry += b'\x00'*10 + b'\xff'*2
-                sml_entry += ipaddress.ip_address(ip).packed
-            sml_entry += struct.pack('>H', int(port))
-
-            sml_entry += bfh(protx_entry.get('pubKeyOperator', ''))
-            voting_address = protx_entry.get('votingAddress', '')
-            sml_entry += bitcoin.b58_address_to_hash160(voting_address)[1]
-            sml_entry += b'\x01' if protx_entry.get('isValid') else b'\x00'
-
-            sml_hashes.append(sha256d(sml_entry))
+            proRegTxHash = protx_entry.get('proRegTxHash')
+            confirmedHash = protx_entry.get('confirmedHash')
+            service = protx_entry.get('service')
+            pubKeyOperator = protx_entry.get('pubKeyOperator')
+            votingAddress = protx_entry.get('votingAddress')
+            isValid = protx_entry.get('isValid')
+            cache_key = (proRegTxHash + confirmedHash + service +
+                         pubKeyOperator + votingAddress + str(isValid))
+            sml_hash = self.sml_hashes_cache.get(cache_key)
+            if not sml_hash:
+                sml_entry = bfh(proRegTxHash)[::-1]
+                sml_entry += bfh(confirmedHash)[::-1]
+                if ']' in service:          # IPv6
+                    ip, port = service.split(']')
+                    ip = ip[1:]             # remove opening square bracket
+                    port = port[1:]         # remove colon before portnum
+                    sml_entry += ipaddress.ip_address(ip).packed
+                else:                       # IPv4
+                    ip, port = service.split(':')
+                    sml_entry += b'\x00'*10 + b'\xff'*2
+                    sml_entry += ipaddress.ip_address(ip).packed
+                sml_entry += struct.pack('>H', int(port))
+                sml_entry += bfh(pubKeyOperator)
+                sml_entry += bitcoin.b58_address_to_hash160(votingAddress)[1]
+                sml_entry += b'\x01' if isValid else b'\x00'
+                sml_hash = sha256d(sml_entry)
+                self.sml_hashes_cache[cache_key] = sml_hash
+            sml_hashes.append(sml_hash)
 
         # Calculate Merkle root for SML hashes
         hashes_len = len(sml_hashes)
+        if hashes_len == 0:
+            self.protx_base_height = height
+            self.protx_state = ProTxManager.DIP3_ENABLED
+            self.notify('manager-diff-updated')
+            return
+
         while True:
             if hashes_len == 1:
                 break
@@ -606,6 +621,9 @@ class ProTxManager(PrintError):
         for h in self.protx_info.keys():
             await self.network.request_protx_info(h)
 
+        if self.protx_base_height >= self.network.get_server_height():
+            self.diffs_ready = True
+
         self.notify('manager-diff-updated')
 
     async def on_protx_info(self, key, value):
@@ -623,12 +641,14 @@ class ProTxManager(PrintError):
             self.print_error('on_protx_info: empty result')
             return
 
-        self.protx_info[protx_hash] = deepcopy(protx_info)
+        self.protx_info[protx_hash] = protx_info
         self.info_hash = protx_hash
         self.notify('manager-info-updated')
 
     def on_verified_tx(self, event, wallet, tx_hash, tx_mined_status):
         tx = wallet.transactions.get(tx_hash)
+        if not tx:
+            return
         conf = tx_mined_status.conf
         if tx.tx_type in PROTX_TX_TYPES and tx.extra_payload and conf >= 1:
             tx.extra_payload.after_confirmation(tx, self)

@@ -1119,8 +1119,17 @@ class Network(PrintError):
         height: The ending block height.
         '''
         height = self.get_server_height()
-        if not height:
+        if not height or height <= base_height:
             return
+
+        activation_height = constants.net.DIP3_ACTIVATION_HEIGHT
+        max_blocks = self.config.get('protx_diff_max_blocks', 2016)
+        if base_height <= 1:
+            if height > activation_height:
+                height = activation_height
+        elif height - base_height > max_blocks:
+            height = base_height + max_blocks
+
         params = [base_height, height]
         try:
             err = None

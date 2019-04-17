@@ -64,6 +64,7 @@ class BitcoinMainnet(AbstractNet):
     DRKV_HEADER = 0x02fe52f8  # drkv
     DRKP_HEADER = 0x02fe52cc  # drkp
     BIP44_COIN_TYPE = 5
+    DIP3_ACTIVATION_HEIGHT = 1028160
 
 
 class BitcoinTestnet(AbstractNet):
@@ -86,6 +87,7 @@ class BitcoinTestnet(AbstractNet):
     DRKV_HEADER = 0x3a8061a0  # DRKV
     DRKP_HEADER = 0x3a805837  # DRKP
     BIP44_COIN_TYPE = 1
+    DIP3_ACTIVATION_HEIGHT = 7000
 
 
 class BitcoinRegtest(BitcoinTestnet):

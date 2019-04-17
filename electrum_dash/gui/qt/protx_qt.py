@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import asyncio
 from pprint import pformat
 
 from PyQt5.QtGui import QIcon, QColor, QPixmap
@@ -143,6 +144,7 @@ class WalletMNsModel(QAbstractTableModel):
     TOTAL_FIELDS = 5
     filterColumns = [ALIAS, SERVICE, PROTX_HASH]
 
+    STATE_LOADING  = 'Loading'
     STATE_UNREGISTERED = 'Unregistered'
     STATE_VALID = 'Valid'
     STATE_BANNED = 'PoSe Banned'
@@ -192,7 +194,9 @@ class WalletMNsModel(QAbstractTableModel):
             h = mn.protx_hash
             if h:
                 protx_mn = self.manager.protx_mns.get(h)
-                if protx_mn:
+                if not self.manager.diffs_ready:
+                    self.mns_states[mn.alias] = self.STATE_LOADING
+                elif protx_mn:
                     if protx_mn['isValid']:
                         self.mns_states[mn.alias] = self.STATE_VALID
                     else:
@@ -236,7 +240,7 @@ class WalletMNsModel(QAbstractTableModel):
         elif i == self.STATE:
             if role == Qt.DecorationRole:
                 state = self.mns_states.get(mn.alias)
-                if state == self.STATE_UNREGISTERED:
+                if state in [self.STATE_UNREGISTERED, self.STATE_LOADING]:
                     data = self.icon_unregistered
                 elif state == self.STATE_VALID:
                     data = self.icon_valid
@@ -413,7 +417,15 @@ class Dip3TabWidget(QTabWidget):
         state = value.get('state', self.manager.DIP3_DISABLED)
         diff_hashes = value.get('diff_hashes', [])
         deleted_mns = value.get('deleted_mns', [])
-        if diff_hashes or deleted_mns:
+
+        if not self.manager.diffs_ready:
+            base_height = self.manager.protx_base_height
+            coro = self.gui.network.request_protx_diff(base_height)
+            loop = self.gui.network.asyncio_loop
+            asyncio.run_coroutine_threadsafe(coro, loop)
+            self.w_add_btn.setEnabled(False)
+        elif diff_hashes or deleted_mns:
+            self.w_add_btn.setEnabled(True)
             self.reg_model.reload_data()
             self.w_model.reload_data()
 
@@ -421,6 +433,7 @@ class Dip3TabWidget(QTabWidget):
             self.reg_search_btn.setEnabled(True)
         else:
             self.reg_search_btn.setEnabled(False)
+
         self.update_registered_label()
         self.update_wallet_label()
 
@@ -437,8 +450,9 @@ class Dip3TabWidget(QTabWidget):
         height = self.manager.protx_base_height
         mns = self.manager.protx_mns
         count = len(mns)
-        return ('Found %s registered DIP3 Masternodes at Height: %s.' %
-                (count, height))
+        ready = 'Found' if self.manager.diffs_ready else 'Loading'
+        return ('%s %s registered DIP3 Masternodes at Height: %s.' %
+                (ready, count, height))
 
     def update_registered_label(self):
         self.reg_label.setText(self.registered_label())
@@ -447,9 +461,15 @@ class Dip3TabWidget(QTabWidget):
         state = self.manager.protx_state
         if state == self.manager.DIP3_DISABLED:
             return ('DIP3 Masternodes is currently disabled.')
-        mns = self.manager.mns
-        count = len(mns)
-        return ('Wallet contains %s DIP3 Masternodes.' % count)
+
+        if self.manager.diffs_ready:
+            mns = self.manager.mns
+            count = len(mns)
+            plural = '' if count == 1 else 's'
+            return ('Wallet contains %s DIP3 Masternode%s.' % (count, plural))
+        else:
+            height = self.manager.protx_base_height
+            return ('Loading DIP3 Masternodes data at Height: %s.' % height)
 
     def update_wallet_label(self):
         self.w_label.setText(self.wallet_label())
@@ -575,6 +595,9 @@ class Dip3TabWidget(QTabWidget):
         a = self.w_cur_alias
         s = self.w_cur_state
         i = self.w_cur_idx
+
+        if not self.manager.diffs_ready:
+            return
 
         mn = self.manager.mns.get(a)
         owned = mn.is_owned
@@ -713,6 +736,9 @@ class Dip3TabWidget(QTabWidget):
             self.w_up_coll_btn.hide()
             self.w_up_srv_btn.hide()
             self.w_up_reg_btn.hide()
+            return
+
+        if not self.manager.diffs_ready:
             return
 
         idx = sel.selectedRows()[0]
