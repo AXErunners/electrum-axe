@@ -33,9 +33,8 @@ popd
 sudo pip3 install -r contrib/deterministic-build/requirements.txt
 sudo pip3 install -r contrib/deterministic-build/requirements-hw.txt
 sudo pip3 install -r contrib/deterministic-build/requirements-binaries.txt
-sudo pip3 install --upgrade pip==18.1
 sudo pip3 install x11_hash>=1.4
-sudo pip3 install PyInstaller==3.4
+sudo pip3 install PyInstaller==3.4 --no-use-pep517
 
 export PATH="/usr/local/opt/gettext/bin:$PATH"
 ./contrib/make_locale
