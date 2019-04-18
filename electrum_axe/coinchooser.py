@@ -22,8 +22,9 @@
 # ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 from math import floor, log10
+from typing import NamedTuple, List
 
 from .bitcoin import sha256, COIN, TYPE_ADDRESS, is_address
 from .transaction import Transaction, TxOutput
@@ -68,12 +69,13 @@ class PRNG:
             x[i], x[j] = x[j], x[i]
 
 
-Bucket = namedtuple('Bucket',
-                    ['desc',
-                     'weight',      # as in BIP-141
-                     'value',       # in satoshis
-                     'coins',       # UTXOs
-                     'min_height']) # min block height where a coin was confirmed
+class Bucket(NamedTuple):
+    desc: str
+    weight: int         # as in BIP-141
+    value: int          # in satoshis
+    coins: List[dict]   # UTXOs
+    min_height: int     # min block height where a coin was confirmed
+
 
 def strip_unneeded(bkts, sufficient_funds):
     '''Remove buckets that are unnecessary in achieving the spend amount'''
@@ -81,8 +83,8 @@ def strip_unneeded(bkts, sufficient_funds):
     for i in range(len(bkts)):
         if not sufficient_funds(bkts[i + 1:]):
             return bkts[i:]
-    # Shouldn't get here
-    return bkts
+    # none of the buckets are needed
+    return []
 
 class CoinChooserBase(PrintError):
 
@@ -181,7 +183,7 @@ class CoinChooserBase(PrintError):
             self.print_error('not keeping dust', dust)
         return change
 
-    def make_tx(self, coins, outputs, change_addrs, fee_estimator,
+    def make_tx(self, coins, inputs, outputs, change_addrs, fee_estimator,
                 dust_threshold, tx_type=0, extra_payload=b''):
         """Select unspent coins to spend to pay outputs.  If the change is
         greater than dust_threshold (after adding the change output to
@@ -196,13 +198,16 @@ class CoinChooserBase(PrintError):
         self.p = PRNG(''.join(sorted(utxos)))
 
         # Copy the outputs so when adding change we don't modify "outputs"
-        tx = Transaction.from_io([], outputs[:],
+        tx = Transaction.from_io(inputs[:], outputs[:],
                                  tx_type=tx_type,
                                  extra_payload=extra_payload)
+        input_value = tx.input_value()
+
         # Weight of the transaction with no inputs and no change
         # Note: this will use legacy tx serialization. The only side effect
         # should be that the marker and flag are excluded, which is
         # compensated in get_tx_weight()
+        # FIXME calculation will be off by this (2 wu) in case of RBF batching
         base_weight = tx.estimated_weight()
         spent_amount = tx.output_value()
 
@@ -216,7 +221,7 @@ class CoinChooserBase(PrintError):
         def sufficient_funds(buckets):
             '''Given a list of buckets, return True if it has enough
             value to pay for the transaction'''
-            total_input = sum(bucket.value for bucket in buckets)
+            total_input = input_value + sum(bucket.value for bucket in buckets)
             total_weight = get_tx_weight(buckets)
             return total_input >= spent_amount + fee_estimator_w(total_weight)
 

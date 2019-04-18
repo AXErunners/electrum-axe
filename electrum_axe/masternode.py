@@ -5,6 +5,7 @@ import base64
 from . import bitcoin
 from . import ecc
 from .bitcoin import hash_encode, hash_decode
+from .crypto import sha256d
 from .transaction import BCDataStream, parse_input, parse_outpoint
 from . import util
 from .util import bfh, bh2u, to_bytes, to_string
@@ -271,7 +272,7 @@ class MasternodeAnnounce(object):
         serialize_input(vds, self.vin)
         vds.write_string(bfh(self.collateral_key))
         vds.write_int64(self.sig_time)
-        return hash_encode(bitcoin.Hash(vds.input))
+        return hash_encode(sha256d(vds.input))
 
     def serialize(self, vds=None):
         if not vds:

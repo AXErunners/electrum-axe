@@ -3,6 +3,7 @@ import string
 
 from . import bitcoin
 from . import ecc
+from .crypto import sha256d
 from .transaction import BCDataStream, Transaction
 from . import util
 from .util import bfh
@@ -63,7 +64,7 @@ class BudgetProposal(object):
         vds.write_int32(self.end_block)
         vds.write_int64(self.payment_amount)
         vds.write_string(bfh(Transaction.pay_script(bitcoin.TYPE_ADDRESS, self.address)))
-        return bitcoin.hash_encode(bitcoin.Hash(vds.input))
+        return bitcoin.hash_encode(sha256d(vds.input))
 
     def dump(self):
         kwargs = {}

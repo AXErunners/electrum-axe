@@ -3,18 +3,26 @@ from datetime import datetime
 import os
 import traceback
 
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
+from PyQt5.QtGui import QBrush, QColor
+from PyQt5.QtCore import (Qt, QVariant, pyqtSignal, pyqtSlot, QSize,
+                          QAbstractTableModel, QModelIndex,
+                          QSortFilterProxyModel)
+from PyQt5.QtWidgets import (QWidget, QTableView, QHeaderView,
+                             QAbstractItemView, QVBoxLayout, QDialog,
+                             QTabWidget, QLabel, QDataWidgetMapper,
+                             QPushButton, QLineEdit, QHBoxLayout,
+                             QFileDialog, QMessageBox)
 
 from electrum_axe import bitcoin
 from electrum_axe.i18n import _
 from electrum_axe.masternode import MasternodeAnnounce
 from electrum_axe.masternode_manager import parse_masternode_conf
+from electrum_axe.protx import ProTxManager
 from electrum_axe.util import PrintError, bfh
 
-from .masternode_widgets import *
-from .masternode_budget_widgets import *
-from electrum_axe.protx import ProTxManager
+from .masternode_widgets import (SignAnnounceWidget, masternode_status,
+                                 MasternodeEditor, MasternodeOutputsTab)
+from .masternode_budget_widgets import ProposalsWidget
 from . import util
 
 # Background color for enabled masternodes.
@@ -277,10 +285,10 @@ class MasternodeDialog(QDialog, PrintError):
         self.masternodes_widget.view.selectRow(0)
 
         manager = self.gui.dip3_tab.manager
-        manager.subscribe_to_network_updates()
         manager.register_callback(self.on_manager_diff_updated,
                                   ['manager-diff-updated'])
         self.diff_updated.connect(self.on_diff_updated)
+        manager.subscribe_to_network_updates()
 
     def closeEvent(self, event):
         manager = self.gui.dip3_tab.manager
@@ -323,8 +331,8 @@ class MasternodeDialog(QDialog, PrintError):
 
         vbox = QVBoxLayout()
         self.dip3_warn = QLabel(_('Warning: DIP3 masternodes is active, '
-                             'use DIP3 tab instead this dialog '
-                             'to manage masternodes!'))
+                                  'use DIP3 tab instead this dialog '
+                                  'to manage masternodes!'))
         self.dip3_warn.setObjectName("dip3_warn")
         protx_manager = self.gui.wallet.protx_manager
         if protx_manager.protx_state != ProTxManager.DIP3_ENABLED:

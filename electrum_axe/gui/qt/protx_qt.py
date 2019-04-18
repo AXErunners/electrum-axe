@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import asyncio
 from pprint import pformat
 
 from PyQt5.QtGui import QIcon, QColor, QPixmap
@@ -16,6 +17,7 @@ from electrum_axe.axe_tx import SPEC_PRO_REG_TX, SPEC_PRO_UP_REV_TX
 from electrum_axe.protx import ProRegTxExc, ProTxManagerExc
 
 from .protx_wizards import Dip3MasternodeWizard
+from .util import icon_path, read_QIcon
 
 
 VALID_MASTERNODE_COLOR = '#008000'
@@ -142,6 +144,7 @@ class WalletMNsModel(QAbstractTableModel):
     TOTAL_FIELDS = 5
     filterColumns = [ALIAS, SERVICE, PROTX_HASH]
 
+    STATE_LOADING  = 'Loading'
     STATE_UNREGISTERED = 'Unregistered'
     STATE_VALID = 'Valid'
     STATE_BANNED = 'PoSe Banned'
@@ -154,19 +157,19 @@ class WalletMNsModel(QAbstractTableModel):
 
         sz = row_h - 10
         mode = Qt.SmoothTransformation
-        imgfile = ':icons/dip3_unregistered.png'
+        imgfile = icon_path('dip3_unregistered.png')
         self.icon_unregistered = QPixmap(imgfile).scaledToWidth(sz, mode=mode)
-        imgfile = ':icons/dip3_valid.png'
+        imgfile = icon_path('dip3_valid.png')
         self.icon_valid = QPixmap(imgfile).scaledToWidth(sz, mode=mode)
-        imgfile = ':icons/dip3_banned.png'
+        imgfile = icon_path('dip3_banned.png')
         self.icon_banned = QPixmap(imgfile).scaledToWidth(sz, mode=mode)
-        imgfile = ':icons/dip3_removed.png'
+        imgfile = icon_path('dip3_removed.png')
         self.icon_removed = QPixmap(imgfile).scaledToWidth(sz, mode=mode)
-        imgfile = ':icons/dip3_own_op.png'
+        imgfile = icon_path('dip3_own_op.png')
         self.icon_own_op = QPixmap(imgfile).scaledToWidth(sz, mode=mode)
-        imgfile = ':icons/dip3_own.png'
+        imgfile = icon_path('dip3_own.png')
         self.icon_own = QPixmap(imgfile).scaledToWidth(sz, mode=mode)
-        imgfile = ':icons/dip3_op.png'
+        imgfile = icon_path('dip3_op.png')
         self.icon_op = QPixmap(imgfile).scaledToWidth(sz, mode=mode)
 
         headers = [
@@ -191,7 +194,9 @@ class WalletMNsModel(QAbstractTableModel):
             h = mn.protx_hash
             if h:
                 protx_mn = self.manager.protx_mns.get(h)
-                if protx_mn:
+                if not self.manager.diffs_ready:
+                    self.mns_states[mn.alias] = self.STATE_LOADING
+                elif protx_mn:
                     if protx_mn['isValid']:
                         self.mns_states[mn.alias] = self.STATE_VALID
                     else:
@@ -235,7 +240,7 @@ class WalletMNsModel(QAbstractTableModel):
         elif i == self.STATE:
             if role == Qt.DecorationRole:
                 state = self.mns_states.get(mn.alias)
-                if state == self.STATE_UNREGISTERED:
+                if state in [self.STATE_UNREGISTERED, self.STATE_LOADING]:
                     data = self.icon_unregistered
                 elif state == self.STATE_VALID:
                     data = self.icon_valid
@@ -394,7 +399,7 @@ class Dip3TabWidget(QTabWidget):
         self.have_been_shown = True
         self.manager.subscribe_to_network_updates()
 
-    def on_manager_net_state_changed(self, value):
+    def on_manager_net_state_changed(self, key, value):
         self.net_state_changed.emit(value)
 
     def on_manager_diff_updated(self, key, value):
@@ -412,7 +417,15 @@ class Dip3TabWidget(QTabWidget):
         state = value.get('state', self.manager.DIP3_DISABLED)
         diff_hashes = value.get('diff_hashes', [])
         deleted_mns = value.get('deleted_mns', [])
-        if diff_hashes or deleted_mns:
+
+        if not self.manager.diffs_ready:
+            base_height = self.manager.protx_base_height
+            coro = self.gui.network.request_protx_diff(base_height)
+            loop = self.gui.network.asyncio_loop
+            asyncio.run_coroutine_threadsafe(coro, loop)
+            self.w_add_btn.setEnabled(False)
+        elif diff_hashes or deleted_mns:
+            self.w_add_btn.setEnabled(True)
             self.reg_model.reload_data()
             self.w_model.reload_data()
 
@@ -420,12 +433,13 @@ class Dip3TabWidget(QTabWidget):
             self.reg_search_btn.setEnabled(True)
         else:
             self.reg_search_btn.setEnabled(False)
+
         self.update_registered_label()
         self.update_wallet_label()
 
     @pyqtSlot(bool)
-    def on_net_state_changed(self, net_enabled):
-        if net_enabled and self.have_been_shown:
+    def on_net_state_changed(self, is_connected):
+        if is_connected and self.have_been_shown:
             self.manager.subscribe_to_network_updates()
 
     def registered_label(self):
@@ -436,8 +450,9 @@ class Dip3TabWidget(QTabWidget):
         height = self.manager.protx_base_height
         mns = self.manager.protx_mns
         count = len(mns)
-        return ('Found %s registered DIP3 Masternodes at Height: %s.' %
-                (count, height))
+        ready = 'Found' if self.manager.diffs_ready else 'Loading'
+        return ('%s %s registered DIP3 Masternodes at Height: %s.' %
+                (ready, count, height))
 
     def update_registered_label(self):
         self.reg_label.setText(self.registered_label())
@@ -446,9 +461,15 @@ class Dip3TabWidget(QTabWidget):
         state = self.manager.protx_state
         if state == self.manager.DIP3_DISABLED:
             return ('DIP3 Masternodes is currently disabled.')
-        mns = self.manager.mns
-        count = len(mns)
-        return ('Wallet contains %s DIP3 Masternodes.' % count)
+
+        if self.manager.diffs_ready:
+            mns = self.manager.mns
+            count = len(mns)
+            plural = '' if count == 1 else 's'
+            return ('Wallet contains %s DIP3 Masternode%s.' % (count, plural))
+        else:
+            height = self.manager.protx_base_height
+            return ('Loading DIP3 Masternodes data at Height: %s.' % height)
 
     def update_wallet_label(self):
         self.w_label.setText(self.wallet_label())
@@ -492,7 +513,7 @@ class Dip3TabWidget(QTabWidget):
         vbox.addWidget(hw)
         vbox.addWidget(self.reg_view)
         w.setLayout(vbox)
-        self.addTab(w, QIcon(':icons/tab_search.png'), 'Registerd MNs')
+        self.addTab(w, read_QIcon('tab_search.png'), 'Registerd MNs')
         return w
 
     def create_reg_menu(self, position):
@@ -563,7 +584,7 @@ class Dip3TabWidget(QTabWidget):
         vbox.addWidget(hw)
         vbox.addWidget(self.w_view)
         w.setLayout(vbox)
-        self.addTab(w, QIcon(':icons/tab_dip3.png'), 'Wallet MNs')
+        self.addTab(w, read_QIcon('tab_dip3.png'), 'Wallet MNs')
         return w
 
     @pyqtSlot()
@@ -574,6 +595,9 @@ class Dip3TabWidget(QTabWidget):
         a = self.w_cur_alias
         s = self.w_cur_state
         i = self.w_cur_idx
+
+        if not self.manager.diffs_ready:
+            return
 
         mn = self.manager.mns.get(a)
         owned = mn.is_owned
@@ -714,6 +738,9 @@ class Dip3TabWidget(QTabWidget):
             self.w_up_reg_btn.hide()
             return
 
+        if not self.manager.diffs_ready:
+            return
+
         idx = sel.selectedRows()[0]
         self.w_cur_alias = idx.data()
         self.w_cur_state = idx.sibling(idx.row(), 1).data(Qt.ToolTipRole)
@@ -791,7 +818,7 @@ class Dip3MNInfoDialog(QDialog):
         '''
         super(Dip3MNInfoDialog, self).__init__(parent)
         self.setMinimumSize(950, 450)
-        self.setWindowIcon(QIcon(':icons/electrum-axe.png'))
+        self.setWindowIcon(read_QIcon('electrum-axe.png'))
 
         self.parent = parent
         self.gui = parent.gui
@@ -819,8 +846,10 @@ class Dip3MNInfoDialog(QDialog):
             self.manager.register_callback(self.on_manager_info_updated,
                                            ['manager-info-updated'])
             self.info = manager.protx_info.get(self.protx_hash, {})
-            if not self.info:
-                self.gui.network.request_protx_info(self.protx_hash)
+            if not self.info and self.gui.network.is_connected():
+                self.gui.network.run_from_another_thread(
+                    self.gui.network.request_protx_info(self.protx_hash)
+                )
         else:
             self.diff_info = {}
             self.info = {}

@@ -22,15 +22,17 @@
 # ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+
+import sys
 import copy
 import datetime
 import json
 import traceback
 
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
-
+from PyQt5.QtCore import QSize
+from PyQt5.QtGui import QTextCharFormat, QBrush, QFont
+from PyQt5.QtWidgets import (QDialog, QLabel, QPushButton, QHBoxLayout, QVBoxLayout,
+                             QTextEdit)
 import qrcode
 from qrcode import exceptions
 
@@ -38,12 +40,12 @@ from electrum_axe.bitcoin import base_encode
 from electrum_axe.i18n import _
 from electrum_axe.plugin import run_hook
 from electrum_axe import simple_config
-
 from electrum_axe.util import bfh
-from electrum_axe.transaction import SerializationError
+from electrum_axe.transaction import SerializationError, Transaction
 
 from .axe_qt import ExtraPayloadWidget
-from .util import *
+from .util import (MessageBoxMixin, read_QIcon, Buttons, CopyButton,
+                   MONOSPACE_FONT, ColorScheme, ButtonsLineEdit)
 
 
 SAVE_BUTTON_ENABLED_TOOLTIP = _("Save transaction offline")
@@ -75,7 +77,7 @@ class TxDialog(QDialog, MessageBoxMixin):
         # Take a copy; it might get updated in the main window by
         # e.g. the FX plugin.  If this happens during or after a long
         # sign operation the signatures are lost.
-        self.tx = tx = copy.deepcopy(tx)
+        self.tx = tx = copy.deepcopy(tx)  # type: Transaction
         try:
             self.tx.deserialize()
         except BaseException as e:
@@ -89,7 +91,7 @@ class TxDialog(QDialog, MessageBoxMixin):
         # if the wallet can populate the inputs with more info, do it now.
         # as a result, e.g. we might learn an imported address tx is segwit,
         # in which case it's ok to display txid
-        self.wallet.add_input_info_to_all_inputs(tx)
+        tx.add_inputs_info(self.wallet)
 
         self.setMinimumWidth(950)
         self.setWindowTitle(_("Transaction"))
@@ -100,7 +102,8 @@ class TxDialog(QDialog, MessageBoxMixin):
         vbox.addWidget(QLabel(_("Transaction ID:")))
         self.tx_hash_e  = ButtonsLineEdit()
         qr_show = lambda: parent.show_qrcode(str(self.tx_hash_e.text()), 'Transaction ID', parent=self)
-        self.tx_hash_e.addButton(":icons/qrcode.png", qr_show, _("Show as QR code"))
+        qr_icon = "qrcode.png"
+        self.tx_hash_e.addButton(qr_icon, qr_show, _("Show as QR code"))
         self.tx_hash_e.setReadOnly(True)
         vbox.addWidget(self.tx_hash_e)
         self.tx_desc = QLabel()
@@ -122,8 +125,6 @@ class TxDialog(QDialog, MessageBoxMixin):
             vbox.addWidget(self.extra_pld_label)
             self.extra_pld = ExtraPayloadWidget()
             vbox.addWidget(self.extra_pld)
-
-        vbox.addStretch(1)
 
         self.sign_button = b = QPushButton(_("Sign"))
         b.clicked.connect(self.sign)
@@ -148,7 +149,7 @@ class TxDialog(QDialog, MessageBoxMixin):
         b.setDefault(True)
 
         self.qr_button = b = QPushButton()
-        b.setIcon(QIcon(":icons/qrcode.png"))
+        b.setIcon(read_QIcon(qr_icon))
         b.clicked.connect(self.show_qr)
 
         self.copy_button = CopyButton(lambda: str(self.tx), parent.app)
@@ -186,6 +187,10 @@ class TxDialog(QDialog, MessageBoxMixin):
                 dialogs.remove(self)
             except ValueError:
                 pass  # was not in list already
+
+    def reject(self):
+        # Override escape-key to close normally (and invoke closeEvent)
+        self.close()
 
     def show_qr(self):
         text = bfh(str(self.tx))
@@ -302,10 +307,9 @@ class TxDialog(QDialog, MessageBoxMixin):
         def format_amount(amt):
             return self.main_window.format_amount(amt, whitespaces=True)
 
-        i_text = QTextEdit()
+        i_text = QTextEditWithDefaultSize()
         i_text.setFont(QFont(MONOSPACE_FONT))
         i_text.setReadOnly(True)
-        i_text.setMaximumHeight(100)
         cursor = i_text.textCursor()
         for x in self.tx.inputs():
             if x['type'] == 'coinbase':
@@ -324,15 +328,20 @@ class TxDialog(QDialog, MessageBoxMixin):
 
         vbox.addWidget(i_text)
         vbox.addWidget(QLabel(_("Outputs") + ' (%d)'%len(self.tx.outputs())))
-        o_text = QTextEdit()
+        o_text = QTextEditWithDefaultSize()
         o_text.setFont(QFont(MONOSPACE_FONT))
         o_text.setReadOnly(True)
-        o_text.setMaximumHeight(100)
         cursor = o_text.textCursor()
-        for addr, v in self.tx.get_outputs():
+        for o in self.tx.get_outputs_for_UI():
+            addr, v = o.address, o.value
             cursor.insertText(addr, text_format(addr))
             if v is not None:
                 cursor.insertText('\t', ext)
                 cursor.insertText(format_amount(v), ext)
             cursor.insertBlock()
         vbox.addWidget(o_text)
+
+
+class QTextEditWithDefaultSize(QTextEdit):
+    def sizeHint(self):
+        return QSize(0, 100)

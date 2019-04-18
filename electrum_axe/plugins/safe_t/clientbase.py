@@ -4,7 +4,7 @@ from struct import pack
 from electrum_axe.i18n import _
 from electrum_axe.util import PrintError, UserCancelled
 from electrum_axe.keystore import bip39_normalize_passphrase
-from electrum_axe.bitcoin import serialize_xpub, convert_bip32_path_to_list_of_uint32
+from electrum_axe.bip32 import serialize_xpub, convert_bip32_path_to_list_of_uint32
 
 
 class GuiMixin(object):
