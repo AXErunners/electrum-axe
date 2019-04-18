@@ -11,10 +11,16 @@ else:
     raise Exception('no name')
 
 hiddenimports = collect_submodules('trezorlib')
+hiddenimports += collect_submodules('hideezlib')
 hiddenimports += collect_submodules('safetlib')
 hiddenimports += collect_submodules('btchip')
 hiddenimports += collect_submodules('keepkeylib')
 hiddenimports += collect_submodules('websocket')
+
+# safetlib imports PyQt5.Qt.  We use a local updated copy of pinmatrix.py until they
+# release a new version that includes https://github.com/archos-safe-t/python-safet/commit/b1eab3dba4c04fdfc1fcf17b66662c28c5f2380e
+hiddenimports.remove('safetlib.qt.pinmatrix')
+
 hiddenimports += [
     'electrum_axe',
     'electrum_axe.base_crash_reporter',
@@ -36,8 +42,9 @@ hiddenimports += [
     'electrum_axe.plugins.keepkey.qt',
     'electrum_axe.plugins.revealer.qt',
     'electrum_axe.plugins.labels.qt',
-    'electrum_axe.plugins.trezor.client',
     'electrum_axe.plugins.trezor.qt',
+    'electrum_axe.plugins.hideez.client',
+    'electrum_axe.plugins.hideez.qt',
     'electrum_axe.plugins.safe_t.client',
     'electrum_axe.plugins.safe_t.qt',
     'electrum_axe.plugins.ledger.qt',
@@ -45,16 +52,15 @@ hiddenimports += [
 ]
 
 datas = [
-    ('electrum_axe/servers.json', 'electrum_axe'),
-    ('electrum_axe/servers_testnet.json', 'electrum_axe'),
-    ('electrum_axe/servers_regtest.json', 'electrum_axe'),
-    ('electrum_axe/currencies.json', 'electrum_axe'),
-    ('electrum_axe/checkpoints.json', 'electrum_axe'),
+    ('electrum_axe/*.json', 'electrum_axe'),
     ('electrum_axe/locale', 'electrum_axe/locale'),
     ('electrum_axe/wordlist', 'electrum_axe/wordlist'),
+    ('electrum_axe/gui/icons', 'electrum_axe/gui/icons'),
     ('C:\\zbarw', '.'),
 ]
+
 datas += collect_data_files('trezorlib')
+datas += collect_data_files('hideezlib')
 datas += collect_data_files('safetlib')
 datas += collect_data_files('btchip')
 datas += collect_data_files('keepkeylib')
@@ -129,7 +135,7 @@ exe = EXE(pyz,
           strip=False,
           upx=False,
           console=False,
-          icon='icons/electrum-axe.ico',
+          icon='electrum_axe/gui/icons/electrum-axe.ico',
           name=os.path.join('build\\pyi.win32\\electrum', cmdline_name))
 
 # exe with console output
@@ -140,7 +146,7 @@ conexe = EXE(pyz,
           strip=False,
           upx=False,
           console=True,
-          icon='icons/electrum-axe.ico',
+          icon='electrum_axe/gui/icons/electrum-axe.ico',
           name=os.path.join('build\\pyi.win32\\electrum',
                             'console-%s' % cmdline_name))
 
