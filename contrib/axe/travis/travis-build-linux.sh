@@ -16,13 +16,21 @@ mkdir -p electrum-axe/dist
 wget -O electrum-axe/dist/tor-proxy-setup.exe \
     https://github.com/zebra-lucky/tor-proxy/releases/download/0.3.3.9/tor-proxy-0.3.3.9-setup.exe
 
+
 docker run --rm \
     -v $(pwd):/opt \
     -w /opt/electrum-axe \
-    -t axerunners/electrum-axe-winebuild:Linux /opt/build_linux.sh
+    -t axerunners/electrum-axe-winebuild:LinuxPy36 /opt/build_linux.sh
 
 sudo find . -name '*.po' -delete
 sudo find . -name '*.pot' -delete
+
+
+docker run --rm \
+    -v $(pwd):/opt \
+    -w /opt/electrum-axe/contrib/axe/travis \
+    -t axerunners/electrum-axe-winebuild:LinuxAppImage ./build_appimage.sh
+
 
 export WINEARCH=win32
 export WINEPREFIX=/root/.wine-32
