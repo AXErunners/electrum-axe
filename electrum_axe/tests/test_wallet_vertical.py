@@ -1,10 +1,9 @@
-import unittest
 from unittest import mock
 import shutil
 import tempfile
 from typing import Sequence
 
-from electrum_axe import storage, bitcoin, keystore, constants
+from electrum_axe import storage, bitcoin, keystore
 from electrum_axe.transaction import Transaction
 from electrum_axe.simple_config import SimpleConfig
 from electrum_axe.address_synchronizer import TX_HEIGHT_UNCONFIRMED, TX_HEIGHT_UNCONF_PARENT
