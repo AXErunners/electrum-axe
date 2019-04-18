@@ -1,6 +1,5 @@
-import unittest
-
 from electrum_axe import transaction
+from electrum_axe.transaction import TxOutputForUI
 from electrum_axe.bitcoin import TYPE_ADDRESS
 from electrum_axe.keystore import xpubkey_to_address
 from electrum_axe.util import bh2u, bfh
@@ -165,14 +164,28 @@ class TestTransaction(SequentialTestCase):
         # the inverse of this test is in test_bitcoin: test_address_to_script
         addr_from_script = lambda script: transaction.get_address_from_output_script(bfh(script))
         ADDR = transaction.TYPE_ADDRESS
+        PUBKEY = transaction.TYPE_PUBKEY
+        SCRIPT = transaction.TYPE_SCRIPT
 
         # base58 p2pkh
         self.assertEqual((ADDR, 'PBenpocD6pDoAoFZP4qA2pLpNwrm6FAcVw'), addr_from_script('76a9142197669050d01c6136181127ac8a0c631733da9688ac'))
         self.assertEqual((ADDR, 'P9h6zCz253jmc4TvqgKPRNpkx5qELdNWWT'), addr_from_script('76a9140c1724583577182cceef0e31bc176b2dcfdaadfd88ac'))
+        # almost but not quite
+        self.assertEqual((SCRIPT, '76a9130000000000000000000000000000000000000088ac'), addr_from_script('76a9130000000000000000000000000000000000000088ac'))
 
         # base58 p2sh
         self.assertEqual((ADDR, '7WHUEVtMDLeereT5r4ZoNKjr3MXr4gqfon'), addr_from_script('a9142a84cf00d47f699ee7bbc1dea5ec1bdecb4ac15487'))
         self.assertEqual((ADDR, '7phNpVKta6kkbP24HfvvQVeHEmgBQYiJCB'), addr_from_script('a914f47c8954e421031ad04ecd8e7752c9479206b9d387'))
+        # almost but not quite
+        self.assertEqual((SCRIPT, 'a912f47c8954e421031ad04ecd8e7752c947920687'), addr_from_script('a912f47c8954e421031ad04ecd8e7752c947920687'))
+
+        # p2pk
+        self.assertEqual((PUBKEY, '0289e14468d94537493c62e2168318b568912dec0fb95609afd56f2527c2751c8b'), addr_from_script('210289e14468d94537493c62e2168318b568912dec0fb95609afd56f2527c2751c8bac'))
+        self.assertEqual((PUBKEY, '045485b0b076848af1209e788c893522a90f3df77c1abac2ca545846a725e6c3da1f7743f55a1bc3b5f0c7e0ee4459954ec0307022742d60032b13432953eb7120'), addr_from_script('41045485b0b076848af1209e788c893522a90f3df77c1abac2ca545846a725e6c3da1f7743f55a1bc3b5f0c7e0ee4459954ec0307022742d60032b13432953eb7120ac'))
+        # almost but not quite
+        self.assertEqual((SCRIPT, '200289e14468d94537493c62e2168318b568912dec0fb95609afd56f2527c2751cac'), addr_from_script('200289e14468d94537493c62e2168318b568912dec0fb95609afd56f2527c2751cac'))
+        self.assertEqual((SCRIPT, '210589e14468d94537493c62e2168318b568912dec0fb95609afd56f2527c2751c8bac'), addr_from_script('210589e14468d94537493c62e2168318b568912dec0fb95609afd56f2527c2751c8bac'))
+
 
 #####
 
