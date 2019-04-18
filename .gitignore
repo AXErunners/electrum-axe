@@ -3,12 +3,12 @@
 *.swp
 build/
 dist/
-electrum_axe/gui/qt/icons_rc.py
-locale/
+electrum_axe/locale/
 .devlocaltmp/
 *_trial_temp
 packages
-env*
+env*/
+env
 .tox/
 .buildozer/
 bin/
