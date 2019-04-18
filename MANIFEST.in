@@ -1,6 +1,5 @@
 include LICENCE RELEASE-NOTES AUTHORS
 include README.rst
-include electrum-axe.conf.sample
 include electrum-axe.desktop
 include *.py
 include electrum-axe
@@ -8,12 +7,12 @@ include contrib/requirements/requirements.txt
 include contrib/requirements/requirements-hw.txt
 recursive-include packages *.py
 recursive-include packages cacert.pem
-include icons.qrc
 graft debian
-graft icons
 
 graft electrum_axe
 prune electrum_axe/tests
 
 global-exclude __pycache__
-global-exclude *.py[co]
+global-exclude *.py[co~]
+global-exclude *.py.orig
+global-exclude *.py.rej
