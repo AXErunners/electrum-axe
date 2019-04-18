@@ -153,7 +153,7 @@ class TestMasternode70210(unittest.TestCase):
         expected_hash = '5f69e59f5ea327be16e649fb6c72ed02e39ef9dae8ecb27d222419e94dcd89b7'
         msg = announce.serialize_for_sig()
 
-        h = bitcoin.Hash(ecc.msg_magic(msg))
+        h = sha256d(ecc.msg_magic(msg))
         h = bitcoin.hash_encode(h)
         self.assertEqual(expected_hash, h)
 
