@@ -3,19 +3,20 @@
 
 [Desktop Entry]
 Comment=Axe Electrum Wallet
-Exec=sh -c "PATH=\"\\$HOME/.local/bin:\\$PATH\" electrum-axe %u"
+Exec=sh -c "PATH=\"\\$HOME/.local/bin:\\$PATH\"; electrum-axe %u"
 GenericName[en_US]=Axe Electrum
 GenericName=Axe Electrum
 Icon=electrum-axe
 Name[en_US]=Axe Electrum
 Name=Axe Electrum
 Categories=Network;
-StartupNotify=false
+StartupNotify=true
+StartupWMClass=axe-electrum
 Terminal=false
 Type=Application
 MimeType=x-scheme-handler/axerunners;
 Actions=Testnet;
 
 [Desktop Action Testnet]
-Exec=sh -c "PATH=\"\\$HOME/.local/bin:\\$PATH\" electrum-axe --testnet %u"
+Exec=sh -c "PATH=\"\\$HOME/.local/bin:\\$PATH\"; electrum-axe --testnet %u"
 Name=Testnet mode
