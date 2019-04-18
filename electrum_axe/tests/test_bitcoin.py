@@ -1,22 +1,23 @@
 import base64
-import unittest
 import sys
 
-from electrum_axe.bitcoin import (
-    public_key_to_p2pkh,
-    bip32_root, bip32_public_derivation, bip32_private_derivation,
-    Hash, address_from_private_key,
-    is_address, is_private_key, xpub_from_xprv, is_new_seed, is_old_seed,
-    var_int, op_push, address_to_script,
-    deserialize_privkey, serialize_privkey,
-    is_b58_address, address_to_scripthash, is_minikey, is_compressed, is_xpub,
-    xpub_type, is_xprv, is_bip32_derivation, seed_type, EncodeBase58Check,
-    script_num_to_hex, push_script, add_number_to_script, int_to_hex, convert_bip32_path_to_list_of_uint32,
-    deserialize_xprv, deserialize_xpub, deserialize_drkv, deserialize_drkp)
+from electrum_axe.bitcoin import (public_key_to_p2pkh, address_from_private_key,
+                                   is_address, is_private_key, is_new_seed, is_old_seed,
+                                   var_int, op_push, address_to_script,
+                                   deserialize_privkey, serialize_privkey,
+                                   is_b58_address, address_to_scripthash, is_minikey,
+                                   is_compressed_privkey, seed_type, EncodeBase58Check,
+                                   script_num_to_hex, push_script, add_number_to_script, int_to_hex)
+from electrum_axe.bip32 import (bip32_root, bip32_public_derivation, bip32_private_derivation,
+                                 xpub_from_xprv, xpub_type, is_xprv, is_bip32_derivation,
+                                 is_xpub, convert_bip32_path_to_list_of_uint32,
+                                 deserialize_drkv, deserialize_drkp, deserialize_xprv,
+                                 deserialize_xpub)
+from electrum_axe.crypto import sha256d, SUPPORTED_PW_HASH_VERSIONS
 from electrum_axe import ecc, crypto, constants
 from electrum_axe.ecc import number_to_string, string_to_number
 from electrum_axe.transaction import opcodes
-from electrum_axe.util import bfh, bh2u
+from electrum_axe.util import bfh, bh2u, InvalidPassword
 from electrum_axe.storage import WalletStorage
 from electrum_axe.keystore import xtype_from_derivation, from_master_key
 
@@ -30,7 +31,7 @@ from . import FAST_TESTS
 try:
     import ecdsa
 except ImportError:
-    sys.exit("Error: python-ecdsa does not seem to be installed. Try 'sudo pip install ecdsa'")
+    sys.exit("Error: python-ecdsa does not seem to be installed. Try 'sudo python3 -m pip install ecdsa'")
 
 
 def needs_test_with_all_ecc_implementations(func):
@@ -220,23 +221,26 @@ class Test_bitcoin(SequentialTestCase):
         """Make sure AES is homomorphic."""
         payload = u'\u66f4\u7a33\u5b9a\u7684\u4ea4\u6613\u5e73\u53f0'
         password = u'secret'
-        enc = crypto.pw_encode(payload, password)
-        dec = crypto.pw_decode(enc, password)
-        self.assertEqual(dec, payload)
+        for version in SUPPORTED_PW_HASH_VERSIONS:
+            enc = crypto.pw_encode(payload, password, version=version)
+            dec = crypto.pw_decode(enc, password, version=version)
+            self.assertEqual(dec, payload)
 
     @needs_test_with_all_aes_implementations
     def test_aes_encode_without_password(self):
         """When not passed a password, pw_encode is noop on the payload."""
         payload = u'\u66f4\u7a33\u5b9a\u7684\u4ea4\u6613\u5e73\u53f0'
-        enc = crypto.pw_encode(payload, None)
-        self.assertEqual(payload, enc)
+        for version in SUPPORTED_PW_HASH_VERSIONS:
+            enc = crypto.pw_encode(payload, None, version=version)
+            self.assertEqual(payload, enc)
 
     @needs_test_with_all_aes_implementations
     def test_aes_deencode_without_password(self):
         """When not passed a password, pw_decode is noop on the payload."""
         payload = u'\u66f4\u7a33\u5b9a\u7684\u4ea4\u6613\u5e73\u53f0'
-        enc = crypto.pw_decode(payload, None)
-        self.assertEqual(payload, enc)
+        for version in SUPPORTED_PW_HASH_VERSIONS:
+            enc = crypto.pw_decode(payload, None, version=version)
+            self.assertEqual(payload, enc)
 
     @needs_test_with_all_aes_implementations
     def test_aes_decode_with_invalid_password(self):
@@ -244,16 +248,14 @@ class Test_bitcoin(SequentialTestCase):
         payload = u"blah"
         password = u"uber secret"
         wrong_password = u"not the password"
-        enc = crypto.pw_encode(payload, password)
-        self.assertRaises(Exception, crypto.pw_decode, enc, wrong_password)
+        for version in SUPPORTED_PW_HASH_VERSIONS:
+            enc = crypto.pw_encode(payload, password, version=version)
+            with self.assertRaises(InvalidPassword):
+                crypto.pw_decode(enc, wrong_password, version=version)
 
-    def test_hash(self):
-        """Make sure the Hash function does sha256 twice"""
-        payload = u"test"
-        expected = b'\x95MZI\xfdp\xd9\xb8\xbc\xdb5\xd2R&x)\x95\x7f~\xf7\xfalt\xf8\x84\x19\xbd\xc5\xe8"\t\xf4'
-
-        result = Hash(payload)
-        self.assertEqual(expected, result)
+    def test_sha256d(self):
+        self.assertEqual(b'\x95MZI\xfdp\xd9\xb8\xbc\xdb5\xd2R&x)\x95\x7f~\xf7\xfalt\xf8\x84\x19\xbd\xc5\xe8"\t\xf4',
+                         sha256d(u"test"))
 
     def test_int_to_hex(self):
         self.assertEqual('00', int_to_hex(0, 1))
@@ -703,10 +705,10 @@ class Test_keyImport(SequentialTestCase):
             self.assertEqual(minikey, is_minikey(priv))
 
     @needs_test_with_all_ecc_implementations
-    def test_is_compressed(self):
+    def test_is_compressed_privkey(self):
         for priv_details in self.priv_pub_addr:
             self.assertEqual(priv_details['compressed'],
-                             is_compressed(priv_details['priv']))
+                             is_compressed_privkey(priv_details['priv']))
 
 
 class Test_seeds(SequentialTestCase):
