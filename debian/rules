@@ -8,10 +8,6 @@ export PYBUILD_NAME=electrum-axe
 override_dh_installchangelogs::
 	dh_installchangelogs -k RELEASE-NOTES
 
-override_dh_auto_build::
-	pyrcc5 icons.qrc -o electrum_axe/gui/qt/icons_rc.py
-	dh_auto_build
-
 override_dh_auto_install::
 	dh_auto_install
 	mkdir -p debian/electrum-axe/usr/bin \
