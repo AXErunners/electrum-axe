@@ -423,9 +423,7 @@ class Dip3TabWidget(QTabWidget):
             coro = self.gui.network.request_protx_diff(base_height)
             loop = self.gui.network.asyncio_loop
             asyncio.run_coroutine_threadsafe(coro, loop)
-            self.w_add_btn.setEnabled(False)
         elif diff_hashes or deleted_mns:
-            self.w_add_btn.setEnabled(True)
             self.reg_model.reload_data()
             self.w_model.reload_data()
 
@@ -440,7 +438,17 @@ class Dip3TabWidget(QTabWidget):
     @pyqtSlot(bool)
     def on_net_state_changed(self, is_connected):
         if is_connected and self.have_been_shown:
-            self.manager.subscribe_to_network_updates()
+            if not self.manager.protx_subscribed:
+                self.manager.subscribe_to_network_updates()
+            else:
+                base_height = self.manager.protx_base_height
+                coro = self.gui.network.request_protx_diff(base_height)
+                loop = self.gui.network.asyncio_loop
+                asyncio.run_coroutine_threadsafe(coro, loop)
+        self.update_registered_label()
+        self.update_wallet_label()
+        self.reg_model.reload_data()
+        self.w_model.reload_data()
 
     def registered_label(self):
         state = self.manager.protx_state
@@ -450,7 +458,9 @@ class Dip3TabWidget(QTabWidget):
         height = self.manager.protx_base_height
         mns = self.manager.protx_mns
         count = len(mns)
-        ready = 'Found' if self.manager.diffs_ready else 'Loading'
+        connected = self.gui.network.is_connected()
+        loading = connected and not self.manager.diffs_ready
+        ready = 'Loading' if loading else 'Found'
         return ('%s %s registered DIP3 Masternodes at Height: %s.' %
                 (ready, count, height))
 
@@ -462,14 +472,16 @@ class Dip3TabWidget(QTabWidget):
         if state == self.manager.DIP3_DISABLED:
             return ('DIP3 Masternodes is currently disabled.')
 
-        if self.manager.diffs_ready:
+        connected = self.gui.network.is_connected()
+        loading = connected and not self.manager.diffs_ready
+        if not loading:
             mns = self.manager.mns
             count = len(mns)
             plural = '' if count == 1 else 's'
             return ('Wallet contains %s DIP3 Masternode%s.' % (count, plural))
         else:
             height = self.manager.protx_base_height
-            return ('Loading DIP3 Masternodes data at Height: %s.' % height)
+            return ('Loading DIP3 data at Height: %s.' % height)
 
     def update_wallet_label(self):
         self.w_label.setText(self.wallet_label())
@@ -513,7 +525,7 @@ class Dip3TabWidget(QTabWidget):
         vbox.addWidget(hw)
         vbox.addWidget(self.reg_view)
         w.setLayout(vbox)
-        self.addTab(w, read_QIcon('tab_search.png'), 'Registerd MNs')
+        self.addTab(w, read_QIcon('tab_search.png'), 'Registered MNs')
         return w
 
     def create_reg_menu(self, position):
@@ -595,8 +607,7 @@ class Dip3TabWidget(QTabWidget):
         a = self.w_cur_alias
         s = self.w_cur_state
         i = self.w_cur_idx
-
-        if not self.manager.diffs_ready:
+        if not i:
             return
 
         mn = self.manager.mns.get(a)
@@ -736,9 +747,6 @@ class Dip3TabWidget(QTabWidget):
             self.w_up_coll_btn.hide()
             self.w_up_srv_btn.hide()
             self.w_up_reg_btn.hide()
-            return
-
-        if not self.manager.diffs_ready:
             return
 
         idx = sel.selectedRows()[0]
