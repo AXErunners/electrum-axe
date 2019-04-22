@@ -2,10 +2,11 @@
 
 import os
 import ipaddress
+import json
 from bls_py import bls
 
 from PyQt5.QtGui import QFont, QPixmap
-from PyQt5.QtCore import Qt, pyqtSignal, pyqtSlot
+from PyQt5.QtCore import Qt, pyqtSignal, pyqtSlot, QFileInfo
 from PyQt5.QtWidgets import (QLineEdit, QComboBox, QListWidget, QDoubleSpinBox,
                              QAbstractItemView, QListWidgetItem, QWizardPage,
                              QRadioButton, QButtonGroup, QVBoxLayout, QLabel,
@@ -13,12 +14,8 @@ from PyQt5.QtWidgets import (QLineEdit, QComboBox, QListWidget, QDoubleSpinBox,
                              QFileDialog, QWizard)
 
 from electrum_axe import axe_tx
-from electrum_axe.bitcoin import (COIN, deserialize_privkey,
-                                   b58_address_to_hash160,
-                                   hash160_to_p2pkh, is_b58_address)
-from electrum_axe.crypto import hash_160
+from electrum_axe.bitcoin import COIN, is_b58_address
 from electrum_axe.axe_tx import TxOutPoint
-from electrum_axe import ecc
 from electrum_axe.protx import ProTxMN, ProTxService, ProRegTxExc
 from electrum_axe.util import bfh, bh2u
 
@@ -216,7 +213,7 @@ class ImportLegacyWizardPage(QWizardPage):
         try:
             with open(conf_fname, 'r') as f:
                 conflines = f.readlines()
-        except Exception as e:
+        except Exception:
             conflines = []
         if not conflines:
             return
@@ -235,7 +232,7 @@ class ImportLegacyWizardPage(QWizardPage):
                 ip, port = self.parent.validate_service(service)
                 res_d['addr'] = {'ip': ip, 'port': int(port)}
                 c_index = int(c_index)
-            except Exception as e:
+            except Exception:
                 continue
             res_d['vin'] = {
                 'prevout_hash': c_hash,
@@ -1164,7 +1161,7 @@ class ServiceWizardPage(QWizardPage):
     def validatePage(self):
         try:
             ip = self.srv_addr.text()
-            ip_check = ipaddress.ip_address(ip)
+            ipaddress.ip_address(ip)
         except ValueError:
             self.show_error('Wrong service address specified')
             return False
@@ -1276,7 +1273,7 @@ class UpdSrvWizardPage(QWizardPage):
     def validatePage(self):
         try:
             ip = self.srv_addr.text()
-            ip_check = ipaddress.ip_address(ip)
+            ipaddress.ip_address(ip)
         except ValueError:
             self.show_error('Wrong service address specified')
             return False
@@ -1480,11 +1477,11 @@ class Dip3MasternodeWizard(QWizard):
             if ']' in service:          # IPv6 [ipv6]:portnum
                 ip, port = service.split(']')
                 ip = ip[1:]             # remove opening square bracket
-                ip_check = ipaddress.ip_address(ip)
+                ipaddress.ip_address(ip)
                 port = int(port[1:])    # remove colon before portnum
             else:                       # IPv4 ipv4:portnum
                 ip, port = service.split(':')
-                ip_check = ipaddress.ip_address(ip)
+                ipaddress.ip_address(ip)
                 port = int(port)
         except BaseException:
             raise ValidationError('Wrong service format specified')
@@ -1564,3 +1561,286 @@ class Dip3MasternodeWizard(QWizard):
         if not is_b58_address(p_addr):
             raise ValidationError('Wrong payout address format')
         return o_addr, v_addr, p_addr
+
+
+class Dip3FileWizard(QWizard):
+
+    OP_TYPE_PAGE = 1
+    EXPORT_PAGE = 2
+    IMPORT_PAGE = 3
+    DONE_PAGE = 4
+
+    def __init__(self, parent, mn=None, start_id=None):
+        super(Dip3FileWizard, self).__init__(parent)
+        self.gui = parent.gui
+        self.manager = parent.manager
+        self.wallet = parent.wallet
+
+        self.setPage(self.OP_TYPE_PAGE, FileOpTypeWizardPage(self))
+        self.setPage(self.EXPORT_PAGE, ExportToFileWizardPage(self))
+        self.setPage(self.IMPORT_PAGE, ImportFromFileWizardPage(self))
+        self.setPage(self.DONE_PAGE, FileDoneWizardPage(self))
+        self.saved_aliases = []
+        self.saved_path = None
+        self.imported_aliases = []
+        self.skipped_aliases = []
+        self.imported_path = None
+
+        title = 'Export/Import DIP3 Masternodes to/from file'
+        logo = QPixmap(icon_path('tab_dip3.png'))
+        logo = logo.scaledToWidth(32, mode=Qt.SmoothTransformation)
+        self.setWizardStyle(QWizard.ClassicStyle)
+        self.setPixmap(QWizard.LogoPixmap, logo)
+        self.setWindowTitle(title)
+        self.setWindowIcon(read_QIcon('electrum-axe.png'))
+        self.setMinimumSize(1000, 450)
+
+
+class FileOpTypeWizardPage(QWizardPage):
+
+    def __init__(self, parent=None):
+        super(FileOpTypeWizardPage, self).__init__(parent)
+        self.parent = parent
+        self.setTitle('Operation type')
+        self.setSubTitle('Select opeartion type.')
+
+        self.rb_export = QRadioButton('Export DIP3 Masternodes to file')
+        self.rb_import = QRadioButton('Import DIP3 Masternodes from file')
+        self.rb_export.setChecked(True)
+        self.button_group = QButtonGroup()
+        self.button_group.addButton(self.rb_export)
+        self.button_group.addButton(self.rb_import)
+        gb_vbox = QVBoxLayout()
+        gb_vbox.addWidget(self.rb_export)
+        gb_vbox.addWidget(self.rb_import)
+        self.gb_op_type = QGroupBox('Select operation type')
+        self.gb_op_type.setLayout(gb_vbox)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.gb_op_type)
+        layout.addStretch(1)
+        self.setLayout(layout)
+
+    def nextId(self):
+        if self.rb_export.isChecked():
+            return self.parent.EXPORT_PAGE
+        else:
+            return self.parent.IMPORT_PAGE
+
+
+class ExportToFileWizardPage(QWizardPage):
+
+    def __init__(self, parent=None):
+        super(ExportToFileWizardPage, self).__init__(parent)
+        self.parent = parent
+        self.setCommitPage(True)
+        self.setTitle('Export to file')
+        self.setSubTitle('Export DIP3 Masternodes to file.')
+
+        self.lb_aliases = QLabel('Exported DIP3 Masternodes:')
+        self.lw_aliases = QListWidget()
+        self.lw_aliases.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.sel_model = self.lw_aliases.selectionModel()
+        self.sel_model.selectionChanged.connect(self.on_selection_changed)
+        aliases = self.parent.manager.mns.keys()
+        self.lw_aliases.addItems(aliases)
+        self.lw_aliases.selectAll()
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.lb_aliases)
+        layout.addWidget(self.lw_aliases)
+        self.setLayout(layout)
+
+    def initializePage(self):
+        self.parent.setButtonText(QWizard.CommitButton, 'Save')
+
+    @pyqtSlot()
+    def on_selection_changed(self):
+        self.aliases = [i.text() for i in self.lw_aliases.selectedItems()]
+        self.completeChanged.emit()
+
+    def isComplete(self):
+        return len(self.aliases) > 0
+
+    def nextId(self):
+        return self.parent.DONE_PAGE
+
+    def validatePage(self):
+        fdlg = QFileDialog(self, 'Save DIP3 Masternodes', os.getenv('HOME'))
+        fdlg.setOptions(QFileDialog.DontConfirmOverwrite)
+        fdlg.setAcceptMode(QFileDialog.AcceptSave)
+        fdlg.setFileMode(QFileDialog.AnyFile)
+        fdlg.setNameFilter("ProTx (*.protx)");
+        fdlg.exec()
+
+        if not fdlg.result():
+            return False
+
+        self.path = fdlg.selectedFiles()
+        if len(self.path) > 0:
+            self.path = self.path[0]
+
+        if self.path.find('*') > 0 or self.path.find('?') > 0:
+            return False
+
+        fi = QFileInfo(self.path)
+        if fi.suffix() != 'protx':
+            self.path = '%s.protx' % self.path
+            fi = QFileInfo(self.path)
+
+        if fi.exists():
+            overwrite_msg = 'Overwrite existing file?\n%s'
+            res = self.parent.gui.question(overwrite_msg % self.path)
+            if not res:
+                return False
+
+        manager = self.parent.manager
+        store_data = {'mns': {}}
+        with open(self.path, 'w') as fd:
+            for alias, mn in manager.mns.items():
+                if alias not in self.aliases:
+                    continue
+                store_data['mns'][alias] = mn.as_dict()
+            fd.write(json.dumps(store_data, indent=4))
+        self.parent.saved_aliases = self.aliases
+        self.parent.saved_path = self.path
+        return True
+
+
+class ImportFromFileWizardPage(QWizardPage):
+
+    def __init__(self, parent=None):
+        super(ImportFromFileWizardPage, self).__init__(parent)
+        self.parent = parent
+        self.setCommitPage(True)
+        self.setTitle('Import from file')
+        self.setSubTitle('Import DIP3 Masternodes from file.')
+
+        self.imp_btn = QPushButton('Load *.protx file')
+        self.imp_btn.clicked.connect(self.on_load_protx)
+        owerwrite_msg = 'Overwrite existing Masternodes with same aliases'
+        self.cb_overwrite = QCheckBox(owerwrite_msg)
+
+        self.lw_i_label = QLabel('Imported aliases')
+        self.lw_i_aliases = QListWidget()
+        self.lw_i_aliases.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.i_sel_model = self.lw_i_aliases.selectionModel()
+        self.i_sel_model.selectionChanged.connect(self.on_i_selection_changed)
+        self.i_aliases = []
+
+        self.lw_w_label = QLabel('Existing aliases')
+        self.lw_w_aliases = QListWidget()
+        self.lw_w_aliases.setSelectionMode(QAbstractItemView.NoSelection)
+        aliases = self.parent.manager.mns.keys()
+        self.lw_w_aliases.addItems(aliases)
+
+        layout = QGridLayout()
+        layout.addWidget(self.imp_btn, 0, 0)
+        layout.addWidget(self.cb_overwrite, 0, 2)
+        layout.addWidget(self.lw_i_label, 1, 0)
+        layout.addWidget(self.lw_w_label, 1, 2)
+        layout.addWidget(self.lw_i_aliases, 2, 0)
+        layout.addWidget(self.lw_w_aliases, 2, 2)
+        layout.setColumnStretch(0, 5)
+        layout.setColumnStretch(1, 1)
+        layout.setColumnStretch(2, 5)
+        self.setLayout(layout)
+
+    def initializePage(self):
+        self.parent.setButtonText(QWizard.CommitButton, 'Import')
+
+    def nextId(self):
+        return self.parent.DONE_PAGE
+
+    @pyqtSlot()
+    def on_load_protx(self):
+        fdlg = QFileDialog(self, 'Load DIP3 Masternodes', os.getenv('HOME'))
+        fdlg.setAcceptMode(QFileDialog.AcceptOpen)
+        fdlg.setFileMode(QFileDialog.AnyFile)
+        fdlg.setNameFilter("ProTx (*.protx)");
+        fdlg.exec()
+
+        if not fdlg.result():
+            return False
+
+        self.path = fdlg.selectedFiles()
+        if len(self.path) > 0:
+            self.path = self.path[0]
+
+        self.lw_i_aliases.clear()
+        with open(self.path, 'r') as fd:
+            try:
+                import_data = json.loads(fd.read())
+                import_data = import_data.get('mns', None)
+                if import_data is None:
+                    raise Exception('No mns key found in protx file')
+                if not isinstance(import_data, dict):
+                    raise Exception('Wrong mns key format')
+                aliases = import_data.keys()
+                self.lw_i_aliases.addItems(aliases)
+                self.lw_i_aliases.selectAll()
+                self.import_data = import_data
+            except Exception as e:
+                self.parent.gui.show_error('Wrong file format: %s' % str(e))
+
+    @pyqtSlot()
+    def on_i_selection_changed(self):
+        self.i_aliases = [i.text() for i in self.lw_i_aliases.selectedItems()]
+        self.completeChanged.emit()
+
+    def isComplete(self):
+        return len(self.i_aliases) > 0
+
+    def validatePage(self):
+        overwrite = self.cb_overwrite.isChecked()
+        manager = self.parent.manager
+        aliases = manager.mns.keys()
+        for ia in self.i_aliases:
+            mn = ProTxMN.from_dict(self.import_data[ia])
+            if ia in aliases:
+                if overwrite:
+                    manager.update_mn(ia, mn)
+                    self.parent.imported_aliases.append(ia)
+                else:
+                    self.parent.skipped_aliases.append(ia)
+                    continue
+            else:
+                self.parent.manager.add_mn(mn)
+                self.parent.imported_aliases.append(ia)
+        if len(self.parent.imported_aliases) > 0:
+            dip3_tab = self.parent.parent()
+            dip3_tab.w_model.reload_data()
+        self.parent.imported_path = self.path
+        return True
+
+class FileDoneWizardPage(QWizardPage):
+
+    def __init__(self, parent=None):
+        super(FileDoneWizardPage, self).__init__(parent)
+        self.parent = parent
+        self.setTitle('All done')
+        self.setSubTitle('All operations completed successfully.')
+
+        self.layout = QVBoxLayout()
+        self.setLayout(self.layout)
+
+    def nextId(self):
+        return -1
+
+    def initializePage(self):
+        parent = self.parent
+        if parent.saved_path:
+            aliases = ', '.join(parent.saved_aliases)
+            path = parent.saved_path
+            self.layout.addWidget(QLabel('Aliases: %s' % aliases))
+            self.layout.addWidget(QLabel('Saved to file: %s' % path))
+        elif parent.imported_path:
+            aliases = ', '.join(parent.imported_aliases)
+            skipped = ', '.join(parent.skipped_aliases)
+            path = parent.imported_path
+            self.layout.addWidget(QLabel('Imported from file: %s' % path))
+            if aliases:
+                self.layout.addWidget(QLabel('Impored Aliases: %s' % aliases))
+            if skipped:
+                self.layout.addWidget(QLabel('Skipped Aliases: %s' % skipped))
+        self.layout.addStretch(1)
