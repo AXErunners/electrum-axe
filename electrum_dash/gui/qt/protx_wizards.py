@@ -1701,7 +1701,7 @@ class ExportToFileWizardPage(QWizardPage):
                 if alias not in self.aliases:
                     continue
                 store_data['mns'][alias] = mn.as_dict()
-            fd.write(json.dumps(store_data))
+            fd.write(json.dumps(store_data, indent=4))
         self.parent.saved_aliases = self.aliases
         self.parent.saved_path = self.path
         return True
