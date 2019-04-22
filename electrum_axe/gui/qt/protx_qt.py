@@ -3,9 +3,9 @@
 import asyncio
 from pprint import pformat
 
-from PyQt5.QtGui import QIcon, QColor, QPixmap
+from PyQt5.QtGui import QColor, QPixmap
 from PyQt5.QtCore import (Qt, QSortFilterProxyModel, QAbstractTableModel,
-                          QModelIndex, pyqtSlot, QVariant, QSize, QRect,
+                          QModelIndex, pyqtSlot, QVariant, QRect,
                           QPoint, pyqtSignal, QItemSelectionModel)
 from PyQt5.QtWidgets import (QTabBar, QTabWidget, QWidget, QLabel, QPushButton,
                              QTableView, QHeaderView, QAbstractItemView,
@@ -13,10 +13,10 @@ from PyQt5.QtWidgets import (QTabBar, QTabWidget, QWidget, QLabel, QPushButton,
                              QStyleOptionTab, QStyle, QDialog, QGridLayout,
                              QTextEdit, QMenu)
 
-from electrum_axe.axe_tx import SPEC_PRO_REG_TX, SPEC_PRO_UP_REV_TX
+from electrum_axe.axe_tx import SPEC_PRO_REG_TX
 from electrum_axe.protx import ProRegTxExc, ProTxManagerExc
 
-from .protx_wizards import Dip3MasternodeWizard
+from .protx_wizards import Dip3MasternodeWizard, Dip3FileWizard
 from .util import icon_path, read_QIcon
 
 
@@ -423,9 +423,7 @@ class Dip3TabWidget(QTabWidget):
             coro = self.gui.network.request_protx_diff(base_height)
             loop = self.gui.network.asyncio_loop
             asyncio.run_coroutine_threadsafe(coro, loop)
-            self.w_add_btn.setEnabled(False)
         elif diff_hashes or deleted_mns:
-            self.w_add_btn.setEnabled(True)
             self.reg_model.reload_data()
             self.w_model.reload_data()
 
@@ -440,7 +438,17 @@ class Dip3TabWidget(QTabWidget):
     @pyqtSlot(bool)
     def on_net_state_changed(self, is_connected):
         if is_connected and self.have_been_shown:
-            self.manager.subscribe_to_network_updates()
+            if not self.manager.protx_subscribed:
+                self.manager.subscribe_to_network_updates()
+            else:
+                base_height = self.manager.protx_base_height
+                coro = self.gui.network.request_protx_diff(base_height)
+                loop = self.gui.network.asyncio_loop
+                asyncio.run_coroutine_threadsafe(coro, loop)
+        self.update_registered_label()
+        self.update_wallet_label()
+        self.reg_model.reload_data()
+        self.w_model.reload_data()
 
     def registered_label(self):
         state = self.manager.protx_state
@@ -450,7 +458,9 @@ class Dip3TabWidget(QTabWidget):
         height = self.manager.protx_base_height
         mns = self.manager.protx_mns
         count = len(mns)
-        ready = 'Found' if self.manager.diffs_ready else 'Loading'
+        connected = self.gui.network.is_connected()
+        loading = connected and not self.manager.diffs_ready
+        ready = 'Loading' if loading else 'Found'
         return ('%s %s registered DIP3 Masternodes at Height: %s.' %
                 (ready, count, height))
 
@@ -462,14 +472,16 @@ class Dip3TabWidget(QTabWidget):
         if state == self.manager.DIP3_DISABLED:
             return ('DIP3 Masternodes is currently disabled.')
 
-        if self.manager.diffs_ready:
+        connected = self.gui.network.is_connected()
+        loading = connected and not self.manager.diffs_ready
+        if not loading:
             mns = self.manager.mns
             count = len(mns)
             plural = '' if count == 1 else 's'
             return ('Wallet contains %s DIP3 Masternode%s.' % (count, plural))
         else:
             height = self.manager.protx_base_height
-            return ('Loading DIP3 Masternodes data at Height: %s.' % height)
+            return ('Loading DIP3 data at Height: %s.' % height)
 
     def update_wallet_label(self):
         self.w_label.setText(self.wallet_label())
@@ -513,7 +525,7 @@ class Dip3TabWidget(QTabWidget):
         vbox.addWidget(hw)
         vbox.addWidget(self.reg_view)
         w.setLayout(vbox)
-        self.addTab(w, read_QIcon('tab_search.png'), 'Registerd MNs')
+        self.addTab(w, read_QIcon('tab_search.png'), 'Registered MNs')
         return w
 
     def create_reg_menu(self, position):
@@ -529,6 +541,7 @@ class Dip3TabWidget(QTabWidget):
 
         self.w_label = QLabel(self.wallet_label())
         self.w_add_btn = QPushButton('Add / Import')
+        self.w_file_btn = QPushButton('File')
         self.w_del_btn = QPushButton('Del')
         self.w_up_params_btn = QPushButton('Update Params')
         self.w_up_coll_btn = QPushButton('Change Collateral')
@@ -536,6 +549,7 @@ class Dip3TabWidget(QTabWidget):
         self.w_up_srv_btn = QPushButton('Update Service')
         self.w_up_reg_btn = QPushButton('Update Registrar')
         self.w_add_btn.clicked.connect(self.on_add_masternode)
+        self.w_file_btn.clicked.connect(self.on_file)
         self.w_del_btn.clicked.connect(self.on_del_masternode)
         self.w_up_params_btn.clicked.connect(self.on_update_params)
         self.w_up_coll_btn.clicked.connect(self.on_update_collateral)
@@ -579,6 +593,7 @@ class Dip3TabWidget(QTabWidget):
         hbox.addWidget(self.w_protx_btn)
         hbox.addWidget(self.w_up_reg_btn)
         hbox.addWidget(self.w_up_srv_btn)
+        hbox.addWidget(self.w_file_btn)
         hbox.addWidget(self.w_add_btn)
         hw.setLayout(hbox)
         vbox.addWidget(hw)
@@ -595,8 +610,7 @@ class Dip3TabWidget(QTabWidget):
         a = self.w_cur_alias
         s = self.w_cur_state
         i = self.w_cur_idx
-
-        if not self.manager.diffs_ready:
+        if not i:
             return
 
         mn = self.manager.mns.get(a)
@@ -666,6 +680,11 @@ class Dip3TabWidget(QTabWidget):
         self.gui.tabs.setCurrentIndex(self.gui.tabs.indexOf(self.gui.send_tab))
 
     @pyqtSlot()
+    def on_file(self):
+        wiz = Dip3FileWizard(self)
+        wiz.open()
+
+    @pyqtSlot()
     def on_add_masternode(self):
         wiz = Dip3MasternodeWizard(self)
         wiz.open()
@@ -716,6 +735,8 @@ class Dip3TabWidget(QTabWidget):
     @pyqtSlot()
     def on_wallet_model_reset(self):
         self.update_wallet_label()
+        self.w_file_btn.show()
+        self.w_add_btn.show()
         self.w_up_params_btn.hide()
         self.w_up_coll_btn.hide()
         self.w_protx_btn.hide()
@@ -730,6 +751,8 @@ class Dip3TabWidget(QTabWidget):
             self.w_cur_alias = ''
             self.w_cur_state = ''
             self.w_cur_idx = None
+            self.w_add_btn.show()
+            self.w_file_btn.show()
             self.w_protx_btn.hide()
             self.w_del_btn.hide()
             self.w_up_params_btn.hide()
@@ -737,9 +760,8 @@ class Dip3TabWidget(QTabWidget):
             self.w_up_srv_btn.hide()
             self.w_up_reg_btn.hide()
             return
-
-        if not self.manager.diffs_ready:
-            return
+        self.w_add_btn.hide()
+        self.w_file_btn.hide()
 
         idx = sel.selectedRows()[0]
         self.w_cur_alias = idx.data()
