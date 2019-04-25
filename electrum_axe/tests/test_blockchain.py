@@ -76,7 +76,7 @@ class TestBlockchain(SequentialTestCase):
             forkpoint_hash=constants.net.GENESIS, prev_hash=None)
         open(chain_u.path(), 'w+').close()
 
-        print(self.HEADERS['A'],chain_u)
+        print(self.HEADERS)
 
         self._append_header(chain_u, self.HEADERS['A'])
         self._append_header(chain_u, self.HEADERS['B'])
