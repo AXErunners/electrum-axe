@@ -13,8 +13,8 @@ from . import SequentialTestCase
 class TestBlockchain(SequentialTestCase):
 
     HEADERS = {
-        'A': deserialize_header(bfh("010000000000000000000000000000000000000000000000000000000000000000000000c762a6567f3cc092f0684bb62b7e00a84890b990f07cc71a6bb58d64b98e02e0 b9968054 ffff7f20 ffba1000"), 0),
-        'B': deserialize_header(bfh("000000202e3df23eec5cd6a86edd509539028e2c3a3dc05315eb28f2baa43218ca080000186c8dfd970a4545f79916bc1d75c9d00432f57c89209bf3bb115b7612848f509c25f45bffff7f2000000000"), 1),
+        'A': deserialize_header(bfh("010000000000000000000000000000000000000000000000000000000000000000000000aca7c2e70971cc949b615f61a6326e33a43cc7ffcdec1a7ff4047f1dc3087a9847fb7c5af0ff0f1ec6030e00"), 0),
+        'B': deserialize_header(bfh("00000020e6528eb36dbafb5cdecef70bb55b6b3003dce21c996813f6f2a61c63330c0000dd04fe6621d9c3b30ec6884b328ad502074f7422adf3c5b5534b6c78431216ba15fe7c5af0ff0f1e43030000"), 1),
         'C': deserialize_header(bfh("000000200a8be74779a59fec4f56abd6ce33bf2a8a1e896b0290a2aba90cf8fa6e6a88f7bf2cbf153013a1c54abaf70e95198fcef2f3059cc6b4d0f7e876808e7d24d11cc825f45bffff7f2000000000"), 2),
         'D': deserialize_header(bfh("000000204a030521422dda1f980cfc2b38149edd3d8eab547e6efa3ab855048feb68dbdae71019d7feecd9b8596eca9a67032c5f4641b23b5d731dc393e37de7f9c2f299e725f45bffff7f2000000000"), 3),
         'E': deserialize_header(bfh("00000020e39959c005b364248b24a17a72fcfe89d8478c71645b85edd444031ef5e5f896a3586da94c71753f27c075f57f44faf913c31177a0957bbda42e7699e3a2141aed25f45bffff7f2001000000"), 4),
@@ -76,7 +76,7 @@ class TestBlockchain(SequentialTestCase):
             forkpoint_hash=constants.net.GENESIS, prev_hash=None)
         open(chain_u.path(), 'w+').close()
 
-        print(self.HEADERS)
+        #print(self.HEADERS)
 
         self._append_header(chain_u, self.HEADERS['A'])
         self._append_header(chain_u, self.HEADERS['B'])
