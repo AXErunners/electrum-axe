@@ -87,8 +87,8 @@ class TestTransaction(SequentialTestCase):
         self.assertEqual(tx.deserialize(), None)
 
         self.assertEqual(tx.as_dict(), {'hex': unsigned_blob, 'complete': False, 'final': True})
-        self.assertEqual(tx.get_outputs(), [('PQCuFncFVzYhuoyv9MCSE5nQU2gwr56uh4', 99999040)])
-        self.assertEqual(tx.get_output_addresses(), ['PQCuFncFVzYhuoyv9MCSE5nQU2gwr56uh4'])
+        self.assertEqual(tx.get_outputs_for_UI(), [('PQCuFncFVzYhuoyv9MCSE5nQU2gwr56uh4', 99999040)])
+        #self.assertEqual(tx.get_output_addresses(), ['PQCuFncFVzYhuoyv9MCSE5nQU2gwr56uh4'])
 
         self.assertTrue(tx.has_address('PQCuFncFVzYhuoyv9MCSE5nQU2gwr56uh4'))
         self.assertTrue(tx.has_address('PQMDbX7KC3Z6nkpkptBb19vkoEaaFo5K5o'))
