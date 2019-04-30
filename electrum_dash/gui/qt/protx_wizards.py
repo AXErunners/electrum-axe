@@ -205,7 +205,7 @@ class ImportLegacyWizardPage(QWizardPage):
     @pyqtSlot()
     def load_masternode_conf(self):
         dlg = QFileDialog
-        conf_fname = dlg.getOpenFileName(self, 'Open masternode.con',
+        conf_fname = dlg.getOpenFileName(self, 'Open masternode.conf',
                                          '', 'Conf Files (*.conf)')[0]
         if not conf_fname:
             return
@@ -639,7 +639,7 @@ class BlsKeysWizardPage(QWizardPage):
                 return True
 
             if len(bls_pub) != 96:
-                self.show_error('Wrong lenght of BLS public key')
+                self.show_error('Wrong length of BLS public key')
                 return False
             if bls_pub.strip('01234567890abcdefABCDEF'):
                 self.show_error('Wrong format of BLS public key')
@@ -1200,7 +1200,7 @@ class UpdSrvWizardPage(QWizardPage):
         self.srv_port = SLineEdit()
         self.srv_port.textChanged.connect(self.on_service_changed)
 
-        self.op_p_addr_label = QLabel('Operarot Payout Address:')
+        self.op_p_addr_label = QLabel('Operator Payout Address:')
         self.op_p_addr = SComboBox()
         self.op_p_addr.setEditable(True)
         self.op_p_addr_label.hide()
@@ -1602,7 +1602,7 @@ class FileOpTypeWizardPage(QWizardPage):
         super(FileOpTypeWizardPage, self).__init__(parent)
         self.parent = parent
         self.setTitle('Operation type')
-        self.setSubTitle('Select opeartion type.')
+        self.setSubTitle('Select operation type.')
 
         self.rb_export = QRadioButton('Export DIP3 Masternodes to file')
         self.rb_import = QRadioButton('Import DIP3 Masternodes from file')
