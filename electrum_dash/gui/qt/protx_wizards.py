@@ -1463,7 +1463,7 @@ class Dip3MasternodeWizard(QWizard):
         if not alias:
             raise ValidationError('Alias not set')
         if len(alias) > 32:
-            raise ValidationError('Masternode alias can not be longer '
+            raise ValidationError('Masternode alias cannot be longer '
                                   'than 32 characters')
         if alias in self.manager.mns.keys():
             raise ValidationError('Masternode with alias %s already exists' %
@@ -1550,11 +1550,11 @@ class Dip3MasternodeWizard(QWizard):
         keystore = self.wallet.keystore
         if not hasattr(keystore, 'sign_digest') and not ignore_hw_warn:
             raise HwWarnError('Warning: sign_digest not implemented in '
-                              'hardware wallet keystores. You can not use '
-                              'this wallet to sign ProUpRegTx. However you '
-                              'can register masternode. But in future it is '
-                              'not possible to change voting/payout addresses '
-                              'and operator public BLS key')
+                              'hardware wallet keystores. You cannot use '
+                              'this wallet to sign a ProUpRegTx. You '
+                              'can register a masternode, but in the future it '
+                              'will not be possible to change voting/payout '
+                              'addresses or the operator public BLS key')
 
         if not is_b58_address(v_addr):
             raise ValidationError('Wrong voting address format')
