@@ -81,11 +81,11 @@ class OperationTypeWizardPage(QWizardPage):
         super(OperationTypeWizardPage, self).__init__(parent)
         self.parent = parent
         self.setTitle('Operation type')
-        self.setSubTitle('Select opeartion type and ownership properties.')
+        self.setSubTitle('Select operation type and ownership properties.')
 
         self.rb_import = QRadioButton('Import and register legacy Masternode '
                                       'as DIP3 Masternode')
-        self.rb_create = QRadioButton('Create and registern DIP3 Masternode')
+        self.rb_create = QRadioButton('Create and register DIP3 Masternode')
         self.rb_connect = QRadioButton('Connect to registered DIP3 Masternode')
         self.rb_import.setChecked(True)
         self.rb_connect.setEnabled(False)
