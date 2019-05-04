@@ -221,7 +221,8 @@ class MessageBoxMixin(object):
                             title or _('Information'), msg, **kwargs)
 
     def msg_box(self, icon, parent, title, text, buttons=QMessageBox.Ok,
-                defaultButton=QMessageBox.NoButton, rich_text=False):
+                defaultButton=QMessageBox.NoButton, *, rich_text=False,
+                checkbox=None):
         parent = parent or self.top_level_window()
         if type(icon) is QPixmap:
             d = QMessageBox(QMessageBox.Information, title, str(text), buttons, parent)
@@ -236,6 +237,8 @@ class MessageBoxMixin(object):
         else:
             d.setTextInteractionFlags(Qt.TextSelectableByMouse)
             d.setTextFormat(Qt.PlainText)
+        if checkbox is not None:
+            d.setCheckBox(checkbox)
         return d.exec_()
 
 class WindowModalDialog(QDialog, MessageBoxMixin):
@@ -551,9 +554,10 @@ class MyTreeView(QTreeView):
             # we did not find the filter in any columns, hide the item
             self.setRowHidden(row_num, QModelIndex(), True)
 
-    def filter(self, p):
-        p = p.lower()
-        self.current_filter = p
+    def filter(self, p=None):
+        if p is not None:
+            p = p.lower()
+            self.current_filter = p
         self.hide_rows()
 
     def hide_rows(self):
@@ -720,6 +724,7 @@ class ColorScheme:
     YELLOW = ColorSchemeItem("#897b2a", "#ffff00")
     RED = ColorSchemeItem("#7c1111", "#f18c8c")
     BLUE = ColorSchemeItem("#123b7c", "#8cb3f2")
+    PURPLE = ColorSchemeItem("#8A2BE2", "#8A2BE2")
     DEFAULT = ColorSchemeItem("#818181", "white")
 
     @staticmethod

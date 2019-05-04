@@ -14,5 +14,14 @@
     "CoinMarketCap": [
         "BTC",
         "USD"
+    ],
+    "CoinCap": [
+        "USD"
+    ],
+    "CoinGecko": [
+        "BTC",
+        "EUR",
+        "USD",
+        "PLN"
     ]
 }

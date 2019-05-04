@@ -5,16 +5,18 @@ import datetime
 import locale
 from decimal import Decimal
 import getpass
+import logging
 
 import electrum_dash
 from electrum_dash.dash_tx import SPEC_TX_NAMES
-from electrum_dash.util import format_satoshis, set_verbosity
+from electrum_dash.util import format_satoshis
 from electrum_dash.bitcoin import is_address, COIN, TYPE_ADDRESS
 from electrum_dash.transaction import TxOutput
 from electrum_dash.wallet import Wallet
 from electrum_dash.storage import WalletStorage
 from electrum_dash.network import NetworkParameters, TxBroadcastError, BestEffortRequestFailed
 from electrum_dash.interface import deserialize_server
+from electrum_dash.logging import console_stderr_handler
 
 _ = lambda x:x  # i18n
 
@@ -53,7 +55,7 @@ class ElectrumGui:
         self.set_cursor(0)
         self.w = curses.newwin(10, 50, 5, 5)
 
-        set_verbosity(False)
+        console_stderr_handler.setLevel(logging.CRITICAL)
         self.tab = 0
         self.pos = 0
         self.popup_pos = 0

@@ -1,13 +1,15 @@
 from decimal import Decimal
 import getpass
 import datetime
+import logging
 
 from electrum_dash import WalletStorage, Wallet
 from electrum_dash.dash_tx import SPEC_TX_NAMES
-from electrum_dash.util import format_satoshis, set_verbosity
+from electrum_dash.util import format_satoshis
 from electrum_dash.bitcoin import is_address, COIN, TYPE_ADDRESS
 from electrum_dash.transaction import TxOutput
 from electrum_dash.network import TxBroadcastError, BestEffortRequestFailed
+from electrum_dash.logging import console_stderr_handler
 
 _ = lambda x:x  # i18n
 
@@ -31,7 +33,7 @@ class ElectrumGui:
         self.done = 0
         self.last_balance = ""
 
-        set_verbosity(False)
+        console_stderr_handler.setLevel(logging.CRITICAL)
 
         self.str_recipient = ""
         self.str_description = ""

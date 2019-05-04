@@ -5,7 +5,7 @@ import sys
 from electrum_dash.util import (bfh, bh2u, versiontuple, UserCancelled,
                                 UserFacingException)
 from electrum_dash.bitcoin import TYPE_ADDRESS, TYPE_SCRIPT
-from electrum_dash.bip32 import deserialize_xpub
+from electrum_dash.bip32 import BIP32Node
 from electrum_dash import constants
 from electrum_dash.i18n import _
 from electrum_dash.plugin import Device
@@ -122,31 +122,31 @@ class HideezPlugin(HW_PluginBase):
 
     def create_client(self, device, handler):
         try:
-            self.print_error("connecting to device at", device.path)
+            self.logger.info(f"connecting to device at {device.path}")
             transport = self.transport_handler.get_transport(device.path)
         except BaseException as e:
-            self.print_error("cannot connect at", device.path, str(e))
+            self.logger.info(f"cannot connect at {device.path} {e}")
             return None
 
         if not transport:
-            self.print_error("cannot connect at", device.path)
+            self.logger.info(f"cannot connect at {device.path}")
             return
 
-        self.print_error("connected to device at", device.path)
+        self.logger.info(f"connected to device at {device.path}")
         client = self.client_class(transport, handler, self)
 
         # Try a ping for device sanity
         try:
             client.ping('t')
         except BaseException as e:
-            self.print_error("ping failed", str(e))
+            self.logger.info(f"ping failed {e}")
             return None
 
         if not client.atleast_version(*self.minimum_firmware):
             msg = (_('Outdated {} firmware for device labelled {}. Please '
                      'download the updated firmware from {}')
                    .format(self.device, client.label(), self.firmware_URL))
-            self.print_error(msg)
+            self.logger.info(msg)
             if handler:
                 handler.show_error(msg)
             else:
@@ -170,13 +170,13 @@ class HideezPlugin(HW_PluginBase):
         return "Dash Testnet" if constants.net.TESTNET else "Dash"
 
     def _make_node_path(self, xpub, address_n):
-        _, depth, fingerprint, child_num, chain_code, key = deserialize_xpub(xpub)
+        bip32node = BIP32Node.from_xkey(xpub)
         node = self.types.HDNodeType(
-            depth=depth,
-            fingerprint=int.from_bytes(fingerprint, 'big'),
-            child_num=int.from_bytes(child_num, 'big'),
-            chain_code=chain_code,
-            public_key=key,
+            depth=bip32node.depth,
+            fingerprint=int.from_bytes(bip32node.fingerprint, 'big'),
+            child_num=int.from_bytes(bip32node.child_number, 'big'),
+            chain_code=bip32node.chaincode,
+            public_key=bip32node.eckey.get_public_key_bytes(compressed=True),
         )
         return self.types.HDNodePathType(node=node, address_n=address_n)
 
