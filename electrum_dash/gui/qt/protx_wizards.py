@@ -81,11 +81,11 @@ class OperationTypeWizardPage(QWizardPage):
         super(OperationTypeWizardPage, self).__init__(parent)
         self.parent = parent
         self.setTitle('Operation type')
-        self.setSubTitle('Select opeartion type and ownership properties.')
+        self.setSubTitle('Select operation type and ownership properties.')
 
         self.rb_import = QRadioButton('Import and register legacy Masternode '
                                       'as DIP3 Masternode')
-        self.rb_create = QRadioButton('Create and registern DIP3 Masternode')
+        self.rb_create = QRadioButton('Create and register DIP3 Masternode')
         self.rb_connect = QRadioButton('Connect to registered DIP3 Masternode')
         self.rb_import.setChecked(True)
         self.rb_connect.setEnabled(False)
@@ -205,7 +205,7 @@ class ImportLegacyWizardPage(QWizardPage):
     @pyqtSlot()
     def load_masternode_conf(self):
         dlg = QFileDialog
-        conf_fname = dlg.getOpenFileName(self, 'Open masternode.con',
+        conf_fname = dlg.getOpenFileName(self, 'Open masternode.conf',
                                          '', 'Conf Files (*.conf)')[0]
         if not conf_fname:
             return
@@ -639,7 +639,7 @@ class BlsKeysWizardPage(QWizardPage):
                 return True
 
             if len(bls_pub) != 96:
-                self.show_error('Wrong lenght of BLS public key')
+                self.show_error('Wrong length of BLS public key')
                 return False
             if bls_pub.strip('01234567890abcdefABCDEF'):
                 self.show_error('Wrong format of BLS public key')
@@ -1200,7 +1200,7 @@ class UpdSrvWizardPage(QWizardPage):
         self.srv_port = SLineEdit()
         self.srv_port.textChanged.connect(self.on_service_changed)
 
-        self.op_p_addr_label = QLabel('Operarot Payout Address:')
+        self.op_p_addr_label = QLabel('Operator Payout Address:')
         self.op_p_addr = SComboBox()
         self.op_p_addr.setEditable(True)
         self.op_p_addr_label.hide()
@@ -1463,7 +1463,7 @@ class Dip3MasternodeWizard(QWizard):
         if not alias:
             raise ValidationError('Alias not set')
         if len(alias) > 32:
-            raise ValidationError('Masternode alias can not be longer '
+            raise ValidationError('Masternode alias cannot be longer '
                                   'than 32 characters')
         if alias in self.manager.mns.keys():
             raise ValidationError('Masternode with alias %s already exists' %
@@ -1550,11 +1550,11 @@ class Dip3MasternodeWizard(QWizard):
         keystore = self.wallet.keystore
         if not hasattr(keystore, 'sign_digest') and not ignore_hw_warn:
             raise HwWarnError('Warning: sign_digest not implemented in '
-                              'hardware wallet keystores. You can not use '
-                              'this wallet to sign ProUpRegTx. However you '
-                              'can register masternode. But in future it is '
-                              'not possible to change voting/payout addresses '
-                              'and operator public BLS key')
+                              'hardware wallet keystores. You cannot use '
+                              'this wallet to sign a ProUpRegTx. You '
+                              'can register a masternode, but in the future it '
+                              'will not be possible to change voting/payout '
+                              'addresses or the operator public BLS key')
 
         if not is_b58_address(v_addr):
             raise ValidationError('Wrong voting address format')
@@ -1602,7 +1602,7 @@ class FileOpTypeWizardPage(QWizardPage):
         super(FileOpTypeWizardPage, self).__init__(parent)
         self.parent = parent
         self.setTitle('Operation type')
-        self.setSubTitle('Select opeartion type.')
+        self.setSubTitle('Select operation type.')
 
         self.rb_export = QRadioButton('Export DIP3 Masternodes to file')
         self.rb_import = QRadioButton('Import DIP3 Masternodes from file')
