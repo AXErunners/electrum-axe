@@ -550,7 +550,7 @@ class Plugin(RevealerPlugin):
 
         if not calibration_sheet:
             if is_cseed: #its a secret
-                painter.setPen(QPen(Qt.black, 1, Qt.AxeDotDotLine))
+                painter.setPen(QPen(Qt.black, 1, Qt.DashDotDotLine))
                 painter.drawLine(0, dist_v, base_img.width(), dist_v)
                 painter.drawLine(dist_h, 0,  dist_h, base_img.height())
                 painter.drawLine(0, base_img.height()-dist_v, base_img.width(), base_img.height()-(dist_v))
@@ -651,7 +651,7 @@ class Plugin(RevealerPlugin):
             cal_painter.drawImage(0,0, base_img)
 
             #black lines in the middle of border top left only
-            cal_painter.setPen(QPen(Qt.black, 1, Qt.AxeDotDotLine))
+            cal_painter.setPen(QPen(Qt.black, 1, Qt.DashDotDotLine))
             cal_painter.drawLine(0, dist_v, base_img.width(), dist_v)
             cal_painter.drawLine(dist_h, 0,  dist_h, base_img.height())
 
