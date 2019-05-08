@@ -457,7 +457,7 @@ class AddressSynchronizer(Logger):
         for tx_hash, tx_mined_status, delta in history:
             tx_type = 0
             if show_dip2:
-                tx = self.transactions.get(tx_hash)
+                tx = self.db.get_transaction(tx_hash)
                 if tx:
                     tx_type = tx_header_to_tx_type(bfh(tx.raw[:8]))
             h2.append((tx_hash, tx_type, tx_mined_status, delta, balance))

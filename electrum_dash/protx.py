@@ -648,7 +648,7 @@ class ProTxManager(Logger):
         self.notify('manager-info-updated')
 
     def on_verified_tx(self, event, wallet, tx_hash, tx_mined_status):
-        tx = wallet.transactions.get(tx_hash)
+        tx = wallet.db.get_transaction(tx_hash)
         if not tx:
             return
         conf = tx_mined_status.conf
