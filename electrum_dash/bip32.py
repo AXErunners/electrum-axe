@@ -111,38 +111,6 @@ def xpub_header(xtype: str, *, net=None) -> bytes:
 class InvalidMasterKeyVersionBytes(BitcoinException): pass
 
 
-def deserialize_drk(xkey, prv, *, net=None):
-    if net is None:
-        net = constants.net
-    xkey = DecodeBase58Check(xkey)
-    if len(xkey) != 78:
-        raise BitcoinException('Invalid length for extended key: {}'
-                               .format(len(xkey)))
-    depth = xkey[4]
-    fingerprint = xkey[5:9]
-    child_number = xkey[9:13]
-    c = xkey[13:13+32]
-    header = int('0x' + bh2u(xkey[0:4]), 16)
-    if prv and header != net.DRKV_HEADER:
-        raise BitcoinException('Invalid extended key format: {}'
-                               .format(hex(header)))
-    if not prv and header != net.DRKP_HEADER:
-        raise BitcoinException('Invalid extended key format: {}'
-                               .format(hex(header)))
-    xtype = 'standard'
-    n = 33 if prv else 32
-    K_or_k = xkey[13+n:]
-    if prv and not ecc.is_secret_within_curve_range(K_or_k):
-        raise BitcoinException('Impossible drkv (not within curve order)')
-    return xtype, depth, fingerprint, child_number, c, K_or_k
-
-
-def deserialize_drkp(xkey, *, net=None):
-    return deserialize_drk(xkey, False, net=net)
-
-def deserialize_drkv(xkey, *, net=None):
-    return deserialize_drk(xkey, True, net=net)
-
 class BIP32Node(NamedTuple):
     xtype: str
     eckey: Union[ecc.ECPubkey, ecc.ECPrivkey]
@@ -169,6 +137,14 @@ class BIP32Node(NamedTuple):
             is_private = True
         elif header in net.XPUB_HEADERS_INV:
             headers_inv = net.XPUB_HEADERS_INV
+            is_private = False
+        elif header == net.DRKV_HEADER:
+            headers_inv = net.XPRV_HEADERS_INV
+            header = net.XPRV_HEADERS['standard']
+            is_private = True
+        elif header == net.DRKP_HEADER:
+            headers_inv = net.XPUB_HEADERS_INV
+            header = net.XPUB_HEADERS['standard']
             is_private = False
         else:
             raise InvalidMasterKeyVersionBytes(f'Invalid extended key format: {hex(header)}')
@@ -293,22 +269,6 @@ def is_xprv(text):
     try:
         node = BIP32Node.from_xkey(text)
         return node.is_private()
-    except:
-        return False
-
-
-def is_drkp(text):
-    try:
-        deserialize_drkp(text)
-        return True
-    except:
-        return False
-
-
-def is_drkv(text):
-    try:
-        deserialize_drkv(text)
-        return True
     except:
         return False
 

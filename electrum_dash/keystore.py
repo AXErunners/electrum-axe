@@ -32,9 +32,7 @@ from . import bitcoin, ecc, constants, bip32
 from .bitcoin import (deserialize_privkey, serialize_privkey,
                       public_key_to_p2pkh)
 from .bip32 import (convert_bip32_path_to_list_of_uint32, BIP32_PRIME,
-                    is_xpub, is_xprv, BIP32Node,
-                    deserialize_drkv, deserialize_drkp, is_drkv, is_drkp,
-                    serialize_xpub, serialize_xprv)
+                    is_xpub, is_xprv, BIP32Node)
 from .ecc import string_to_number, number_to_string
 from .crypto import (pw_decode, pw_encode, sha256, sha256d, PW_HASH_VERSION_LATEST,
                      SUPPORTED_PW_HASH_VERSIONS, UnsupportedPasswordHashVersion)
@@ -762,7 +760,6 @@ def is_private_key_list(text, *, allow_spaces_inside_key=True, raise_on_error=Fa
 is_mpk = lambda x: is_old_mpk(x) or is_xpub(x)
 is_private = lambda x: is_seed(x) or is_xprv(x) or is_private_key_list(x)
 is_master_key = lambda x: is_old_mpk(x) or is_xprv(x) or is_xpub(x)
-is_master_key_plus_drk = lambda x: is_drkp(x) or is_drkv(x) or is_master_key(x)
 is_private_key = lambda x: is_xprv(x) or is_private_key_list(x)
 is_bip32_key = lambda x: is_xprv(x) or is_xpub(x)
 
@@ -800,31 +797,16 @@ def from_old_mpk(mpk):
     return keystore
 
 def from_xpub(xpub):
+    node = BIP32Node.from_xkey(xpub)
     k = BIP32_KeyStore({})
-    k.xpub = xpub
+    k.xpub = node.to_xpub()
     return k
 
 def from_xprv(xprv):
-    xpub = bip32.xpub_from_xprv(xprv)
+    node = BIP32Node.from_xkey(xprv)
     k = BIP32_KeyStore({})
-    k.xprv = xprv
-    k.xpub = xpub
-    return k
-
-def from_drkp(drkp):
-    xtype, depth, fingerprint, child_number, c, cK = deserialize_drkp(drkp)
-    xpub = serialize_xpub(xtype, c, cK, depth, fingerprint, child_number)
-    k = BIP32_KeyStore({})
-    k.xpub = xpub
-    return k
-
-def from_drkv(drkv):
-    xtype, depth, fingerprint, child_number, c, k = deserialize_drkv(drkv)
-    xprv = serialize_xprv(xtype, c, k, depth, fingerprint, child_number)
-    xpub = bip32.xpub_from_xprv(xprv)
-    k = BIP32_KeyStore({})
-    k.xprv = xprv
-    k.xpub = xpub
+    k.xprv = node.to_xprv()
+    k.xpub = node.to_xpub()
     return k
 
 def from_master_key(text):
@@ -834,10 +816,6 @@ def from_master_key(text):
         k = from_old_mpk(text)
     elif is_xpub(text):
         k = from_xpub(text)
-    elif is_drkv(text):
-        k = from_drkv(text)
-    elif is_drkp(text):
-        k = from_drkp(text)
     else:
         raise BitcoinException('Invalid master key')
     return k

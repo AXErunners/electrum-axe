@@ -221,7 +221,7 @@ class BaseWizard(Logger):
 
     def restore_from_key(self):
         if self.wallet_type == 'standard':
-            v = keystore.is_master_key_plus_drk
+            v = keystore.is_master_key
             title = _("Create keystore from a master key")
             message = ' '.join([
                 _("To create a watching-only wallet, please enter your master public key (xpub/drkp)."),

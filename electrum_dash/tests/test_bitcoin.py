@@ -556,34 +556,33 @@ class Test_drk_import(SequentialTestCase):
     xtype = 'standard'
 
     @needs_test_with_all_ecc_implementations
-    def check_deserialized(self, deserialized, prv):
-        xtype, depth, fpr, child_number, c, K = deserialized
+    def check_from_x(self, x, prv):
+        node = BIP32Node.from_xkey(x)
 
-        self.assertEqual(self.xtype, xtype)
-        self.assertEqual(1, depth)
-        self.assertEqual(self.master_fpr, bh2u(fpr))
-        self.assertEqual(self.child_num, bh2u(child_number))
-        self.assertEqual(self.chain_code, bh2u(c))
+        self.assertEqual(self.xtype, node.xtype)
+        self.assertEqual(1, node.depth)
+        self.assertEqual(self.master_fpr, bh2u(node.fingerprint))
+        self.assertEqual(self.child_num, bh2u(node.child_number))
+        self.assertEqual(self.chain_code, bh2u(node.chaincode))
+        self.assertEqual(self.pub_key, node.eckey.get_public_key_hex())
         if prv:
-            self.assertEqual(self.sec_key, bh2u(K))
-        else:
-            self.assertEqual(self.pub_key, bh2u(K))
+            self.assertEqual(self.sec_key, bh2u(node.eckey.get_secret_bytes()))
 
     @needs_test_with_all_ecc_implementations
-    def test_deserialize_xpub(self):
-        self.check_deserialized(deserialize_xpub(self.xpub), False)
+    def test_from_xpub(self):
+        self.check_from_x(self.xpub, False)
 
     @needs_test_with_all_ecc_implementations
-    def test_deserialize_xprv(self):
-        self.check_deserialized(deserialize_xprv(self.xprv), True)
+    def test_from_xprv(self):
+        self.check_from_x(self.xprv, True)
 
     @needs_test_with_all_ecc_implementations
-    def test_deserialize_drkp(self):
-        self.check_deserialized(deserialize_drkp(self.drkp), False)
+    def test_from_drkp(self):
+        self.check_from_x(self.drkp, False)
 
     @needs_test_with_all_ecc_implementations
-    def test_deserialize_drkv(self):
-        self.check_deserialized(deserialize_drkv(self.drkv), True)
+    def test_from_drkv(self):
+        self.check_from_x(self.drkv, True)
 
     @needs_test_with_all_ecc_implementations
     def test_keystore_from_xpub(self):
