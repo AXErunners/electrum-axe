@@ -13,8 +13,9 @@ from .dash_tx import (TxOutPoint, ProTxService, DashProRegTx, DashProUpServTx,
                       DashProUpRegTx, DashProUpRevTx, DashCbTx, SPEC_PRO_REG_TX,
                       SPEC_PRO_UP_SERV_TX, SPEC_PRO_UP_REG_TX, SPEC_PRO_UP_REV_TX)
 from .transaction import Transaction, BCDataStream, SerializationError
-from .util import PrintError, bfh, bh2u, hfu
+from .util import bfh, bh2u, hfu
 from .verifier import SPV
+from .logging import Logger
 
 
 PROTX_TX_TYPES = [
@@ -135,12 +136,13 @@ class ProTxManagerExc(Exception): pass
 class ProRegTxExc(Exception): pass
 
 
-class ProTxManager(PrintError):
+class ProTxManager(Logger):
     DIP3_DISABLED = 0
     DIP3_ENABLED = 1
     DIP3_UNKNOWN = 2
 
     def __init__(self, wallet):
+        Logger.__init__(self)
         self.wallet = wallet
         self.network = None
         self.mns = {}  # Wallet MNs
@@ -471,7 +473,7 @@ class ProTxManager(PrintError):
 
         error = value.get('error')
         if error:
-            self.print_error('on_protx_diff: error: %s' % error)
+            self.logger.error(f'on_protx_diff: error: {error}')
             self.protx_state = ProTxManager.DIP3_DISABLED
             self.notify('manager-diff-updated')
             return
@@ -488,14 +490,14 @@ class ProTxManager(PrintError):
 
         cbtx_extra = cbtx.extra_payload
         if not isinstance(cbtx_extra, DashCbTx):
-            self.print_error('on_protx_diff: wrong CbTx extra_payload')
+            self.logger.error('on_protx_diff: wrong CbTx extra_payload')
             self.protx_state = ProTxManager.DIP3_DISABLED
             self.notify('manager-diff-updated')
             return
 
         if cbtx_extra.version > 2:
-            self.print_error('on_protx_diff: unkonw CbTx version %s' %
-                             cbtx_extra.version)
+            self.logger.error(f'on_protx_diff: unkonw CbTx '
+                              f'version {cbtx_extra.version}')
             self.protx_state = ProTxManager.DIP3_DISABLED
             self.notify('manager-diff-updated')
             return
@@ -569,15 +571,15 @@ class ProTxManager(PrintError):
         mr_calculated = hfu(sml_hashes[0][::-1])
         mr_diff = protx_diff.get('merkleRootMNList', '').encode('utf-8')
         if mr_calculated != mr_diff:
-            self.print_error('on_protx_diff: SML merkle root '
-                             'differs from protx.diff merkle root')
+            self.logger.error('on_protx_diff: SML merkle root '
+                              'differs from protx.diff merkle root')
             return
 
         # Check merkle root to match CbTx merkleRootMNList
         mr_cbtx = hfu(cbtx_extra.merkleRootMNList[::-1])
         if mr_calculated != mr_cbtx:
-            self.print_error('on_protx_diff: SML merkle root '
-                             'differs from CbTx merkle root')
+            self.logger.error('on_protx_diff: SML merkle root '
+                              'differs from CbTx merkle root')
             return
 
         # Check CbTx in blockchain
@@ -587,8 +589,8 @@ class ProTxManager(PrintError):
         pmt = PartialMerkleTree.read_bytes(bfh(cbtx_merkle_tree)).hashes
 
         if cbtx_txid != pmt[0]:
-            self.print_error('on_protx_diff: CbTx txid differs '
-                             'from merkle tree hash 0')
+            self.logger.error('on_protx_diff: CbTx txid differs '
+                              'from merkle tree hash 0')
             return
 
         pmt.pop(0)  # remove cbtx_txid
@@ -599,13 +601,13 @@ class ProTxManager(PrintError):
 
         cbtx_header = self.network.blockchain().read_header(cbtx_height)
         if not cbtx_header or not 'merkle_root' in cbtx_header:
-            self.print_error('on_protx_diff: can not read blockchain'
-                             'header to check merkle root')
+            self.logger.error('on_protx_diff: can not read blockchain'
+                              'header to check merkle root')
             return
 
         if cbtx_header['merkle_root'] != merkle_root_calculated:
-            self.print_error('on_protx_diff: CbTx calculated merkle root '
-                             'differs from blockchain merkle root')
+            self.logger.error('on_protx_diff: CbTx calculated merkle root '
+                              'differs from blockchain merkle root')
             return
 
         self.protx_mns = protx_new
@@ -631,14 +633,14 @@ class ProTxManager(PrintError):
 
         error = value.get('error')
         if error:
-            self.print_error('on_protx_info: error: %s' % error)
+            self.logger.error('on_protx_info: error: {error}')
             return
 
         protx_info = value.get('result')
         protx_hash = protx_info.get('proTxHash', '')
 
         if not protx_hash:
-            self.print_error('on_protx_info: empty result')
+            self.logger.error('on_protx_info: empty result')
             return
 
         self.protx_info[protx_hash] = protx_info

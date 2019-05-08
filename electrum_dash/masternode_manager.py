@@ -8,8 +8,13 @@ from . import ecc
 from .blockchain import hash_header
 from .masternode import MasternodeAnnounce, NetworkAddress
 from .masternode_budget import BudgetProposal, BudgetVote
-from .util import AlreadyHaveAddress, print_error, bfh
+from .util import AlreadyHaveAddress, bfh
 from .util import format_satoshis_plain
+from .logging import get_logger
+
+
+_logger = get_logger(__name__)
+
 
 BUDGET_FEE_CONFIRMATIONS = 6
 BUDGET_FEE_TX = 5 * bitcoin.COIN
@@ -73,7 +78,8 @@ def parse_proposals_subscription_result(results):
         kwargs['payment_amount'] = pow(10, 8) * payment_amount
         proposals.append(BudgetProposal.from_dict(kwargs))
 
-    print_error('Received updated budget proposal information (%d proposals)' % len(proposals))
+    _logger.error(f'Received updated budget proposal information '
+                  f'({len(proposals)} proposals)')
     return proposals
 
 class MasternodeManager(object):
@@ -361,7 +367,7 @@ class MasternodeManager(object):
             try:
                 self.populate_masternode_output(mn.alias)
             except Exception as e:
-                print_error(str(e))
+                _logger.error(str(e))
             num_imported += 1
 
         return num_imported
@@ -474,7 +480,8 @@ class MasternodeManager(object):
         """Create a fee transaction for proposal_name."""
         proposal = self.get_proposal(proposal_name)
         if proposal.fee_txid:
-            print_error('Warning: Proposal "%s" already has a fee tx: %s' % (proposal_name, proposal.fee_txid))
+            _logger.error(f'Warning: Proposal "{proposal_name}" already '
+                          f'has a fee tx: {proposal.fee_txid}')
         if proposal.submitted:
             raise Exception('Proposal has already been submitted')
 
@@ -559,5 +566,6 @@ class MasternodeManager(object):
         status = response['result']
         if status is None:
             status = False
-        print_error('Received updated status for masternode %s: "%s"' % (mn.alias, status))
+        _logger.info(f'Received updated status for masternode '
+                      f'{mn.alias}: "{status}"')
         self.masternode_statuses[collateral] = status
