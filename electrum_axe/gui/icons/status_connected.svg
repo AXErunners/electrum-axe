@@ -1,85 +1,173 @@
-<?xml version="1.0" standalone="no"?>
-<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 20010904//EN"
- "http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd">
-<svg version="1.0" xmlns="http://www.w3.org/2000/svg"
- width="480.000000pt" height="480.000000pt" viewBox="0 0 480.000000 480.000000"
- preserveAspectRatio="xMidYMid meet">
-<metadata>
-Created by potrace 1.15, written by Peter Selinger 2001-2017
-</metadata>
-<g transform="translate(0.000000,480.000000) scale(0.100000,-0.100000)"
-fill="#000000" stroke="none">
-<path d="M2385 4628 c-33 -5 -62 -13 -65 -18 -3 -4 -33 -16 -67 -25 -35 -10
--63 -21 -63 -24 0 -4 -24 -15 -52 -26 -29 -10 -55 -22 -58 -25 -3 -4 -22 -16
--42 -26 -133 -68 -208 -109 -208 -115 0 -4 -18 -14 -41 -23 -23 -9 -48 -24
--56 -32 -9 -8 -22 -13 -30 -10 -8 3 -11 2 -8 -3 3 -5 -4 -12 -15 -16 -11 -3
--20 -10 -20 -14 0 -5 -13 -14 -30 -21 -16 -7 -30 -17 -30 -23 0 -6 -3 -8 -6
--4 -3 3 -11 1 -18 -4 -6 -5 -36 -25 -66 -44 -30 -19 -60 -39 -67 -44 -7 -6
--28 -18 -47 -28 -20 -9 -36 -20 -36 -25 0 -4 -14 -15 -32 -24 -17 -9 -36 -20
--42 -25 -39 -33 -107 -69 -118 -63 -7 4 -10 4 -6 -1 7 -8 -57 -65 -73 -65 -5
-0 -17 -7 -26 -16 -45 -39 -173 -115 -185 -108 -7 4 -10 4 -6 -1 4 -4 -9 -21
--30 -36 -20 -16 -48 -38 -61 -50 -13 -11 -30 -18 -38 -15 -8 3 -12 2 -9 -2 2
--4 2 -12 -2 -18 -13 -17 -87 -69 -95 -66 -5 1 -6 -2 -3 -6 7 -12 -28 -44 -39
--35 -4 5 -5 3 -2 -3 7 -13 -30 -60 -44 -57 -4 2 -6 -3 -3 -11 3 -7 -2 -21 -12
--30 -27 -28 -44 -104 -44 -199 0 -93 26 -288 40 -297 14 -9 40 -191 40 -277 0
--46 4 -83 8 -83 5 0 14 -39 21 -87 7 -48 16 -92 20 -98 5 -5 17 -45 27 -87 10
--43 21 -78 25 -78 4 0 16 -36 26 -79 9 -44 20 -78 24 -75 3 2 15 -35 25 -81
-10 -47 22 -85 26 -85 3 0 12 -25 19 -55 7 -31 16 -58 20 -61 5 -2 6 -11 2 -19
--3 -8 0 -15 5 -15 6 0 16 -25 23 -55 7 -30 15 -55 19 -55 4 0 15 -28 25 -62 9
--34 23 -71 30 -82 7 -12 18 -39 25 -61 7 -22 16 -42 19 -45 4 -3 15 -27 26
--55 10 -27 21 -52 24 -55 4 -3 25 -41 46 -84 22 -44 48 -88 58 -98 9 -10 17
--22 17 -26 0 -5 9 -19 20 -32 12 -13 18 -30 15 -37 -2 -8 -1 -12 4 -9 5 3 16
--4 24 -17 8 -12 27 -35 43 -52 15 -16 28 -39 29 -50 1 -12 8 -19 17 -17 9 1
-24 -10 33 -25 10 -16 25 -33 33 -39 8 -6 12 -16 8 -22 -3 -6 -1 -14 5 -18 8
--5 10 -3 4 7 -4 8 9 -4 30 -26 20 -22 63 -67 94 -100 31 -33 55 -63 54 -67 -2
--5 0 -7 5 -6 12 4 62 -34 56 -43 -3 -5 2 -6 10 -3 9 3 16 2 16 -4 0 -5 14 -15
-30 -22 17 -7 34 -18 38 -24 4 -6 26 -20 50 -30 23 -11 42 -22 42 -26 0 -5 19
--15 42 -25 24 -9 45 -20 48 -24 3 -3 39 -24 80 -45 41 -21 77 -42 80 -45 3 -4
-24 -15 48 -25 23 -11 42 -22 42 -26 0 -4 26 -15 58 -25 31 -11 61 -23 66 -27
-13 -10 126 -11 126 0 0 4 29 16 65 26 36 10 65 22 65 25 0 4 23 15 50 25 28
-10 50 22 50 26 0 5 16 14 35 21 19 7 35 16 35 19 0 4 18 15 40 26 22 10 40 22
-40 26 0 4 14 15 30 23 17 9 39 22 48 30 9 8 35 28 57 45 22 17 54 42 70 56 50
-42 58 48 96 76 20 15 40 24 44 20 4 -4 5 -2 3 3 -6 21 165 170 183 159 7 -4 9
--3 5 4 -7 12 312 334 324 327 4 -3 7 1 6 9 0 7 18 35 41 62 23 27 54 64 68 82
-15 17 32 29 37 25 7 -4 8 -1 3 7 -5 8 -1 18 10 27 11 7 16 13 12 13 -5 0 -3 6
-3 13 44 53 110 141 110 148 0 4 10 19 23 33 12 14 33 43 46 65 14 22 28 38 33
-35 4 -3 5 1 2 9 -3 8 1 21 9 28 8 8 22 32 32 54 11 22 22 42 26 45 11 8 156
-295 169 337 7 21 16 40 20 43 4 3 15 30 25 60 10 30 21 57 25 60 3 3 14 35 24
-73 10 37 21 67 25 67 4 0 15 38 25 85 10 47 22 85 26 85 4 0 13 34 20 75 7 41
-16 75 20 75 4 0 15 51 25 113 10 61 21 114 25 117 13 9 30 224 30 375 -1 167
--9 225 -34 251 -9 9 -15 23 -12 31 3 8 2 12 -3 8 -5 -3 -16 1 -23 9 -19 18
--126 73 -160 82 -16 3 -28 10 -28 16 0 5 -4 6 -10 3 -5 -3 -10 -2 -10 2 0 5
--16 15 -35 22 -19 7 -35 16 -35 20 0 5 -20 16 -45 25 -25 10 -45 21 -45 25 0
-4 -17 13 -38 19 -21 7 -49 21 -62 32 -13 11 -27 20 -32 20 -5 0 -7 4 -4 9 4 5
--3 7 -14 4 -12 -3 -22 1 -26 11 -3 9 -11 16 -17 16 -20 0 -87 52 -80 63 3 6 1
-7 -6 3 -14 -9 -153 82 -145 95 3 5 -2 6 -11 3 -9 -4 -24 1 -33 10 -9 9 -46 36
--82 59 -36 23 -71 47 -78 54 -6 6 -21 15 -32 18 -11 3 -20 10 -20 14 0 4 -18
-16 -40 26 -22 10 -40 21 -40 25 0 4 -18 15 -40 25 -22 10 -40 21 -40 26 0 4
--14 12 -32 18 -17 6 -39 17 -47 24 -9 8 -32 20 -51 27 -19 7 -42 19 -50 25 -8
-7 -32 18 -52 25 -21 6 -38 15 -38 19 0 4 -25 15 -55 26 -30 10 -55 21 -55 25
-0 4 -30 15 -67 25 -38 10 -70 21 -73 25 -17 25 -241 36 -355 18z m1205 -1325
-c68 -43 80 -54 75 -64 -3 -5 0 -6 8 -3 24 9 120 -81 144 -135 15 -36 10 -106
--7 -96 -6 3 -7 0 -4 -8 6 -18 -24 -50 -38 -41 -7 4 -8 2 -4 -4 8 -13 -172
--195 -185 -187 -5 4 -6 0 -3 -8 7 -18 -94 -129 -109 -120 -5 3 -7 2 -4 -4 7
--10 -33 -49 -46 -45 -5 1 -6 -1 -3 -6 3 -5 -3 -15 -12 -23 -9 -9 -48 -51 -87
--94 -109 -122 -117 -130 -127 -127 -5 1 -7 -2 -4 -6 8 -13 -65 -104 -79 -98
--7 2 -12 -2 -11 -9 2 -22 -228 -272 -246 -267 -5 1 -7 -1 -4 -6 3 -5 -20 -31
--51 -58 -30 -27 -65 -58 -77 -69 -43 -39 -89 -70 -102 -69 -7 1 -13 -1 -12 -5
-2 -20 -6 -30 -37 -47 -19 -10 -35 -21 -35 -25 0 -6 -94 -69 -103 -69 -3 0 -18
--5 -34 -12 -15 -6 -31 -12 -35 -12 -3 -1 -10 -4 -14 -9 -10 -10 -114 -9 -114
-2 0 5 -11 12 -25 15 -41 10 -203 151 -197 171 2 5 0 7 -4 3 -4 -4 -25 7 -48
-25 -49 37 -57 48 -49 62 4 5 3 7 -2 3 -11 -11 -46 11 -43 27 2 7 -1 14 -7 15
--24 4 -45 22 -43 37 2 9 -5 17 -16 19 -10 1 -24 11 -31 21 -7 10 -26 32 -41
-49 -16 17 -58 63 -94 104 -36 40 -77 87 -93 104 -15 17 -25 36 -23 43 3 7 -1
-10 -8 7 -8 -3 -24 9 -37 28 -13 18 -28 38 -35 45 -6 6 -17 26 -24 45 -8 18
--18 36 -24 40 -5 4 -10 29 -10 57 0 47 3 54 41 89 59 53 74 65 105 82 23 13
-66 48 138 114 8 8 29 20 45 27 17 8 33 18 37 24 4 5 38 10 75 10 64 0 71 -2
-98 -31 69 -72 108 -120 124 -154 9 -19 19 -37 22 -40 15 -12 29 -51 23 -62 -4
--6 -3 -8 3 -5 5 3 18 -6 28 -21 11 -15 45 -53 76 -84 70 -71 122 -89 196 -69
-27 7 51 18 55 25 4 7 21 19 38 26 16 7 30 17 30 22 0 6 7 7 16 4 8 -3 12 -2 9
-4 -3 6 -2 10 3 10 5 0 20 10 34 23 13 12 40 33 58 47 18 14 46 35 60 47 15 12
-31 19 35 15 5 -4 5 -2 2 4 -3 5 19 32 49 58 109 96 271 269 344 366 70 93 123
-155 132 152 5 -1 7 2 4 6 -5 9 32 50 40 45 2 -2 4 0 5 5 1 15 31 41 62 53 18
-7 35 17 38 21 7 11 119 26 139 19 8 -3 31 -15 50 -28z"/>
-</g>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   version="1.0"
+   id="svg7854"
+   height="512"
+   width="512"
+   viewBox="9 9 30 30">
+  <defs
+     id="defs7856">
+    <linearGradient
+       id="linearGradient860">
+      <stop
+         id="stop856"
+         offset="0"
+         style="stop-color:#90bb65;stop-opacity:1" />
+      <stop
+         id="stop858"
+         offset="1"
+         style="stop-color:#6ac017;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient
+       id="linearGradient7577">
+      <stop
+         id="stop7579"
+         offset="0"
+         style="stop-color:#000000;stop-opacity:0.3137255;" />
+      <stop
+         id="stop7581"
+         offset="1"
+         style="stop-color:#ffffff;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient
+       id="linearGradient5167">
+      <stop
+         style="stop-color:#76d717;stop-opacity:1"
+         offset="0"
+         id="stop5169" />
+      <stop
+         style="stop-color:#509e07;stop-opacity:1"
+         offset="1"
+         id="stop5171" />
+    </linearGradient>
+    <linearGradient
+       id="linearGradient5184">
+      <stop
+         style="stop-color:white;stop-opacity:1;"
+         offset="0"
+         id="stop5186" />
+      <stop
+         style="stop-color:white;stop-opacity:0;"
+         offset="1"
+         id="stop5188" />
+    </linearGradient>
+    <linearGradient
+       gradientTransform="matrix(2.1074616,0,0,2.1078593,-9.43551,-10.006786)"
+       y2="17.024479"
+       x2="16.657505"
+       y1="10.883683"
+       x1="15.011773"
+       gradientUnits="userSpaceOnUse"
+       id="linearGradient8317"
+       xlink:href="#linearGradient7577" />
+    <radialGradient
+       gradientTransform="matrix(1.897257,0,0,1.897615,-6.10046,-6.6146433)"
+       r="7.5896134"
+       fy="20.410854"
+       fx="15.865708"
+       cy="20.410854"
+       cx="15.865708"
+       gradientUnits="userSpaceOnUse"
+       id="radialGradient8319"
+       xlink:href="#linearGradient5167" />
+    <radialGradient
+       r="5.96875"
+       fy="11.308558"
+       fx="14.05685"
+       cy="11.308558"
+       cx="14.05685"
+       gradientTransform="matrix(-4.2002315,0.5953403,0.2958442,2.0989386,75.31118,-18.732928)"
+       gradientUnits="userSpaceOnUse"
+       id="radialGradient8321"
+       xlink:href="#linearGradient5184" />
+    <linearGradient
+       gradientTransform="matrix(1.7591324,0,0,1.7580929,-3.90899,-4.3562887)"
+       y2="26.431587"
+       x2="13.458839"
+       y1="2.0178134"
+       x1="8.9317284"
+       gradientUnits="userSpaceOnUse"
+       id="linearGradient8323"
+       xlink:href="#linearGradient860" />
+  </defs>
+  <metadata
+     id="metadata7859">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:creator>
+          <cc:Agent>
+            <dc:title>Lapo Calamandrei</dc:title>
+          </cc:Agent>
+        </dc:creator>
+        <dc:source />
+        <cc:license
+           rdf:resource="http://creativecommons.org/licenses/GPL/2.0/" />
+        <dc:title></dc:title>
+        <dc:subject>
+          <rdf:Bag>
+            <rdf:li>record</rdf:li>
+            <rdf:li>media</rdf:li>
+          </rdf:Bag>
+        </dc:subject>
+        <dc:contributor>
+          <cc:Agent>
+            <dc:title>Jakub Steiner</dc:title>
+          </cc:Agent>
+        </dc:contributor>
+      </cc:Work>
+      <cc:License
+         rdf:about="http://creativecommons.org/licenses/GPL/2.0/">
+        <cc:permits
+           rdf:resource="http://web.resource.org/cc/Reproduction" />
+        <cc:permits
+           rdf:resource="http://web.resource.org/cc/Distribution" />
+        <cc:requires
+           rdf:resource="http://web.resource.org/cc/Notice" />
+        <cc:permits
+           rdf:resource="http://web.resource.org/cc/DerivativeWorks" />
+        <cc:requires
+           rdf:resource="http://web.resource.org/cc/ShareAlike" />
+        <cc:requires
+           rdf:resource="http://web.resource.org/cc/SourceCode" />
+      </cc:License>
+    </rdf:RDF>
+  </metadata>
+  <g
+     id="layer1">
+    <ellipse
+       ry="14.997972"
+       rx="14.995141"
+       style="color:#000000;display:inline;overflow:visible;visibility:visible;opacity:0.4;fill:url(#linearGradient8317);fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1.11079514;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;marker:none;marker-start:none;marker-mid:none;marker-end:none"
+       id="path7691"
+       cx="24.00086"
+       cy="24.002029" />
+    <ellipse
+       ry="13.502028"
+       rx="13.49948"
+       cy="24.002029"
+       cx="24.000866"
+       id="path7968"
+       style="color:#000000;display:inline;overflow:visible;visibility:visible;fill:url(#radialGradient8319);fill-opacity:1;fill-rule:nonzero;stroke:#336402;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;marker:none;marker-start:none;marker-mid:none;marker-end:none" />
+    <path
+       id="path7970"
+       d="M 25.3861,13.485003 C 20.31979,12.724926 15.45183,15.857848 14,20.764516 c 1.18871,3.18039 3.90811,5.70993 7.46677,6.47724 5.29459,1.141602 10.50115,-2.027543 12.01505,-7.143895 -1.18869,-3.180413 -3.90812,-5.709952 -7.46675,-6.477239 -0.217,-0.04678 -0.41248,-0.103152 -0.62897,-0.135619 z"
+       style="color:#000000;display:inline;overflow:visible;visibility:visible;opacity:0.404;fill:url(#radialGradient8321);fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1.09465754;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;marker:none;marker-start:none;marker-mid:none;marker-end:none" />
+    <ellipse
+       ry="12.509292"
+       rx="12.516688"
+       cy="24.009293"
+       cx="24.000891"
+       style="color:#000000;display:inline;overflow:visible;visibility:visible;opacity:0.54494413;fill:none;fill-opacity:1;fill-rule:nonzero;stroke:url(#linearGradient8323);stroke-width:1.00000215;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;marker:none;marker-start:none;marker-mid:none;marker-end:none"
+       id="path7972" />
+  </g>
 </svg>
