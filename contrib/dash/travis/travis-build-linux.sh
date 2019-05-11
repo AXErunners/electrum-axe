@@ -14,7 +14,7 @@ git clone --branch $TRAVIS_TAG $BUILD_REPO_URL electrum-dash
 
 mkdir -p electrum-dash/dist
 wget -O electrum-dash/dist/tor-proxy-setup.exe \
-    https://github.com/zebra-lucky/tor-proxy/releases/download/0.3.3.9/tor-proxy-0.3.3.9-setup.exe
+    https://github.com/zebra-lucky/tor-proxy/releases/download/0.3.5.8/tor-proxy-0.3.5.8-setup.exe
 
 
 docker run --rm \
