@@ -574,6 +574,9 @@ class ElectrumWindow(App):
             # try to open last saved wallet (potentially start wizard again)
             self.load_wallet_by_name(self.electrum_config.get_wallet_path(), ask_if_wizard=True)
 
+        if getattr(wallet.storage, 'backup_message', None):
+            self.show_info(wallet.storage.backup_message)
+
     def load_wallet_by_name(self, path, ask_if_wizard=False):
         if not path:
             return

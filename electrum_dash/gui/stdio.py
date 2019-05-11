@@ -30,6 +30,10 @@ class ElectrumGui:
             password = getpass.getpass('Password:', stream=None)
             storage.decrypt(password)
 
+        if getattr(storage, 'backup_message', None):
+            print(f'{storage.backup_message}\n')
+            input('Press Enter to continue...')
+
         self.done = 0
         self.last_balance = ""
 

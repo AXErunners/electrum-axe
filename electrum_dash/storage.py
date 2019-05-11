@@ -268,7 +268,6 @@ class WalletStorage(Logger):
             copyfile(self.path, backup_file)
             copymode(self.path, backup_file)
             self.logger.info(f'backup done: {backup_file}')
-            self.backup_file = backup_file
-            self.backup_message = (f'Wallet was upgraded to new version.'
-                                   f' Backup copy of old wallet version'
-                                   f' placed at: {backup_file}')
+            self.backup_message = (f'Wallet was upgraded to new version.\n'
+                                   f'Backup copy of old wallet version'
+                                   f' placed at:\n{backup_file}')

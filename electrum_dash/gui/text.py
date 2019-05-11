@@ -50,6 +50,12 @@ class ElectrumGui:
         curses.init_pair(2, curses.COLOR_WHITE, curses.COLOR_CYAN)
         curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_WHITE)
         self.stdscr.keypad(1)
+
+        if getattr(storage, 'backup_message', None):
+            msg_key = 'Press any key to continue...'
+            self.stdscr.addstr(f'{storage.backup_message}\n\n{msg_key}')
+            self.stdscr.getch()
+
         self.stdscr.border(0)
         self.maxy, self.maxx = self.stdscr.getmaxyx()
         self.set_cursor(0)

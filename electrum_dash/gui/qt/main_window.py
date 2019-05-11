@@ -256,10 +256,9 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         gui_object.timer.timeout.connect(self.timer_actions)
         self.fetch_alias()
 
-        backup_file = getattr(self.wallet.storage, 'backup_file', None)
-        if backup_file:
-            backup_message = self.wallet.storage.backup_message
-            self.show_warning(backup_message, title=_('Information'))
+        if getattr(self.wallet.storage, 'backup_message', None):
+            self.show_warning(self.wallet.storage.backup_message,
+                              title=_('Information'))
 
         if self.network.tor_auto_on and not self.network.tor_on:
             self.show_warning(self.network.tor_warn_msg +
