@@ -1,3 +1,12 @@
+# Release 3.3.6
+
+ * fix synchronizer not to keep resubscribing to addresses of
+   already closed wallets (e415c0d9)
+ * fix removing addresses/keys from imported wallets (#4481)
+ * kivy: fix rare crash when changing exchange rate settings (#5329)
+ * A few other minor bugfixes and usability improvements.
+
+
 # Release 3.3.5
 
  * The logging system has been overhauled (#5296).
