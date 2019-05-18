@@ -1,13 +1,13 @@
-Index: electrum-dash-3.x.x/electrum-dash
+Index: electrum-dash-post-3.2.2/electrum-dash
 ===================================================================
---- electrum-dash-3.x.x.orig/electrum-dash	2018-06-12 22:15:35.699293303 +0300
-+++ electrum-dash-3.x.x/electrum-dash	2018-06-12 22:20:02.122480853 +0300
-@@ -26,6 +26,8 @@
- import os
- import sys
+--- electrum-dash-post-3.2.2.orig/electrum-dash
++++ electrum-dash-post-3.2.2/electrum-dash
+@@ -28,6 +28,8 @@ import sys
+ import warnings
+ 
  
 +os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION']='python'
 +
- script_dir = os.path.dirname(os.path.realpath(__file__))
- is_bundle = getattr(sys, 'frozen', False)
- is_local = not is_bundle and os.path.exists(os.path.join(script_dir, "electrum-dash.desktop"))
+ MIN_PYTHON_VERSION = "3.6.1"  # FIXME duplicated from setup.py
+ _min_python_version_tuple = tuple(map(int, (MIN_PYTHON_VERSION.split("."))))
+ 
