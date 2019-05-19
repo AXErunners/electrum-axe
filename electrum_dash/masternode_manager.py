@@ -172,7 +172,7 @@ class MasternodeManager(object):
         if mn.collateral_key and mn.vin.get('address') and mn.vin.get('value') == 1000 * bitcoin.COIN:
             return
 
-        tx = self.wallet.transactions.get(txid)
+        tx = self.wallet.db.get_transaction(txid)
         if not tx:
             return
         if len(tx.outputs()) <= prevout_n:
