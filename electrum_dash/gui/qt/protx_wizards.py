@@ -294,8 +294,8 @@ class ImportLegacyWizardPage(QWizardPage):
 
         if not address:
             wallet = self.parent.wallet
-            coins = wallet.get_utxos(domain=None, excluded=None,
-                                     mature=True, confirmed_only=True)
+            coins = wallet.get_utxos(domain=None, excluded_addresses=None,
+                                     mature_only=True, confirmed_only=True)
             coins = filter(lambda x: (x['prevout_hash'] == prevout_hash
                                           and x['prevout_n'] == prevout_n),
                            coins)
@@ -1030,8 +1030,8 @@ class CollateralWizardPage(QWizardPage):
             excluded = None
         else:
             excluded = wallet.frozen_addresses
-        coins = wallet.get_utxos(domain=None, excluded=excluded,
-                                 mature=True, confirmed_only=True)
+        coins = wallet.get_utxos(domain=None, excluded_addresses=excluded,
+                                 mature_only=True, confirmed_only=True)
         coins = list(filter(lambda x: (x['value'] == (1000 * COIN)), coins))
 
         if len(coins) > 0:
@@ -1496,8 +1496,8 @@ class Dip3MasternodeWizard(QWizard):
         prevout_hash, prevout_n = outpoint
         prevout_n = int(prevout_n)
 
-        coins = self.wallet.get_utxos(domain=None, excluded=None,
-                                      mature=True, confirmed_only=True)
+        coins = self.wallet.get_utxos(domain=None, excluded_addresses=None,
+                                      mature_only=True, confirmed_only=True)
 
         coins = filter(lambda x: (x['prevout_hash'] == prevout_hash
                                   and x['prevout_n'] == prevout_n),

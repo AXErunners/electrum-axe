@@ -189,8 +189,8 @@ class MasternodeManager(object):
     def get_masternode_outputs(self, domain = None, exclude_frozen = True):
         """Get spendable coins that can be used as masternode collateral."""
         excluded = self.wallet.frozen_addresses if exclude_frozen else None
-        coins = self.wallet.get_utxos(domain, excluded,
-                                      mature=True, confirmed_only=True)
+        coins = self.wallet.get_utxos(domain, excluded_addresses=excluded,
+                                      mature_only=True, confirmed_only=True)
 
         used_vins = map(lambda mn: '%s:%d' % (mn.vin.get('prevout_hash'), mn.vin.get('prevout_n', 0xffffffff)), self.masternodes)
         unused = lambda d: '%s:%d' % (d['prevout_hash'], d['prevout_n']) not in used_vins
