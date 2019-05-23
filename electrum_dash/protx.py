@@ -633,7 +633,7 @@ class ProTxManager(Logger):
 
         error = value.get('error')
         if error:
-            self.logger.error('on_protx_info: error: {error}')
+            self.logger.error(f'on_protx_info: error: {error}')
             return
 
         protx_info = value.get('result')
