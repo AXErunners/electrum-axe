@@ -433,7 +433,7 @@ class Dip3TabWidget(QTabWidget):
             coro = self.gui.network.request_protx_diff(base_height)
             loop = self.gui.network.asyncio_loop
             asyncio.run_coroutine_threadsafe(coro, loop)
-        elif diff_hashes or deleted_mns:
+        else:
             self.reg_model.reload_data()
             self.w_model.reload_data()
 
