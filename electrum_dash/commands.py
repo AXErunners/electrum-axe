@@ -1124,6 +1124,8 @@ def add_network_options(parser):
     parser.add_argument("-p", "--proxy", dest="proxy", default=None, help="set proxy [type:]host[:port], where type is socks4,socks5 or http")
     parser.add_argument("--noonion", action="store_true", dest="noonion", default=None, help="do not try to connect to onion servers")
     parser.add_argument("--skipmerklecheck", action="store_true", dest="skipmerklecheck", default=False, help="Tolerate invalid merkle proofs from server")
+    parser.add_argument("--dash-peer", action="append", dest="dash_peers", default=None, help="add dash network peer host[:port]")
+    parser.add_argument("--no-dash-net", action="store_false", default=None, dest="run_dash_net", help="do not run dash network")
 
 def add_global_options(parser):
     group = parser.add_argument_group('global options')

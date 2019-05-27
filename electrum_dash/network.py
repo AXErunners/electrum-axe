@@ -51,6 +51,7 @@ from . import constants
 from . import blockchain
 from . import bitcoin
 from .blockchain import Blockchain, HEADER_SIZE
+from .dash_net import DashNet
 from .interface import (Interface, serialize_server, deserialize_server,
                         RequestTimedOut, NetworkTimeout, BUCKET_NAME_OF_ONION_SERVERS)
 from .version import ELECTRUM_VERSION, PROTOCOL_VERSION
@@ -317,6 +318,9 @@ class Network(Logger):
         # protx responses data
         self.protx_diff_resp = []
         self.protx_info_resp = []
+
+        # create DashNet
+        self.dash_net = DashNet(self, config)
 
         self._set_status('disconnected')
 
@@ -654,6 +658,7 @@ class Network(Logger):
                 await self.switch_to_interface(server_str)
             else:
                 await self.switch_lagging_interface()
+        await self.dash_net.set_parameters()
 
     def _set_oneserver(self, oneserver: bool):
         self.num_server = NUM_TARGET_CONNECTED_SERVERS if not oneserver else 0
@@ -1334,6 +1339,7 @@ class Network(Logger):
     def start(self, jobs: List=None):
         self._jobs = jobs or []
         asyncio.run_coroutine_threadsafe(self._start(), self.asyncio_loop)
+        self.dash_net.start()
 
     @log_exceptions
     async def _stop(self, full_shutdown=False):
@@ -1356,6 +1362,7 @@ class Network(Logger):
         try:
             fut.result(timeout=2)
         except (asyncio.TimeoutError, asyncio.CancelledError): pass
+        self.dash_net.stop()
 
     async def _ensure_there_is_a_main_interface(self):
         if self.is_connected():

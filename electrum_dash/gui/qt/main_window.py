@@ -233,6 +233,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         # network callbacks
         if self.network:
             self.network_signal.connect(self.on_network_qt)
+            self.gui_object.dash_net_sobj.main.connect(self.on_dash_net_qt)
             interests = ['wallet_updated', 'network_updated', 'blockchain_updated',
                          'new_transaction', 'status',
                          'banner', 'verified', 'fee', 'fee_histogram']
@@ -248,6 +249,12 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             self.network.register_callback(self.on_history, ['on_history'])
             self.new_fx_quotes_signal.connect(self.on_fx_quotes)
             self.new_fx_history_signal.connect(self.on_fx_history)
+
+            # dash net callbacks
+            self.network.dash_net.register_callback(self.on_dash_net,
+                                                    ['dash-net-updated',
+                                                     'dash-peers-updated'])
+            self.update_dash_net_status_btn()
 
         # update fee slider in case we missed the callback
         self.fee_slider.update()
@@ -403,6 +410,17 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             self.network_signal.emit(event, args)
         else:
             self.logger.info(f"unexpected network message: {event} {args}")
+
+    def on_dash_net(self, event, *args):
+        self.gui_object.dash_net_sobj.main.emit(event, args)
+
+    def on_dash_net_qt(self, event, args=None):
+        self.update_dash_net_status_btn()
+
+    def update_dash_net_status_btn(self):
+        net = self.network
+        icon = (net.dash_net.status_icon() if net else 'dash_net_off.png')
+        self.dash_net_button.setIcon(read_QIcon(icon))
 
     def on_network_qt(self, event, args=None):
         # Handle a network message in the GUI thread
@@ -2223,6 +2241,9 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         sb.addPermanentWidget(self.seed_button)
         self.status_button = StatusBarButton(read_QIcon("status_disconnected.png"), _("Network"), lambda: self.gui_object.show_network_dialog(self))
         sb.addPermanentWidget(self.status_button)
+        self.dash_net_button = StatusBarButton(read_QIcon('dash_net_0.png'), _("Dash Network"), lambda: self.gui_object.show_dash_net_dialog(self))
+        self.update_dash_net_status_btn()
+        sb.addPermanentWidget(self.dash_net_button)
         run_hook('create_status_bar', sb)
         self.setStatusBar(sb)
 
@@ -3347,6 +3368,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             self.network.unregister_callback(self.on_quotes)
             self.network.unregister_callback(self.on_history)
             self.wallet.protx_manager.clean_up()
+            self.network.dash_net.unregister_callback(self.on_dash_net)
         self.config.set_key("is_maximized", self.isMaximized())
         if not self.isMaximized():
             g = self.geometry()

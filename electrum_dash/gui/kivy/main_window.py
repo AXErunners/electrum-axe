@@ -320,6 +320,7 @@ class ElectrumWindow(App):
 
         # cached dialogs
         self._settings_dialog = None
+        self._dash_net_dialog = None
         self._password_dialog = None
         self.fee_status = self.electrum_config.get_fee_status()
 
@@ -668,9 +669,18 @@ class ElectrumWindow(App):
         self._settings_dialog.update()
         self._settings_dialog.open()
 
+    def dash_net_dialog(self):
+        from .uix.dialogs.dash_net import DashNetDialog
+        if self._dash_net_dialog is None:
+            self._dash_net_dialog = DashNetDialog(self)
+        self._dash_net_dialog.update()
+        self._dash_net_dialog.open()
+
     def popup_dialog(self, name):
         if name == 'settings':
             self.settings_dialog()
+        elif name == 'dash_net':
+            self.dash_net_dialog()
         elif name == 'wallets':
             from .uix.dialogs.wallets import WalletDialog
             d = WalletDialog()

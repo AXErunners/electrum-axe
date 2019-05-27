@@ -199,6 +199,14 @@ QValidatedLineEdit, QLineEdit, PayToEdit { /* Text Entry Fields */
     color:#aaa;
 }
 
+QValidatedLineEdit:disabled, QLineEdit:disabled, PayToEdit:disabled {
+    border: 1px solid #676767;
+}
+
+QValidatedLineEdit:read-only, QLineEdit:read-only, PayToEdit:read-only {
+    border: 1px solid #676767;
+}
+
 PayToEdit {
     padding: 6px;
 }
@@ -778,10 +786,10 @@ QWizard {
     background-color: #232629;
 }
 
-QWizard #err-label {
+#err-label {
     color: #ff0000;
 }
-QWizard #info-label {
+#info-label {
     color: #00cc00;
 }
 """
