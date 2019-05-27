@@ -88,15 +88,20 @@ info "finalizing AppDir."
     mv usr/include.tmp usr/include
 )
 
+# copy libusb here because it is on the AppImage excludelist and it can cause problems if we use system libusb
+info "Copying libusb"
+cp -f /usr/lib/x86_64-linux-gnu/libusb-1.0.so "$APPDIR/usr/lib/libusb-1.0.so" || fail "Could not copy libusb"
+
 
 info "stripping binaries from debug symbols."
+# "-R .note.gnu.build-id" also strips the build id
 strip_binaries()
 {
   chmod u+w -R "$APPDIR"
   {
     printf '%s\0' "$APPDIR/usr/bin/python3.6"
     find "$APPDIR" -type f -regex '.*\.so\(\.[0-9.]+\)?$' -print0
-  } | xargs -0 --no-run-if-empty --verbose -n1 strip
+  } | xargs -0 --no-run-if-empty --verbose -n1 strip -R .note.gnu.build-id
 }
 strip_binaries
 
@@ -113,13 +118,21 @@ rm -rf "$APPDIR"/usr/lib/python3.6/config-3.6m-x86_64-linux-gnu
 rm -rf "$APPDIR"/usr/lib/python3.6/site-packages/PyQt5/Qt/translations/qtwebengine_locales
 rm -rf "$APPDIR"/usr/lib/python3.6/site-packages/PyQt5/Qt/resources/qtwebengine_*
 rm -rf "$APPDIR"/usr/lib/python3.6/site-packages/PyQt5/Qt/qml
-rm -rf "$APPDIR"/usr/lib/python3.6/site-packages/PyQt5/Qt/lib/libQt5Web*
-rm -rf "$APPDIR"/usr/lib/python3.6/site-packages/PyQt5/Qt/lib/libQt5Designer*
-rm -rf "$APPDIR"/usr/lib/python3.6/site-packages/PyQt5/Qt/lib/libQt5Qml*
-rm -rf "$APPDIR"/usr/lib/python3.6/site-packages/PyQt5/Qt/lib/libQt5Quick*
-rm -rf "$APPDIR"/usr/lib/python3.6/site-packages/PyQt5/Qt/lib/libQt5Location*
-rm -rf "$APPDIR"/usr/lib/python3.6/site-packages/PyQt5/Qt/lib/libQt5Test*
-rm -rf "$APPDIR"/usr/lib/python3.6/site-packages/PyQt5/Qt/lib/libQt5Xml*
+for component in Web Designer Qml Quick Location Test Xml ; do
+    rm -rf "$APPDIR"/usr/lib/python3.6/site-packages/PyQt5/Qt/lib/libQt5${component}*
+    rm -rf "$APPDIR"/usr/lib/python3.6/site-packages/PyQt5/Qt${component}*
+done
+rm -rf "$APPDIR"/usr/lib/python3.6/site-packages/PyQt5/Qt.so
+
+
+# these are deleted as they were not deterministic; and are not needed anyway
+find "$APPDIR" -path '*/__pycache__*' -delete
+rm "$APPDIR"/usr/lib/libsecp256k1.a
+rm "$APPDIR"/usr/lib/python3.6/site-packages/pyblake2-*.dist-info/RECORD
+rm "$APPDIR"/usr/lib/python3.6/site-packages/hidapi-*.dist-info/RECORD
+
+
+find -exec touch -h -d '2000-11-11T11:11:11+00:00' {} +
 
 
 info "creating the AppImage."
@@ -127,7 +140,7 @@ info "creating the AppImage."
     cd "$BUILDDIR"
     chmod +x "$CACHEDIR/appimagetool"
     "$CACHEDIR/appimagetool" --appimage-extract
-    env VERSION="$VERSION" ./squashfs-root/AppRun --no-appstream --verbose "$APPDIR" "$APPIMAGE"
+    env VERSION="$VERSION" ARCH=x86_64 ./squashfs-root/AppRun --no-appstream --verbose "$APPDIR" "$APPIMAGE"
 )
 
 

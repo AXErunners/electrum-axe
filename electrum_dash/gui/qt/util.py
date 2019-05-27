@@ -106,7 +106,10 @@ class HelpLabel(QLabel):
         self.font = QFont()
 
     def mouseReleaseEvent(self, x):
-        QMessageBox.information(self, 'Help', self.help_text)
+        custom_message_box(icon=QMessageBox.Information,
+                           parent=self,
+                           title=_('Help'),
+                           text=self.help_text)
 
     def enterEvent(self, event):
         self.font.setUnderline(True)
@@ -130,7 +133,10 @@ class HelpButton(QPushButton):
         self.clicked.connect(self.onclick)
 
     def onclick(self):
-        QMessageBox.information(self, 'Help', self.help_text)
+        custom_message_box(icon=QMessageBox.Information,
+                           parent=self,
+                           title=_('Help'),
+                           text=self.help_text)
 
 
 class InfoButton(QPushButton):
@@ -142,7 +148,10 @@ class InfoButton(QPushButton):
         self.clicked.connect(self.onclick)
 
     def onclick(self):
-        QMessageBox.information(self, 'Info', self.help_text)
+        custom_message_box(icon=QMessageBox.Information,
+                           parent=self,
+                           title=_('Info'),
+                           text=self.help_text)
 
 
 class Buttons(QHBoxLayout):
@@ -220,23 +229,40 @@ class MessageBoxMixin(object):
         return self.msg_box(QMessageBox.Information, parent,
                             title or _('Information'), msg, **kwargs)
 
-    def msg_box(self, icon, parent, title, text, buttons=QMessageBox.Ok,
-                defaultButton=QMessageBox.NoButton, rich_text=False):
+    def msg_box(self, icon, parent, title, text, *, buttons=QMessageBox.Ok,
+                defaultButton=QMessageBox.NoButton, rich_text=False,
+                checkbox=None):
         parent = parent or self.top_level_window()
-        if type(icon) is QPixmap:
-            d = QMessageBox(QMessageBox.Information, title, str(text), buttons, parent)
-            d.setIconPixmap(icon)
-        else:
-            d = QMessageBox(icon, title, str(text), buttons, parent)
-        d.setWindowModality(Qt.WindowModal)
-        d.setDefaultButton(defaultButton)
-        if rich_text:
-            d.setTextInteractionFlags(Qt.TextSelectableByMouse| Qt.LinksAccessibleByMouse)
-            d.setTextFormat(Qt.RichText)
-        else:
-            d.setTextInteractionFlags(Qt.TextSelectableByMouse)
-            d.setTextFormat(Qt.PlainText)
-        return d.exec_()
+        return custom_message_box(icon=icon,
+                                  parent=parent,
+                                  title=title,
+                                  text=text,
+                                  buttons=buttons,
+                                  defaultButton=defaultButton,
+                                  rich_text=rich_text,
+                                  checkbox=checkbox)
+
+
+def custom_message_box(*, icon, parent, title, text, buttons=QMessageBox.Ok,
+                       defaultButton=QMessageBox.NoButton, rich_text=False,
+                       checkbox=None):
+    if type(icon) is QPixmap:
+        d = QMessageBox(QMessageBox.Information, title, str(text), buttons, parent)
+        d.setIconPixmap(icon)
+    else:
+        d = QMessageBox(icon, title, str(text), buttons, parent)
+    d.setWindowModality(Qt.WindowModal)
+    d.setDefaultButton(defaultButton)
+    if rich_text:
+        d.setTextInteractionFlags(Qt.TextSelectableByMouse | Qt.LinksAccessibleByMouse)
+        d.setTextFormat(Qt.RichText)
+    else:
+        d.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        d.setTextFormat(Qt.PlainText)
+    if checkbox is not None:
+        d.setCheckBox(checkbox)
+    return d.exec_()
+
 
 class WindowModalDialog(QDialog, MessageBoxMixin):
     '''Handy wrapper; window modal dialogs are better for our multi-window
@@ -551,9 +577,10 @@ class MyTreeView(QTreeView):
             # we did not find the filter in any columns, hide the item
             self.setRowHidden(row_num, QModelIndex(), True)
 
-    def filter(self, p):
-        p = p.lower()
-        self.current_filter = p
+    def filter(self, p=None):
+        if p is not None:
+            p = p.lower()
+            self.current_filter = p
         self.hide_rows()
 
     def hide_rows(self):
@@ -720,6 +747,7 @@ class ColorScheme:
     YELLOW = ColorSchemeItem("#897b2a", "#ffff00")
     RED = ColorSchemeItem("#7c1111", "#f18c8c")
     BLUE = ColorSchemeItem("#123b7c", "#8cb3f2")
+    PURPLE = ColorSchemeItem("#8A2BE2", "#8A2BE2")
     DEFAULT = ColorSchemeItem("#818181", "white")
 
     @staticmethod

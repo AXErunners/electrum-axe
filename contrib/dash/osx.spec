@@ -35,6 +35,7 @@ hiddenimports += [
     'electrum_dash.websockets',
     'electrum_dash.gui.qt',
     'PyQt5.sip',
+    'PyQt5.QtPrintSupport',  # needed by Revealer
 
     'electrum_dash.plugins',
 

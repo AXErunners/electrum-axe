@@ -26,6 +26,8 @@
 import os
 import json
 
+from .util import inv_dict
+
 
 def read_json(filename, default):
     path = os.path.join(os.path.dirname(__file__), filename)
@@ -58,9 +60,11 @@ class BitcoinMainnet(AbstractNet):
     XPRV_HEADERS = {
         'standard':    0x0488ade4,  # xprv
     }
+    XPRV_HEADERS_INV = inv_dict(XPRV_HEADERS)
     XPUB_HEADERS = {
         'standard':    0x0488b21e,  # xpub
     }
+    XPUB_HEADERS_INV = inv_dict(XPUB_HEADERS)
     DRKV_HEADER = 0x02fe52f8  # drkv
     DRKP_HEADER = 0x02fe52cc  # drkp
     BIP44_COIN_TYPE = 5
@@ -81,9 +85,11 @@ class BitcoinTestnet(AbstractNet):
     XPRV_HEADERS = {
         'standard':    0x04358394,  # tprv
     }
+    XPRV_HEADERS_INV = inv_dict(XPRV_HEADERS)
     XPUB_HEADERS = {
         'standard':    0x043587cf,  # tpub
     }
+    XPUB_HEADERS_INV = inv_dict(XPUB_HEADERS)
     DRKV_HEADER = 0x3a8061a0  # DRKV
     DRKP_HEADER = 0x3a805837  # DRKP
     BIP44_COIN_TYPE = 1
