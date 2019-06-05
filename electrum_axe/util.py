@@ -648,16 +648,14 @@ def time_difference(distance_in_time, include_seconds):
         return "over %d years" % (round(distance_in_minutes / 525600))
 
 mainnet_block_explorers = {
-    'Axe.org': ('https://explorer.axe.org/',
-                 {'tx': 'tx/', 'addr': 'address/'}),
-    'Insight.axe.org': ('https://insight.axe.org/insight/',
-                         {'tx': 'tx/', 'addr': 'address/'}),
+    'Insight': ('http://207.246.65.114:3001/',
+                       {'tx': 'tx/', 'addr': 'address/'}),
     'system default': ('blockchain:/',
                        {'tx': 'tx/', 'addr': 'address/'}),
 }
 
 testnet_block_explorers = {
-    'Axe.org': ('https://testnet-insight.axerunners.org/insight/',
+    'Insight': ('https://testnet-insight.axerunners.com/',
                  {'tx': 'tx/', 'addr': 'address/'}),
     'system default': ('blockchain:/',
                        {'tx': 'tx/', 'addr': 'address/'}),
