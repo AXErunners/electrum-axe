@@ -18,6 +18,7 @@ from electrum_axe.bitcoin import COIN, is_b58_address
 from electrum_axe.axe_tx import TxOutPoint
 from electrum_axe.protx import ProTxMN, ProTxService, ProRegTxExc
 from electrum_axe.util import bfh, bh2u
+from electrum_axe.i18n import _
 
 from .util import MONOSPACE_FONT, icon_path, read_QIcon
 
@@ -80,13 +81,14 @@ class OperationTypeWizardPage(QWizardPage):
     def __init__(self, parent=None):
         super(OperationTypeWizardPage, self).__init__(parent)
         self.parent = parent
-        self.setTitle('Operation type')
-        self.setSubTitle('Select opeartion type and ownership properties.')
+        self.setTitle(_('Operation type'))
+        self.setSubTitle(_('Select operation type and ownership properties.'))
 
-        self.rb_import = QRadioButton('Import and register legacy Masternode '
-                                      'as DIP3 Masternode')
-        self.rb_create = QRadioButton('Create and registern DIP3 Masternode')
-        self.rb_connect = QRadioButton('Connect to registered DIP3 Masternode')
+        self.rb_import = QRadioButton(_('Import and register legacy '
+                                        'Masternode as DIP3 Masternode'))
+        self.rb_create = QRadioButton(_('Create and register DIP3 Masternode'))
+        self.rb_connect = QRadioButton(_('Connect to registered DIP3 '
+                                         'Masternode'))
         self.rb_import.setChecked(True)
         self.rb_connect.setEnabled(False)
         self.button_group = QButtonGroup()
@@ -97,11 +99,11 @@ class OperationTypeWizardPage(QWizardPage):
         gb_vbox.addWidget(self.rb_import)
         gb_vbox.addWidget(self.rb_create)
         gb_vbox.addWidget(self.rb_connect)
-        self.gb_create = QGroupBox('Select operation type')
+        self.gb_create = QGroupBox(_('Select operation type'))
         self.gb_create.setLayout(gb_vbox)
 
-        self.cb_owner = QCheckBox('I am an owner of this Masternode')
-        self.cb_operator = QCheckBox('I am an operator of this Masternode')
+        self.cb_owner = QCheckBox(_('I am an owner of this Masternode'))
+        self.cb_operator = QCheckBox(_('I am an operator of this Masternode'))
         self.cb_owner.setChecked(True)
         self.cb_owner.stateChanged.connect(self.cb_state_changed)
         self.cb_operator.setChecked(True)
@@ -110,7 +112,7 @@ class OperationTypeWizardPage(QWizardPage):
         gb_vbox = QVBoxLayout()
         gb_vbox.addWidget(self.cb_owner)
         gb_vbox.addWidget(self.cb_operator)
-        self.gb_owner = QGroupBox('Set ownership type')
+        self.gb_owner = QGroupBox(_('Set ownership type'))
         self.gb_owner.setLayout(gb_vbox)
 
         layout = QVBoxLayout()
@@ -145,8 +147,8 @@ class ImportLegacyWizardPage(QWizardPage):
     def __init__(self, parent=None):
         super(ImportLegacyWizardPage, self).__init__(parent)
         self.parent = parent
-        self.setTitle('Import Legacy Masternode')
-        self.setSubTitle('Select legacy Masternode to import.')
+        self.setTitle(_('Import Legacy Masternode'))
+        self.setSubTitle(_('Select legacy Masternode to import.'))
 
         legacy = self.parent.legacy
         legacy.load()
@@ -160,19 +162,19 @@ class ImportLegacyWizardPage(QWizardPage):
             self.lmns_cbox.addItem(alias)
             self.lmns_dict[alias] = lmn
         self.lmns_cbox.currentIndexChanged.connect(self.on_change_lmn)
-        self.imp_btn = QPushButton('Load from masternode.conf')
+        self.imp_btn = QPushButton(_('Load from masternode.conf'))
         self.imp_btn.clicked.connect(self.load_masternode_conf)
 
-        service_label = QLabel('Service:')
+        service_label = QLabel(_('Service:'))
         self.service = QLabel()
-        collateral_val_label = QLabel('Collateral Outpoint Value:')
+        collateral_val_label = QLabel(_('Collateral Outpoint Value:'))
         self.collateral_val = QLabel()
         self.collateral_value = None
-        collateral_label = QLabel('Collateral Outpoint:')
+        collateral_label = QLabel(_('Collateral Outpoint:'))
         self.collateral = QLabel()
-        collateral_addr_label = QLabel('Collateral Address:')
+        collateral_addr_label = QLabel(_('Collateral Address:'))
         self.collateral_addr = QLabel()
-        self.err_label = QLabel('Error:')
+        self.err_label = QLabel(_('Error:'))
         self.err_label.setObjectName('err-label')
         self.err = QLabel()
         self.err.setObjectName('err-label')
@@ -205,7 +207,7 @@ class ImportLegacyWizardPage(QWizardPage):
     @pyqtSlot()
     def load_masternode_conf(self):
         dlg = QFileDialog
-        conf_fname = dlg.getOpenFileName(self, 'Open masternode.con',
+        conf_fname = dlg.getOpenFileName(self, _('Open masternode.conf'),
                                          '', 'Conf Files (*.conf)')[0]
         if not conf_fname:
             return
@@ -292,8 +294,8 @@ class ImportLegacyWizardPage(QWizardPage):
 
         if not address:
             wallet = self.parent.wallet
-            coins = wallet.get_utxos(domain=None, excluded=None,
-                                     mature=True, confirmed_only=True)
+            coins = wallet.get_utxos(domain=None, excluded_addresses=None,
+                                     mature_only=True, confirmed_only=True)
             coins = filter(lambda x: (x['prevout_hash'] == prevout_hash
                                           and x['prevout_n'] == prevout_n),
                            coins)
@@ -358,26 +360,26 @@ class SelectAddressesWizardPage(QWizardPage):
     def __init__(self, parent=None):
         super(SelectAddressesWizardPage, self).__init__(parent)
         self.parent = parent
-        self.setTitle('Select Addresses')
-        self.setSubTitle('Select Masternode owner/voting/payout addresses.')
+        self.setTitle(_('Select Addresses'))
+        self.setSubTitle(_('Select Masternode owner/voting/payout addresses.'))
 
         layout = QGridLayout()
-        self.o_addr_label = QLabel('Owner Address (must differ from '
-                                   'collateral):')
+        self.o_addr_label = QLabel(_('Owner Address (must differ from '
+                                     'collateral):'))
         self.o_addr = SComboBox()
         self.o_addr.setEditable(True)
         self.o_addr.editTextChanged.connect(self.on_change_addr)
-        self.v_addr_label = QLabel('Voting Address (must differ from '
-                                   'collateral):')
+        self.v_addr_label = QLabel(_('Voting Address (must differ from '
+                                     'collateral):'))
         self.v_addr = SComboBox()
         self.v_addr.setEditable(True)
         self.v_addr.editTextChanged.connect(self.on_change_addr)
-        self.p_addr_label = QLabel('Payout Address (must differ from '
-                                   'owner/voting/collateral):')
+        self.p_addr_label = QLabel(_('Payout Address (must differ from '
+                                     'owner/voting/collateral):'))
         self.p_addr = SComboBox()
         self.p_addr.setEditable(True)
         self.p_addr.editTextChanged.connect(self.on_change_addr)
-        self.err_label = QLabel('Error:')
+        self.err_label = QLabel(_('Error:'))
         self.err_label.setObjectName('err-label')
         self.err = QLabel()
         self.err.setObjectName('err-label')
@@ -387,7 +389,7 @@ class SelectAddressesWizardPage(QWizardPage):
         self.hw_err.setWordWrap(True)
         self.hw_err.setObjectName('err-label')
         self.hw_err.hide()
-        self.cb_ignore = QCheckBox('Ignore warning and continue.')
+        self.cb_ignore = QCheckBox(_('Ignore warning and continue.'))
         self.cb_ignore.stateChanged.connect(self.on_change_ignore)
         self.cb_ignore.hide()
 
@@ -497,11 +499,11 @@ class BlsKeysWizardPage(QWizardPage):
         self.parent = parent
         layout = QGridLayout()
 
-        self.bls_pub_label = QLabel('BLS Public key:')
+        self.bls_pub_label = QLabel(_('BLS Public key:'))
         self.bls_pub = SLineEdit()
         self.bls_pub.textChanged.connect(self.on_pub_changed)
 
-        self.op_reward_label = QLabel('Operator Reward:')
+        self.op_reward_label = QLabel(_('Operator Reward:'))
         self.op_reward = QDoubleSpinBox()
         self.op_reward.setRange(0.0, 100.0)
         self.op_reward.setSingleStep(0.01)
@@ -509,12 +511,12 @@ class BlsKeysWizardPage(QWizardPage):
         self.op_reward_label.hide()
         self.op_reward.hide()
 
-        self.bls_priv_label = QLabel('BLS Private key:')
+        self.bls_priv_label = QLabel(_('BLS Private key:'))
         self.bls_priv_label.hide()
         self.bls_priv = SLineEdit()
         self.bls_priv.setReadOnly(True)
         self.bls_priv.hide()
-        self.gen_btn = QPushButton('Generate new BLS keypair')
+        self.gen_btn = QPushButton(_('Generate new BLS keypair'))
         self.gen_btn.clicked.connect(self.generate_bls_keypair)
         self.gen_btn.hide()
         self.bls_info_label = QLabel()
@@ -525,7 +527,7 @@ class BlsKeysWizardPage(QWizardPage):
         self.bls_info_edit.setReadOnly(True)
         self.bls_info_edit.hide()
 
-        self.err_label = QLabel('Error:')
+        self.err_label = QLabel(_('Error:'))
         self.err_label.setObjectName('err-label')
         self.err = QLabel()
         self.err.setObjectName('err-label')
@@ -582,24 +584,24 @@ class BlsKeysWizardPage(QWizardPage):
             if start_id in parent.UPD_ENTER_PAGES:
                 if not self.bls_pub.text():
                     self.bls_pub.setText(new_mn.pubkey_operator)
-                self.setTitle('Operator BLS key setup')
-                self.setSubTitle('Update operator BLS public key')
+                self.setTitle(_('Operator BLS key setup'))
+                self.setSubTitle(_('Update operator BLS public key'))
             else:
                 self.op_reward_label.show()
                 self.op_reward.show()
-                self.setTitle('Operator BLS key and reward')
-                self.setSubTitle('Enter operator BLS public key and '
-                                 'operator reward percent')
+                self.setTitle(_('Operator BLS key and reward'))
+                self.setSubTitle(_('Enter operator BLS public key and '
+                                   'operator reward percent'))
             return
 
-        self.setTitle('BLS keys setup')
+        self.setTitle(_('BLS keys setup'))
         if start_id in parent.UPD_ENTER_PAGES:
-            self.setSubTitle('Regenerate BLS keypair, setup axed')
+            self.setSubTitle(_('Regenerate BLS keypair, setup axed'))
             if not self.bls_priv.text():
                 self.bls_priv.setText(new_mn.bls_privk)
                 self.bls_pub.setText(new_mn.pubkey_operator)
         else:
-            self.setSubTitle('Generate BLS keypair, setup axed')
+            self.setSubTitle(_('Generate BLS keypair, setup axed'))
 
         if not self.bls_priv.text():
             self.generate_bls_keypair()
@@ -615,10 +617,10 @@ class BlsKeysWizardPage(QWizardPage):
         bls_pubk = bls_privk.get_public_key()
         bls_privk_hex = bh2u(bls_privk.serialize())
         bls_pubk_hex = bh2u(bls_pubk.serialize())
-        self.bls_info_label.setText('BLS keypair generated. Before '
-                                    'registering new Masternode copy next '
-                                    'line to ~/.axecore/axed.conf and '
-                                    'restart masternode:')
+        self.bls_info_label.setText(_('BLS keypair generated. Before '
+                                      'registering new Masternode copy next '
+                                      'line to ~/.axecore/axed.conf and '
+                                      'restart masternode:'))
         self.bls_info_label.show()
         self.bls_info_edit.setText('masternodeblsprivkey=%s' % bls_privk_hex)
         self.bls_info_edit.show()
@@ -639,10 +641,10 @@ class BlsKeysWizardPage(QWizardPage):
                 return True
 
             if len(bls_pub) != 96:
-                self.show_error('Wrong lenght of BLS public key')
+                self.show_error(_('Wrong length of BLS public key'))
                 return False
             if bls_pub.strip('01234567890abcdefABCDEF'):
-                self.show_error('Wrong format of BLS public key')
+                self.show_error(_('Wrong format of BLS public key'))
                 return False
             try:
                 bls.PublicKey.from_bytes(bfh(bls_pub))
@@ -676,40 +678,40 @@ class SaveDip3WizardPage(QWizardPage):
 
         self.alias = SLineEdit()
         self.alias.textChanged.connect(self.on_alias_changed)
-        self.err_label = QLabel('Error:')
+        self.err_label = QLabel(_('Error:'))
         self.err_label.setObjectName('err-label')
         self.err = QLabel()
         self.err.setObjectName('err-label')
         self.err_label.hide()
         self.err.hide()
-        ownership_label = QLabel('Ownership:')
+        ownership_label = QLabel(_('Ownership:'))
         self.ownership = QLabel()
-        type_label = QLabel('Type:')
+        type_label = QLabel(_('Type:'))
         self.type = QLabel()
-        mode_label = QLabel('Mode:')
+        mode_label = QLabel(_('Mode:'))
         self.mode = QLabel()
-        collateral_label = QLabel('Collateral:')
+        collateral_label = QLabel(_('Collateral:'))
         self.collateral = QLabel()
-        service_label = QLabel('Service:')
+        service_label = QLabel(_('Service:'))
         self.service = QLabel()
-        owner_addr_label = QLabel('Owner Address:')
+        owner_addr_label = QLabel(_('Owner Address:'))
         self.owner_addr = QLabel()
-        pubkey_op_label = QLabel('PubKeyOperator:')
+        pubkey_op_label = QLabel(_('PubKeyOperator:'))
         self.pubkey_op = QLabel()
-        voting_addr_label = QLabel('Voting Address:')
+        voting_addr_label = QLabel(_('Voting Address:'))
         self.voting_addr = QLabel()
 
-        self.payout_address_label = QLabel('Payout Address:')
+        self.payout_address_label = QLabel(_('Payout Address:'))
         self.payout_address_label.hide()
         self.payout_address = QLabel()
         self.payout_address.hide()
 
-        self.op_reward_label = QLabel('Operator Reward percent:')
+        self.op_reward_label = QLabel(_('Operator Reward percent:'))
         self.op_reward_label.hide()
         self.op_reward = QLabel()
         self.op_reward.hide()
 
-        self.op_payout_address_label = QLabel('Operator Payout Address:')
+        self.op_payout_address_label = QLabel(_('Operator Payout Address:'))
         self.op_payout_address_label.hide()
         self.op_payout_address = QLabel()
         self.op_payout_address.hide()
@@ -776,14 +778,14 @@ class SaveDip3WizardPage(QWizardPage):
             self.alias.setText(new_mn.alias)
 
         if new_mn.is_owned and new_mn.is_operated:
-            ownership = 'This wallet is owns and operates on new Masternode'
+            ownership = _('This wallet is owns and operates on new Masternode')
         elif new_mn.is_owned:
-            ownership = ('This wallet is owns on new Masternode '
-                         '(external operator)')
+            ownership = (_('This wallet is owns on new Masternode '
+                           '(external operator)'))
         elif new_mn.is_operated:
-            ownership = ('This wallet is operates on new Masternode')
+            ownership = (_('This wallet is operates on new Masternode'))
         else:
-            ownership = 'None'
+            ownership = _('None')
         self.ownership.setText(ownership)
 
         self.type.setText(str(new_mn.type))
@@ -1028,8 +1030,8 @@ class CollateralWizardPage(QWizardPage):
             excluded = None
         else:
             excluded = wallet.frozen_addresses
-        coins = wallet.get_utxos(domain=None, excluded=excluded,
-                                 mature=True, confirmed_only=True)
+        coins = wallet.get_utxos(domain=None, excluded_addresses=excluded,
+                                 mature_only=True, confirmed_only=True)
         coins = list(filter(lambda x: (x['value'] == (1000 * COIN)), coins))
 
         if len(coins) > 0:
@@ -1200,7 +1202,7 @@ class UpdSrvWizardPage(QWizardPage):
         self.srv_port = SLineEdit()
         self.srv_port.textChanged.connect(self.on_service_changed)
 
-        self.op_p_addr_label = QLabel('Operarot Payout Address:')
+        self.op_p_addr_label = QLabel('Operator Payout Address:')
         self.op_p_addr = SComboBox()
         self.op_p_addr.setEditable(True)
         self.op_p_addr_label.hide()
@@ -1463,7 +1465,7 @@ class Dip3MasternodeWizard(QWizard):
         if not alias:
             raise ValidationError('Alias not set')
         if len(alias) > 32:
-            raise ValidationError('Masternode alias can not be longer '
+            raise ValidationError('Masternode alias cannot be longer '
                                   'than 32 characters')
         if alias in self.manager.mns.keys():
             raise ValidationError('Masternode with alias %s already exists' %
@@ -1494,8 +1496,8 @@ class Dip3MasternodeWizard(QWizard):
         prevout_hash, prevout_n = outpoint
         prevout_n = int(prevout_n)
 
-        coins = self.wallet.get_utxos(domain=None, excluded=None,
-                                      mature=True, confirmed_only=True)
+        coins = self.wallet.get_utxos(domain=None, excluded_addresses=None,
+                                      mature_only=True, confirmed_only=True)
 
         coins = filter(lambda x: (x['prevout_hash'] == prevout_hash
                                   and x['prevout_n'] == prevout_n),
@@ -1550,11 +1552,11 @@ class Dip3MasternodeWizard(QWizard):
         keystore = self.wallet.keystore
         if not hasattr(keystore, 'sign_digest') and not ignore_hw_warn:
             raise HwWarnError('Warning: sign_digest not implemented in '
-                              'hardware wallet keystores. You can not use '
-                              'this wallet to sign ProUpRegTx. However you '
-                              'can register masternode. But in future it is '
-                              'not possible to change voting/payout addresses '
-                              'and operator public BLS key')
+                              'hardware wallet keystores. You cannot use '
+                              'this wallet to sign a ProUpRegTx. You '
+                              'can register a masternode, but in the future it '
+                              'will not be possible to change voting/payout '
+                              'addresses or the operator public BLS key')
 
         if not is_b58_address(v_addr):
             raise ValidationError('Wrong voting address format')
@@ -1602,7 +1604,7 @@ class FileOpTypeWizardPage(QWizardPage):
         super(FileOpTypeWizardPage, self).__init__(parent)
         self.parent = parent
         self.setTitle('Operation type')
-        self.setSubTitle('Select opeartion type.')
+        self.setSubTitle('Select operation type.')
 
         self.rb_export = QRadioButton('Export DIP3 Masternodes to file')
         self.rb_import = QRadioButton('Import DIP3 Masternodes from file')

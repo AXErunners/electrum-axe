@@ -15,6 +15,7 @@ from PyQt5.QtWidgets import (QTabBar, QTabWidget, QWidget, QLabel, QPushButton,
 
 from electrum_axe.axe_tx import SPEC_PRO_REG_TX
 from electrum_axe.protx import ProRegTxExc, ProTxManagerExc
+from electrum_axe.i18n import _
 
 from .protx_wizards import Dip3MasternodeWizard, Dip3FileWizard
 from .util import icon_path, read_QIcon
@@ -73,9 +74,9 @@ class RegisteredMNsModel(QAbstractTableModel):
         self.manager = manager
 
         headers = [
-            {Qt.DisplayRole: 'ProRegTx hash'},
-            {Qt.DisplayRole: 'Service'},
-            {Qt.DisplayRole: 'Subset'},
+            {Qt.DisplayRole: _('ProRegTx hash')},
+            {Qt.DisplayRole: _('Service')},
+            {Qt.DisplayRole: _('Subset')},
         ]
 
         for d in headers:
@@ -128,7 +129,7 @@ class RegisteredMNsModel(QAbstractTableModel):
                 if mn['isValid']:
                     data = QColor(VALID_MASTERNODE_COLOR)
         elif i == self.VALID and role == Qt.DisplayRole:
-            data = 'Valid' if mn['isValid'] else 'Registered'
+            data = _('Valid') if mn['isValid'] else _('Registered')
 
         return QVariant(data)
 
@@ -149,6 +150,14 @@ class WalletMNsModel(QAbstractTableModel):
     STATE_VALID = 'Valid'
     STATE_BANNED = 'PoSe Banned'
     STATE_REMOVED = 'Removed'
+
+    STATES_TXT = {
+        STATE_LOADING: _('Loading'),
+        STATE_UNREGISTERED: _('Unregistered'),
+        STATE_VALID: _('Valid'),
+        STATE_BANNED: _('PoSe Banned'),
+        STATE_REMOVED: _('Removed'),
+    }
 
     def __init__(self, manager, gui, row_h):
         super(WalletMNsModel, self).__init__()
@@ -173,11 +182,11 @@ class WalletMNsModel(QAbstractTableModel):
         self.icon_op = QPixmap(imgfile).scaledToWidth(sz, mode=mode)
 
         headers = [
-            {Qt.DisplayRole: 'Alias'},
-            {Qt.DisplayRole: 'State'},
-            {Qt.DisplayRole: 'Keys'},
-            {Qt.DisplayRole: 'Service'},
-            {Qt.DisplayRole: 'ProRegTx hash'},
+            {Qt.DisplayRole: _('Alias')},
+            {Qt.DisplayRole: _('State')},
+            {Qt.DisplayRole: _('Keys')},
+            {Qt.DisplayRole: _('Service')},
+            {Qt.DisplayRole: _('ProRegTx hash')},
         ]
 
         for d in headers:
@@ -251,7 +260,8 @@ class WalletMNsModel(QAbstractTableModel):
                 else:
                     data = None
             elif role == Qt.ToolTipRole:
-                data = self.mns_states.get(mn.alias)
+                data = self.STATES_TXT.get(self.mns_states.get(mn.alias),
+                                           'Unknown')
         elif i == self.KEYS:
             if role == Qt.DecorationRole:
                 if mn.is_owned and mn.is_operated:
@@ -264,11 +274,11 @@ class WalletMNsModel(QAbstractTableModel):
                     data = None
             elif role == Qt.ToolTipRole:
                 if mn.is_owned and mn.is_operated:
-                    data = 'Owner and Operator private keys'
+                    data = _('Owner and Operator private keys')
                 elif mn.is_owned and not mn.is_operated:
-                    data = 'Owner key'
+                    data = _('Owner key')
                 elif not mn.is_owned and mn.is_operated:
-                    data = 'Operator privete key'
+                    data = _('Operator privete key')
                 else:
                     data = None
         elif i == self.SERVICE and role == Qt.DisplayRole:
@@ -423,7 +433,7 @@ class Dip3TabWidget(QTabWidget):
             coro = self.gui.network.request_protx_diff(base_height)
             loop = self.gui.network.asyncio_loop
             asyncio.run_coroutine_threadsafe(coro, loop)
-        elif diff_hashes or deleted_mns:
+        else:
             self.reg_model.reload_data()
             self.w_model.reload_data()
 
@@ -453,15 +463,15 @@ class Dip3TabWidget(QTabWidget):
     def registered_label(self):
         state = self.manager.protx_state
         if state == self.manager.DIP3_DISABLED:
-            return ('DIP3 Masternodes is currently disabled.')
+            return (_('DIP3 Masternodes is currently disabled.'))
 
         height = self.manager.protx_base_height
         mns = self.manager.protx_mns
         count = len(mns)
         connected = self.gui.network.is_connected()
         loading = connected and not self.manager.diffs_ready
-        ready = 'Loading' if loading else 'Found'
-        return ('%s %s registered DIP3 Masternodes at Height: %s.' %
+        ready = _('Loading') if loading else _('Found')
+        return (_('%s %s registered DIP3 Masternodes at Height: %s.') %
                 (ready, count, height))
 
     def update_registered_label(self):
@@ -470,18 +480,18 @@ class Dip3TabWidget(QTabWidget):
     def wallet_label(self):
         state = self.manager.protx_state
         if state == self.manager.DIP3_DISABLED:
-            return ('DIP3 Masternodes is currently disabled.')
+            return (_('DIP3 Masternodes is currently disabled.'))
 
         connected = self.gui.network.is_connected()
         loading = connected and not self.manager.diffs_ready
         if not loading:
             mns = self.manager.mns
             count = len(mns)
-            plural = '' if count == 1 else 's'
-            return ('Wallet contains %s DIP3 Masternode%s.' % (count, plural))
+            mn_str = _('Masternode') if count == 1 else _('Masternodes')
+            return (_('Wallet contains %s DIP3 %s.') % (count, mn_str))
         else:
             height = self.manager.protx_base_height
-            return ('Loading DIP3 data at Height: %s.' % height)
+            return (_('Loading DIP3 data at Height: %s.') % height)
 
     def update_wallet_label(self):
         self.w_label.setText(self.wallet_label())
@@ -491,7 +501,7 @@ class Dip3TabWidget(QTabWidget):
         hw = QWidget()
 
         self.reg_label = QLabel(self.registered_label())
-        self.reg_search_btn = QPushButton('Search')
+        self.reg_search_btn = QPushButton(_('Search'))
         self.reg_search_btn.clicked.connect(self.on_reg_search)
 
         src_model = RegisteredMNsModel(self.manager)
@@ -525,13 +535,13 @@ class Dip3TabWidget(QTabWidget):
         vbox.addWidget(hw)
         vbox.addWidget(self.reg_view)
         w.setLayout(vbox)
-        self.addTab(w, read_QIcon('tab_search.png'), 'Registered MNs')
+        self.addTab(w, read_QIcon('tab_search.png'), _('Registered MNs'))
         return w
 
     def create_reg_menu(self, position):
         menu = QMenu()
         h = self.reg_cur_protx
-        menu.addAction('Details',
+        menu.addAction(_('Details'),
                        lambda: Dip3MNInfoDialog(self, protx_hash=h).show())
         menu.exec_(self.reg_view.viewport().mapToGlobal(position))
 
@@ -540,14 +550,14 @@ class Dip3TabWidget(QTabWidget):
         hw = QWidget()
 
         self.w_label = QLabel(self.wallet_label())
-        self.w_add_btn = QPushButton('Add / Import')
-        self.w_file_btn = QPushButton('File')
-        self.w_del_btn = QPushButton('Del')
-        self.w_up_params_btn = QPushButton('Update Params')
-        self.w_up_coll_btn = QPushButton('Change Collateral')
-        self.w_protx_btn = QPushButton('Register')
-        self.w_up_srv_btn = QPushButton('Update Service')
-        self.w_up_reg_btn = QPushButton('Update Registrar')
+        self.w_add_btn = QPushButton(_('Add / Import'))
+        self.w_file_btn = QPushButton(_('File'))
+        self.w_del_btn = QPushButton(_('Remove'))
+        self.w_up_params_btn = QPushButton(_('Update Params'))
+        self.w_up_coll_btn = QPushButton(_('Change Collateral'))
+        self.w_protx_btn = QPushButton(_('Register'))
+        self.w_up_srv_btn = QPushButton(_('Update Service'))
+        self.w_up_reg_btn = QPushButton(_('Update Registrar'))
         self.w_add_btn.clicked.connect(self.on_add_masternode)
         self.w_file_btn.clicked.connect(self.on_file)
         self.w_del_btn.clicked.connect(self.on_del_masternode)
@@ -599,7 +609,7 @@ class Dip3TabWidget(QTabWidget):
         vbox.addWidget(hw)
         vbox.addWidget(self.w_view)
         w.setLayout(vbox)
-        self.addTab(w, read_QIcon('tab_dip3.png'), 'Wallet MNs')
+        self.addTab(w, read_QIcon('tab_dip3.png'), _('Wallet MNs'))
         return w
 
     @pyqtSlot()
@@ -620,28 +630,28 @@ class Dip3TabWidget(QTabWidget):
         removed = (s == WalletMNsModel.STATE_REMOVED)
 
         menu = QMenu()
-        menu.addAction('Delete', self.on_del_masternode)
+        menu.addAction(_('Remove'), self.on_del_masternode)
 
         if not protx_hash:
-            menu.addAction('Update Params', self.on_update_params)
+            menu.addAction(_('Update Params'), self.on_update_params)
 
         if removed and owned:
-            menu.addAction('Change Collateral', self.on_update_collateral)
+            menu.addAction(_('Change Collateral'), self.on_update_collateral)
 
         if owned and not protx_hash:
-            menu.addAction('Register Masternode', self.on_make_pro_reg_tx)
+            menu.addAction(_('Register Masternode'), self.on_make_pro_reg_tx)
 
         if operated and protx_hash and not removed:
-            menu.addAction('Update Service', self.on_make_pro_up_srv_tx)
+            menu.addAction(_('Update Service'), self.on_make_pro_up_srv_tx)
 
         if owned and protx_hash and not removed:
-            menu.addAction('Update Registrar', self.on_make_pro_up_reg_tx)
+            menu.addAction(_('Update Registrar'), self.on_make_pro_up_reg_tx)
 
         menu.addSeparator()
-        menu.addAction('Rename Alias',
+        menu.addAction(_('Rename Alias'),
                        lambda: self.w_view.edit(i))
         menu.addSeparator()
-        menu.addAction('Details',
+        menu.addAction(_('Details'),
                        lambda: Dip3MNInfoDialog(self, alias=a).show())
         menu.exec_(self.w_view.viewport().mapToGlobal(position))
 
@@ -713,12 +723,12 @@ class Dip3TabWidget(QTabWidget):
         mn = self.manager.mns.get(alias)
         if not mn:
             return
-        if not self.gui.question('Do you want to remove the masternode '
-                                 'configuration for %s?' % alias):
+        if not self.gui.question(_('Do you want to remove the masternode '
+                                   'configuration for %s?') % alias):
             return
         if mn.protx_hash:
-            if not self.gui.question('Masternode %s has RroRegTxHash already set. '
-                                     'Are you sure?' % alias):
+            if not self.gui.question(_('Masternode %s has RroRegTxHash '
+                                       'already set. Are you sure?') % alias):
                 return
         self.manager.remove_mn(self.w_cur_alias)
         self.w_model.reload_data()
@@ -855,10 +865,10 @@ class Dip3MNInfoDialog(QDialog):
 
         if self.mn:
             self.protx_hash = self.mn.protx_hash
-            self.setWindowTitle('%s Dip3 Masternode Info' % alias)
+            self.setWindowTitle(_('%s Dip3 Masternode Info') % alias)
         elif protx_hash:
             self.protx_hash = protx_hash
-            self.setWindowTitle('%s... Dip3 Masternode Info' % protx_hash[:32])
+            self.setWindowTitle(_('%s... Dip3 Masternode Info') % protx_hash[:32])
 
         if self.protx_hash:
             manager = self.manager
@@ -879,7 +889,7 @@ class Dip3MNInfoDialog(QDialog):
         layout = QGridLayout()
         self.setLayout(layout)
         self.tabs = QTabWidget(self)
-        self.close_btn = b = QPushButton('Close')
+        self.close_btn = b = QPushButton(_('Close'))
         b.setDefault(True)
         b.clicked.connect(self.close)
         layout.addWidget(self.tabs, 0, 0, 1, -1)
@@ -888,7 +898,7 @@ class Dip3MNInfoDialog(QDialog):
 
         if self.mn:
             self.mn_tab = QWidget()
-            self.mn_label = QLabel('Wallet Masternode: %s' % self.mn.alias)
+            self.mn_label = QLabel(_('Wallet Masternode: %s') % self.mn.alias)
             self.mn_view = QTextEdit()
             self.mn_view.setReadOnly(True)
             self.mn_view.setText(pformat(self.mn.as_dict()))
@@ -896,7 +906,7 @@ class Dip3MNInfoDialog(QDialog):
             mn_vbox.addWidget(self.mn_label)
             mn_vbox.addWidget(self.mn_view)
             self.mn_tab.setLayout(mn_vbox)
-            self.tabs.addTab(self.mn_tab, 'Wallet')
+            self.tabs.addTab(self.mn_tab, _('Wallet'))
         if self.protx_hash:
             self.diff_info_tab = QWidget()
             self.diff_info_view = QTextEdit()
@@ -905,8 +915,8 @@ class Dip3MNInfoDialog(QDialog):
             diff_info_vbox = QVBoxLayout()
             diff_info_vbox.addWidget(self.diff_info_view)
             self.diff_info_tab.setLayout(diff_info_vbox)
-            self.tabs.addTab(self.diff_info_tab, 'protx.diff data (merkle '
-                                                 'root verified)')
+            self.tabs.addTab(self.diff_info_tab, _('protx.diff data (merkle '
+                                                   'root verified)'))
 
             self.info_tab = QWidget()
             self.info_view = QTextEdit()
@@ -915,7 +925,7 @@ class Dip3MNInfoDialog(QDialog):
             info_vbox = QVBoxLayout()
             info_vbox.addWidget(self.info_view)
             self.info_tab.setLayout(info_vbox)
-            self.tabs.addTab(self.info_tab, 'protx.info data (unverified)')
+            self.tabs.addTab(self.info_tab, _('protx.info data (unverified)'))
 
     def on_manager_diff_updated(self, key, value):
         self.diff_updated.emit(value)

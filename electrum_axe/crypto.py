@@ -33,15 +33,17 @@ import pyaes
 
 from .util import assert_bytes, InvalidPassword, to_bytes, to_string, WalletFileException
 from .i18n import _
-from .util import print_stderr
 from .x11hash import getPoWHash
+from .logging import get_logger
+
+
+_logger = get_logger(__name__)
 
 
 try:
     from Cryptodome.Cipher import AES
 except:
-    print_stderr('[crypto] warning: Cryptodome library not available,'
-                 ' falling back to pyaes')
+    _logger.warning('Cryptodome library not available, falling back to pyaes')
     AES = None
 
 

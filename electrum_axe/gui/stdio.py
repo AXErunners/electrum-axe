@@ -1,13 +1,15 @@
 from decimal import Decimal
 import getpass
 import datetime
+import logging
 
 from electrum_axe import WalletStorage, Wallet
 from electrum_axe.axe_tx import SPEC_TX_NAMES
-from electrum_axe.util import format_satoshis, set_verbosity
+from electrum_axe.util import format_satoshis
 from electrum_axe.bitcoin import is_address, COIN, TYPE_ADDRESS
 from electrum_axe.transaction import TxOutput
 from electrum_axe.network import TxBroadcastError, BestEffortRequestFailed
+from electrum_axe.logging import console_stderr_handler
 
 _ = lambda x:x  # i18n
 
@@ -28,10 +30,14 @@ class ElectrumGui:
             password = getpass.getpass('Password:', stream=None)
             storage.decrypt(password)
 
+        if getattr(storage, 'backup_message', None):
+            print(f'{storage.backup_message}\n')
+            input('Press Enter to continue...')
+
         self.done = 0
         self.last_balance = ""
 
-        set_verbosity(False)
+        console_stderr_handler.setLevel(logging.CRITICAL)
 
         self.str_recipient = ""
         self.str_description = ""

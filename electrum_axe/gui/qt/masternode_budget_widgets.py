@@ -12,10 +12,15 @@ from PyQt5.QtWidgets import (QLineEdit, QComboBox, QAbstractItemView,
 from electrum_axe.i18n import _
 from electrum_axe.masternode_budget import BudgetProposal, BudgetVote
 from electrum_axe.masternode_manager import BUDGET_FEE_CONFIRMATIONS
-from electrum_axe.util import block_explorer_URL, print_error, format_satoshis_plain
+from electrum_axe.util import block_explorer_URL, format_satoshis_plain
+from electrum_axe.logging import get_logger
 
 from .amountedit import BTCAmountEdit
 from . import util
+
+
+_logger = get_logger(__name__)
+
 
 # Color used when displaying proposals that we created.
 MY_PROPOSAL_COLOR = '#80ff80'
@@ -347,7 +352,7 @@ class ProposalsTab(QWidget):
         manager.add_proposal(proposal)
 
         def sign_done(proposal, tx):
-            print_error('proposal tx sign done: %s' % proposal.proposal_name)
+            _logger.error(f'proposal tx sign done: {proposal.proposal_name}')
             if tx:
                 label = _('Budget Proposal Tx: ') + proposal.proposal_name
                 self.parent.broadcast_transaction(tx, label)
@@ -379,9 +384,11 @@ class ProposalsTab(QWidget):
                 errmsg, success = self.parent.masternode_manager.submit_proposal(proposal_name, save=False)
                 results[i] = (proposal_name, errmsg, success)
                 if success:
-                    print_error('Sucessfully submitted proposal "%s"' % proposal_name)
+                    _logger.error(f'Sucessfully submitted proposal '
+                                  f'"{proposal_name}"')
                 else:
-                    print_error('Failed to submit proposal "%s": %s' % (proposal_name, errmsg))
+                    _logger.error(f'Failed to submit proposal '
+                                  f'"{proposal_name}": {errmsg}')
             return results
 
         def on_done():

@@ -14,10 +14,11 @@ from electrum_axe import version
 from electrum_axe import constants
 from electrum_axe import ecc
 from electrum_axe.i18n import _
-from electrum_axe.util import PrintError, make_aiohttp_session
+from electrum_axe.util import make_aiohttp_session
+from electrum_axe.logging import Logger
 
 
-class UpdateCheck(QWidget, PrintError):
+class UpdateCheck(QWidget, Logger):
     url = "https://raw.githubusercontent.com/axerunners/electrum-axe/master/.latest-version"
     download_url = "https://github.com/axerunners/electrum-axe/releases"
 
@@ -93,12 +94,13 @@ class UpdateCheck(QWidget, PrintError):
             self.detail_label.setText(_("Please wait while Axe Electrum checks for available updates."))
 
 
-class UpdateCheckThread(QThread, PrintError):
+class UpdateCheckThread(QThread, Logger):
     checked = pyqtSignal(object)
     failed = pyqtSignal()
 
     def __init__(self, main_window):
-        super().__init__()
+        QThread.__init__(self)
+        Logger.__init__(self)
         self.main_window = main_window
 
     async def get_update_info(self):
@@ -121,7 +123,7 @@ class UpdateCheckThread(QThread, PrintError):
                     msg = version_num.encode('utf-8')
                     if ecc.verify_message_with_address(address=address, sig65=sig, message=msg,
                                                        net=constants.BitcoinMainnet):
-                        self.print_error(f"valid sig for version announcement '{version_num}' from address '{address}'")
+                        self.logger.info(f"valid sig for version announcement '{version_num}' from address '{address}'")
                         break
                 else:
                     raise Exception('no valid signature for version announcement')
@@ -135,8 +137,7 @@ class UpdateCheckThread(QThread, PrintError):
         try:
             update_info = asyncio.run_coroutine_threadsafe(self.get_update_info(), network.asyncio_loop).result()
         except Exception as e:
-            #self.print_error(traceback.format_exc())
-            self.print_error(f"got exception: '{repr(e)}'")
+            self.logger.info(f"got exception: '{repr(e)}'")
             self.failed.emit()
         else:
             self.checked.emit(update_info)

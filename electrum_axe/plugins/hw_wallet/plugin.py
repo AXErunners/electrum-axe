@@ -26,9 +26,9 @@
 
 from electrum_axe.plugin import BasePlugin, hook
 from electrum_axe.i18n import _
-from electrum_axe.bitcoin import is_address, TYPE_SCRIPT
+from electrum_axe.bitcoin import is_address, TYPE_SCRIPT, opcodes
 from electrum_axe.util import bfh, versiontuple, UserFacingException
-from electrum_axe.transaction import opcodes, TxOutput, Transaction
+from electrum_axe.transaction import TxOutput, Transaction
 
 
 class HW_PluginBase(BasePlugin):
@@ -111,7 +111,7 @@ class HW_PluginBase(BasePlugin):
                     _("Library version for '{}' is incompatible.").format(self.name)
                     + '\nInstalled: {}, Needed: {} <= x < {}'
                     .format(library_version, version_str(self.minimum_library), max_version_str))
-            self.print_stderr(self.libraries_available_message)
+            self.logger.warning(self.libraries_available_message)
             return False
 
         return True

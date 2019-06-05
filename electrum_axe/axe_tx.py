@@ -263,8 +263,8 @@ class AxeProRegTx(ProTxBase):
                               'of freeze collateral at Addresses tab.')
 
     def update_with_keystore_password(self, tx, wallet, keystore, password):
-        coins = wallet.get_utxos(domain=None, excluded=False,
-                                 mature=True, confirmed_only=True)
+        coins = wallet.get_utxos(domain=None, excluded_addresses=False,
+                                 mature_only=True, confirmed_only=True)
 
         c_hash = bh2u(self.collateralOutpoint.hash[::-1])
         c_index = self.collateralOutpoint.index

@@ -18,7 +18,8 @@ from electrum_axe.i18n import _
 from electrum_axe.masternode import MasternodeAnnounce
 from electrum_axe.masternode_manager import parse_masternode_conf
 from electrum_axe.protx import ProTxManager
-from electrum_axe.util import PrintError, bfh
+from electrum_axe.util import bfh
+from electrum_axe.logging import Logger
 
 from .masternode_widgets import (SignAnnounceWidget, masternode_status,
                                  MasternodeEditor, MasternodeOutputsTab)
@@ -267,12 +268,13 @@ class MasternodesWidget(QWidget):
     def import_masternode_conf_lines(self, conf_lines, pw):
         return self.model.import_masternode_conf_lines(conf_lines, pw)
 
-class MasternodeDialog(QDialog, PrintError):
+class MasternodeDialog(QDialog, Logger):
     """GUI for managing masternodes."""
     diff_updated = pyqtSignal(int)
 
     def __init__(self, manager, parent):
         super(MasternodeDialog, self).__init__(parent)
+        Logger.__init__(self)
         self.gui = parent
         self.manager = manager
         self.setWindowTitle(_('Masternode Manager'))
@@ -569,14 +571,15 @@ class MasternodeDialog(QDialog, PrintError):
             return self.manager.sign_announce(alias, pw)
 
         def on_sign_successful(mn):
-            self.print_msg('Successfully signed Masternode Announce.')
+            self.logger.info('Successfully signed Masternode Announce.')
             self.send_announce(alias)
         # Proceed to broadcasting the announcement, or re-enable the button.
         def on_sign_error(err):
-            self.print_error('Error signing MasternodeAnnounce:')
+            self.logger.error('Error signing MasternodeAnnounce:')
             # Print traceback information to error log.
-            self.print_error(''.join(traceback.format_tb(err[2])))
-            self.print_error(''.join(traceback.format_exception_only(err[0], err[1])))
+            self.logger.error(''.join(traceback.format_tb(err[2])))
+            self.logger.error(''.join(traceback.format_exception_only(err[0],
+                                                                      err[1])))
             self.sign_announce_widget.sign_button.setEnabled(True)
 
         util.WaitingDialog(self, _('Signing Masternode Announce...'), sign_thread, on_sign_successful, on_sign_error)
@@ -590,24 +593,27 @@ class MasternodeDialog(QDialog, PrintError):
         def on_send_successful(result):
             errmsg, was_announced = result
             if errmsg:
-                self.print_error('Failed to broadcast MasternodeAnnounce: %s' % errmsg)
+                self.logger.error(f'Failed to broadcast MasternodeAnnounce: '
+                                  f'{errmsg}')
                 QMessageBox.critical(self, _('Error Sending'), _(errmsg))
             elif was_announced:
-                self.print_msg('Successfully broadcasted MasternodeAnnounce for "%s"' % alias)
+                self.logger.info(f'Successfully broadcasted '
+                                 f'MasternodeAnnounce for "{alias}"')
                 QMessageBox.information(self, _('Success'), _('Masternode activated successfully.'))
             self.masternodes_widget.refresh_items()
             self.masternodes_widget.select_masternode(alias)
 
         def on_send_error(err):
-            self.print_error('Error sending Masternode Announce message:')
+            self.logger.error('Error sending Masternode Announce message:')
             # Print traceback information to error log.
-            self.print_error(''.join(traceback.format_tb(err[2])))
-            self.print_error(''.join(traceback.format_exception_only(err[0], err[1])))
+            self.logger.error(''.join(traceback.format_tb(err[2])))
+            self.logger.error(''.join(traceback.format_exception_only(err[0],
+                                                                      err[1])))
 
             self.masternodes_widget.refresh_items()
             self.masternodes_widget.select_masternode(alias)
 
-        self.print_msg('Sending Masternode Announce message...')
+        self.logger.info('Sending Masternode Announce message...')
         util.WaitingDialog(self, _('Broadcasting masternode...'), send_thread, on_send_successful, on_send_error)
 
     def create_vote_tab(self):
@@ -646,10 +652,11 @@ class MasternodeDialog(QDialog, PrintError):
             self.proposals_widget.editor.vote_button.setEnabled(True)
 
         def on_vote_failed(err):
-            self.print_error('Error sending vote:')
+            self.logger.error('Error sending vote:')
             # Print traceback information to error log.
-            self.print_error(''.join(traceback.format_tb(err[2])))
-            self.print_error(''.join(traceback.format_exception_only(err[0], err[1])))
+            self.logger.error(''.join(traceback.format_tb(err[2])))
+            self.logger.error(''.join(traceback.format_exception_only(err[0],
+                                                                      err[1])))
             self.proposals_widget.editor.vote_button.setEnabled(True)
 
         util.WaitingDialog(self, _('Voting...'), vote_thread, on_vote_successful, on_vote_failed)
