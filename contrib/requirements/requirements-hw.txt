@@ -2,7 +2,7 @@ Cython>=0.27
 hideez>=0.2.1
 trezor[hidapi]>=0.11.0
 safet[hidapi]>=0.1.0
-keepkey
+keepkey>=6.0.3
 btchip-python>=0.1.26
 websocket-client
 hidapi

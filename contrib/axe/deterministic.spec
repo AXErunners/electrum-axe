@@ -30,6 +30,7 @@ hiddenimports += [
     'electrum_axe.websockets',
     'electrum_axe.gui.qt',
     'PyQt5.sip',
+    'PyQt5.QtPrintSupport',  # needed by Revealer
 
     'electrum_axe.plugins',
 
