@@ -649,6 +649,46 @@ class DashNet(Logger):
         self._add_recent_peer(peer)
         self.trigger_callback('dash-peers-updated', 'added', peer)
 
+    async def getmnlistd(self, get_mns=False):
+        mn_list = self.network.mn_list
+        llmq_offset = mn_list.LLMQ_OFFSET
+        base_height = mn_list.protx_height if get_mns else mn_list.llmq_height
+
+        height = self.network.get_local_height()
+        if get_mns:
+            if not height or height <= base_height:
+                return
+        else:
+            if not height or height <= base_height + llmq_offset:
+                return
+
+        max_blocks = 2016  # block headers chunk size
+        activation_height = constants.net.DIP3_ACTIVATION_HEIGHT
+        if base_height <= 1:
+            if height > activation_height:
+                height = activation_height // max_blocks * max_blocks
+        elif height - (base_height + llmq_offset) > max_blocks:
+            height = (base_height + max_blocks) // max_blocks * max_blocks
+        elif height - base_height > llmq_offset:
+            height = height - llmq_offset
+
+        try:
+            params = (base_height, height)
+            mn_list.sent_getmnlistd.put_nowait(params)
+        except asyncio.QueueFull:
+            self.logger.info('ignore excess getmnlistd request')
+            return
+        try:
+            err = None
+            p = await self.get_random_peer()
+            res = await p.getmnlistd(*params)
+        except Exception as e:
+            err = f'getmnlistd(get_mns={get_mns} params={params}): {repr(e)}'
+            res = None
+        self.trigger_callback('mnlistdiff', {'error': err,
+                                             'result': res,
+                                             'params': params})
+
     async def resolve_dns_over_https(self, hostname, record_type='A'):
         params = {'ct': 'application/dns-json',
                   'name': hostname,

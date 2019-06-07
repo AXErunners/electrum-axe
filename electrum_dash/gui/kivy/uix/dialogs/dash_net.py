@@ -12,27 +12,26 @@ Builder.load_string('''
 #:import MAX_PEERS_LIMIT electrum_dash.dash_net.MAX_PEERS_LIMIT
 
 
-<DashNetStatItem@BoxLayout>
-    orientation: 'vertical'
+<DashNetStatItem@SettingsItem>
     total: 0
     received: 0
     sent: 0
+    _total: _('Total') + ': %s KiB' % self.total
+    _received: _('Received') + ': %s KiB' % self.received
+    _sent: _('Sent') + ': %s KiB' % self.sent
+    title: ', '.join([self._total, self._received, self._sent])
     description: _('Data flow over Dash network')
-    size_hint: 1, None
-    height: self.minimum_height
-    padding: 0, '10dp', 0, '10dp'
-    spacing: '10dp'
-    TopLabel:
-        total: _('Total') + ': %s KiB' % root.total
-        received: _('Received') + ': %s KiB' % root.received
-        sent: _('Sent') + ': %s KiB' % root.sent
-        text: ', '.join([self.total, self.received, self.sent])
-        bold: True
-        halign: 'left'
-    TopLabel:
-        text: root.description
-        color: 0.8, 0.8, 0.8, 1
-        halign: 'left'
+    action: lambda x: None
+
+
+<ProTxListStatItem@SettingsItem>
+    llmq_height: 0
+    local_height: 0
+    _llmq_height: _('LLMQ Height') + ': %s' % self.llmq_height
+    _local_height: _('Local height') + ': %s' % self.local_height
+    title: ', '.join([self._llmq_height, self._local_height])
+    description: _('LLMQ list height and local blockchain height')
+    action: lambda x: None
 
 
 <ListColLabel@Label>
@@ -249,6 +248,10 @@ Builder.load_string('''
                     total: root.total
                     received: root.received
                     sent: root.sent
+                CardSeparator
+                ProTxListStatItem
+                    llmq_height: root.llmq_height
+                    local_height: root.local_height
                 CardSeparator
                 SettingsItem:
                     value: ': ON' if root.run_dash_net else ': OFF'
@@ -476,11 +479,14 @@ class DashNetDialog(Factory.Popup):
     static_peers = StringProperty()
     sporks = ListProperty()
     banlist = ListProperty()
+    local_height = NumericProperty()
+    llmq_height = NumericProperty()
 
     def __init__(self, app):
         self.app = app
         self.config = self.app.electrum_config
         self.net = app.network
+        self.mn_list = self.net.mn_list
         self.dash_net = self.net.dash_net
         Factory.Popup.__init__(self)
         layout = self.ids.scrollviewlayout
@@ -491,6 +497,8 @@ class DashNetDialog(Factory.Popup):
         self.on_sporks_activity()
         self.on_dash_peers_updated()
         self.on_dash_banlist_updated()
+        self.on_mn_list_diff_updated()
+        self.on_network_updated()
         self.run_dash_net = self.config.get('run_dash_net', True)
         self.max_peers = self.dash_net.max_peers
         self.use_static_peers = self.config.get('dash_use_static_peers', True)
@@ -506,6 +514,10 @@ class DashNetDialog(Factory.Popup):
                                         ['dash-peers-updated'])
         self.dash_net.register_callback(self.on_dash_banlist_updated,
                                         ['dash-banlist-updated'])
+        self.mn_list.register_callback(self.on_mn_list_diff_updated,
+                                       ['mn-list-diff-updated'])
+        self.net.register_callback(self.on_network_updated,
+                                   ['network_updated'])
 
     def dismiss(self, *args, **kwargs):
         super(DashNetDialog, self).dismiss(*args, **kwargs)
@@ -513,6 +525,8 @@ class DashNetDialog(Factory.Popup):
         self.dash_net.unregister_callback(self.on_sporks_activity)
         self.dash_net.unregister_callback(self.on_dash_peers_updated)
         self.dash_net.unregister_callback(self.on_dash_banlist_updated)
+        self.mn_list.unregister_callback(self.on_mn_list_diff_updated)
+        self.net.unregister_callback(self.on_network_updated)
 
     def on_dash_net_activity(self, *args, **kwargs):
         read_bytes = self.dash_net.read_bytes
@@ -545,6 +559,12 @@ class DashNetDialog(Factory.Popup):
         self.banlist = []
         for peer, banned in sorted(list(banlist.items())):
             self.banlist.append((peer, banned['ua']))
+
+    def on_mn_list_diff_updated(self, *args, **kwargs):
+        self.llmq_height = self.mn_list.llmq_human_height
+
+    def on_network_updated(self, *args, **kwargs):
+        self.local_height = self.net.get_local_height()
 
     def toggle_dash_net(self, *args):
         self.run_dash_net = not self.config.get('run_dash_net', True)

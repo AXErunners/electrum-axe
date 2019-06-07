@@ -571,7 +571,6 @@ class DashCbTx(ProTxBase):
             res += self.merkleRootQuorums               # merkleRootQuorums
         return res
 
-
     @classmethod
     def read_vds(cls, vds):
         version = vds.read_uint16()

@@ -283,7 +283,6 @@ class Network(Logger):
         self.recent_servers_lock = threading.RLock()       # <- re-entrant
         self.interfaces_lock = threading.Lock()            # for mutating/iterating self.interfaces
         # protx code locks
-        self.protx_diff_resp_lock = threading.Lock()
         self.protx_info_resp_lock = threading.Lock()
 
         self.server_peers = {}  # returned by interface (servers that the main interface knows about)
@@ -315,12 +314,14 @@ class Network(Logger):
         # Dump network messages (all interfaces).  Set at runtime from the console.
         self.debug = False
 
-        # protx responses data
-        self.protx_diff_resp = []
+        # protx info responses data
         self.protx_info_resp = []
 
         # create DashNet
         self.dash_net = DashNet(self, config)
+        # create MNList instance
+        from .protx_list import MNList
+        self.mn_list = MNList(self, config)
 
         self._set_status('disconnected')
 
@@ -477,12 +478,6 @@ class Network(Logger):
             value = self.config.mempool_fees
         elif key == 'servers':
             value = self.get_servers()
-        elif key == 'protx-diff':
-            with self.protx_diff_resp_lock:
-                if self.protx_diff_resp:
-                    value = self.protx_diff_resp.pop()
-                else:
-                    value = {}
         elif key == 'protx-info':
             with self.protx_info_resp_lock:
                 if self.protx_info_resp:
@@ -1185,45 +1180,44 @@ class Network(Logger):
 
     @best_effort_reliable
     @catch_server_exceptions
-    async def request_protx_diff(self, base_height: int, *, timeout=None) -> dict:
-        '''
-        Request a diff between two deterministic masternode lists.
-        The result also contains proof data.
+    async def request_protx_diff(self, *, timeout=None) -> dict:
+        mn_list = self.mn_list
+        base_height = mn_list.protx_height
 
-        base_height: The starting block height (starting from 1).
-        height: The ending block height.
-        '''
-        height = self.get_server_height()
+        height = self.get_local_height()
         if not height or height <= base_height:
             return
 
+        max_blocks = self.config.get('protx_diff_max_blocks', 1000)
         activation_height = constants.net.DIP3_ACTIVATION_HEIGHT
-        max_blocks = self.config.get('protx_diff_max_blocks', 2016)
         if base_height <= 1:
+            if base_height == 0:  # on protx diff first allowed height is 1
+                base_height = 1
             if height > activation_height:
                 height = activation_height
         elif height - base_height > max_blocks:
             height = base_height + max_blocks
 
-        params = [base_height, height]
+        try:
+            params = (base_height, height)
+            mn_list.sent_protx_diff.put_nowait(params)
+        except asyncio.QueueFull:
+            self.logger.info('ignore excess protx diff request')
+            return
         try:
             err = None
-            res = await self.interface.session.send_request('protx.diff',
-                                                            params,
-                                                            timeout=timeout)
+            s = self.interface.session
+            res = await s.send_request('protx.diff', params, timeout=timeout)
         except Exception as e:
-            err = str(e)
+            err = f'request_protx_diff(), params={params}: {repr(e)}'
             res = None
-
-        with self.protx_diff_resp_lock:
-            self.protx_diff_resp.insert(0, {'error': err,
-                                            'result': res,
-                                            'params': params})
-        self.notify('protx-diff')
+        self.trigger_callback('protx-diff', {'error': err,
+                                             'result': res,
+                                             'params': params})
 
     @best_effort_reliable
     @catch_server_exceptions
-    async def request_protx_info(self, protx_hash: str, *, timeout=None) -> dict:
+    async def request_protx_info(self, protx_hash: str,*, timeout=None):
         '''
         Request detailed information about a deterministic masternode.
 
@@ -1340,6 +1334,7 @@ class Network(Logger):
         self._jobs = jobs or []
         asyncio.run_coroutine_threadsafe(self._start(), self.asyncio_loop)
         self.dash_net.start()
+        self.mn_list.start()
 
     @log_exceptions
     async def _stop(self, full_shutdown=False):
@@ -1358,6 +1353,7 @@ class Network(Logger):
 
     def stop(self):
         assert self._loop_thread != threading.current_thread(), 'must not be called from network thread'
+        self.mn_list.stop()
         fut = asyncio.run_coroutine_threadsafe(self._stop(full_shutdown=True), self.asyncio_loop)
         try:
             fut.result(timeout=2)

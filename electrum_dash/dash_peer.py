@@ -40,7 +40,7 @@ from .dash_msg import (SporkID, DashType, DashCmd, DashVersionMsg, DashPingMsg,
 from .ecc import ECPubkey
 from .interface import GracefulDisconnect
 from .logging import Logger
-from .util import log_exceptions, ignore_exceptions, SilentTaskGroup
+from .util import log_exceptions, ignore_exceptions, SilentTaskGroup, bh2u
 from .version import ELECTRUM_VERSION
 
 
@@ -96,6 +96,9 @@ class DashPeer(Logger):
 
         # getaddr flag
         self.getaddr_done = False
+
+        # mnlistdiff data
+        self.mnlistdiffs = asyncio.Queue(1)
 
         # Activity data
         self.read_bytes = 0
@@ -256,6 +259,11 @@ class DashPeer(Logger):
                                  for a in res.payload.addresses]
                     found_peers = self.dash_net.found_peers
                     found_peers = found_peers.union(addresses)
+                elif res.cmd == 'mnlistdiff':
+                    try:
+                        self.mnlistdiffs.put_nowait(res.payload)
+                    except asyncio.QueueFull:
+                        self.logger.info('excess mnlistdiff msg')
             await asyncio.sleep(0.1)
 
     async def monitor_connection(self):
@@ -444,3 +452,13 @@ class DashPeer(Logger):
             return True
         else:
             return False
+
+    async def getmnlistd(self, base_height, height):
+        base_block_hash = await self.dash_net.get_hash(base_height)
+        block_hash = await self.dash_net.get_hash(height)
+        msg = DashGetMNListDMsg(base_block_hash, block_hash)
+        if not self.mnlistdiffs.empty():
+            self.logger.info('unasked mnlistdiff msg')
+            self.mnlistdiffs.get_nowait()
+        await self.send_msg('getmnlistd', msg.serialize())
+        return await self.mnlistdiffs.get()

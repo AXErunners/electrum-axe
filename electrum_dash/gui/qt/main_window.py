@@ -270,7 +270,6 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
                 and self.network.tor_auto_on and not self.network.tor_on):
             self.show_warning(self.network.tor_warn_msg +
                               self.network.tor_docs_uri_qt, rich_text=True)
-        self.tabs.currentChanged.connect(self.on_tabs_current_changed)
 
         # If the option hasn't been set yet
         if config.get('check_updates') is None:
@@ -290,12 +289,6 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             self._update_check_thread = UpdateCheckThread(self)
             self._update_check_thread.checked.connect(on_version_received)
             self._update_check_thread.start()
-
-    @pyqtSlot()
-    def on_tabs_current_changed(self):
-        cur_widget = self.tabs.currentWidget()
-        if cur_widget == self.dip3_tab and not cur_widget.have_been_shown:
-            cur_widget.on_first_showing()
 
     def on_history(self, b):
         self.wallet.clear_coin_price_cache()
