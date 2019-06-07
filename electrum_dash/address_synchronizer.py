@@ -154,7 +154,7 @@ class AddressSynchronizer(Logger):
             self.synchronizer = Synchronizer(self)
             self.verifier = SPV(self.network, self)
             self.network.register_callback(self.on_blockchain_updated, ['blockchain_updated'])
-        self.protx_manager.on_network_start(self.network)
+            self.protx_manager.on_network_start(self.network)
 
     def on_blockchain_updated(self, event, *args):
         self._get_addr_balance_cache = {}  # invalidate cache
@@ -418,7 +418,7 @@ class AddressSynchronizer(Logger):
         return f
 
     @with_local_height_cached
-    def get_history(self, domain=None):
+    def get_history(self, domain=None, config=None):
         # get domain
         if domain is None:
             domain = self.get_addresses()
@@ -445,7 +445,7 @@ class AddressSynchronizer(Logger):
         c, u, x = self.get_balance(domain)
         balance = c + u + x
         h2 = []
-        show_dip2 = self.network.config.get('show_dip2_tx_type', False)
+        show_dip2 = config.get('show_dip2_tx_type', False) if config else False
         for tx_hash, tx_mined_status, delta in history:
             tx_type = 0
             if show_dip2:

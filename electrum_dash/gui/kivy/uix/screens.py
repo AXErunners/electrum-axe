@@ -159,7 +159,8 @@ class HistoryScreen(CScreen):
     def update(self, see_all=False):
         if self.app.wallet is None:
             return
-        history = reversed(self.app.wallet.get_history())
+        config = self.app.electrum_config
+        history = reversed(self.app.wallet.get_history(config=config))
         history_card = self.screen.ids.history_container
         history_card.data = [self.get_card(*item) for item in history]
 

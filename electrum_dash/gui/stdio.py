@@ -95,7 +95,8 @@ class ElectrumGui:
     def print_history(self):
         messages = []
 
-        for tx_hash, tx_type, tx_mined_status, delta, balance in reversed(self.wallet.get_history()):
+        hist_list = reversed(self.wallet.get_history(config=self.config))
+        for tx_hash, tx_type, tx_mined_status, delta, balance in hist_list:
             if tx_mined_status.conf:
                 timestamp = tx_mined_status.timestamp
                 try:

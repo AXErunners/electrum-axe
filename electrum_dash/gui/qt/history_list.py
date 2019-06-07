@@ -245,7 +245,11 @@ class HistoryModel(QAbstractItemModel, Logger):
             selected_row = selected.row()
         fx = self.parent.fx
         if fx: fx.history_used_spot = False
-        r = self.parent.wallet.get_full_history(domain=self.get_domain(), from_timestamp=None, to_timestamp=None, fx=fx)
+        r = self.parent.wallet.get_full_history(domain=self.get_domain(),
+                                                from_timestamp=None,
+                                                to_timestamp=None,
+                                                fx=fx,
+                                                config=self.parent.config)
         self.set_visibility_of_columns()
         if r['transactions'] == list(self.transactions.values()):
             return
@@ -667,7 +671,8 @@ class HistoryList(MyTreeView, AcceptFileDragDrop):
                                             from_timestamp=None,
                                             to_timestamp=None,
                                             fx=self.parent.fx,
-                                            show_fees=True)
+                                            show_fees=True,
+                                            config=self.config)
         txns = hist['transactions']
         lines = []
         if is_csv:

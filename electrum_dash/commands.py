@@ -503,6 +503,7 @@ class Commands:
             'show_fees': show_fees,
             'from_height': from_height,
             'to_height': to_height,
+            'config': self.config,
         }
         if year:
             import time

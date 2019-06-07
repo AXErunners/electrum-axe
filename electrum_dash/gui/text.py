@@ -136,7 +136,8 @@ class ElectrumGui:
     def update_history(self):
         b = 0
         self.history = []
-        for tx_hash, tx_type, tx_mined_status, value, balance in self.wallet.get_history():
+        hist_list = self.wallet.get_history(config=self.config)
+        for tx_hash, tx_type, tx_mined_status, value, balance in hist_list:
             if tx_mined_status.conf:
                 timestamp = tx_mined_status.timestamp
                 try:

@@ -259,7 +259,8 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             self.show_warning(self.wallet.storage.backup_message,
                               title=_('Information'))
 
-        if self.network.tor_auto_on and not self.network.tor_on:
+        if (self.network
+                and self.network.tor_auto_on and not self.network.tor_on):
             self.show_warning(self.network.tor_warn_msg +
                               self.network.tor_docs_uri_qt, rich_text=True)
         self.tabs.currentChanged.connect(self.on_tabs_current_changed)
@@ -3345,7 +3346,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             self.network.unregister_callback(self.on_network)
             self.network.unregister_callback(self.on_quotes)
             self.network.unregister_callback(self.on_history)
-        self.wallet.protx_manager.clean_up()
+            self.wallet.protx_manager.clean_up()
         self.config.set_key("is_maximized", self.isMaximized())
         if not self.isMaximized():
             g = self.geometry()

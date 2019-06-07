@@ -472,7 +472,7 @@ class Abstract_Wallet(AddressSynchronizer):
     @profiler
     def get_full_history(self, domain=None, from_timestamp=None, to_timestamp=None,
                          fx=None, show_addresses=False, show_fees=False,
-                         from_height=None, to_height=None):
+                         from_height=None, to_height=None, config=None):
         if (from_timestamp is not None or to_timestamp is not None) \
                 and (from_height is not None or to_height is not None):
             raise Exception('timestamp and block height based filtering cannot be used together')
@@ -482,9 +482,9 @@ class Abstract_Wallet(AddressSynchronizer):
         capital_gains = Decimal(0)
         fiat_income = Decimal(0)
         fiat_expenditures = Decimal(0)
-        h = self.get_history(domain)
+        h = self.get_history(domain, config=config)
         now = time.time()
-        show_dip2 = self.network.config.get('show_dip2_tx_type', False)
+        show_dip2 = config.get('show_dip2_tx_type', False) if config else False
         for tx_hash, tx_type, tx_mined_status, value, balance in h:
             timestamp = tx_mined_status.timestamp
             if from_timestamp and (timestamp or now) < from_timestamp:
