@@ -178,21 +178,21 @@ class TestCreateRestoreWallet(WalletTestCase):
         self.assertEqual(passphrase, wallet.keystore.get_passphrase(password))
         self.assertEqual(text, wallet.keystore.get_seed(password))
         self.assertEqual(encrypt_file, wallet.storage.is_encrypted())
-        self.assertEqual('XdDHzW6aTeuQsraNXeEsPy5gAv1nUz7Y7Q', wallet.get_receiving_addresses()[0])
+        self.assertEqual('PB7dKDqXYsB1hkeZ1qFBDLN9xKbyXupWQX', wallet.get_receiving_addresses()[0])
 
     def test_restore_wallet_from_text_xpub(self):
         text = 'xpub6ASuArnXKPbfEwhqN6e3mwBcDTgzisQN1wXN9BJcM47sSikHjJf3UFHKkNAWbWMiGj7Wf5uMash7SyYq527Hqck2AxYysAA7xmALppuCkwQ'
         d = restore_wallet_from_text(text, path=self.wallet_path, network=None)
         wallet = d['wallet']  # type: Standard_Wallet
         self.assertEqual(text, wallet.keystore.get_master_public_key())
-        self.assertEqual('XmQ3Tn67Fgs7bwNXthtiEnBFh7ZeDG3aw2', wallet.get_receiving_addresses()[0])
+        self.assertEqual('PKJNnVq4Lu8iRqSiNtu249TjUX9qELpRmH', wallet.get_receiving_addresses()[0])
 
     def test_restore_wallet_from_text_xprv(self):
         text = 'xprv9wTYmMFdV23N2TdNG573QoEsfRrWKQgWeibmLntzniatZvR9BmLnvSxqu53Kw1UmYPxLgboyZQaXwTCg8MSY3H2EU4pWcQDnRnrVA1xe8fs'
         d = restore_wallet_from_text(text, path=self.wallet_path, network=None)
         wallet = d['wallet']  # type: Standard_Wallet
         self.assertEqual(text, wallet.keystore.get_master_private_key(password=None))
-        self.assertEqual('XmQ3Tn67Fgs7bwNXthtiEnBFh7ZeDG3aw2', wallet.get_receiving_addresses()[0])
+        self.assertEqual('PKJNnVq4Lu8iRqSiNtu249TjUX9qELpRmH', wallet.get_receiving_addresses()[0])
 
     def test_restore_wallet_from_text_addresses(self):
         text = 'XdjwdihsyoLpoCHFUpd8x3iH1rsMsS2q5P Xdt8NqE5wSX9ytfP958t4tKdXoZDo6Bm6T'
@@ -209,7 +209,7 @@ class TestCreateRestoreWallet(WalletTestCase):
         d = restore_wallet_from_text(text, path=self.wallet_path, network=None)
         wallet = d['wallet']  # type: Imported_Wallet
         addr0 = wallet.get_receiving_addresses()[0]
-        self.assertEqual('Xci5KnMVkHrqBQk9cU4jwmzJfgaTPopHbz', addr0)
+        self.assertEqual('PAcQeW6SqW8S1JpL6f53m9GnT6AeRFndWo', addr0)
         self.assertEqual('p2pkh:XEn9o6oayjsRmoEQwDbvkrWVvjRNqPj3xNskJJPAKraJTrWuutwd',
                          wallet.export_private_key(addr0, password=None)[0])
         self.assertEqual(2, len(wallet.get_receiving_addresses()))
