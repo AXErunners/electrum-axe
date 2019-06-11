@@ -208,6 +208,7 @@ class TestCreateRestoreWallet(WalletTestCase):
         text = 'p2pkh:XGx8LpkmLRv9RiMvpYx965BCaQKQbeMVVqgAh7B5SQVdosQiKJ4i p2pkh:XEn9o6oayjsRmoEQwDbvkrWVvjRNqPj3xNskJJPAKraJTrWuutwd'
         d = restore_wallet_from_text(text, path=self.wallet_path, network=None)
         wallet = d['wallet']  # type: Imported_Wallet
+        print(wallet)
         addr0 = wallet.get_receiving_addresses()[0]
         self.assertEqual('PAcQeW6SqW8S1JpL6f53m9GnT6AeRFndWo', addr0)
         self.assertEqual('p2pkh:XEn9o6oayjsRmoEQwDbvkrWVvjRNqPj3xNskJJPAKraJTrWuutwd',
