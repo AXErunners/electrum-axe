@@ -195,13 +195,13 @@ class TestCreateRestoreWallet(WalletTestCase):
         self.assertEqual('PKJNnVq4Lu8iRqSiNtu249TjUX9qELpRmH', wallet.get_receiving_addresses()[0])
 
     def test_restore_wallet_from_text_addresses(self):
-        text = 'XdjwdihsyoLpoCHFUpd8x3iH1rsMsS2q5P Xdt8NqE5wSX9ytfP958t4tKdXoZDo6Bm6T'
+        text = 'PJxmSv9QS2JwQhRSFMqiH37Nc6HUhgM99a PS9UztHduw2QjTZcAhn7JpHR1zLcHGqTQb'
         d = restore_wallet_from_text(text, path=self.wallet_path, network=None)
         wallet = d['wallet']  # type: Imported_Wallet
-        self.assertEqual('XdjwdihsyoLpoCHFUpd8x3iH1rsMsS2q5P', wallet.get_receiving_addresses()[0])
+        self.assertEqual('PJxmSv9QS2JwQhRSFMqiH37Nc6HUhgM99a', wallet.get_receiving_addresses()[0])
         self.assertEqual(2, len(wallet.get_receiving_addresses()))
         # also test addr deletion
-        wallet.delete_address('Xdt8NqE5wSX9ytfP958t4tKdXoZDo6Bm6T')
+        wallet.delete_address('PS9UztHduw2QjTZcAhn7JpHR1zLcHGqTQb')
         self.assertEqual(1, len(wallet.get_receiving_addresses()))
 
     def test_restore_wallet_from_text_privkeys(self):
