@@ -172,7 +172,7 @@ class TestBlockchain(SequentialTestCase):
         self.assertEqual(chain_z, chain_u.parent)
         self.assertEqual(chain_z, chain_l.parent)
         self.assertEqual(None,    chain_z.parent)
-'''
+
     def test_forking_and_swapping(self):
         blockchain.blockchains[constants.net.GENESIS] = chain_u = Blockchain(
             config=self.config, forkpoint=0, parent=None,
@@ -194,7 +194,7 @@ class TestBlockchain(SequentialTestCase):
         #self._append_header(chain_l, self.HEADERS['H'])
         #self._append_header(chain_l, self.HEADERS['I'])
         #self._append_header(chain_l, self.HEADERS['J'])
-'''
+
         # do checks
         self.assertEqual(2, len(blockchain.blockchains))
         self.assertEqual(1, len(os.listdir(os.path.join(self.data_dir, "forks"))))
