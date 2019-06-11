@@ -271,7 +271,7 @@ class TestBlockchain(SequentialTestCase):
         self.assertEqual(hash_header(self.HEADERS['I']), chain_z.get_hash(8))
         self.assertEqual(hash_header(self.HEADERS['M']), chain_z.get_hash(9))
         self.assertEqual(hash_header(self.HEADERS['Z']), chain_z.get_hash(13))
-'''
+
     def test_doing_multiple_swaps_after_single_new_header(self):
         blockchain.blockchains[constants.net.GENESIS] = chain_u = Blockchain(
             config=self.config, forkpoint=0, parent=None,
