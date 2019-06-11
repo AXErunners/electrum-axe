@@ -7,4 +7,8 @@ protobuf python3-protobuf (>= 3.0.0)
 dnspython python3-dnspython (>= 1.11.1)
 jsonrpclib-pelix python3-jsonrpclib-pelix (>= 0.3.1)
 PySocks python3-socks (>= 1.6.5)
+aiorpcx python3-aiorpcx (<< 0.18)
+aiohttp python3-aiohttp (>= 3.3.0)
+aiohttp-socks python3-aiohttp-socks
+certifi python3-certifi
 x11_hash python3-x11-hash (>=1.4)

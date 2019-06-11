@@ -6,5 +6,6 @@ if [[ -z $TRAVIS_TAG ]]; then
   exit 1
 fi
 
-docker pull axerunners/electrum-axe-winebuild:Linux
+docker pull axerunners/electrum-axe-winebuild:LinuxPy36
+docker pull axerunners/electrum-axe-winebuild:LinuxAppImage
 docker pull axerunners/electrum-axe-winebuild:WinePy36

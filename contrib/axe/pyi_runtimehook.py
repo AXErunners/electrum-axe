@@ -12,6 +12,7 @@ KEYSTORE_PLUGINS = [
     'ledger',
     'safe_t',
     'trezor',
+    'hideez',
 ]
 
 OTHER_PLUGINS= [

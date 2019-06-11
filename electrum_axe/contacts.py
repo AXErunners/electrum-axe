@@ -21,20 +21,20 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 import re
+
 import dns
 from dns.exception import DNSException
-import json
-import traceback
-import sys
 
 from . import bitcoin
 from . import dnssec
-from .util import export_meta, import_meta, print_error, to_string
+from .util import export_meta, import_meta, to_string
+from .logging import Logger
 
 
-class Contacts(dict):
+class Contacts(dict, Logger):
 
     def __init__(self, storage):
+        Logger.__init__(self)
         self.storage = storage
         d = self.storage.get('contacts', {})
         try:
@@ -67,8 +67,9 @@ class Contacts(dict):
 
     def pop(self, key):
         if key in self.keys():
-            dict.pop(self, key)
+            res = dict.pop(self, key)
             self.save()
+            return res
 
     def resolve(self, k):
         if bitcoin.is_address(k):
@@ -100,7 +101,7 @@ class Contacts(dict):
         try:
             records, validated = dnssec.query(url, dns.rdatatype.TXT)
         except DNSException as e:
-            print_error('Error resolving openalias: ', str(e))
+            self.logger.info(f'Error resolving openalias: {repr(e)}')
             return None
         prefix = 'axe'
         for record in records:
