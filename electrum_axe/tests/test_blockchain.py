@@ -125,7 +125,7 @@ class TestBlockchain(SequentialTestCase):
         self.assertEqual(5, chain_z.get_height_of_last_common_block_with_chain(chain_u))
         self.assertEqual(8, chain_l.get_height_of_last_common_block_with_chain(chain_z))
         self.assertEqual(8, chain_z.get_height_of_last_common_block_with_chain(chain_l))
-'''
+
 
     def test_parents_after_forking(self):
         blockchain.blockchains[constants.net.GENESIS] = chain_u = Blockchain(
@@ -142,7 +142,7 @@ class TestBlockchain(SequentialTestCase):
         self._append_header(chain_u, self.HEADERS['P'])
         self._append_header(chain_u, self.HEADERS['Q'])
 
-'''        self.assertEqual(None, chain_u.parent)
+        self.assertEqual(None, chain_u.parent)
 
         chain_l = chain_u.fork(self.HEADERS['G'])
         self._append_header(chain_l, self.HEADERS['H'])
