@@ -84,8 +84,8 @@ class TestBlockchain(SequentialTestCase):
         self._append_header(chain_u, self.HEADERS['O'])
         self._append_header(chain_u, self.HEADERS['P'])
         self._append_header(chain_u, self.HEADERS['Q'])
-
- '''       chain_l = chain_u.fork(self.HEADERS['G'])
+'''
+        chain_l = chain_u.fork(self.HEADERS['G'])
         self._append_header(chain_l, self.HEADERS['H'])
         self._append_header(chain_l, self.HEADERS['I'])
         self._append_header(chain_l, self.HEADERS['J'])
