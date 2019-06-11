@@ -292,7 +292,7 @@ class TestBlockchain(SequentialTestCase):
 
         self.assertEqual(1, len(blockchain.blockchains))
         self.assertEqual(0, len(os.listdir(os.path.join(self.data_dir, "forks"))))
-'''
+
         chain_l = chain_u.fork(self.HEADERS['G'])
         self._append_header(chain_l, self.HEADERS['H'])
         self._append_header(chain_l, self.HEADERS['I'])
