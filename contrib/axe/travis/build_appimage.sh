@@ -6,7 +6,7 @@ PROJECT_ROOT="$(dirname "$(readlink -e "$0")")/../../.."
 CONTRIB="$PROJECT_ROOT/contrib"
 DISTDIR="$PROJECT_ROOT/dist"
 BUILDDIR="/var/build/appimage"
-APPDIR="$BUILDDIR/electrum-axe.AppDir"
+APPDIR="$BUILDDIR/electrum-dash.AppDir"
 CACHEDIR="$BUILDDIR/.cache/appimage"
 
 # pinned versions
