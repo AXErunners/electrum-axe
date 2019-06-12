@@ -20,7 +20,7 @@ wget -O electrum-axe/dist/tor-proxy-setup.exe \
 docker run --rm \
     -v $(pwd):/opt \
     -w /opt/electrum-axe \
-    -t axerunners/electrum-axe-winebuild:LinuxPy36 /opt/build_linux.sh
+    -t zebralucky/electrum-dash-winebuild:LinuxPy36 /opt/build_linux.sh
 
 sudo find . -name '*.po' -delete
 sudo find . -name '*.pot' -delete
@@ -29,7 +29,7 @@ sudo find . -name '*.pot' -delete
 docker run --rm \
     -v $(pwd):/opt \
     -w /opt/electrum-axe/contrib/axe/travis \
-    -t axerunners/electrum-axe-winebuild:LinuxAppImage ./build_appimage.sh
+    -t zebralucky/electrum-dash-winebuild:LinuxAppImage ./build_appimage.sh
 
 
 export WINEARCH=win32
@@ -52,7 +52,7 @@ docker run --rm \
     -v $(pwd):/opt \
     -v $(pwd)/electrum-axe/:$WINEPREFIX/drive_c/electrum-axe \
     -w /opt/electrum-axe \
-    -t axerunners/electrum-axe-winebuild:WinePy36 /opt/build_wine.sh
+    -t zebralucky/electrum-dash-winebuild:WinePy36 /opt/build_wine.sh
 
 export WINEARCH=win64
 export WINEPREFIX=/root/.wine-64
@@ -74,4 +74,4 @@ docker run --rm \
     -v $(pwd):/opt \
     -v $(pwd)/electrum-axe/:$WINEPREFIX/drive_c/electrum-axe \
     -w /opt/electrum-axe \
-    -t axerunners/electrum-axe-winebuild:WinePy36 /opt/build_wine.sh
+    -t zebralucky/electrum-dash-winebuild:WinePy36 /opt/build_wine.sh
