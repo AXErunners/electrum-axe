@@ -1,6 +1,7 @@
 import sys
+import json
 
-import requests
+from aiohttp.client_exceptions import ClientError
 from kivy import base, utils
 from kivy.clock import Clock
 from kivy.core.window import Window
@@ -12,6 +13,7 @@ from kivy.utils import platform
 from electrum_axe.gui.kivy.i18n import _
 
 from electrum_axe.base_crash_reporter import BaseCrashReporter
+from electrum_axe.logging import Logger
 
 
 Builder.load_string('''
@@ -115,8 +117,10 @@ class CrashReporter(BaseCrashReporter, Factory.Popup):
 
     def send_report(self):
         try:
-            response = BaseCrashReporter.send_report(self, "/crash.json").json()
-        except requests.exceptions.RequestException:
+            loop = self.main_window.network.asyncio_loop
+            proxy = self.main_window.network.proxy
+            response = json.loads(BaseCrashReporter.send_report(self, loop, proxy, "/crash.json"))
+        except (ValueError, ClientError):
             self.show_popup(_('Unable to send report'), _("Please check your network connection."))
         else:
             self.show_popup(_('Report sent'), response["text"])
@@ -152,14 +156,6 @@ class CrashReporter(BaseCrashReporter, Factory.Popup):
     def get_wallet_type(self):
         return self.main_window.wallet.wallet_type
 
-    def get_os_version(self):
-        if utils.platform is not "android":
-            return utils.platform
-        import jnius
-        bv = jnius.autoclass('android.os.Build$VERSION')
-        b = jnius.autoclass('android.os.Build')
-        return "Android {} on {} {} ({})".format(bv.RELEASE, b.BRAND, b.DEVICE, b.DISPLAY)
-
 
 class CrashReportDetails(Factory.Popup):
     def __init__(self, text):
@@ -169,9 +165,10 @@ class CrashReportDetails(Factory.Popup):
         print(text)
 
 
-class ExceptionHook(base.ExceptionHandler):
+class ExceptionHook(base.ExceptionHandler, Logger):
     def __init__(self, main_window):
-        super().__init__()
+        base.ExceptionHandler.__init__(self)
+        Logger.__init__(self)
         self.main_window = main_window
         if not main_window.electrum_config.get(BaseCrashReporter.config_key, default=False):
             return
@@ -182,6 +179,7 @@ class ExceptionHook(base.ExceptionHandler):
 
     def handle_exception(self, _inst):
         exc_info = sys.exc_info()
+        self.logger.error('exception caught by crash reporter', exc_info=exc_info)
         # Check if this is an exception from within the exception handler:
         import traceback
         for item in traceback.extract_tb(exc_info[2]):

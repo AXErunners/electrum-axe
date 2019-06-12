@@ -23,13 +23,17 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QPixmap
+from PyQt5.QtWidgets import (QVBoxLayout, QCheckBox, QHBoxLayout, QLineEdit,
+                             QLabel, QCompleter, QDialog)
+
 from electrum_axe.i18n import _
-from electrum_axe.mnemonic import Mnemonic
+from electrum_axe.mnemonic import Mnemonic, seed_type
 import electrum_axe.old_mnemonic
-from electrum_axe.plugin import run_hook
 
-
-from .util import *
+from .util import (Buttons, OkButton, WWLabel, ButtonsTextEdit, icon_path,
+                   EnterButton, CloseButton, WindowModalDialog)
 from .qrtextedit import ShowQRTextEdit, ScanQRTextEdit
 from .completion_text_edit import CompletionTextEdit
 
@@ -112,7 +116,8 @@ class SeedLayout(QVBoxLayout):
         hbox = QHBoxLayout()
         if icon:
             logo = QLabel()
-            logo.setPixmap(QPixmap(":icons/seed.png").scaledToWidth(64, mode=Qt.SmoothTransformation))
+            logo.setPixmap(QPixmap(icon_path("seed.png"))
+                           .scaledToWidth(64, mode=Qt.SmoothTransformation))
             logo.setMaximumWidth(60)
             hbox.addWidget(logo)
         hbox.addWidget(self.seed_e)
@@ -156,7 +161,6 @@ class SeedLayout(QVBoxLayout):
         return ' '.join(text.split())
 
     def on_edit(self):
-        from electrum_axe.bitcoin import seed_type
         s = self.get_seed()
         b = self.is_seed(s)
         if not self.is_bip39:
@@ -194,8 +198,14 @@ class KeysLayout(QVBoxLayout):
         return self.text_e.text()
 
     def on_edit(self):
-        b = self.is_valid(self.get_text())
-        self.parent.next_button.setEnabled(b)
+        valid = False
+        try:
+            valid = self.is_valid(self.get_text())
+        except Exception as e:
+            self.parent.next_button.setToolTip(f'{_("Error")}: {str(e)}')
+        else:
+            self.parent.next_button.setToolTip('')
+        self.parent.next_button.setEnabled(valid)
 
 
 class SeedDialog(WindowModalDialog):
@@ -207,6 +217,4 @@ class SeedDialog(WindowModalDialog):
         title =  _("Your wallet generation seed is:")
         slayout = SeedLayout(title=title, seed=seed, msg=True, passphrase=passphrase)
         vbox.addLayout(slayout)
-        has_extension = True if passphrase else False
-        run_hook('set_seed', seed, has_extension, slayout.seed_e)
         vbox.addLayout(Buttons(CloseButton(self)))

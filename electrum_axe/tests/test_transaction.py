@@ -1,6 +1,5 @@
-import unittest
-
 from electrum_axe import transaction
+from electrum_axe.transaction import TxOutputForUI, tx_from_str
 from electrum_axe.bitcoin import TYPE_ADDRESS
 from electrum_axe.keystore import xpubkey_to_address
 from electrum_axe.util import bh2u, bfh
@@ -88,8 +87,8 @@ class TestTransaction(SequentialTestCase):
         self.assertEqual(tx.deserialize(), None)
 
         self.assertEqual(tx.as_dict(), {'hex': unsigned_blob, 'complete': False, 'final': True})
-        self.assertEqual(tx.get_outputs(), [('PQCuFncFVzYhuoyv9MCSE5nQU2gwr56uh4', 99999040)])
-        self.assertEqual(tx.get_output_addresses(), ['PQCuFncFVzYhuoyv9MCSE5nQU2gwr56uh4'])
+        self.assertEqual(tx.get_outputs_for_UI(), [('PQCuFncFVzYhuoyv9MCSE5nQU2gwr56uh4', 99999040)])
+        #self.assertEqual(tx.get_output_addresses(), ['PQCuFncFVzYhuoyv9MCSE5nQU2gwr56uh4'])
 
         self.assertTrue(tx.has_address('PQCuFncFVzYhuoyv9MCSE5nQU2gwr56uh4'))
         self.assertTrue(tx.has_address('PQMDbX7KC3Z6nkpkptBb19vkoEaaFo5K5o'))
@@ -161,18 +160,49 @@ class TestTransaction(SequentialTestCase):
         tx = transaction.Transaction(v2_blob)
         self.assertEqual(tx.txid(), "b97f9180173ab141b61b9f944d841e60feec691d6daab4d4d932b24dd36606fe")
 
+    def test_tx_from_str(self):
+        # json dict
+        self.assertEqual('020000000001012005273af813ba23b0c205e4b145e525c280dd876e061f35bff7db9b2e0043640100000000fdffffff02d885010000000000160014e73f444b8767c84afb46ef4125d8b81d2542a53d00e1f5050000000017a914052ed032f5c74a636ed5059611bb90012d40316c870247304402200c628917673d75f05db893cc377b0a69127f75e10949b35da52aa1b77a14c350022055187adf9a668fdf45fc09002726ba7160e713ed79dddcd20171308273f1a2f1012103cb3e00561c3439ccbacc033a72e0513bcfabff8826de0bc651d661991ade6171049e1600',
+                         tx_from_str("""{
+                                        "complete": true,
+                                        "final": false,
+                                        "hex": "020000000001012005273af813ba23b0c205e4b145e525c280dd876e061f35bff7db9b2e0043640100000000fdffffff02d885010000000000160014e73f444b8767c84afb46ef4125d8b81d2542a53d00e1f5050000000017a914052ed032f5c74a636ed5059611bb90012d40316c870247304402200c628917673d75f05db893cc377b0a69127f75e10949b35da52aa1b77a14c350022055187adf9a668fdf45fc09002726ba7160e713ed79dddcd20171308273f1a2f1012103cb3e00561c3439ccbacc033a72e0513bcfabff8826de0bc651d661991ade6171049e1600"
+                                    }
+                                    """)
+        )
+        # raw hex
+        self.assertEqual('020000000001012005273af813ba23b0c205e4b145e525c280dd876e061f35bff7db9b2e0043640100000000fdffffff02d885010000000000160014e73f444b8767c84afb46ef4125d8b81d2542a53d00e1f5050000000017a914052ed032f5c74a636ed5059611bb90012d40316c870247304402200c628917673d75f05db893cc377b0a69127f75e10949b35da52aa1b77a14c350022055187adf9a668fdf45fc09002726ba7160e713ed79dddcd20171308273f1a2f1012103cb3e00561c3439ccbacc033a72e0513bcfabff8826de0bc651d661991ade6171049e1600',
+                         tx_from_str('020000000001012005273af813ba23b0c205e4b145e525c280dd876e061f35bff7db9b2e0043640100000000fdffffff02d885010000000000160014e73f444b8767c84afb46ef4125d8b81d2542a53d00e1f5050000000017a914052ed032f5c74a636ed5059611bb90012d40316c870247304402200c628917673d75f05db893cc377b0a69127f75e10949b35da52aa1b77a14c350022055187adf9a668fdf45fc09002726ba7160e713ed79dddcd20171308273f1a2f1012103cb3e00561c3439ccbacc033a72e0513bcfabff8826de0bc651d661991ade6171049e1600'))
+        # base43
+        self.assertEqual('020000000001012005273af813ba23b0c205e4b145e525c280dd876e061f35bff7db9b2e0043640100000000fdffffff02d885010000000000160014e73f444b8767c84afb46ef4125d8b81d2542a53d00e1f5050000000017a914052ed032f5c74a636ed5059611bb90012d40316c870247304402200c628917673d75f05db893cc377b0a69127f75e10949b35da52aa1b77a14c350022055187adf9a668fdf45fc09002726ba7160e713ed79dddcd20171308273f1a2f1012103cb3e00561c3439ccbacc033a72e0513bcfabff8826de0bc651d661991ade6171049e1600',
+                         tx_from_str('64XF-8+PM6*4IYN-QWW$B2QLNW+:C8-$I$-+T:L.6DKXTSWSFFONDP1J/MOS3SPK0-SYVW38U9.3+A1/*2HTHQTJGP79LVEK-IITQJ1H.C/X$NSOV$8DWR6JAFWXD*LX4-EN0.BDOF+PPYPH16$NM1H.-MAA$V1SCP0Q.6Y5FR822S6K-.5K5F.Z4Q:0SDRG-4GEBLAO4W9Z*H-$1-KDYAFOGF675W0:CK5M1LT92IG:3X60P3GKPM:X2$SP5A7*LT9$-TTEG0/DRZYV$7B4ADL9CVS5O7YG.J64HLZ24MVKO/-GV:V.T/L$D3VQ:MR8--44HK8W'))
+
     def test_get_address_from_output_script(self):
         # the inverse of this test is in test_bitcoin: test_address_to_script
         addr_from_script = lambda script: transaction.get_address_from_output_script(bfh(script))
         ADDR = transaction.TYPE_ADDRESS
+        PUBKEY = transaction.TYPE_PUBKEY
+        SCRIPT = transaction.TYPE_SCRIPT
 
         # base58 p2pkh
         self.assertEqual((ADDR, 'PBenpocD6pDoAoFZP4qA2pLpNwrm6FAcVw'), addr_from_script('76a9142197669050d01c6136181127ac8a0c631733da9688ac'))
         self.assertEqual((ADDR, 'P9h6zCz253jmc4TvqgKPRNpkx5qELdNWWT'), addr_from_script('76a9140c1724583577182cceef0e31bc176b2dcfdaadfd88ac'))
+        # almost but not quite
+        self.assertEqual((SCRIPT, '76a9130000000000000000000000000000000000000088ac'), addr_from_script('76a9130000000000000000000000000000000000000088ac'))
 
         # base58 p2sh
         self.assertEqual((ADDR, '7WHUEVtMDLeereT5r4ZoNKjr3MXr4gqfon'), addr_from_script('a9142a84cf00d47f699ee7bbc1dea5ec1bdecb4ac15487'))
         self.assertEqual((ADDR, '7phNpVKta6kkbP24HfvvQVeHEmgBQYiJCB'), addr_from_script('a914f47c8954e421031ad04ecd8e7752c9479206b9d387'))
+        # almost but not quite
+        self.assertEqual((SCRIPT, 'a912f47c8954e421031ad04ecd8e7752c947920687'), addr_from_script('a912f47c8954e421031ad04ecd8e7752c947920687'))
+
+        # p2pk
+        self.assertEqual((PUBKEY, '0289e14468d94537493c62e2168318b568912dec0fb95609afd56f2527c2751c8b'), addr_from_script('210289e14468d94537493c62e2168318b568912dec0fb95609afd56f2527c2751c8bac'))
+        self.assertEqual((PUBKEY, '045485b0b076848af1209e788c893522a90f3df77c1abac2ca545846a725e6c3da1f7743f55a1bc3b5f0c7e0ee4459954ec0307022742d60032b13432953eb7120'), addr_from_script('41045485b0b076848af1209e788c893522a90f3df77c1abac2ca545846a725e6c3da1f7743f55a1bc3b5f0c7e0ee4459954ec0307022742d60032b13432953eb7120ac'))
+        # almost but not quite
+        self.assertEqual((SCRIPT, '200289e14468d94537493c62e2168318b568912dec0fb95609afd56f2527c2751cac'), addr_from_script('200289e14468d94537493c62e2168318b568912dec0fb95609afd56f2527c2751cac'))
+        self.assertEqual((SCRIPT, '210589e14468d94537493c62e2168318b568912dec0fb95609afd56f2527c2751c8bac'), addr_from_script('210589e14468d94537493c62e2168318b568912dec0fb95609afd56f2527c2751c8bac'))
+
 
 #####
 

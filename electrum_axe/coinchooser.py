@@ -22,12 +22,14 @@
 # ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 from math import floor, log10
+from typing import NamedTuple, List
 
 from .bitcoin import sha256, COIN, TYPE_ADDRESS, is_address
 from .transaction import Transaction, TxOutput
-from .util import NotEnoughFunds, PrintError
+from .util import NotEnoughFunds
+from .logging import Logger
 
 
 # A simple deterministic PRNG.  Used to deterministically shuffle a
@@ -68,25 +70,34 @@ class PRNG:
             x[i], x[j] = x[j], x[i]
 
 
-Bucket = namedtuple('Bucket',
-                    ['desc',
-                     'weight',      # as in BIP-141
-                     'value',       # in satoshis
-                     'coins',       # UTXOs
-                     'min_height']) # min block height where a coin was confirmed
+class Bucket(NamedTuple):
+    desc: str
+    weight: int         # as in BIP-141
+    value: int          # in satoshis
+    coins: List[dict]   # UTXOs
+    min_height: int     # min block height where a coin was confirmed
+
 
 def strip_unneeded(bkts, sufficient_funds):
     '''Remove buckets that are unnecessary in achieving the spend amount'''
-    bkts = sorted(bkts, key = lambda bkt: bkt.value)
+    if sufficient_funds([], bucket_value_sum=0):
+        # none of the buckets are needed
+        return []
+    bkts = sorted(bkts, key=lambda bkt: bkt.value, reverse=True)
+    bucket_value_sum = 0
     for i in range(len(bkts)):
-        if not sufficient_funds(bkts[i + 1:]):
-            return bkts[i:]
-    # Shouldn't get here
-    return bkts
+        bucket_value_sum += (bkts[i]).value
+        if sufficient_funds(bkts[:i+1], bucket_value_sum=bucket_value_sum):
+            return bkts[:i+1]
+    raise Exception("keeping all buckets is still not enough")
 
-class CoinChooserBase(PrintError):
+
+class CoinChooserBase(Logger):
 
     enable_output_value_rounding = False
+
+    def __init__(self):
+        Logger.__init__(self)
 
     def keys(self, coins):
         raise NotImplementedError
@@ -176,12 +187,12 @@ class CoinChooserBase(PrintError):
         amounts = [amount for amount in amounts if amount >= dust_threshold]
         change = [TxOutput(TYPE_ADDRESS, addr, amount)
                   for addr, amount in zip(change_addrs, amounts)]
-        self.print_error('change:', change)
+        self.logger.info(f'change: {change}')
         if dust:
-            self.print_error('not keeping dust', dust)
+            self.logger.info(f'not keeping dust {dust}')
         return change
 
-    def make_tx(self, coins, outputs, change_addrs, fee_estimator,
+    def make_tx(self, coins, inputs, outputs, change_addrs, fee_estimator,
                 dust_threshold, tx_type=0, extra_payload=b''):
         """Select unspent coins to spend to pay outputs.  If the change is
         greater than dust_threshold (after adding the change output to
@@ -196,13 +207,16 @@ class CoinChooserBase(PrintError):
         self.p = PRNG(''.join(sorted(utxos)))
 
         # Copy the outputs so when adding change we don't modify "outputs"
-        tx = Transaction.from_io([], outputs[:],
+        tx = Transaction.from_io(inputs[:], outputs[:],
                                  tx_type=tx_type,
                                  extra_payload=extra_payload)
+        input_value = tx.input_value()
+
         # Weight of the transaction with no inputs and no change
         # Note: this will use legacy tx serialization. The only side effect
         # should be that the marker and flag are excluded, which is
         # compensated in get_tx_weight()
+        # FIXME calculation will be off by this (2 wu) in case of RBF batching
         base_weight = tx.estimated_weight()
         spent_amount = tx.output_value()
 
@@ -213,10 +227,15 @@ class CoinChooserBase(PrintError):
             total_weight = base_weight + sum(bucket.weight for bucket in buckets)
             return total_weight
 
-        def sufficient_funds(buckets):
+        def sufficient_funds(buckets, *, bucket_value_sum):
             '''Given a list of buckets, return True if it has enough
             value to pay for the transaction'''
-            total_input = sum(bucket.value for bucket in buckets)
+            # assert bucket_value_sum == sum(bucket.value for bucket in buckets)  # expensive!
+            total_input = input_value + bucket_value_sum
+            if total_input < spent_amount:  # shortcut for performance
+                return False
+            # note re performance: so far this was constant time
+            # what follows is linear in len(buckets)
             total_weight = get_tx_weight(buckets)
             return total_input >= spent_amount + fee_estimator_w(total_weight)
 
@@ -241,8 +260,8 @@ class CoinChooserBase(PrintError):
         change = self.change_outputs(tx, change_addrs, fee, dust_threshold)
         tx.add_outputs(change)
 
-        self.print_error("using %d inputs" % len(tx.inputs()))
-        self.print_error("using buckets:", [bucket.desc for bucket in buckets])
+        self.logger.info(f"using {len(tx.inputs())} inputs")
+        self.logger.info(f"using buckets: {[bucket.desc for bucket in buckets]}")
 
         return tx
 
@@ -261,7 +280,7 @@ class CoinChooserRandom(CoinChooserBase):
 
         # Add all singletons
         for n, bucket in enumerate(buckets):
-            if sufficient_funds([bucket]):
+            if sufficient_funds([bucket], bucket_value_sum=bucket.value):
                 candidates.add((n, ))
 
         # And now some random ones
@@ -272,9 +291,12 @@ class CoinChooserRandom(CoinChooserBase):
             # incrementally combine buckets until sufficient
             self.p.shuffle(permutation)
             bkts = []
+            bucket_value_sum = 0
             for count, index in enumerate(permutation):
-                bkts.append(buckets[index])
-                if sufficient_funds(bkts):
+                bucket = buckets[index]
+                bkts.append(bucket)
+                bucket_value_sum += bucket.value
+                if sufficient_funds(bkts, bucket_value_sum=bucket_value_sum):
                     candidates.add(tuple(sorted(permutation[:count + 1])))
                     break
             else:
@@ -303,16 +325,20 @@ class CoinChooserRandom(CoinChooserBase):
 
         bucket_sets = [conf_buckets, unconf_buckets, other_buckets]
         already_selected_buckets = []
+        already_selected_buckets_value_sum = 0
 
         for bkts_choose_from in bucket_sets:
             try:
-                def sfunds(bkts):
-                    return sufficient_funds(already_selected_buckets + bkts)
+                def sfunds(bkts, *, bucket_value_sum):
+                    bucket_value_sum += already_selected_buckets_value_sum
+                    return sufficient_funds(already_selected_buckets + bkts,
+                                            bucket_value_sum=bucket_value_sum)
 
                 candidates = self.bucket_candidates_any(bkts_choose_from, sfunds)
                 break
             except NotEnoughFunds:
                 already_selected_buckets += bkts_choose_from
+                already_selected_buckets_value_sum += sum(bucket.value for bucket in bkts_choose_from)
         else:
             raise NotEnoughFunds()
 
@@ -323,8 +349,8 @@ class CoinChooserRandom(CoinChooserBase):
         candidates = self.bucket_candidates_prefer_confirmed(buckets, sufficient_funds)
         penalties = [penalty_func(cand) for cand in candidates]
         winner = candidates[penalties.index(min(penalties))]
-        self.print_error("Bucket sets:", len(buckets))
-        self.print_error("Winning penalty:", min(penalties))
+        self.logger.info(f"Bucket sets: {len(buckets)}")
+        self.logger.info(f"Winning penalty: {min(penalties)}")
         return winner
 
 class CoinChooserPrivacy(CoinChooserRandom):

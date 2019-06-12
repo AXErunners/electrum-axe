@@ -1,13 +1,18 @@
-from electrum_axe.util import PrintError
+from electrum_axe.logging import get_logger
 
 
-class SafeTTransport(PrintError):
+_logger = get_logger(__name__)
+
+
+class SafeTTransport:
 
     @staticmethod
     def all_transports():
         """Reimplemented safetlib.transport.all_transports so that we can
         enable/disable specific transports.
         """
+        # NOTE: the bridge and UDP transports are disabled as they are using
+        # the same ports as trezor
         try:
             # only to detect safetlib version
             from safetlib.transport import all_transports
@@ -69,8 +74,7 @@ class SafeTTransport(PrintError):
             try:
                 new_devices = transport.enumerate()
             except BaseException as e:
-                self.print_error('enumerate failed for {}. error {}'
-                                 .format(transport.__name__, str(e)))
+                _logger.info(f'enumerate failed for {transport.__name__}. error {e}')
             else:
                 devices.extend(new_devices)
         return devices

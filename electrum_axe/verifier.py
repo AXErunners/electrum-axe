@@ -21,12 +21,23 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from typing import Sequence, Optional
+import asyncio
+from typing import Sequence, Optional, TYPE_CHECKING
 
-from .util import ThreadJob, bh2u, VerifiedTxInfo
-from .bitcoin import Hash, hash_decode, hash_encode
+import aiorpcx
+
+from .util import bh2u, TxMinedInfo, NetworkJobOnDefaultServer
+from .crypto import sha256d
+from .bitcoin import hash_decode, hash_encode
 from .transaction import Transaction
 from .blockchain import hash_header
+from .interface import GracefulDisconnect
+from .network import UntrustedServerReturnedError
+from . import constants
+
+if TYPE_CHECKING:
+    from .network import Network
+    from .address_synchronizer import AddressSynchronizer
 
 
 class MerkleVerificationFailure(Exception): pass
@@ -35,85 +46,95 @@ class MerkleRootMismatch(MerkleVerificationFailure): pass
 class InnerNodeOfSpvProofIsValidTx(MerkleVerificationFailure): pass
 
 
-class SPV(ThreadJob):
+class SPV(NetworkJobOnDefaultServer):
     """ Simple Payment Verification """
 
-    def __init__(self, network, wallet):
+    def __init__(self, network: 'Network', wallet: 'AddressSynchronizer'):
         self.wallet = wallet
-        self.network = network
-        self.blockchain = network.blockchain()
+        NetworkJobOnDefaultServer.__init__(self, network)
+
+    def _reset(self):
+        super()._reset()
         self.merkle_roots = {}  # txid -> merkle root (once it has been verified)
         self.requested_merkle = set()  # txid set of pending requests
 
-    def run(self):
-        interface = self.network.interface
-        if not interface:
-            return
+    async def _start_tasks(self):
+        async with self.group as group:
+            await group.spawn(self.main)
 
-        blockchain = interface.blockchain
-        if not blockchain:
-            return
+    def diagnostic_name(self):
+        return self.wallet.diagnostic_name()
 
-        local_height = self.network.get_local_height()
+    async def main(self):
+        self.blockchain = self.network.blockchain()
+        while True:
+            await self._maybe_undo_verifications()
+            await self._request_proofs()
+            await asyncio.sleep(0.1)
+
+    async def _request_proofs(self):
+        local_height = self.blockchain.height()
         unverified = self.wallet.get_unverified_txs()
+
         for tx_hash, tx_height in unverified.items():
-            # do not request merkle branch before headers are available
+            # do not request merkle branch if we already requested it
+            if tx_hash in self.requested_merkle or tx_hash in self.merkle_roots:
+                continue
+            # or before headers are available
             if tx_height <= 0 or tx_height > local_height:
                 continue
-
-            header = blockchain.read_header(tx_height)
+            # if it's in the checkpoint region, we still might not have the header
+            header = self.blockchain.read_header(tx_height)
             if header is None:
-                index = tx_height // 2016
-                if index < len(blockchain.checkpoints):
-                    self.network.request_chunk(interface, index)
-            elif (tx_hash not in self.requested_merkle
-                    and tx_hash not in self.merkle_roots):
-                self.network.get_merkle_for_transaction(
-                        tx_hash,
-                        tx_height,
-                        self.verify_merkle)
-                self.print_error('requested merkle', tx_hash)
-                self.requested_merkle.add(tx_hash)
+                if tx_height < constants.net.max_checkpoint():
+                    await self.group.spawn(self.network.request_chunk(tx_height, None, can_return_early=True))
+                continue
+            # request now
+            self.logger.info(f'requested merkle {tx_hash}')
+            self.requested_merkle.add(tx_hash)
+            await self.group.spawn(self._request_and_verify_single_proof, tx_hash, tx_height)
 
-        if self.network.blockchain() != self.blockchain:
-            self.blockchain = self.network.blockchain()
-            self.undo_verifications()
-
-    def verify_merkle(self, response):
-        if self.wallet.verifier is None:
-            return  # we have been killed, this was just an orphan callback
-        if response.get('error'):
-            self.print_error('received an error:', response)
+    async def _request_and_verify_single_proof(self, tx_hash, tx_height):
+        try:
+            merkle = await self.network.get_merkle_for_transaction(tx_hash, tx_height)
+        except UntrustedServerReturnedError as e:
+            if not isinstance(e.original_exception, aiorpcx.jsonrpc.RPCError):
+                raise
+            self.logger.info(f'tx {tx_hash} not at height {tx_height}')
+            self.wallet.remove_unverified_tx(tx_hash, tx_height)
+            self.requested_merkle.discard(tx_hash)
             return
-        params = response['params']
-        merkle = response['result']
         # Verify the hash of the server-provided merkle branch to a
         # transaction matches the merkle root of its block
-        tx_hash = params[0]
+        if tx_height != merkle.get('block_height'):
+            self.logger.info('requested tx_height {} differs from received tx_height {} for txid {}'
+                             .format(tx_height, merkle.get('block_height'), tx_hash))
         tx_height = merkle.get('block_height')
         pos = merkle.get('pos')
         merkle_branch = merkle.get('merkle')
-        header = self.network.blockchain().read_header(tx_height)
+        # we need to wait if header sync/reorg is still ongoing, hence lock:
+        async with self.network.bhi_lock:
+            header = self.network.blockchain().read_header(tx_height)
         try:
             verify_tx_is_in_block(tx_hash, merkle_branch, pos, header, tx_height)
         except MerkleVerificationFailure as e:
-            self.print_error(str(e))
-            # FIXME: we should make a fresh connection to a server
-            # to recover from this, as this TX will now never verify
-            return
+            if self.network.config.get("skipmerklecheck"):
+                self.logger.info(f"skipping merkle proof check {tx_hash}")
+            else:
+                self.logger.info(str(e))
+                raise GracefulDisconnect(e)
         # we passed all the tests
         self.merkle_roots[tx_hash] = header.get('merkle_root')
-        try:
-            # note: we could pop in the beginning, but then we would request
-            # this proof again in case of verification failure from the same server
-            self.requested_merkle.remove(tx_hash)
-        except KeyError: pass
-        self.print_error("verified %s" % tx_hash)
+        self.requested_merkle.discard(tx_hash)
+        self.logger.info(f"verified {tx_hash}")
         header_hash = hash_header(header)
-        vtx_info = VerifiedTxInfo(tx_height, header.get('timestamp'), pos, header_hash)
-        self.wallet.add_verified_tx(tx_hash, vtx_info)
-        if self.is_up_to_date() and self.wallet.is_up_to_date():
-            self.wallet.save_verified_tx(write=True)
+        tx_info = TxMinedInfo(height=tx_height,
+                              timestamp=header.get('timestamp'),
+                              txpos=pos,
+                              header_hash=header_hash)
+        self.wallet.add_verified_tx(tx_hash, tx_info)
+        #if self.is_up_to_date() and self.wallet.is_up_to_date():
+        #    self.wallet.save_verified_tx(write=True)
 
     @classmethod
     def hash_merkle_root(cls, merkle_branch: Sequence[str], tx_hash: str, leaf_pos_in_tree: int):
@@ -126,7 +147,7 @@ class SPV(ThreadJob):
             raise MerkleVerificationFailure(e)
 
         for i, item in enumerate(merkle_branch_bytes):
-            h = Hash(item + h) if ((leaf_pos_in_tree >> i) & 1) else Hash(h + item)
+            h = sha256d(item + h) if ((leaf_pos_in_tree >> i) & 1) else sha256d(h + item)
             cls._raise_if_valid_tx(bh2u(h))
         return hash_encode(h)
 
@@ -144,19 +165,21 @@ class SPV(ThreadJob):
         else:
             raise InnerNodeOfSpvProofIsValidTx()
 
-    def undo_verifications(self):
-        height = self.blockchain.get_forkpoint()
-        tx_hashes = self.wallet.undo_verifications(self.blockchain, height)
-        for tx_hash in tx_hashes:
-            self.print_error("redoing", tx_hash)
-            self.remove_spv_proof_for_tx(tx_hash)
+    async def _maybe_undo_verifications(self):
+        old_chain = self.blockchain
+        cur_chain = self.network.blockchain()
+        if cur_chain != old_chain:
+            self.blockchain = cur_chain
+            above_height = cur_chain.get_height_of_last_common_block_with_chain(old_chain)
+            self.logger.info(f"undoing verifications above height {above_height}")
+            tx_hashes = self.wallet.undo_verifications(self.blockchain, above_height)
+            for tx_hash in tx_hashes:
+                self.logger.info(f"redoing {tx_hash}")
+                self.remove_spv_proof_for_tx(tx_hash)
 
     def remove_spv_proof_for_tx(self, tx_hash):
         self.merkle_roots.pop(tx_hash, None)
-        try:
-            self.requested_merkle.remove(tx_hash)
-        except KeyError:
-            pass
+        self.requested_merkle.discard(tx_hash)
 
     def is_up_to_date(self):
         return not self.requested_merkle

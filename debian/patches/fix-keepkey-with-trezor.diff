@@ -1,13 +1,13 @@
-Index: electrum-axe-3.x.x/electrum-axe
+Index: electrum-axe-post-3.2.2/electrum-axe
 ===================================================================
---- electrum-axe-3.x.x.orig/electrum-axe	2018-06-12 22:15:35.699293303 +0300
-+++ electrum-axe-3.x.x/electrum-axe	2018-06-12 22:20:02.122480853 +0300
-@@ -26,6 +26,8 @@
- import os
- import sys
+--- electrum-axe-post-3.2.2.orig/electrum-axe
++++ electrum-axe-post-3.2.2/electrum-axe
+@@ -28,6 +28,8 @@ import sys
+ import warnings
+ 
  
 +os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION']='python'
 +
- script_dir = os.path.dirname(os.path.realpath(__file__))
- is_bundle = getattr(sys, 'frozen', False)
- is_local = not is_bundle and os.path.exists(os.path.join(script_dir, "electrum-axe.desktop"))
+ MIN_PYTHON_VERSION = "3.6.1"  # FIXME duplicated from setup.py
+ _min_python_version_tuple = tuple(map(int, (MIN_PYTHON_VERSION.split("."))))
+ 

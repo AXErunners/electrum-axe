@@ -2,23 +2,25 @@
 
 import os
 import ipaddress
+import json
 from bls_py import bls
 
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
-from PyQt5.QtWidgets import *
+from PyQt5.QtGui import QFont, QPixmap
+from PyQt5.QtCore import Qt, pyqtSignal, pyqtSlot, QFileInfo
+from PyQt5.QtWidgets import (QLineEdit, QComboBox, QListWidget, QDoubleSpinBox,
+                             QAbstractItemView, QListWidgetItem, QWizardPage,
+                             QRadioButton, QButtonGroup, QVBoxLayout, QLabel,
+                             QGroupBox, QCheckBox, QPushButton, QGridLayout,
+                             QFileDialog, QWizard)
 
 from electrum_axe import axe_tx
-from electrum_axe.bitcoin import (COIN, deserialize_privkey,
-                                   b58_address_to_hash160,
-                                   hash160_to_p2pkh, is_b58_address)
-from electrum_axe.crypto import hash_160
+from electrum_axe.bitcoin import COIN, is_b58_address
 from electrum_axe.axe_tx import TxOutPoint
-from electrum_axe import ecc
 from electrum_axe.protx import ProTxMN, ProTxService, ProRegTxExc
 from electrum_axe.util import bfh, bh2u
+from electrum_axe.i18n import _
 
-from .util import MONOSPACE_FONT
+from .util import MONOSPACE_FONT, icon_path, read_QIcon
 
 
 class ValidationError(Exception): pass
@@ -79,13 +81,14 @@ class OperationTypeWizardPage(QWizardPage):
     def __init__(self, parent=None):
         super(OperationTypeWizardPage, self).__init__(parent)
         self.parent = parent
-        self.setTitle('Operation type')
-        self.setSubTitle('Select opeartion type and ownership properties.')
+        self.setTitle(_('Operation type'))
+        self.setSubTitle(_('Select operation type and ownership properties.'))
 
-        self.rb_import = QRadioButton('Import and register legacy Masternode '
-                                      'as DIP3 Masternode')
-        self.rb_create = QRadioButton('Create and registern DIP3 Masternode')
-        self.rb_connect = QRadioButton('Connect to registered DIP3 Masternode')
+        self.rb_import = QRadioButton(_('Import and register legacy '
+                                        'Masternode as DIP3 Masternode'))
+        self.rb_create = QRadioButton(_('Create and register DIP3 Masternode'))
+        self.rb_connect = QRadioButton(_('Connect to registered DIP3 '
+                                         'Masternode'))
         self.rb_import.setChecked(True)
         self.rb_connect.setEnabled(False)
         self.button_group = QButtonGroup()
@@ -96,11 +99,11 @@ class OperationTypeWizardPage(QWizardPage):
         gb_vbox.addWidget(self.rb_import)
         gb_vbox.addWidget(self.rb_create)
         gb_vbox.addWidget(self.rb_connect)
-        self.gb_create = QGroupBox('Select operation type')
+        self.gb_create = QGroupBox(_('Select operation type'))
         self.gb_create.setLayout(gb_vbox)
 
-        self.cb_owner = QCheckBox('I am an owner of this Masternode')
-        self.cb_operator = QCheckBox('I am an operator of this Masternode')
+        self.cb_owner = QCheckBox(_('I am an owner of this Masternode'))
+        self.cb_operator = QCheckBox(_('I am an operator of this Masternode'))
         self.cb_owner.setChecked(True)
         self.cb_owner.stateChanged.connect(self.cb_state_changed)
         self.cb_operator.setChecked(True)
@@ -109,7 +112,7 @@ class OperationTypeWizardPage(QWizardPage):
         gb_vbox = QVBoxLayout()
         gb_vbox.addWidget(self.cb_owner)
         gb_vbox.addWidget(self.cb_operator)
-        self.gb_owner = QGroupBox('Set ownership type')
+        self.gb_owner = QGroupBox(_('Set ownership type'))
         self.gb_owner.setLayout(gb_vbox)
 
         layout = QVBoxLayout()
@@ -144,8 +147,8 @@ class ImportLegacyWizardPage(QWizardPage):
     def __init__(self, parent=None):
         super(ImportLegacyWizardPage, self).__init__(parent)
         self.parent = parent
-        self.setTitle('Import Legacy Masternode')
-        self.setSubTitle('Select legacy Masternode to import.')
+        self.setTitle(_('Import Legacy Masternode'))
+        self.setSubTitle(_('Select legacy Masternode to import.'))
 
         legacy = self.parent.legacy
         legacy.load()
@@ -159,19 +162,19 @@ class ImportLegacyWizardPage(QWizardPage):
             self.lmns_cbox.addItem(alias)
             self.lmns_dict[alias] = lmn
         self.lmns_cbox.currentIndexChanged.connect(self.on_change_lmn)
-        self.imp_btn = QPushButton('Load from masternode.conf')
+        self.imp_btn = QPushButton(_('Load from masternode.conf'))
         self.imp_btn.clicked.connect(self.load_masternode_conf)
 
-        service_label = QLabel('Service:')
+        service_label = QLabel(_('Service:'))
         self.service = QLabel()
-        collateral_val_label = QLabel('Collateral Outpoint Value:')
+        collateral_val_label = QLabel(_('Collateral Outpoint Value:'))
         self.collateral_val = QLabel()
         self.collateral_value = None
-        collateral_label = QLabel('Collateral Outpoint:')
+        collateral_label = QLabel(_('Collateral Outpoint:'))
         self.collateral = QLabel()
-        collateral_addr_label = QLabel('Collateral Address:')
+        collateral_addr_label = QLabel(_('Collateral Address:'))
         self.collateral_addr = QLabel()
-        self.err_label = QLabel('Error:')
+        self.err_label = QLabel(_('Error:'))
         self.err_label.setObjectName('err-label')
         self.err = QLabel()
         self.err.setObjectName('err-label')
@@ -204,7 +207,7 @@ class ImportLegacyWizardPage(QWizardPage):
     @pyqtSlot()
     def load_masternode_conf(self):
         dlg = QFileDialog
-        conf_fname = dlg.getOpenFileName(self, 'Open masternode.con',
+        conf_fname = dlg.getOpenFileName(self, _('Open masternode.conf'),
                                          '', 'Conf Files (*.conf)')[0]
         if not conf_fname:
             return
@@ -212,7 +215,7 @@ class ImportLegacyWizardPage(QWizardPage):
         try:
             with open(conf_fname, 'r') as f:
                 conflines = f.readlines()
-        except Exception as e:
+        except Exception:
             conflines = []
         if not conflines:
             return
@@ -231,7 +234,7 @@ class ImportLegacyWizardPage(QWizardPage):
                 ip, port = self.parent.validate_service(service)
                 res_d['addr'] = {'ip': ip, 'port': int(port)}
                 c_index = int(c_index)
-            except Exception as e:
+            except Exception:
                 continue
             res_d['vin'] = {
                 'prevout_hash': c_hash,
@@ -291,8 +294,8 @@ class ImportLegacyWizardPage(QWizardPage):
 
         if not address:
             wallet = self.parent.wallet
-            coins = wallet.get_utxos(domain=None, excluded=None,
-                                     mature=True, confirmed_only=True)
+            coins = wallet.get_utxos(domain=None, excluded_addresses=None,
+                                     mature_only=True, confirmed_only=True)
             coins = filter(lambda x: (x['prevout_hash'] == prevout_hash
                                           and x['prevout_n'] == prevout_n),
                            coins)
@@ -357,26 +360,26 @@ class SelectAddressesWizardPage(QWizardPage):
     def __init__(self, parent=None):
         super(SelectAddressesWizardPage, self).__init__(parent)
         self.parent = parent
-        self.setTitle('Select Addresses')
-        self.setSubTitle('Select Masternode owner/voting/payout addresses.')
+        self.setTitle(_('Select Addresses'))
+        self.setSubTitle(_('Select Masternode owner/voting/payout addresses.'))
 
         layout = QGridLayout()
-        self.o_addr_label = QLabel('Owner Address (must differ from '
-                                   'collateral):')
+        self.o_addr_label = QLabel(_('Owner Address (must differ from '
+                                     'collateral):'))
         self.o_addr = SComboBox()
         self.o_addr.setEditable(True)
         self.o_addr.editTextChanged.connect(self.on_change_addr)
-        self.v_addr_label = QLabel('Voting Address (must differ from '
-                                   'collateral):')
+        self.v_addr_label = QLabel(_('Voting Address (must differ from '
+                                     'collateral):'))
         self.v_addr = SComboBox()
         self.v_addr.setEditable(True)
         self.v_addr.editTextChanged.connect(self.on_change_addr)
-        self.p_addr_label = QLabel('Payout Address (must differ from '
-                                   'owner/voting/collateral):')
+        self.p_addr_label = QLabel(_('Payout Address (must differ from '
+                                     'owner/voting/collateral):'))
         self.p_addr = SComboBox()
         self.p_addr.setEditable(True)
         self.p_addr.editTextChanged.connect(self.on_change_addr)
-        self.err_label = QLabel('Error:')
+        self.err_label = QLabel(_('Error:'))
         self.err_label.setObjectName('err-label')
         self.err = QLabel()
         self.err.setObjectName('err-label')
@@ -386,7 +389,7 @@ class SelectAddressesWizardPage(QWizardPage):
         self.hw_err.setWordWrap(True)
         self.hw_err.setObjectName('err-label')
         self.hw_err.hide()
-        self.cb_ignore = QCheckBox('Ignore warning and continue.')
+        self.cb_ignore = QCheckBox(_('Ignore warning and continue.'))
         self.cb_ignore.stateChanged.connect(self.on_change_ignore)
         self.cb_ignore.hide()
 
@@ -496,11 +499,11 @@ class BlsKeysWizardPage(QWizardPage):
         self.parent = parent
         layout = QGridLayout()
 
-        self.bls_pub_label = QLabel('BLS Public key:')
+        self.bls_pub_label = QLabel(_('BLS Public key:'))
         self.bls_pub = SLineEdit()
         self.bls_pub.textChanged.connect(self.on_pub_changed)
 
-        self.op_reward_label = QLabel('Operator Reward:')
+        self.op_reward_label = QLabel(_('Operator Reward:'))
         self.op_reward = QDoubleSpinBox()
         self.op_reward.setRange(0.0, 100.0)
         self.op_reward.setSingleStep(0.01)
@@ -508,12 +511,12 @@ class BlsKeysWizardPage(QWizardPage):
         self.op_reward_label.hide()
         self.op_reward.hide()
 
-        self.bls_priv_label = QLabel('BLS Private key:')
+        self.bls_priv_label = QLabel(_('BLS Private key:'))
         self.bls_priv_label.hide()
         self.bls_priv = SLineEdit()
         self.bls_priv.setReadOnly(True)
         self.bls_priv.hide()
-        self.gen_btn = QPushButton('Generate new BLS keypair')
+        self.gen_btn = QPushButton(_('Generate new BLS keypair'))
         self.gen_btn.clicked.connect(self.generate_bls_keypair)
         self.gen_btn.hide()
         self.bls_info_label = QLabel()
@@ -524,7 +527,7 @@ class BlsKeysWizardPage(QWizardPage):
         self.bls_info_edit.setReadOnly(True)
         self.bls_info_edit.hide()
 
-        self.err_label = QLabel('Error:')
+        self.err_label = QLabel(_('Error:'))
         self.err_label.setObjectName('err-label')
         self.err = QLabel()
         self.err.setObjectName('err-label')
@@ -581,24 +584,24 @@ class BlsKeysWizardPage(QWizardPage):
             if start_id in parent.UPD_ENTER_PAGES:
                 if not self.bls_pub.text():
                     self.bls_pub.setText(new_mn.pubkey_operator)
-                self.setTitle('Operator BLS key setup')
-                self.setSubTitle('Update operator BLS public key')
+                self.setTitle(_('Operator BLS key setup'))
+                self.setSubTitle(_('Update operator BLS public key'))
             else:
                 self.op_reward_label.show()
                 self.op_reward.show()
-                self.setTitle('Operator BLS key and reward')
-                self.setSubTitle('Enter operator BLS public key and '
-                                 'operator reward percent')
+                self.setTitle(_('Operator BLS key and reward'))
+                self.setSubTitle(_('Enter operator BLS public key and '
+                                   'operator reward percent'))
             return
 
-        self.setTitle('BLS keys setup')
+        self.setTitle(_('BLS keys setup'))
         if start_id in parent.UPD_ENTER_PAGES:
-            self.setSubTitle('Regenerate BLS keypair, setup axed')
+            self.setSubTitle(_('Regenerate BLS keypair, setup axed'))
             if not self.bls_priv.text():
                 self.bls_priv.setText(new_mn.bls_privk)
                 self.bls_pub.setText(new_mn.pubkey_operator)
         else:
-            self.setSubTitle('Generate BLS keypair, setup axed')
+            self.setSubTitle(_('Generate BLS keypair, setup axed'))
 
         if not self.bls_priv.text():
             self.generate_bls_keypair()
@@ -614,10 +617,10 @@ class BlsKeysWizardPage(QWizardPage):
         bls_pubk = bls_privk.get_public_key()
         bls_privk_hex = bh2u(bls_privk.serialize())
         bls_pubk_hex = bh2u(bls_pubk.serialize())
-        self.bls_info_label.setText('BLS keypair generated. Before '
-                                    'registering new Masternode copy next '
-                                    'line to ~/.axecore/axed.conf and '
-                                    'restart masternode:')
+        self.bls_info_label.setText(_('BLS keypair generated. Before '
+                                      'registering new Masternode copy next '
+                                      'line to ~/.axecore/axed.conf and '
+                                      'restart masternode:'))
         self.bls_info_label.show()
         self.bls_info_edit.setText('masternodeblsprivkey=%s' % bls_privk_hex)
         self.bls_info_edit.show()
@@ -638,10 +641,10 @@ class BlsKeysWizardPage(QWizardPage):
                 return True
 
             if len(bls_pub) != 96:
-                self.show_error('Wrong lenght of BLS public key')
+                self.show_error(_('Wrong length of BLS public key'))
                 return False
             if bls_pub.strip('01234567890abcdefABCDEF'):
-                self.show_error('Wrong format of BLS public key')
+                self.show_error(_('Wrong format of BLS public key'))
                 return False
             try:
                 bls.PublicKey.from_bytes(bfh(bls_pub))
@@ -675,40 +678,40 @@ class SaveDip3WizardPage(QWizardPage):
 
         self.alias = SLineEdit()
         self.alias.textChanged.connect(self.on_alias_changed)
-        self.err_label = QLabel('Error:')
+        self.err_label = QLabel(_('Error:'))
         self.err_label.setObjectName('err-label')
         self.err = QLabel()
         self.err.setObjectName('err-label')
         self.err_label.hide()
         self.err.hide()
-        ownership_label = QLabel('Ownership:')
+        ownership_label = QLabel(_('Ownership:'))
         self.ownership = QLabel()
-        type_label = QLabel('Type:')
+        type_label = QLabel(_('Type:'))
         self.type = QLabel()
-        mode_label = QLabel('Mode:')
+        mode_label = QLabel(_('Mode:'))
         self.mode = QLabel()
-        collateral_label = QLabel('Collateral:')
+        collateral_label = QLabel(_('Collateral:'))
         self.collateral = QLabel()
-        service_label = QLabel('Service:')
+        service_label = QLabel(_('Service:'))
         self.service = QLabel()
-        owner_addr_label = QLabel('Owner Address:')
+        owner_addr_label = QLabel(_('Owner Address:'))
         self.owner_addr = QLabel()
-        pubkey_op_label = QLabel('PubKeyOperator:')
+        pubkey_op_label = QLabel(_('PubKeyOperator:'))
         self.pubkey_op = QLabel()
-        voting_addr_label = QLabel('Voting Address:')
+        voting_addr_label = QLabel(_('Voting Address:'))
         self.voting_addr = QLabel()
 
-        self.payout_address_label = QLabel('Payout Address:')
+        self.payout_address_label = QLabel(_('Payout Address:'))
         self.payout_address_label.hide()
         self.payout_address = QLabel()
         self.payout_address.hide()
 
-        self.op_reward_label = QLabel('Operator Reward percent:')
+        self.op_reward_label = QLabel(_('Operator Reward percent:'))
         self.op_reward_label.hide()
         self.op_reward = QLabel()
         self.op_reward.hide()
 
-        self.op_payout_address_label = QLabel('Operator Payout Address:')
+        self.op_payout_address_label = QLabel(_('Operator Payout Address:'))
         self.op_payout_address_label.hide()
         self.op_payout_address = QLabel()
         self.op_payout_address.hide()
@@ -775,14 +778,14 @@ class SaveDip3WizardPage(QWizardPage):
             self.alias.setText(new_mn.alias)
 
         if new_mn.is_owned and new_mn.is_operated:
-            ownership = 'This wallet is owns and operates on new Masternode'
+            ownership = _('This wallet is owns and operates on new Masternode')
         elif new_mn.is_owned:
-            ownership = ('This wallet is owns on new Masternode '
-                         '(external operator)')
+            ownership = (_('This wallet is owns on new Masternode '
+                           '(external operator)'))
         elif new_mn.is_operated:
-            ownership = ('This wallet is operates on new Masternode')
+            ownership = (_('This wallet is operates on new Masternode'))
         else:
-            ownership = 'None'
+            ownership = _('None')
         self.ownership.setText(ownership)
 
         self.type.setText(str(new_mn.type))
@@ -1027,8 +1030,8 @@ class CollateralWizardPage(QWizardPage):
             excluded = None
         else:
             excluded = wallet.frozen_addresses
-        coins = wallet.get_utxos(domain=None, excluded=excluded,
-                                 mature=True, confirmed_only=True)
+        coins = wallet.get_utxos(domain=None, excluded_addresses=excluded,
+                                 mature_only=True, confirmed_only=True)
         coins = list(filter(lambda x: (x['value'] == (1000 * COIN)), coins))
 
         if len(coins) > 0:
@@ -1160,7 +1163,7 @@ class ServiceWizardPage(QWizardPage):
     def validatePage(self):
         try:
             ip = self.srv_addr.text()
-            ip_check = ipaddress.ip_address(ip)
+            ipaddress.ip_address(ip)
         except ValueError:
             self.show_error('Wrong service address specified')
             return False
@@ -1199,7 +1202,7 @@ class UpdSrvWizardPage(QWizardPage):
         self.srv_port = SLineEdit()
         self.srv_port.textChanged.connect(self.on_service_changed)
 
-        self.op_p_addr_label = QLabel('Operarot Payout Address:')
+        self.op_p_addr_label = QLabel('Operator Payout Address:')
         self.op_p_addr = SComboBox()
         self.op_p_addr.setEditable(True)
         self.op_p_addr_label.hide()
@@ -1272,7 +1275,7 @@ class UpdSrvWizardPage(QWizardPage):
     def validatePage(self):
         try:
             ip = self.srv_addr.text()
-            ip_check = ipaddress.ip_address(ip)
+            ipaddress.ip_address(ip)
         except ValueError:
             self.show_error('Wrong service address specified')
             return False
@@ -1450,19 +1453,19 @@ class Dip3MasternodeWizard(QWizard):
         else:
             title = 'Add DIP3 Masternode'
 
-        logo = QPixmap(':icons/tab_dip3.png')
+        logo = QPixmap(icon_path('tab_dip3.png'))
         logo = logo.scaledToWidth(32, mode=Qt.SmoothTransformation)
         self.setWizardStyle(QWizard.ClassicStyle)
         self.setPixmap(QWizard.LogoPixmap, logo)
         self.setWindowTitle(title)
-        self.setWindowIcon(QIcon(':icons/electrum-axe.png'))
+        self.setWindowIcon(read_QIcon('electrum-axe.png'))
         self.setMinimumSize(1000, 450)
 
     def validate_alias(self, alias):
         if not alias:
             raise ValidationError('Alias not set')
         if len(alias) > 32:
-            raise ValidationError('Masternode alias can not be longer '
+            raise ValidationError('Masternode alias cannot be longer '
                                   'than 32 characters')
         if alias in self.manager.mns.keys():
             raise ValidationError('Masternode with alias %s already exists' %
@@ -1476,11 +1479,11 @@ class Dip3MasternodeWizard(QWizard):
             if ']' in service:          # IPv6 [ipv6]:portnum
                 ip, port = service.split(']')
                 ip = ip[1:]             # remove opening square bracket
-                ip_check = ipaddress.ip_address(ip)
+                ipaddress.ip_address(ip)
                 port = int(port[1:])    # remove colon before portnum
             else:                       # IPv4 ipv4:portnum
                 ip, port = service.split(':')
-                ip_check = ipaddress.ip_address(ip)
+                ipaddress.ip_address(ip)
                 port = int(port)
         except BaseException:
             raise ValidationError('Wrong service format specified')
@@ -1493,8 +1496,8 @@ class Dip3MasternodeWizard(QWizard):
         prevout_hash, prevout_n = outpoint
         prevout_n = int(prevout_n)
 
-        coins = self.wallet.get_utxos(domain=None, excluded=None,
-                                      mature=True, confirmed_only=True)
+        coins = self.wallet.get_utxos(domain=None, excluded_addresses=None,
+                                      mature_only=True, confirmed_only=True)
 
         coins = filter(lambda x: (x['prevout_hash'] == prevout_hash
                                   and x['prevout_n'] == prevout_n),
@@ -1549,14 +1552,297 @@ class Dip3MasternodeWizard(QWizard):
         keystore = self.wallet.keystore
         if not hasattr(keystore, 'sign_digest') and not ignore_hw_warn:
             raise HwWarnError('Warning: sign_digest not implemented in '
-                              'hardware wallet keystores. You can not use '
-                              'this wallet to sign ProUpRegTx. However you '
-                              'can register masternode. But in future it is '
-                              'not possible to change voting/payout addresses '
-                              'and operator public BLS key')
+                              'hardware wallet keystores. You cannot use '
+                              'this wallet to sign a ProUpRegTx. You '
+                              'can register a masternode, but in the future it '
+                              'will not be possible to change voting/payout '
+                              'addresses or the operator public BLS key')
 
         if not is_b58_address(v_addr):
             raise ValidationError('Wrong voting address format')
         if not is_b58_address(p_addr):
             raise ValidationError('Wrong payout address format')
         return o_addr, v_addr, p_addr
+
+
+class Dip3FileWizard(QWizard):
+
+    OP_TYPE_PAGE = 1
+    EXPORT_PAGE = 2
+    IMPORT_PAGE = 3
+    DONE_PAGE = 4
+
+    def __init__(self, parent, mn=None, start_id=None):
+        super(Dip3FileWizard, self).__init__(parent)
+        self.gui = parent.gui
+        self.manager = parent.manager
+        self.wallet = parent.wallet
+
+        self.setPage(self.OP_TYPE_PAGE, FileOpTypeWizardPage(self))
+        self.setPage(self.EXPORT_PAGE, ExportToFileWizardPage(self))
+        self.setPage(self.IMPORT_PAGE, ImportFromFileWizardPage(self))
+        self.setPage(self.DONE_PAGE, FileDoneWizardPage(self))
+        self.saved_aliases = []
+        self.saved_path = None
+        self.imported_aliases = []
+        self.skipped_aliases = []
+        self.imported_path = None
+
+        title = 'Export/Import DIP3 Masternodes to/from file'
+        logo = QPixmap(icon_path('tab_dip3.png'))
+        logo = logo.scaledToWidth(32, mode=Qt.SmoothTransformation)
+        self.setWizardStyle(QWizard.ClassicStyle)
+        self.setPixmap(QWizard.LogoPixmap, logo)
+        self.setWindowTitle(title)
+        self.setWindowIcon(read_QIcon('electrum-axe.png'))
+        self.setMinimumSize(1000, 450)
+
+
+class FileOpTypeWizardPage(QWizardPage):
+
+    def __init__(self, parent=None):
+        super(FileOpTypeWizardPage, self).__init__(parent)
+        self.parent = parent
+        self.setTitle('Operation type')
+        self.setSubTitle('Select operation type.')
+
+        self.rb_export = QRadioButton('Export DIP3 Masternodes to file')
+        self.rb_import = QRadioButton('Import DIP3 Masternodes from file')
+        self.rb_export.setChecked(True)
+        self.button_group = QButtonGroup()
+        self.button_group.addButton(self.rb_export)
+        self.button_group.addButton(self.rb_import)
+        gb_vbox = QVBoxLayout()
+        gb_vbox.addWidget(self.rb_export)
+        gb_vbox.addWidget(self.rb_import)
+        self.gb_op_type = QGroupBox('Select operation type')
+        self.gb_op_type.setLayout(gb_vbox)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.gb_op_type)
+        layout.addStretch(1)
+        self.setLayout(layout)
+
+    def nextId(self):
+        if self.rb_export.isChecked():
+            return self.parent.EXPORT_PAGE
+        else:
+            return self.parent.IMPORT_PAGE
+
+
+class ExportToFileWizardPage(QWizardPage):
+
+    def __init__(self, parent=None):
+        super(ExportToFileWizardPage, self).__init__(parent)
+        self.parent = parent
+        self.setCommitPage(True)
+        self.setTitle('Export to file')
+        self.setSubTitle('Export DIP3 Masternodes to file.')
+
+        self.lb_aliases = QLabel('Exported DIP3 Masternodes:')
+        self.lw_aliases = QListWidget()
+        self.lw_aliases.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.sel_model = self.lw_aliases.selectionModel()
+        self.sel_model.selectionChanged.connect(self.on_selection_changed)
+        aliases = self.parent.manager.mns.keys()
+        self.lw_aliases.addItems(aliases)
+        self.lw_aliases.selectAll()
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.lb_aliases)
+        layout.addWidget(self.lw_aliases)
+        self.setLayout(layout)
+
+    def initializePage(self):
+        self.parent.setButtonText(QWizard.CommitButton, 'Save')
+
+    @pyqtSlot()
+    def on_selection_changed(self):
+        self.aliases = [i.text() for i in self.lw_aliases.selectedItems()]
+        self.completeChanged.emit()
+
+    def isComplete(self):
+        return len(self.aliases) > 0
+
+    def nextId(self):
+        return self.parent.DONE_PAGE
+
+    def validatePage(self):
+        fdlg = QFileDialog(self, 'Save DIP3 Masternodes', os.getenv('HOME'))
+        fdlg.setOptions(QFileDialog.DontConfirmOverwrite)
+        fdlg.setAcceptMode(QFileDialog.AcceptSave)
+        fdlg.setFileMode(QFileDialog.AnyFile)
+        fdlg.setNameFilter("ProTx (*.protx)");
+        fdlg.exec()
+
+        if not fdlg.result():
+            return False
+
+        self.path = fdlg.selectedFiles()
+        if len(self.path) > 0:
+            self.path = self.path[0]
+
+        if self.path.find('*') > 0 or self.path.find('?') > 0:
+            return False
+
+        fi = QFileInfo(self.path)
+        if fi.suffix() != 'protx':
+            self.path = '%s.protx' % self.path
+            fi = QFileInfo(self.path)
+
+        if fi.exists():
+            overwrite_msg = 'Overwrite existing file?\n%s'
+            res = self.parent.gui.question(overwrite_msg % self.path)
+            if not res:
+                return False
+
+        manager = self.parent.manager
+        store_data = {'mns': {}}
+        with open(self.path, 'w') as fd:
+            for alias, mn in manager.mns.items():
+                if alias not in self.aliases:
+                    continue
+                store_data['mns'][alias] = mn.as_dict()
+            fd.write(json.dumps(store_data, indent=4))
+        self.parent.saved_aliases = self.aliases
+        self.parent.saved_path = self.path
+        return True
+
+
+class ImportFromFileWizardPage(QWizardPage):
+
+    def __init__(self, parent=None):
+        super(ImportFromFileWizardPage, self).__init__(parent)
+        self.parent = parent
+        self.setCommitPage(True)
+        self.setTitle('Import from file')
+        self.setSubTitle('Import DIP3 Masternodes from file.')
+
+        self.imp_btn = QPushButton('Load *.protx file')
+        self.imp_btn.clicked.connect(self.on_load_protx)
+        owerwrite_msg = 'Overwrite existing Masternodes with same aliases'
+        self.cb_overwrite = QCheckBox(owerwrite_msg)
+
+        self.lw_i_label = QLabel('Imported aliases')
+        self.lw_i_aliases = QListWidget()
+        self.lw_i_aliases.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.i_sel_model = self.lw_i_aliases.selectionModel()
+        self.i_sel_model.selectionChanged.connect(self.on_i_selection_changed)
+        self.i_aliases = []
+
+        self.lw_w_label = QLabel('Existing aliases')
+        self.lw_w_aliases = QListWidget()
+        self.lw_w_aliases.setSelectionMode(QAbstractItemView.NoSelection)
+        aliases = self.parent.manager.mns.keys()
+        self.lw_w_aliases.addItems(aliases)
+
+        layout = QGridLayout()
+        layout.addWidget(self.imp_btn, 0, 0)
+        layout.addWidget(self.cb_overwrite, 0, 2)
+        layout.addWidget(self.lw_i_label, 1, 0)
+        layout.addWidget(self.lw_w_label, 1, 2)
+        layout.addWidget(self.lw_i_aliases, 2, 0)
+        layout.addWidget(self.lw_w_aliases, 2, 2)
+        layout.setColumnStretch(0, 5)
+        layout.setColumnStretch(1, 1)
+        layout.setColumnStretch(2, 5)
+        self.setLayout(layout)
+
+    def initializePage(self):
+        self.parent.setButtonText(QWizard.CommitButton, 'Import')
+
+    def nextId(self):
+        return self.parent.DONE_PAGE
+
+    @pyqtSlot()
+    def on_load_protx(self):
+        fdlg = QFileDialog(self, 'Load DIP3 Masternodes', os.getenv('HOME'))
+        fdlg.setAcceptMode(QFileDialog.AcceptOpen)
+        fdlg.setFileMode(QFileDialog.AnyFile)
+        fdlg.setNameFilter("ProTx (*.protx)");
+        fdlg.exec()
+
+        if not fdlg.result():
+            return False
+
+        self.path = fdlg.selectedFiles()
+        if len(self.path) > 0:
+            self.path = self.path[0]
+
+        self.lw_i_aliases.clear()
+        with open(self.path, 'r') as fd:
+            try:
+                import_data = json.loads(fd.read())
+                import_data = import_data.get('mns', None)
+                if import_data is None:
+                    raise Exception('No mns key found in protx file')
+                if not isinstance(import_data, dict):
+                    raise Exception('Wrong mns key format')
+                aliases = import_data.keys()
+                self.lw_i_aliases.addItems(aliases)
+                self.lw_i_aliases.selectAll()
+                self.import_data = import_data
+            except Exception as e:
+                self.parent.gui.show_error('Wrong file format: %s' % str(e))
+
+    @pyqtSlot()
+    def on_i_selection_changed(self):
+        self.i_aliases = [i.text() for i in self.lw_i_aliases.selectedItems()]
+        self.completeChanged.emit()
+
+    def isComplete(self):
+        return len(self.i_aliases) > 0
+
+    def validatePage(self):
+        overwrite = self.cb_overwrite.isChecked()
+        manager = self.parent.manager
+        aliases = manager.mns.keys()
+        for ia in self.i_aliases:
+            mn = ProTxMN.from_dict(self.import_data[ia])
+            if ia in aliases:
+                if overwrite:
+                    manager.update_mn(ia, mn)
+                    self.parent.imported_aliases.append(ia)
+                else:
+                    self.parent.skipped_aliases.append(ia)
+                    continue
+            else:
+                self.parent.manager.add_mn(mn)
+                self.parent.imported_aliases.append(ia)
+        if len(self.parent.imported_aliases) > 0:
+            dip3_tab = self.parent.parent()
+            dip3_tab.w_model.reload_data()
+        self.parent.imported_path = self.path
+        return True
+
+class FileDoneWizardPage(QWizardPage):
+
+    def __init__(self, parent=None):
+        super(FileDoneWizardPage, self).__init__(parent)
+        self.parent = parent
+        self.setTitle('All done')
+        self.setSubTitle('All operations completed successfully.')
+
+        self.layout = QVBoxLayout()
+        self.setLayout(self.layout)
+
+    def nextId(self):
+        return -1
+
+    def initializePage(self):
+        parent = self.parent
+        if parent.saved_path:
+            aliases = ', '.join(parent.saved_aliases)
+            path = parent.saved_path
+            self.layout.addWidget(QLabel('Aliases: %s' % aliases))
+            self.layout.addWidget(QLabel('Saved to file: %s' % path))
+        elif parent.imported_path:
+            aliases = ', '.join(parent.imported_aliases)
+            skipped = ', '.join(parent.skipped_aliases)
+            path = parent.imported_path
+            self.layout.addWidget(QLabel('Imported from file: %s' % path))
+            if aliases:
+                self.layout.addWidget(QLabel('Impored Aliases: %s' % aliases))
+            if skipped:
+                self.layout.addWidget(QLabel('Skipped Aliases: %s' % skipped))
+        self.layout.addStretch(1)

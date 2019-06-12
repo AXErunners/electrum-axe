@@ -2,15 +2,12 @@ from functools import partial
 import traceback
 import sys
 
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
+from PyQt5.QtCore import QObject, pyqtSignal
 from PyQt5.QtWidgets import (QHBoxLayout, QLabel, QVBoxLayout)
 
 from electrum_axe.plugin import hook
 from electrum_axe.i18n import _
-from electrum_axe.gui.qt import EnterButton
-from electrum_axe.gui.qt.util import ThreadedButton, Buttons
-from electrum_axe.gui.qt.util import WindowModalDialog, OkButton
+from electrum_axe.gui.qt.util import ThreadedButton, Buttons, EnterButton, WindowModalDialog, OkButton
 
 from .labels import LabelsPlugin
 
@@ -38,11 +35,11 @@ class Plugin(LabelsPlugin):
         hbox = QHBoxLayout()
         hbox.addWidget(QLabel("Label sync options:"))
         upload = ThreadedButton("Force upload",
-                                partial(self.push_thread, wallet),
+                                partial(self.push, wallet),
                                 partial(self.done_processing_success, d),
                                 partial(self.done_processing_error, d))
         download = ThreadedButton("Force download",
-                                  partial(self.pull_thread, wallet, True),
+                                  partial(self.pull, wallet, True),
                                   partial(self.done_processing_success, d),
                                   partial(self.done_processing_error, d))
         vbox = QVBoxLayout()
@@ -61,9 +58,9 @@ class Plugin(LabelsPlugin):
     def done_processing_success(self, dialog, result):
         dialog.show_message(_("Your labels have been synchronised."))
 
-    def done_processing_error(self, dialog, result):
-        traceback.print_exception(*result, file=sys.stderr)
-        dialog.show_error(_("Error synchronising labels") + ':\n' + str(result[:2]))
+    def done_processing_error(self, dialog, exc_info):
+        self.logger.error("Error synchronising labels", exc_info=exc_info)
+        dialog.show_error(_("Error synchronising labels") + f':\n{repr(exc_info[1])}')
 
     @hook
     def load_wallet(self, wallet, window):
@@ -75,4 +72,8 @@ class Plugin(LabelsPlugin):
 
     @hook
     def on_close_window(self, window):
+        try:
+            self.obj.labels_changed_signal.disconnect(window.update_tabs)
+        except TypeError:
+            pass  # 'method' object is not connected
         self.stop_wallet(window.wallet)

@@ -24,13 +24,17 @@
 # SOFTWARE.
 
 import hashlib
-from typing import List
+from typing import List, Tuple, TYPE_CHECKING, Optional, Union
+from enum import IntEnum
 
-from .util import bfh, bh2u, BitcoinException, print_error, assert_bytes, to_bytes, inv_dict
+from .util import bfh, bh2u, BitcoinException, assert_bytes, to_bytes, inv_dict
 from . import version
 from . import constants
 from . import ecc
-from .crypto import Hash, sha256, hash_160, hmac_oneshot
+from .crypto import sha256d, sha256, hash_160, hmac_oneshot
+
+if TYPE_CHECKING:
+    from .network import Network
 
 
 ################################## transactions
@@ -45,7 +49,148 @@ TYPE_PUBKEY  = 1
 TYPE_SCRIPT  = 2
 
 
-def rev_hex(s):
+class opcodes(IntEnum):
+    # push value
+    OP_0 = 0x00
+    OP_FALSE = OP_0
+    OP_PUSHDATA1 = 0x4c
+    OP_PUSHDATA2 = 0x4d
+    OP_PUSHDATA4 = 0x4e
+    OP_1NEGATE = 0x4f
+    OP_RESERVED = 0x50
+    OP_1 = 0x51
+    OP_TRUE = OP_1
+    OP_2 = 0x52
+    OP_3 = 0x53
+    OP_4 = 0x54
+    OP_5 = 0x55
+    OP_6 = 0x56
+    OP_7 = 0x57
+    OP_8 = 0x58
+    OP_9 = 0x59
+    OP_10 = 0x5a
+    OP_11 = 0x5b
+    OP_12 = 0x5c
+    OP_13 = 0x5d
+    OP_14 = 0x5e
+    OP_15 = 0x5f
+    OP_16 = 0x60
+
+    # control
+    OP_NOP = 0x61
+    OP_VER = 0x62
+    OP_IF = 0x63
+    OP_NOTIF = 0x64
+    OP_VERIF = 0x65
+    OP_VERNOTIF = 0x66
+    OP_ELSE = 0x67
+    OP_ENDIF = 0x68
+    OP_VERIFY = 0x69
+    OP_RETURN = 0x6a
+
+    # stack ops
+    OP_TOALTSTACK = 0x6b
+    OP_FROMALTSTACK = 0x6c
+    OP_2DROP = 0x6d
+    OP_2DUP = 0x6e
+    OP_3DUP = 0x6f
+    OP_2OVER = 0x70
+    OP_2ROT = 0x71
+    OP_2SWAP = 0x72
+    OP_IFDUP = 0x73
+    OP_DEPTH = 0x74
+    OP_DROP = 0x75
+    OP_DUP = 0x76
+    OP_NIP = 0x77
+    OP_OVER = 0x78
+    OP_PICK = 0x79
+    OP_ROLL = 0x7a
+    OP_ROT = 0x7b
+    OP_SWAP = 0x7c
+    OP_TUCK = 0x7d
+
+    # splice ops
+    OP_CAT = 0x7e
+    OP_SUBSTR = 0x7f
+    OP_LEFT = 0x80
+    OP_RIGHT = 0x81
+    OP_SIZE = 0x82
+
+    # bit logic
+    OP_INVERT = 0x83
+    OP_AND = 0x84
+    OP_OR = 0x85
+    OP_XOR = 0x86
+    OP_EQUAL = 0x87
+    OP_EQUALVERIFY = 0x88
+    OP_RESERVED1 = 0x89
+    OP_RESERVED2 = 0x8a
+
+    # numeric
+    OP_1ADD = 0x8b
+    OP_1SUB = 0x8c
+    OP_2MUL = 0x8d
+    OP_2DIV = 0x8e
+    OP_NEGATE = 0x8f
+    OP_ABS = 0x90
+    OP_NOT = 0x91
+    OP_0NOTEQUAL = 0x92
+
+    OP_ADD = 0x93
+    OP_SUB = 0x94
+    OP_MUL = 0x95
+    OP_DIV = 0x96
+    OP_MOD = 0x97
+    OP_LSHIFT = 0x98
+    OP_RSHIFT = 0x99
+
+    OP_BOOLAND = 0x9a
+    OP_BOOLOR = 0x9b
+    OP_NUMEQUAL = 0x9c
+    OP_NUMEQUALVERIFY = 0x9d
+    OP_NUMNOTEQUAL = 0x9e
+    OP_LESSTHAN = 0x9f
+    OP_GREATERTHAN = 0xa0
+    OP_LESSTHANOREQUAL = 0xa1
+    OP_GREATERTHANOREQUAL = 0xa2
+    OP_MIN = 0xa3
+    OP_MAX = 0xa4
+
+    OP_WITHIN = 0xa5
+
+    # crypto
+    OP_RIPEMD160 = 0xa6
+    OP_SHA1 = 0xa7
+    OP_SHA256 = 0xa8
+    OP_HASH160 = 0xa9
+    OP_HASH256 = 0xaa
+    OP_CODESEPARATOR = 0xab
+    OP_CHECKSIG = 0xac
+    OP_CHECKSIGVERIFY = 0xad
+    OP_CHECKMULTISIG = 0xae
+    OP_CHECKMULTISIGVERIFY = 0xaf
+
+    # expansion
+    OP_NOP1 = 0xb0
+    OP_CHECKLOCKTIMEVERIFY = 0xb1
+    OP_NOP2 = OP_CHECKLOCKTIMEVERIFY
+    OP_CHECKSEQUENCEVERIFY = 0xb2
+    OP_NOP3 = OP_CHECKSEQUENCEVERIFY
+    OP_NOP4 = 0xb3
+    OP_NOP5 = 0xb4
+    OP_NOP6 = 0xb5
+    OP_NOP7 = 0xb6
+    OP_NOP8 = 0xb7
+    OP_NOP9 = 0xb8
+    OP_NOP10 = 0xb9
+
+    OP_INVALIDOPCODE = 0xff
+
+    def hex(self) -> str:
+        return bytes([self]).hex()
+
+
+def rev_hex(s: str) -> str:
     return bh2u(bfh(s)[::-1])
 
 
@@ -56,7 +201,7 @@ def int_to_hex(i: int, length: int=1) -> str:
     if not isinstance(i, int):
         raise TypeError('{} instead of int'.format(i))
     range_size = pow(256, length)
-    if i < -range_size/2 or i >= range_size:
+    if i < -(range_size//2) or i >= range_size:
         raise OverflowError('cannot convert int {} to hex ({} bytes)'.format(i, length))
     if i < 0:
         # two's complement
@@ -101,15 +246,15 @@ def var_int(i: int) -> str:
         return "ff"+int_to_hex(i,8)
 
 
-def op_push(i: int) -> str:
-    if i<0x4c:  # OP_PUSHDATA1
+def _op_push(i: int) -> str:
+    if i < opcodes.OP_PUSHDATA1:
         return int_to_hex(i)
-    elif i<=0xff:
-        return '4c' + int_to_hex(i)
-    elif i<=0xffff:
-        return '4d' + int_to_hex(i,2)
+    elif i <= 0xff:
+        return opcodes.OP_PUSHDATA1.hex() + int_to_hex(i, 1)
+    elif i <= 0xffff:
+        return opcodes.OP_PUSHDATA2.hex() + int_to_hex(i, 2)
     else:
-        return '4e' + int_to_hex(i,4)
+        return opcodes.OP_PUSHDATA4.hex() + int_to_hex(i, 4)
 
 
 def push_script(data: str) -> str:
@@ -120,139 +265,117 @@ def push_script(data: str) -> str:
     ported from https://github.com/btcsuite/btcd/blob/fdc2bc867bda6b351191b5872d2da8270df00d13/txscript/scriptbuilder.go#L128
     """
     data = bfh(data)
-    from .transaction import opcodes
-
     data_len = len(data)
 
     # "small integer" opcodes
     if data_len == 0 or data_len == 1 and data[0] == 0:
-        return bh2u(bytes([opcodes.OP_0]))
+        return opcodes.OP_0.hex()
     elif data_len == 1 and data[0] <= 16:
         return bh2u(bytes([opcodes.OP_1 - 1 + data[0]]))
     elif data_len == 1 and data[0] == 0x81:
-        return bh2u(bytes([opcodes.OP_1NEGATE]))
+        return opcodes.OP_1NEGATE.hex()
 
-    return op_push(data_len) + bh2u(data)
+    return _op_push(data_len) + bh2u(data)
 
 
 def add_number_to_script(i: int) -> bytes:
     return bfh(push_script(script_num_to_hex(i)))
 
 
-hash_encode = lambda x: bh2u(x[::-1])
-hash_decode = lambda x: bfh(x)[::-1]
-hmac_sha_512 = lambda x, y: hmac_oneshot(x, y, hashlib.sha512)
+def relayfee(network: 'Network'=None) -> int:
+    from .simple_config import FEERATE_DEFAULT_RELAY
+    MAX_RELAY_FEE = 10000
+    f = network.relay_fee if network and network.relay_fee else FEERATE_DEFAULT_RELAY
+    return min(f, MAX_RELAY_FEE)
 
 
-def is_new_seed(x, prefix=version.SEED_PREFIX):
-    from . import mnemonic
-    x = mnemonic.normalize_text(x)
-    s = bh2u(hmac_sha_512(b"Seed version", x.encode('utf8')))
-    return s.startswith(prefix)
+def dust_threshold(network: 'Network'=None) -> int:
+    # Change <= dust threshold is added to the tx fee
+    return 182 * 3 * relayfee(network) // 1000
 
 
-def is_old_seed(seed):
-    from . import old_mnemonic, mnemonic
-    seed = mnemonic.normalize_text(seed)
-    words = seed.split()
-    try:
-        # checks here are deliberately left weak for legacy reasons, see #3149
-        old_mnemonic.mn_decode(words)
-        uses_electrum_words = True
-    except Exception:
-        uses_electrum_words = False
-    try:
-        seed = bfh(seed)
-        is_hex = (len(seed) == 16 or len(seed) == 32)
-    except Exception:
-        is_hex = False
-    return is_hex or (uses_electrum_words and (len(words) == 12 or len(words) == 24))
+def hash_encode(x: bytes) -> str:
+    return bh2u(x[::-1])
 
 
-def seed_type(x):
-    if is_old_seed(x):
-        return 'old'
-    elif is_new_seed(x):
-        return 'standard'
-    return ''
-
-is_seed = lambda x: bool(seed_type(x))
+def hash_decode(x: str) -> bytes:
+    return bfh(x)[::-1]
 
 
 ############ functions from pywallet #####################
 
-def hash160_to_b58_address(h160: bytes, addrtype):
-    s = bytes([addrtype])
-    s += h160
-    return base_encode(s+Hash(s)[0:4], base=58)
+def hash160_to_b58_address(h160: bytes, addrtype: int) -> str:
+    s = bytes([addrtype]) + h160
+    s = s + sha256d(s)[0:4]
+    return base_encode(s, base=58)
 
 
-def b58_address_to_hash160(addr):
+def b58_address_to_hash160(addr: str) -> Tuple[int, bytes]:
     addr = to_bytes(addr, 'ascii')
     _bytes = base_decode(addr, 25, base=58)
     return _bytes[0], _bytes[1:21]
 
 
-def hash160_to_p2pkh(h160, *, net=None):
-    if net is None:
-        net = constants.net
+def hash160_to_p2pkh(h160: bytes, *, net=None) -> str:
+    if net is None: net = constants.net
     return hash160_to_b58_address(h160, net.ADDRTYPE_P2PKH)
 
-def hash160_to_p2sh(h160, *, net=None):
-    if net is None:
-        net = constants.net
+def hash160_to_p2sh(h160: bytes, *, net=None) -> str:
+    if net is None: net = constants.net
     return hash160_to_b58_address(h160, net.ADDRTYPE_P2SH)
 
-def public_key_to_p2pkh(public_key: bytes) -> str:
-    return hash160_to_p2pkh(hash_160(public_key))
+def public_key_to_p2pkh(public_key: bytes, *, net=None) -> str:
+    if net is None: net = constants.net
+    return hash160_to_p2pkh(hash_160(public_key), net=net)
 
-def pubkey_to_address(txin_type, pubkey):
+def pubkey_to_address(txin_type: str, pubkey: str, *, net=None) -> str:
+    if net is None: net = constants.net
     if txin_type == 'p2pkh':
-        return public_key_to_p2pkh(bfh(pubkey))
+        return public_key_to_p2pkh(bfh(pubkey), net=net)
     else:
         raise NotImplementedError(txin_type)
 
-def redeem_script_to_address(txin_type, redeem_script):
+def redeem_script_to_address(txin_type: str, redeem_script: str, *, net=None) -> str:
+    if net is None: net = constants.net
     if txin_type == 'p2sh':
-        return hash160_to_p2sh(hash_160(bfh(redeem_script)))
+        return hash160_to_p2sh(hash_160(bfh(redeem_script)), net=net)
     else:
         raise NotImplementedError(txin_type)
 
 
-def script_to_address(script, *, net=None):
+def script_to_address(script: str, *, net=None) -> str:
     from .transaction import get_address_from_output_script
     t, addr = get_address_from_output_script(bfh(script), net=net)
     assert t == TYPE_ADDRESS
     return addr
 
-def address_to_script(addr, *, net=None):
-    if net is None:
-        net = constants.net
-    addrtype, hash_160 = b58_address_to_hash160(addr)
+def address_to_script(addr: str, *, net=None) -> str:
+    if net is None: net = constants.net
+    if not is_address(addr, net=net):
+        raise BitcoinException(f"invalid bitcoin address: {addr}")
+    addrtype, hash_160_ = b58_address_to_hash160(addr)
     if addrtype == net.ADDRTYPE_P2PKH:
-        script = '76a9'                                      # op_dup, op_hash_160
-        script += push_script(bh2u(hash_160))
-        script += '88ac'                                     # op_equalverify, op_checksig
+        script = bytes([opcodes.OP_DUP, opcodes.OP_HASH160]).hex()
+        script += push_script(bh2u(hash_160_))
+        script += bytes([opcodes.OP_EQUALVERIFY, opcodes.OP_CHECKSIG]).hex()
     elif addrtype == net.ADDRTYPE_P2SH:
-        script = 'a9'                                        # op_hash_160
-        script += push_script(bh2u(hash_160))
-        script += '87'                                       # op_equal
+        script = opcodes.OP_HASH160.hex()
+        script += push_script(bh2u(hash_160_))
+        script += opcodes.OP_EQUAL.hex()
     else:
-        raise BitcoinException('unknown address type: {}'.format(addrtype))
+        raise BitcoinException(f'unknown address type: {addrtype}')
     return script
 
-def address_to_scripthash(addr):
+def address_to_scripthash(addr: str) -> str:
     script = address_to_script(addr)
     return script_to_scripthash(script)
 
-def script_to_scripthash(script):
-    h = sha256(bytes.fromhex(script))[0:32]
+def script_to_scripthash(script: str) -> str:
+    h = sha256(bfh(script))[0:32]
     return bh2u(bytes(reversed(h)))
 
-def public_key_to_p2pk_script(pubkey):
-    script = push_script(pubkey)
-    script += 'ac'                                           # op_checksig
-    return script
+def public_key_to_p2pk_script(pubkey: str) -> str:
+    return push_script(pubkey) + opcodes.OP_CHECKSIG.hex()
 
 __b58chars = b'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 assert len(__b58chars) == 58
@@ -291,7 +414,7 @@ def base_encode(v: bytes, base: int) -> str:
     return result.decode('ascii')
 
 
-def base_decode(v, length, base):
+def base_decode(v: Union[bytes, str], length: Optional[int], base: int) -> Optional[bytes]:
     """ decode v into a string of len bytes."""
     # assert_bytes(v)
     v = to_bytes(v, 'ascii')
@@ -329,21 +452,20 @@ class InvalidChecksum(Exception):
     pass
 
 
-def EncodeBase58Check(vchIn):
-    hash = Hash(vchIn)
+def EncodeBase58Check(vchIn: bytes) -> str:
+    hash = sha256d(vchIn)
     return base_encode(vchIn + hash[0:4], base=58)
 
 
-def DecodeBase58Check(psz):
+def DecodeBase58Check(psz: Union[bytes, str]) -> bytes:
     vchRet = base_decode(psz, None, base=58)
-    key = vchRet[0:-4]
-    csum = vchRet[-4:]
-    hash = Hash(key)
-    cs32 = hash[0:4]
-    if cs32 != csum:
-        raise InvalidChecksum('expected {}, actual {}'.format(bh2u(cs32), bh2u(csum)))
+    payload = vchRet[0:-4]
+    csum_found = vchRet[-4:]
+    csum_calculated = sha256d(payload)[0:4]
+    if csum_calculated != csum_found:
+        raise InvalidChecksum(f'calculated {bh2u(csum_calculated)}, found {bh2u(csum_found)}')
     else:
-        return key
+        return payload
 
 
 # backwards compat
@@ -373,7 +495,7 @@ def serialize_privkey(secret: bytes, compressed: bool, txin_type: str,
         return '{}:{}'.format(txin_type, base58_wif)
 
 
-def deserialize_privkey(key: str) -> (str, bytes, bool):
+def deserialize_privkey(key: str) -> Tuple[str, bytes, bool]:
     if is_minikey(key):
         return 'p2pkh', minikey_to_private_key(key), False
 
@@ -403,46 +525,57 @@ def deserialize_privkey(key: str) -> (str, bytes, bool):
 
     if len(vch) not in [33, 34]:
         raise BitcoinException('invalid vch len for WIF key: {}'.format(len(vch)))
-    compressed = len(vch) == 34
+    compressed = False
+    if len(vch) == 34:
+        if vch[33] == 0x01:
+            compressed = True
+        else:
+            raise BitcoinException(f'invalid WIF key. length suggests compressed pubkey, '
+                                   f'but last byte is {vch[33]} != 0x01')
+
     secret_bytes = vch[1:33]
     # we accept secrets outside curve range; cast into range here:
     secret_bytes = ecc.ECPrivkey.normalize_secret_bytes(secret_bytes)
     return txin_type, secret_bytes, compressed
 
 
-def is_compressed(sec):
+def is_compressed_privkey(sec: str) -> bool:
     return deserialize_privkey(sec)[2]
 
 
-def address_from_private_key(sec):
+def address_from_private_key(sec: str) -> str:
     txin_type, privkey, compressed = deserialize_privkey(sec)
     public_key = ecc.ECPrivkey(privkey).get_public_key_hex(compressed=compressed)
     return pubkey_to_address(txin_type, public_key)
 
-def is_b58_address(addr):
+def is_b58_address(addr: str, *, net=None) -> bool:
+    if net is None: net = constants.net
     try:
         addrtype, h = b58_address_to_hash160(addr)
     except Exception as e:
         return False
-    if addrtype not in [constants.net.ADDRTYPE_P2PKH, constants.net.ADDRTYPE_P2SH]:
+    if addrtype not in [net.ADDRTYPE_P2PKH, net.ADDRTYPE_P2SH]:
         return False
     return addr == hash160_to_b58_address(h, addrtype)
 
-def is_address(addr):
-    return is_b58_address(addr)
+def is_address(addr: str, *, net=None) -> bool:
+    if net is None: net = constants.net
+    return is_b58_address(addr, net=net)
 
 
-def is_private_key(key):
+def is_private_key(key: str, *, raise_on_error=False) -> bool:
     try:
-        k = deserialize_privkey(key)
-        return k is not False
-    except:
+        deserialize_privkey(key)
+        return True
+    except BaseException as e:
+        if raise_on_error:
+            raise
         return False
 
 
 ########### end pywallet functions #######################
 
-def is_minikey(text):
+def is_minikey(text: str) -> bool:
     # Minikeys are typically 22 or 30 characters, but this routine
     # permits any length of 20 or more provided the minikey is valid.
     # A valid minikey must begin with an 'S', be in base58, and when
@@ -452,311 +585,5 @@ def is_minikey(text):
             and all(ord(c) in __b58chars for c in text)
             and sha256(text + '?')[0] == 0x00)
 
-def minikey_to_private_key(text):
+def minikey_to_private_key(text: str) -> bytes:
     return sha256(text)
-
-
-###################################### BIP32 ##############################
-
-BIP32_PRIME = 0x80000000
-
-
-def protect_against_invalid_ecpoint(func):
-    def func_wrapper(*args):
-        n = args[-1]
-        while True:
-            is_prime = n & BIP32_PRIME
-            try:
-                return func(*args[:-1], n=n)
-            except ecc.InvalidECPointException:
-                print_error('bip32 protect_against_invalid_ecpoint: skipping index')
-                n += 1
-                is_prime2 = n & BIP32_PRIME
-                if is_prime != is_prime2: raise OverflowError()
-    return func_wrapper
-
-
-# Child private key derivation function (from master private key)
-# k = master private key (32 bytes)
-# c = master chain code (extra entropy for key derivation) (32 bytes)
-# n = the index of the key we want to derive. (only 32 bits will be used)
-# If n is hardened (i.e. the 32nd bit is set), the resulting private key's
-#  corresponding public key can NOT be determined without the master private key.
-# However, if n is not hardened, the resulting private key's corresponding
-#  public key can be determined without the master private key.
-@protect_against_invalid_ecpoint
-def CKD_priv(k, c, n):
-    if n < 0: raise ValueError('the bip32 index needs to be non-negative')
-    is_prime = n & BIP32_PRIME
-    return _CKD_priv(k, c, bfh(rev_hex(int_to_hex(n,4))), is_prime)
-
-
-def _CKD_priv(k, c, s, is_prime):
-    try:
-        keypair = ecc.ECPrivkey(k)
-    except ecc.InvalidECPointException as e:
-        raise BitcoinException('Impossible xprv (not within curve order)') from e
-    cK = keypair.get_public_key_bytes(compressed=True)
-    data = bytes([0]) + k + s if is_prime else cK + s
-    I = hmac_oneshot(c, data, hashlib.sha512)
-    I_left = ecc.string_to_number(I[0:32])
-    k_n = (I_left + ecc.string_to_number(k)) % ecc.CURVE_ORDER
-    if I_left >= ecc.CURVE_ORDER or k_n == 0:
-        raise ecc.InvalidECPointException()
-    k_n = ecc.number_to_string(k_n, ecc.CURVE_ORDER)
-    c_n = I[32:]
-    return k_n, c_n
-
-# Child public key derivation function (from public key only)
-# K = master public key
-# c = master chain code
-# n = index of key we want to derive
-# This function allows us to find the nth public key, as long as n is
-#  not hardened. If n is hardened, we need the master private key to find it.
-@protect_against_invalid_ecpoint
-def CKD_pub(cK, c, n):
-    if n < 0: raise ValueError('the bip32 index needs to be non-negative')
-    if n & BIP32_PRIME: raise Exception()
-    return _CKD_pub(cK, c, bfh(rev_hex(int_to_hex(n,4))))
-
-# helper function, callable with arbitrary string.
-# note: 's' does not need to fit into 32 bits here! (c.f. trustedcoin billing)
-def _CKD_pub(cK, c, s):
-    I = hmac_oneshot(c, cK + s, hashlib.sha512)
-    pubkey = ecc.ECPrivkey(I[0:32]) + ecc.ECPubkey(cK)
-    if pubkey.is_at_infinity():
-        raise ecc.InvalidECPointException()
-    cK_n = pubkey.get_public_key_bytes(compressed=True)
-    c_n = I[32:]
-    return cK_n, c_n
-
-
-def xprv_header(xtype, *, net=None):
-    if net is None:
-        net = constants.net
-    return bfh("%08x" % net.XPRV_HEADERS[xtype])
-
-
-def xpub_header(xtype, *, net=None):
-    if net is None:
-        net = constants.net
-    return bfh("%08x" % net.XPUB_HEADERS[xtype])
-
-
-def serialize_xprv(xtype, c, k, depth=0, fingerprint=b'\x00'*4,
-                   child_number=b'\x00'*4, *, net=None):
-    if not ecc.is_secret_within_curve_range(k):
-        raise BitcoinException('Impossible xprv (not within curve order)')
-    xprv = xprv_header(xtype, net=net) \
-           + bytes([depth]) + fingerprint + child_number + c + bytes([0]) + k
-    return EncodeBase58Check(xprv)
-
-
-def serialize_xpub(xtype, c, cK, depth=0, fingerprint=b'\x00'*4,
-                   child_number=b'\x00'*4, *, net=None):
-    xpub = xpub_header(xtype, net=net) \
-           + bytes([depth]) + fingerprint + child_number + c + cK
-    return EncodeBase58Check(xpub)
-
-
-class InvalidMasterKeyVersionBytes(BitcoinException): pass
-
-
-def deserialize_xkey(xkey, prv, *, net=None):
-    if net is None:
-        net = constants.net
-    xkey = DecodeBase58Check(xkey)
-    if len(xkey) != 78:
-        raise BitcoinException('Invalid length for extended key: {}'
-                               .format(len(xkey)))
-    depth = xkey[4]
-    fingerprint = xkey[5:9]
-    child_number = xkey[9:13]
-    c = xkey[13:13+32]
-    header = int('0x' + bh2u(xkey[0:4]), 16)
-    headers = net.XPRV_HEADERS if prv else net.XPUB_HEADERS
-    if header not in headers.values():
-        raise InvalidMasterKeyVersionBytes('Invalid extended key format: {}'
-                                           .format(hex(header)))
-    xtype = list(headers.keys())[list(headers.values()).index(header)]
-    n = 33 if prv else 32
-    K_or_k = xkey[13+n:]
-    if prv and not ecc.is_secret_within_curve_range(K_or_k):
-        raise BitcoinException('Impossible xprv (not within curve order)')
-    return xtype, depth, fingerprint, child_number, c, K_or_k
-
-def deserialize_drk(xkey, prv, *, net=None):
-    if net is None:
-        net = constants.net
-    xkey = DecodeBase58Check(xkey)
-    if len(xkey) != 78:
-        raise BitcoinException('Invalid length for extended key: {}'
-                               .format(len(xkey)))
-    depth = xkey[4]
-    fingerprint = xkey[5:9]
-    child_number = xkey[9:13]
-    c = xkey[13:13+32]
-    header = int('0x' + bh2u(xkey[0:4]), 16)
-    if prv and header != net.DRKV_HEADER:
-        raise BitcoinException('Invalid extended key format: {}'
-                               .format(hex(header)))
-    if not prv and header != net.DRKP_HEADER:
-        raise BitcoinException('Invalid extended key format: {}'
-                               .format(hex(header)))
-    xtype = 'standard'
-    n = 33 if prv else 32
-    K_or_k = xkey[13+n:]
-    if prv and not ecc.is_secret_within_curve_range(K_or_k):
-        raise BitcoinException('Impossible drkv (not within curve order)')
-    return xtype, depth, fingerprint, child_number, c, K_or_k
-
-
-def deserialize_xpub(xkey, *, net=None):
-    return deserialize_xkey(xkey, False, net=net)
-
-def deserialize_xprv(xkey, *, net=None):
-    return deserialize_xkey(xkey, True, net=net)
-
-def deserialize_drkp(xkey, *, net=None):
-    return deserialize_drk(xkey, False, net=net)
-
-def deserialize_drkv(xkey, *, net=None):
-    return deserialize_drk(xkey, True, net=net)
-
-def xpub_type(x):
-    return deserialize_xpub(x)[0]
-
-
-def is_xpub(text):
-    try:
-        deserialize_xpub(text)
-        return True
-    except:
-        return False
-
-
-def is_xprv(text):
-    try:
-        deserialize_xprv(text)
-        return True
-    except:
-        return False
-
-
-def is_drkp(text):
-    try:
-        deserialize_drkp(text)
-        return True
-    except:
-        return False
-
-
-def is_drkv(text):
-    try:
-        deserialize_drkv(text)
-        return True
-    except:
-        return False
-
-
-def xpub_from_xprv(xprv):
-    xtype, depth, fingerprint, child_number, c, k = deserialize_xprv(xprv)
-    cK = ecc.ECPrivkey(k).get_public_key_bytes(compressed=True)
-    return serialize_xpub(xtype, c, cK, depth, fingerprint, child_number)
-
-
-def bip32_root(seed, xtype):
-    I = hmac_oneshot(b"Bitcoin seed", seed, hashlib.sha512)
-    master_k = I[0:32]
-    master_c = I[32:]
-    # create xprv first, as that will check if master_k is within curve order
-    xprv = serialize_xprv(xtype, master_c, master_k)
-    cK = ecc.ECPrivkey(master_k).get_public_key_bytes(compressed=True)
-    xpub = serialize_xpub(xtype, master_c, cK)
-    return xprv, xpub
-
-
-def xpub_from_pubkey(xtype, cK):
-    if cK[0] not in (0x02, 0x03):
-        raise ValueError('Unexpected first byte: {}'.format(cK[0]))
-    return serialize_xpub(xtype, b'\x00'*32, cK)
-
-
-def bip32_derivation(s):
-    if not s.startswith('m/'):
-        raise ValueError('invalid bip32 derivation path: {}'.format(s))
-    s = s[2:]
-    for n in s.split('/'):
-        if n == '': continue
-        i = int(n[:-1]) + BIP32_PRIME if n[-1] == "'" else int(n)
-        yield i
-
-def convert_bip32_path_to_list_of_uint32(n: str) -> List[int]:
-    """Convert bip32 path to list of uint32 integers with prime flags
-    m/0/-1/1' -> [0, 0x80000001, 0x80000001]
-
-    based on code in trezorlib
-    """
-    path = []
-    for x in n.split('/')[1:]:
-        if x == '': continue
-        prime = 0
-        if x.endswith("'"):
-            x = x.replace('\'', '')
-            prime = BIP32_PRIME
-        if x.startswith('-'):
-            prime = BIP32_PRIME
-        path.append(abs(int(x)) | prime)
-    return path
-
-def is_bip32_derivation(x):
-    try:
-        [ i for i in bip32_derivation(x)]
-        return True
-    except :
-        return False
-
-def bip32_private_derivation(xprv, branch, sequence):
-    if not sequence.startswith(branch):
-        raise ValueError('incompatible branch ({}) and sequence ({})'
-                         .format(branch, sequence))
-    if branch == sequence:
-        return xprv, xpub_from_xprv(xprv)
-    xtype, depth, fingerprint, child_number, c, k = deserialize_xprv(xprv)
-    sequence = sequence[len(branch):]
-    for n in sequence.split('/'):
-        if n == '': continue
-        i = int(n[:-1]) + BIP32_PRIME if n[-1] == "'" else int(n)
-        parent_k = k
-        k, c = CKD_priv(k, c, i)
-        depth += 1
-    parent_cK = ecc.ECPrivkey(parent_k).get_public_key_bytes(compressed=True)
-    fingerprint = hash_160(parent_cK)[0:4]
-    child_number = bfh("%08X"%i)
-    cK = ecc.ECPrivkey(k).get_public_key_bytes(compressed=True)
-    xpub = serialize_xpub(xtype, c, cK, depth, fingerprint, child_number)
-    xprv = serialize_xprv(xtype, c, k, depth, fingerprint, child_number)
-    return xprv, xpub
-
-
-def bip32_public_derivation(xpub, branch, sequence):
-    xtype, depth, fingerprint, child_number, c, cK = deserialize_xpub(xpub)
-    if not sequence.startswith(branch):
-        raise ValueError('incompatible branch ({}) and sequence ({})'
-                         .format(branch, sequence))
-    sequence = sequence[len(branch):]
-    for n in sequence.split('/'):
-        if n == '': continue
-        i = int(n)
-        parent_cK = cK
-        cK, c = CKD_pub(cK, c, i)
-        depth += 1
-    fingerprint = hash_160(parent_cK)[0:4]
-    child_number = bfh("%08X"%i)
-    return serialize_xpub(xtype, c, cK, depth, fingerprint, child_number)
-
-
-def bip32_private_key(sequence, k, chain):
-    for i in sequence:
-        k, chain = CKD_priv(k, chain, i)
-    return k

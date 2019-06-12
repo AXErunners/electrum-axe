@@ -23,29 +23,34 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import QLineEdit
 import re
 from decimal import Decimal
 
+from PyQt5.QtGui import QFontMetrics
+from PyQt5.QtWidgets import QLineEdit
+
 from electrum_axe import bitcoin
 from electrum_axe.util import bfh
-from electrum_axe.transaction import TxOutput
+from electrum_axe.transaction import TxOutput, push_script
+from electrum_axe.bitcoin import opcodes
+from electrum_axe.logging import Logger
 
 from .qrtextedit import ScanQRTextEdit
 from .completion_text_edit import CompletionTextEdit
 from . import util
 
-RE_ALIAS = '(.*?)\s*\<([0-9A-Za-z]{1,})\>'
+RE_ALIAS = r'(.*?)\s*\<([0-9A-Za-z]{1,})\>'
 
 frozen_style = "QWidget { background-color:none; border:none;}"
 normal_style = "QPlainTextEdit { }"
 
-class PayToEdit(CompletionTextEdit, ScanQRTextEdit):
+
+class PayToEdit(CompletionTextEdit, ScanQRTextEdit, Logger):
 
     def __init__(self, win):
         CompletionTextEdit.__init__(self)
         ScanQRTextEdit.__init__(self)
+        Logger.__init__(self)
         self.win = win
         self.amount_edit = win.amount_e
         self.document().contentsChanged.connect(self.update_size)
@@ -91,12 +96,10 @@ class PayToEdit(CompletionTextEdit, ScanQRTextEdit):
             return bitcoin.TYPE_SCRIPT, script
 
     def parse_script(self, x):
-        from electrum_axe.transaction import opcodes, push_script
         script = ''
         for word in x.split():
             if word[0:3] == 'OP_':
-                assert word in opcodes.lookup
-                opcode_int = opcodes.lookup[word]
+                opcode_int = opcodes[word]
                 assert opcode_int < 256  # opcode is single-byte
                 script += bitcoin.int_to_hex(opcode_int)
             else:
@@ -153,11 +156,11 @@ class PayToEdit(CompletionTextEdit, ScanQRTextEdit):
             else:
                 total += output.value
 
-        self.win.is_max = is_max
+        self.win.max_button.setChecked(is_max)
         self.outputs = outputs
         self.payto_address = None
 
-        if self.win.is_max:
+        if self.win.max_button.isChecked():
             self.win.do_update_fee()
         else:
             self.amount_edit.setAmount(total if outputs else None)
@@ -196,9 +199,9 @@ class PayToEdit(CompletionTextEdit, ScanQRTextEdit):
         lineEditHeight = QLineEdit().sizeHint().height()
         lineHeight = self.fontMetrics().height()
         h = lineEditHeight + lineHeight * (docHeight - 1)
-        if self.heightMin <= h <= self.heightMax:
-            self.setMinimumHeight(h)
-            self.setMaximumHeight(h)
+        h = min(max(h, self.heightMin), self.heightMax)
+        self.setMinimumHeight(h)
+        self.setMaximumHeight(h)
         self.verticalScrollBar().hide()
 
     def qr_input(self):
@@ -216,6 +219,7 @@ class PayToEdit(CompletionTextEdit, ScanQRTextEdit):
         if self.is_pr:
             return
         key = str(self.toPlainText())
+        key = key.strip()  # strip whitespaces
         if key == self.previous_payto:
             return
         self.previous_payto = key
@@ -226,7 +230,8 @@ class PayToEdit(CompletionTextEdit, ScanQRTextEdit):
             return
         try:
             data = self.win.contacts.resolve(key)
-        except:
+        except Exception as e:
+            self.logger.info(f'error resolving address/alias: {repr(e)}')
             return
         if not data:
             return
@@ -240,7 +245,7 @@ class PayToEdit(CompletionTextEdit, ScanQRTextEdit):
 
         #if self.win.config.get('openalias_autoadd') == 'checked':
         self.win.contacts[key] = ('openalias', name)
-        self.win.contact_list.on_update()
+        self.win.contact_list.update()
 
         self.setFrozen(True)
         if data.get('type') == 'openalias':

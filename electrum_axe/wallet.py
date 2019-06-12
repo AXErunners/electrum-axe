@@ -38,28 +38,41 @@ import traceback
 from functools import partial
 from numbers import Number
 from decimal import Decimal
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union, NamedTuple
 
 from .i18n import _
-from .util import (NotEnoughFunds, PrintError, UserCancelled, profiler,
+from .util import (NotEnoughFunds, UserCancelled, profiler,
                    format_satoshis, format_fee_satoshis, NoDynamicFeeEstimates,
-                   TimeoutException, WalletFileException, BitcoinException,
-                   InvalidPassword, format_time, AlreadyHaveAddress)
-
-from .bitcoin import *
-from .version import *
+                   WalletFileException, BitcoinException,
+                   InvalidPassword, format_time, timestamp_to_datetime, Satoshis,
+                   Fiat, bfh, bh2u, TxMinedInfo, AlreadyHaveAddress)
+from .bitcoin import (COIN, TYPE_ADDRESS, is_address, address_to_script,
+                      is_minikey, relayfee, dust_threshold, public_key_to_p2pkh)
+from .crypto import sha256d
+from . import keystore
+from .axe_tx import SPEC_TX_NAMES
 from .keystore import load_keystore, Hardware_KeyStore
-from .storage import multisig_type, STO_EV_PLAINTEXT, STO_EV_USER_PW, STO_EV_XPUB_PW
-
-from . import transaction, bitcoin, coinchooser, paymentrequest, contacts
-from electrum_axe.axe_tx import SPEC_TX_NAMES
+from .util import multisig_type
+from .storage import STO_EV_PLAINTEXT, STO_EV_USER_PW, STO_EV_XPUB_PW, WalletStorage
+from . import transaction, bitcoin, coinchooser, paymentrequest, ecc, bip32
 from .transaction import Transaction, TxOutput, TxOutputHwInfo
 from .plugin import run_hook
 from .address_synchronizer import (AddressSynchronizer, TX_HEIGHT_LOCAL,
                                    TX_HEIGHT_UNCONF_PARENT, TX_HEIGHT_UNCONFIRMED)
-
-from .paymentrequest import PR_PAID, PR_UNPAID, PR_UNKNOWN, PR_EXPIRED
-from .paymentrequest import InvoiceStore
+from .paymentrequest import (PR_PAID, PR_UNPAID, PR_UNKNOWN, PR_EXPIRED,
+                             InvoiceStore)
 from .contacts import Contacts
+from .interface import RequestTimedOut
+from .ecc_fast import is_using_fast_ecc
+from .mnemonic import Mnemonic
+from .logging import get_logger
+
+if TYPE_CHECKING:
+    from .network import Network
+    from .simple_config import SimpleConfig
+
+
+_logger = get_logger(__name__)
 
 TX_STATUS = [
     _('Unconfirmed'),
@@ -69,19 +82,7 @@ TX_STATUS = [
 ]
 
 
-
-def relayfee(network):
-    from .simple_config import FEERATE_DEFAULT_RELAY
-    MAX_RELAY_FEE = 10000
-    f = network.relay_fee if network and network.relay_fee else FEERATE_DEFAULT_RELAY
-    return min(f, MAX_RELAY_FEE)
-
-def dust_threshold(network):
-    # Change <= dust threshold is added to the tx fee
-    return 182 * 3 * relayfee(network) / 1000
-
-
-def append_utxos_to_inputs(inputs, network, pubkey, txin_type, imax):
+def append_utxos_to_inputs(inputs, network: 'Network', pubkey, txin_type, imax):
     if txin_type != 'p2pk':
         address = bitcoin.pubkey_to_address(txin_type, pubkey)
         scripthash = bitcoin.address_to_scripthash(address)
@@ -90,7 +91,7 @@ def append_utxos_to_inputs(inputs, network, pubkey, txin_type, imax):
         scripthash = bitcoin.script_to_scripthash(script)
         address = '(pubkey)'
 
-    u = network.listunspent_for_scripthash(scripthash)
+    u = network.run_from_another_thread(network.listunspent_for_scripthash(scripthash))
     for item in u:
         if len(inputs) >= imax:
             break
@@ -104,7 +105,7 @@ def append_utxos_to_inputs(inputs, network, pubkey, txin_type, imax):
         item['num_sig'] = 1
         inputs.append(item)
 
-def sweep_preparations(privkeys, network, imax=100):
+def sweep_preparations(privkeys, network: 'Network', imax=100):
 
     def find_utxos_for_privkey(txin_type, privkey, compressed):
         pubkey = ecc.ECPrivkey(privkey).get_public_key_hex(compressed=compressed)
@@ -130,7 +131,8 @@ def sweep_preparations(privkeys, network, imax=100):
     return inputs, keypairs
 
 
-def sweep(privkeys, network, config, recipient, fee=None, imax=100):
+def sweep(privkeys, network: 'Network', config: 'SimpleConfig', recipient, fee=None, imax=100,
+          *, locktime=None, tx_version=None):
     inputs, keypairs = sweep_preparations(privkeys, network, imax)
     total = sum(i.get('value') for i in inputs)
     if fee is None:
@@ -143,14 +145,49 @@ def sweep(privkeys, network, config, recipient, fee=None, imax=100):
         raise Exception(_('Not enough funds on address.') + '\nTotal: %d haks\nFee: %d\nDust Threshold: %d'%(total, fee, dust_threshold(network)))
 
     outputs = [TxOutput(TYPE_ADDRESS, recipient, total - fee)]
-    locktime = network.get_local_height()
+    if locktime is None:
+        locktime = get_locktime_for_new_transaction(network)
 
-    tx = Transaction.from_io(inputs, outputs, locktime=locktime)
-    tx.BIP_LI01_sort()
+    tx = Transaction.from_io(inputs, outputs, locktime=locktime, version=tx_version)
     tx.sign(keypairs)
     return tx
 
 
+def get_locktime_for_new_transaction(network: 'Network') -> int:
+    # if no network or not up to date, just set locktime to zero
+    if not network:
+        return 0
+    chain = network.blockchain()
+    header = chain.header_at_tip()
+    if not header:
+        return 0
+    STALE_DELAY = 8 * 60 * 60  # in seconds
+    if header['timestamp'] + STALE_DELAY < time.time():
+        return 0
+    # discourage "fee sniping"
+    locktime = chain.height()
+    # sometimes pick locktime a bit further back, to help privacy
+    # of setups that need more time (offline/multisig/coinjoin/...)
+    if random.randint(0, 9) == 0:
+        locktime = max(0, locktime - random.randint(0, 99))
+    return locktime
+
+
+class InternalAddressCorruption(Exception):
+    def __str__(self):
+        return _("Wallet file corruption detected. "
+                 "Please restore your wallet from seed, and compare the addresses in both files")
+
+
+class TxWalletDetails(NamedTuple):
+    txid: Optional[str]
+    status: str
+    label: str
+    can_broadcast: bool
+    amount: Optional[int]
+    fee: Optional[int]
+    tx_mined_status: TxMinedInfo
+    mempool_depth_bytes: Optional[int]
 
 
 class Abstract_Wallet(AddressSynchronizer):
@@ -159,19 +196,25 @@ class Abstract_Wallet(AddressSynchronizer):
     Completion states (watching-only, single account, no seed, etc) are handled inside classes.
     """
 
+    LOGGING_SHORTCUT = 'w'
     max_change_outputs = 3
     gap_limit_for_change = 6
-    verbosity_filter = 'w'
 
-    def __init__(self, storage):
+    def __init__(self, storage: WalletStorage):
+        if storage.requires_upgrade():
+            raise Exception("storage must be upgraded before constructing wallet")
+
+        # load addresses needs to be called before constructor for sanity checks
+        storage.db.load_addresses(self.wallet_type)
+
         AddressSynchronizer.__init__(self, storage)
 
-        self.electrum_version = ELECTRUM_VERSION
         # saved fields
         self.use_change            = storage.get('use_change', True)
         self.multiple_change       = storage.get('multiple_change', False)
         self.labels                = storage.get('labels', {})
-        self.frozen_addresses      = set(storage.get('frozen_addresses',[]))
+        self.frozen_addresses      = set(storage.get('frozen_addresses', []))
+        self.frozen_coins          = set(storage.get('frozen_coins', []))  # set of txid:vout strings
         self.fiat_value            = storage.get('fiat_value', {})
         self.receive_requests      = storage.get('payment_requests', {})
 
@@ -188,11 +231,10 @@ class Abstract_Wallet(AddressSynchronizer):
         self.invoices = InvoiceStore(self.storage)
         self.contacts = Contacts(self.storage)
 
-        self.coin_price_cache = {}
+        self._coin_price_cache = {}
 
     def load_and_cleanup(self):
         self.load_keystore()
-        self.load_addresses()
         self.test_addresses_sanity()
         super().load_and_cleanup()
 
@@ -208,23 +250,14 @@ class Abstract_Wallet(AddressSynchronizer):
     def basename(self):
         return os.path.basename(self.storage.path)
 
-    def save_addresses(self):
-        self.storage.put('addresses', {'receiving':self.receiving_addresses, 'change':self.change_addresses})
-
-    def load_addresses(self):
-        d = self.storage.get('addresses', {})
-        if type(d) != dict: d={}
-        self.receiving_addresses = d.get('receiving', [])
-        self.change_addresses = d.get('change', [])
-
     def test_addresses_sanity(self):
         addrs = self.get_receiving_addresses()
         if len(addrs) > 0:
-            if not bitcoin.is_address(addrs[0]):
-                raise WalletFileException('The addresses in this wallet are not Axe addresses.')
-
-    def synchronize(self):
-        pass
+            addr = str(addrs[0])
+            if not bitcoin.is_address(addr):
+                neutered_addr = addr[:5] + '..' + addr[-2:]
+                raise WalletFileException(f'The addresses in this wallet are not Axe addresses.\n'
+                                          f'e.g. {neutered_addr} (length: {len(addr)})')
 
     def calc_unused_change_addresses(self):
         with self.lock:
@@ -248,7 +281,7 @@ class Abstract_Wallet(AddressSynchronizer):
                 self.labels[name] = text
                 changed = True
         else:
-            if old_text:
+            if old_text is not None:
                 self.labels.pop(name)
                 changed = True
         if changed:
@@ -256,24 +289,37 @@ class Abstract_Wallet(AddressSynchronizer):
             self.storage.put('labels', self.labels)
         return changed
 
-    def set_fiat_value(self, txid, ccy, text):
-        if txid not in self.transactions:
+    def set_fiat_value(self, txid, ccy, text, fx, value_sat):
+        if not self.db.get_transaction(txid):
             return
-        if not text:
+        # since fx is inserting the thousands separator,
+        # and not util, also have fx remove it
+        text = fx.remove_thousands_separator(text)
+        def_fiat = self.default_fiat_value(txid, fx, value_sat)
+        formatted = fx.ccy_amount_str(def_fiat, commas=False)
+        def_fiat_rounded = Decimal(formatted)
+        reset = not text
+        if not reset:
+            try:
+                text_dec = Decimal(text)
+                text_dec_rounded = Decimal(fx.ccy_amount_str(text_dec, commas=False))
+                reset = text_dec_rounded == def_fiat_rounded
+            except:
+                # garbage. not resetting, but not saving either
+                return False
+        if reset:
             d = self.fiat_value.get(ccy, {})
             if d and txid in d:
                 d.pop(txid)
             else:
-                return
+                # avoid saving empty dict
+                return True
         else:
-            try:
-                Decimal(text)
-            except:
-                return
-        if ccy not in self.fiat_value:
-            self.fiat_value[ccy] = {}
-        self.fiat_value[ccy][txid] = text
+            if ccy not in self.fiat_value:
+                self.fiat_value[ccy] = {}
+            self.fiat_value[ccy][txid] = text
         self.storage.put('fiat_value', self.fiat_value)
+        return reset
 
     def get_fiat_value(self, txid, ccy):
         fiat_value = self.fiat_value.get(ccy, {}).get(txid)
@@ -283,11 +329,7 @@ class Abstract_Wallet(AddressSynchronizer):
             return
 
     def is_mine(self, address):
-        try:
-            self.get_address_index(address)
-        except KeyError:
-            return False
-        return True
+        return bool(self.get_address_index(address))
 
     def is_change(self, address):
         if not self.is_mine(address):
@@ -314,29 +356,28 @@ class Abstract_Wallet(AddressSynchronizer):
         return [self.get_public_key(address)]
 
     def is_found(self):
-        return self.history.values() != [[]] * len(self.history)
+        return True
+        #return self.history.values() != [[]] * len(self.history)
 
-    def get_tx_info(self, tx):
+    def get_tx_info(self, tx) -> TxWalletDetails:
         is_relevant, is_mine, v, fee = self.get_wallet_delta(tx)
         exp_n = None
         can_broadcast = False
         label = ''
-        height = conf = timestamp = None
         tx_hash = tx.txid()
+        tx_mined_status = self.get_tx_height(tx_hash)
         if tx.is_complete():
-            if tx_hash in self.transactions.keys():
+            if self.db.get_transaction(tx_hash):
                 label = self.get_label(tx_hash)
-                tx_mined_status = self.get_tx_height(tx_hash)
-                height, conf = tx_mined_status.height, tx_mined_status.conf
-                if height > 0:
-                    if conf:
-                        status = _("{} confirmations").format(conf)
+                if tx_mined_status.height > 0:
+                    if tx_mined_status.conf:
+                        status = _("{} confirmations").format(tx_mined_status.conf)
                     else:
                         status = _('Not verified')
-                elif height in (TX_HEIGHT_UNCONF_PARENT, TX_HEIGHT_UNCONFIRMED):
+                elif tx_mined_status.height in (TX_HEIGHT_UNCONF_PARENT, TX_HEIGHT_UNCONFIRMED):
                     status = _('Unconfirmed')
                     if fee is None:
-                        fee = self.tx_fees.get(tx_hash)
+                        fee = self.db.get_tx_fee(tx_hash)
                     if fee and self.network and self.network.config.has_fee_mempool():
                         size = tx.estimated_size()
                         fee_per_kb = round(fee * 1000 / size)
@@ -362,30 +403,56 @@ class Abstract_Wallet(AddressSynchronizer):
         else:
             amount = None
 
-        return tx_hash, status, label, can_broadcast, amount, fee, height, conf, timestamp, exp_n
+        return TxWalletDetails(
+            txid=tx_hash,
+            status=status,
+            label=label,
+            can_broadcast=can_broadcast,
+            amount=amount,
+            fee=fee,
+            tx_mined_status=tx_mined_status,
+            mempool_depth_bytes=exp_n,
+        )
 
-    def get_spendable_coins(self, domain, config):
+    def get_spendable_coins(self, domain, config, *, nonlocal_only=False):
         confirmed_only = config.get('confirmed_only', False)
-        return self.get_utxos(domain, excluded=self.frozen_addresses, mature=True, confirmed_only=confirmed_only)
+        utxos = self.get_utxos(domain,
+                               excluded_addresses=self.frozen_addresses,
+                               mature_only=True,
+                               confirmed_only=confirmed_only,
+                               nonlocal_only=nonlocal_only)
+        utxos = [utxo for utxo in utxos if not self.is_frozen_coin(utxo)]
+        return utxos
 
     def dummy_address(self):
         return self.get_receiving_addresses()[0]
 
     def get_frozen_balance(self):
-        return self.get_balance(self.frozen_addresses)
+        if not self.frozen_coins:  # shortcut
+            return self.get_balance(self.frozen_addresses)
+        c1, u1, x1 = self.get_balance()
+        c2, u2, x2 = self.get_balance(excluded_addresses=self.frozen_addresses,
+                                      excluded_coins=self.frozen_coins)
+        return c1-c2, u1-u2, x1-x2
 
     def balance_at_timestamp(self, domain, target_timestamp):
+        # we assume that get_history returns items ordered by block height
+        # we also assume that block timestamps are monotonic (which is false...!)
         h = self.get_history(domain)
         balance = 0
         for tx_hash, tx_type, tx_mined_status, value, balance in h:
-            if tx_mined_status.timestamp > target_timestamp:
+            if tx_mined_status.timestamp is None or tx_mined_status.timestamp > target_timestamp:
                 return balance - value
         # return last balance
         return balance
 
     @profiler
-    def get_full_history(self, domain=None, from_timestamp=None, to_timestamp=None, fx=None, show_addresses=False):
-        from .util import timestamp_to_datetime, Satoshis, Fiat
+    def get_full_history(self, domain=None, from_timestamp=None, to_timestamp=None,
+                         fx=None, show_addresses=False, show_fees=False,
+                         from_height=None, to_height=None):
+        if (from_timestamp is not None or to_timestamp is not None) \
+                and (from_height is not None or to_height is not None):
+            raise Exception('timestamp and block height based filtering cannot be used together')
         out = []
         income = 0
         expenditures = 0
@@ -401,23 +468,35 @@ class Abstract_Wallet(AddressSynchronizer):
                 continue
             if to_timestamp and (timestamp or now) >= to_timestamp:
                 continue
+            height = tx_mined_status.height
+            if from_height is not None and height < from_height:
+                continue
+            if to_height is not None and height >= to_height:
+                continue
+            tx = self.db.get_transaction(tx_hash)
             item = {
                 'txid': tx_hash,
-                'height': tx_mined_status.height,
+                'height': height,
                 'confirmations': tx_mined_status.conf,
                 'timestamp': timestamp,
+                'incoming': True if value>0 else False,
                 'value': Satoshis(value),
                 'balance': Satoshis(balance),
                 'date': timestamp_to_datetime(timestamp),
                 'label': self.get_label(tx_hash),
+                'txpos_in_block': tx_mined_status.txpos,
             }
             if show_dip2:
                 tx_type_name = SPEC_TX_NAMES.get(tx_type, str(tx_type))
                 item['dip2'] = tx_type_name
+            tx_fee = None
+            if show_fees:
+                tx_fee = self.get_tx_fee(tx)
+                item['fee'] = Satoshis(tx_fee) if tx_fee is not None else None
             if show_addresses:
-                tx = self.transactions.get(tx_hash)
                 item['inputs'] = list(map(lambda x: dict((k, x[k]) for k in ('prevout_hash', 'prevout_n')), tx.inputs()))
-                item['outputs'] = list(map(lambda x:{'address':x[0], 'value':Satoshis(x[1])}, tx.get_outputs()))
+                item['outputs'] = list(map(lambda x:{'address':x.address, 'value':Satoshis(x.value)},
+                                           tx.get_outputs_for_UI()))
             # value may be None if wallet is not fully synchronized
             if value is None:
                 continue
@@ -427,19 +506,12 @@ class Abstract_Wallet(AddressSynchronizer):
             else:
                 income += value
             # fiat computations
-            if fx and fx.is_enabled():
-                fiat_value = self.get_fiat_value(tx_hash, fx.ccy)
-                fiat_default = fiat_value is None
-                fiat_value = fiat_value if fiat_value is not None else value / Decimal(COIN) * self.price_at_timestamp(tx_hash, fx.timestamp_rate)  #
-                item['fiat_value'] = Fiat(fiat_value, fx.ccy)
-                item['fiat_default'] = fiat_default
+            if fx and fx.is_enabled() and fx.get_history_config():
+                fiat_fields = self.get_tx_item_fiat(tx_hash, value, fx, tx_fee)
+                fiat_value = fiat_fields['fiat_value'].value
+                item.update(fiat_fields)
                 if value < 0:
-                    acquisition_price = - value / Decimal(COIN) * self.average_price(tx_hash, fx.timestamp_rate, fx.ccy)
-                    liquidation_price = - fiat_value
-                    item['acquisition_price'] = Fiat(acquisition_price, fx.ccy)
-                    cg = liquidation_price - acquisition_price
-                    item['capital_gain'] = Fiat(cg, fx.ccy)
-                    capital_gains += cg
+                    capital_gains += fiat_fields['capital_gain'].value
                     fiat_expenditures += -fiat_value
                 else:
                     fiat_income += fiat_value
@@ -458,27 +530,53 @@ class Abstract_Wallet(AddressSynchronizer):
             summary = {
                 'start_date': start_date,
                 'end_date': end_date,
+                'from_height': from_height,
+                'to_height': to_height,
                 'start_balance': Satoshis(start_balance),
                 'end_balance': Satoshis(end_balance),
-                'income': Satoshis(income),
-                'expenditures': Satoshis(expenditures)
+                'incoming': Satoshis(income),
+                'outgoing': Satoshis(expenditures)
             }
-            if fx and fx.is_enabled():
+            if fx and fx.is_enabled() and fx.get_history_config():
                 unrealized = self.unrealized_gains(domain, fx.timestamp_rate, fx.ccy)
-                summary['capital_gains'] = Fiat(capital_gains, fx.ccy)
-                summary['fiat_income'] = Fiat(fiat_income, fx.ccy)
-                summary['fiat_expenditures'] = Fiat(fiat_expenditures, fx.ccy)
-                summary['unrealized_gains'] = Fiat(unrealized, fx.ccy)
-                summary['start_fiat_balance'] = Fiat(fx.historical_value(start_balance, start_date), fx.ccy)
-                summary['end_fiat_balance'] = Fiat(fx.historical_value(end_balance, end_date), fx.ccy)
-                summary['start_fiat_value'] = Fiat(fx.historical_value(COIN, start_date), fx.ccy)
-                summary['end_fiat_value'] = Fiat(fx.historical_value(COIN, end_date), fx.ccy)
+                summary['fiat_currency'] = fx.ccy
+                summary['fiat_capital_gains'] = Fiat(capital_gains, fx.ccy)
+                summary['fiat_incoming'] = Fiat(fiat_income, fx.ccy)
+                summary['fiat_outgoing'] = Fiat(fiat_expenditures, fx.ccy)
+                summary['fiat_unrealized_gains'] = Fiat(unrealized, fx.ccy)
+                summary['fiat_start_balance'] = Fiat(fx.historical_value(start_balance, start_date), fx.ccy)
+                summary['fiat_end_balance'] = Fiat(fx.historical_value(end_balance, end_date), fx.ccy)
+                summary['fiat_start_value'] = Fiat(fx.historical_value(COIN, start_date), fx.ccy)
+                summary['fiat_end_value'] = Fiat(fx.historical_value(COIN, end_date), fx.ccy)
         else:
             summary = {}
         return {
             'transactions': out,
             'summary': summary
         }
+
+    def default_fiat_value(self, tx_hash, fx, value_sat):
+        return value_sat / Decimal(COIN) * self.price_at_timestamp(tx_hash, fx.timestamp_rate)
+
+    def get_tx_item_fiat(self, tx_hash, value, fx, tx_fee):
+        item = {}
+        fiat_value = self.get_fiat_value(tx_hash, fx.ccy)
+        fiat_default = fiat_value is None
+        fiat_rate = self.price_at_timestamp(tx_hash, fx.timestamp_rate)
+        fiat_value = fiat_value if fiat_value is not None else self.default_fiat_value(tx_hash, fx, value)
+        fiat_fee = tx_fee / Decimal(COIN) * fiat_rate if tx_fee is not None else None
+        item['fiat_currency'] = fx.ccy
+        item['fiat_rate'] = Fiat(fiat_rate, fx.ccy)
+        item['fiat_value'] = Fiat(fiat_value, fx.ccy)
+        item['fiat_fee'] = Fiat(fiat_fee, fx.ccy) if fiat_fee else None
+        item['fiat_default'] = fiat_default
+        if value < 0:
+            acquisition_price = - value / Decimal(COIN) * self.average_price(tx_hash, fx.timestamp_rate, fx.ccy)
+            liquidation_price = - fiat_value
+            item['acquisition_price'] = Fiat(acquisition_price, fx.ccy)
+            cg = liquidation_price - acquisition_price
+            item['capital_gain'] = Fiat(cg, fx.ccy)
+        return item
 
     def get_label(self, tx_hash):
         label = self.labels.get(tx_hash, '')
@@ -487,28 +585,27 @@ class Abstract_Wallet(AddressSynchronizer):
         return label
 
     def get_default_label(self, tx_hash):
-        if self.txi.get(tx_hash) == {}:
-            d = self.txo.get(tx_hash, {})
+        if not self.db.get_txi(tx_hash):
             labels = []
-            for addr in d.keys():
+            for addr in self.db.get_txo(tx_hash):
                 label = self.labels.get(addr)
                 if label:
                     labels.append(label)
             return ', '.join(labels)
         return ''
 
-    def get_tx_status(self, tx_hash, tx_mined_status):
+    def get_tx_status(self, tx_hash, tx_mined_info: TxMinedInfo):
         extra = []
-        height = tx_mined_status.height
-        conf = tx_mined_status.conf
-        timestamp = tx_mined_status.timestamp
+        height = tx_mined_info.height
+        conf = tx_mined_info.conf
+        timestamp = tx_mined_info.timestamp
         if conf == 0:
-            tx = self.transactions.get(tx_hash)
+            tx = self.db.get_transaction(tx_hash)
             if not tx:
                 return 2, 'unknown'
             fee = self.get_wallet_delta(tx)[3]
             if fee is None:
-                fee = self.tx_fees.get(tx_hash)
+                fee = self.db.get_tx_fee(tx_hash)
             if fee is not None:
                 size = tx.estimated_size()
                 fee_per_kb = round(fee * 1000 / size)
@@ -525,7 +622,7 @@ class Abstract_Wallet(AddressSynchronizer):
             elif height == TX_HEIGHT_UNCONFIRMED:
                 status = 0
             else:
-                status = 2
+                status = 2  # not SPV verified
         else:
             status = 3 + min(conf, 6)
         time_str = format_time(timestamp) if timestamp else _("unknown")
@@ -540,7 +637,7 @@ class Abstract_Wallet(AddressSynchronizer):
     def dust_threshold(self):
         return dust_threshold(self.network)
 
-    def make_unsigned_transaction(self, inputs, outputs, config, fixed_fee=None,
+    def make_unsigned_transaction(self, coins, outputs, config, fixed_fee=None,
                                   change_addr=None, is_sweep=False,
                                   tx_type=0, extra_payload=b''):
         # check outputs
@@ -554,14 +651,10 @@ class Abstract_Wallet(AddressSynchronizer):
                     raise Exception("More than one output set to spend max")
                 i_max = i
 
-        # Avoid index-out-of-range with inputs[0] below
-        if not inputs:
-            raise NotEnoughFunds()
-
         if fixed_fee is None and config.fee_per_kb() is None:
             raise NoDynamicFeeEstimates()
 
-        for item in inputs:
+        for item in coins:
             self.add_input_info(item)
 
         # change address
@@ -581,6 +674,10 @@ class Abstract_Wallet(AddressSynchronizer):
                 # if there are none, take one randomly from the last few
                 addrs = self.get_change_addresses()[-self.gap_limit_for_change:]
                 change_addrs = [random.choice(addrs)] if addrs else []
+        for addr in change_addrs:
+            # note that change addresses are not necessarily ismine
+            # in which case this is a no-op
+            self.check_address(addr)
 
         # Fee estimator
         if fixed_fee is None:
@@ -596,15 +693,17 @@ class Abstract_Wallet(AddressSynchronizer):
             # Let the coin chooser select the coins to spend
             max_change = self.max_change_outputs if self.multiple_change else 1
             coin_chooser = coinchooser.get_coin_chooser(config)
-            tx = coin_chooser.make_tx(inputs, outputs, change_addrs[:max_change],
+            txi = []
+            txo = []
+            tx = coin_chooser.make_tx(coins, txi, outputs[:] + txo, change_addrs[:max_change],
                                       fee_estimator, self.dust_threshold(),
                                       tx_type=tx_type,
                                       extra_payload=extra_payload)
         else:
             # FIXME?? this might spend inputs with negative effective value...
-            sendable = sum(map(lambda x:x['value'], inputs))
+            sendable = sum(map(lambda x:x['value'], coins))
             outputs[i_max] = outputs[i_max]._replace(value=0)
-            tx = Transaction.from_io(inputs, outputs[:],
+            tx = Transaction.from_io(coins, outputs[:],
                                      tx_type=tx_type,
                                      extra_payload=extra_payload)
             fee = fee_estimator(tx.estimated_size())
@@ -612,32 +711,39 @@ class Abstract_Wallet(AddressSynchronizer):
             if amount < 0:
                 raise NotEnoughFunds()
             outputs[i_max] = outputs[i_max]._replace(value=amount)
-            tx = Transaction.from_io(inputs, outputs[:],
+            tx = Transaction.from_io(coins, outputs[:],
                                      tx_type=tx_type,
                                      extra_payload=extra_payload)
 
-        # Sort the inputs and outputs deterministically
-        tx.BIP_LI01_sort()
         # Timelock tx to current height.
-        tx.locktime = self.get_local_height()
+        tx.locktime = get_locktime_for_new_transaction(self.network)
         # Update extra payload with tx data
         if tx_type:
             tx.extra_payload.update_with_tx_data(tx)
         run_hook('make_unsigned_transaction', self, tx)
         return tx
 
-    def mktx(self, outputs, password, config, fee=None, change_addr=None, domain=None):
-        coins = self.get_spendable_coins(domain, config)
+    def mktx(self, outputs, password, config, fee=None, change_addr=None,
+             domain=None, nonlocal_only=False, *, tx_version=None):
+        coins = self.get_spendable_coins(domain, config, nonlocal_only=nonlocal_only)
         tx = self.make_unsigned_transaction(coins, outputs, config, fee, change_addr)
+        if tx_version is not None:
+            tx.version = tx_version
         self.sign_transaction(tx, password)
         return tx
 
-    def is_frozen(self, addr):
+    def is_frozen_address(self, addr: str) -> bool:
         return addr in self.frozen_addresses
 
-    def set_frozen_state(self, addrs, freeze):
-        '''Set frozen state of the addresses to FREEZE, True or False'''
+    def is_frozen_coin(self, utxo) -> bool:
+        # utxo is either a txid:vout str, or a dict
+        utxo = self._utxo_str_from_utxo(utxo)
+        return utxo in self.frozen_coins
+
+    def set_frozen_state_of_addresses(self, addrs, freeze: bool):
+        """Set frozen state of the addresses to FREEZE, True or False"""
         if all(self.is_mine(addr) for addr in addrs):
+            # FIXME take lock?
             if freeze:
                 self.frozen_addresses |= set(addrs)
             else:
@@ -645,6 +751,25 @@ class Abstract_Wallet(AddressSynchronizer):
             self.storage.put('frozen_addresses', list(self.frozen_addresses))
             return True
         return False
+
+    def set_frozen_state_of_coins(self, utxos, freeze: bool):
+        """Set frozen state of the utxos to FREEZE, True or False"""
+        utxos = {self._utxo_str_from_utxo(utxo) for utxo in utxos}
+        # FIXME take lock?
+        if freeze:
+            self.frozen_coins |= set(utxos)
+        else:
+            self.frozen_coins -= set(utxos)
+        self.storage.put('frozen_coins', list(self.frozen_coins))
+
+    @staticmethod
+    def _utxo_str_from_utxo(utxo: Union[dict, str]) -> str:
+        """Return a txid:vout str"""
+        if isinstance(utxo, dict):
+            return "{}:{}".format(utxo['prevout_hash'], utxo['prevout_n'])
+        assert isinstance(utxo, str), f"utxo should be a str, not {type(utxo)}"
+        # just assume it is already of the correct format
+        return utxo
 
     def wait_until_synchronized(self, callback=None):
         def wait_for_wallet():
@@ -666,9 +791,9 @@ class Abstract_Wallet(AddressSynchronizer):
         # wait until we are connected, because the user
         # might have selected another server
         if self.network:
-            self.print_error("waiting for network...")
+            self.logger.info("waiting for network...")
             wait_for_network()
-            self.print_error("waiting while wallet is syncing...")
+            self.logger.info("waiting while wallet is syncing...")
             wait_for_wallet()
         else:
             self.synchronize()
@@ -678,7 +803,7 @@ class Abstract_Wallet(AddressSynchronizer):
 
     def address_is_old(self, address, age_limit=2):
         age = -1
-        h = self.history.get(address, [])
+        h = self.db.get_addr_history(address)
         for tx_hash, tx_height in h:
             if tx_height <= 0:
                 tx_age = 0
@@ -692,22 +817,17 @@ class Abstract_Wallet(AddressSynchronizer):
         raise NotImplementedError()  # implemented by subclasses
 
     def add_input_info(self, txin):
-        address = txin['address']
+        address = self.get_txin_address(txin)
         if self.is_mine(address):
+            txin['address'] = address
             txin['type'] = self.get_txin_type(address)
             self.add_input_sig_info(txin, address)
-
-    def add_input_info_to_all_inputs(self, tx):
-        if tx.is_complete():
-            return
-        for txin in tx.inputs():
-            self.add_input_info(txin)
 
     def can_sign(self, tx):
         if tx.is_complete():
             return False
         # add info to inputs if we can; otherwise we might return a false negative:
-        self.add_input_info_to_all_inputs(tx)  # though note that this is a side-effect
+        tx.add_inputs_info(self)
         for k in self.get_keystores():
             if k.can_sign(tx):
                 return True
@@ -717,14 +837,17 @@ class Abstract_Wallet(AddressSynchronizer):
         # First look up an input transaction in the wallet where it
         # will likely be.  If co-signing a transaction it may not have
         # all the input txs, in which case we ask the network.
-        tx = self.transactions.get(tx_hash, None)
+        tx = self.db.get_transaction(tx_hash)
         if not tx and self.network:
             try:
-                tx = Transaction(self.network.get_transaction(tx_hash))
-            except TimeoutException as e:
-                self.print_error('getting input txn from network timed out for {}'.format(tx_hash))
+                raw_tx = self.network.run_from_another_thread(
+                    self.network.get_transaction(tx_hash, timeout=10))
+            except RequestTimedOut as e:
+                self.logger.info(f'getting input txn from network timed out for {tx_hash}')
                 if not ignore_timeout:
                     raise e
+            else:
+                tx = Transaction(raw_tx)
         return tx
 
     def add_hw_info(self, tx):
@@ -749,7 +872,7 @@ class Abstract_Wallet(AddressSynchronizer):
     def sign_transaction(self, tx, password):
         if self.is_watching_only():
             return
-        self.add_input_info_to_all_inputs(tx)
+        tx.add_inputs_info(self)
         # hardware wallets require extra info
         if any([(isinstance(k, Hardware_KeyStore) and k.can_sign(tx)) for k in self.get_keystores()]):
             self.add_hw_info(tx)
@@ -765,17 +888,32 @@ class Abstract_Wallet(AddressSynchronizer):
                 continue
         return tx
 
+    def try_detecting_internal_addresses_corruption(self):
+        pass
+
+    def check_address(self, addr):
+        pass
+
+    def check_returned_address(func):
+        def wrapper(self, *args, **kwargs):
+            addr = func(self, *args, **kwargs)
+            self.check_address(addr)
+            return addr
+        return wrapper
+
     def get_unused_addresses(self):
         # fixme: use slots from expired requests
         domain = self.get_receiving_addresses()
-        return [addr for addr in domain if not self.history.get(addr)
+        return [addr for addr in domain if not self.db.get_addr_history(addr)
                 and addr not in self.receive_requests.keys()]
 
+    @check_returned_address
     def get_unused_address(self):
         addrs = self.get_unused_addresses()
         if addrs:
             return addrs[0]
 
+    @check_returned_address
     def get_receiving_address(self):
         # always return an address
         domain = self.get_receiving_addresses()
@@ -783,7 +921,7 @@ class Abstract_Wallet(AddressSynchronizer):
             return
         choice = domain[0]
         for addr in domain:
-            if not self.history.get(addr):
+            if not self.db.get_addr_history(addr):
                 if addr not in self.receive_requests.keys():
                     return addr
                 else:
@@ -797,7 +935,7 @@ class Abstract_Wallet(AddressSynchronizer):
         for txo, x in received.items():
             h, v, is_cb = x
             txid, n = txo.split(':')
-            info = self.verified_tx.get(txid)
+            info = self.db.get_verified_tx(txid)
             if info:
                 conf = local_height - info.height
             else:
@@ -832,7 +970,7 @@ class Abstract_Wallet(AddressSynchronizer):
                     try:
                         baseurl = baseurl.replace(*rewrite)
                     except BaseException as e:
-                        self.print_stderr('Invalid config setting for "url_rewrite". err:', e)
+                        self.logger.info(f'Invalid config setting for "url_rewrite". err: {e}')
                 out['request_url'] = os.path.join(baseurl, 'req', key[0], key[1], key, key)
                 out['URI'] += '&r=' + out['request_url']
                 out['index_url'] = os.path.join(baseurl, 'index.html') + '?id=' + key
@@ -875,7 +1013,7 @@ class Abstract_Wallet(AddressSynchronizer):
 
     def make_payment_request(self, addr, amount, message, expiration):
         timestamp = int(time.time())
-        _id = bh2u(Hash(addr + "%d"%timestamp))[0:10]
+        _id = bh2u(sha256d(addr + "%d"%timestamp))[0:10]
         r = {'time':timestamp, 'amount':amount, 'exp':expiration, 'address':addr, 'memo':message, 'id':_id}
         return r
 
@@ -936,12 +1074,7 @@ class Abstract_Wallet(AddressSynchronizer):
         return True
 
     def get_sorted_requests(self, config):
-        def f(addr):
-            try:
-                return self.get_address_index(addr)
-            except:
-                return
-        keys = map(lambda x: (f(x), x), self.receive_requests.keys())
+        keys = map(lambda x: (self.get_address_index(x), x), self.receive_requests.keys())
         sorted_keys = sorted(filter(lambda x: x[0] is not None, keys))
         return [self.get_payment_request(x[1], config) for x in sorted_keys]
 
@@ -1015,7 +1148,6 @@ class Abstract_Wallet(AddressSynchronizer):
         self._update_password_for_keystore(old_pw, new_pw)
         encrypt_keystore = self.can_have_keystore_encryption()
         self.storage.set_keystore_encryption(bool(new_pw) and encrypt_keystore)
-
         self.storage.write()
 
     def sign_digest(self, address, data, password):
@@ -1030,7 +1162,7 @@ class Abstract_Wallet(AddressSynchronizer):
         index = self.get_address_index(address)
         return self.keystore.sign_message(index, message, password)
 
-    def decrypt_message(self, pubkey, message, password):
+    def decrypt_message(self, pubkey, message, password) -> bytes:
         addr = self.pubkeys_to_address(pubkey)
         index = self.get_address_index(addr)
         return self.keystore.decrypt_message(index, message, password)
@@ -1038,7 +1170,8 @@ class Abstract_Wallet(AddressSynchronizer):
     def txin_value(self, txin):
         txid = txin['prevout_hash']
         prev_n = txin['prevout_n']
-        for address, d in self.txo.get(txid, {}).items():
+        for addr in self.db.get_txo(txid):
+            d = self.db.get_txo_addr(txid, addr)
             for n, v, cb in d:
                 if n == prev_n:
                     return v
@@ -1062,11 +1195,15 @@ class Abstract_Wallet(AddressSynchronizer):
         """ Average acquisition price of the inputs of a transaction """
         input_value = 0
         total_price = 0
-        for addr, d in self.txi.get(txid, {}).items():
+        for addr in self.db.get_txi(txid):
+            d = self.db.get_txi_addr(txid, addr)
             for ser, v in d:
                 input_value += v
                 total_price += self.coin_price(ser.split(':')[0], price_func, ccy, v)
         return total_price / (input_value/Decimal(COIN))
+
+    def clear_coin_price_cache(self):
+        self._coin_price_cache = {}
 
     def coin_price(self, txid, price_func, ccy, txin_value):
         """
@@ -1076,12 +1213,12 @@ class Abstract_Wallet(AddressSynchronizer):
         if txin_value is None:
             return Decimal('NaN')
         cache_key = "{}:{}:{}".format(str(txid), str(ccy), str(txin_value))
-        result = self.coin_price_cache.get(cache_key, None)
+        result = self._coin_price_cache.get(cache_key, None)
         if result is not None:
             return result
-        if self.txi.get(txid, {}) != {}:
+        if self.db.get_txi(txid):
             result = self.average_price(txid, price_func, ccy) * txin_value/Decimal(COIN)
-            self.coin_price_cache[cache_key] = result
+            self._coin_price_cache[cache_key] = result
             return result
         else:
             fiat_value = self.get_fiat_value(txid, ccy)
@@ -1134,6 +1271,9 @@ class Abstract_Wallet(AddressSynchronizer):
             raise Exception('Private key not known for public key %s' % pubkey)
         return vote.sign(sec)
 
+    def is_watching_only(self) -> bool:
+        raise NotImplementedError()
+
 
 class Simple_Wallet(Abstract_Wallet):
     # wallet with a single keystore
@@ -1176,18 +1316,12 @@ class Imported_Wallet(Simple_Wallet):
 
     def load_keystore(self):
         self.keystore = load_keystore(self.storage, 'keystore') if self.storage.get('keystore') else None
+        # fixme: a reference to addresses is needed
+        if self.keystore:
+            self.keystore.addresses = self.db.imported_addresses
 
     def save_keystore(self):
         self.storage.put('keystore', self.keystore.dump())
-
-    def load_addresses(self):
-        self.addresses = self.storage.get('addresses', {})
-        # fixme: a reference to addresses is needed
-        if self.keystore:
-            self.keystore.addresses = self.addresses
-
-    def save_addresses(self):
-        self.storage.put('addresses', self.addresses)
 
     def can_import_address(self):
         return self.is_watching_only()
@@ -1215,7 +1349,7 @@ class Imported_Wallet(Simple_Wallet):
 
     def get_addresses(self):
         # note: overridden so that the history can be cleared
-        return sorted(self.addresses.keys())
+        return self.db.get_imported_addresses()
 
     def get_receiving_addresses(self):
         return self.get_addresses()
@@ -1223,25 +1357,39 @@ class Imported_Wallet(Simple_Wallet):
     def get_change_addresses(self):
         return []
 
-    def import_address(self, address):
-        if not bitcoin.is_address(address):
-            return ''
-        if address in self.addresses:
-            return ''
-        self.addresses[address] = {}
-        self.add_address(address)
-        self.save_addresses()
-        self.save_transactions(write=True)
-        return address
+    def import_addresses(self, addresses: List[str], *,
+                         write_to_disk=True) -> Tuple[List[str], List[Tuple[str, str]]]:
+        good_addr = []  # type: List[str]
+        bad_addr = []  # type: List[Tuple[str, str]]
+        for address in addresses:
+            if not bitcoin.is_address(address):
+                bad_addr.append((address, _('invalid address')))
+                continue
+            if self.db.has_imported_address(address):
+                bad_addr.append((address, _('address already in wallet')))
+                continue
+            good_addr.append(address)
+            self.db.add_imported_address(address, {})
+            self.add_address(address)
+        if write_to_disk:
+            self.storage.write()
+        return good_addr, bad_addr
+
+    def import_address(self, address: str) -> str:
+        good_addr, bad_addr = self.import_addresses([address])
+        if good_addr and good_addr[0] == address:
+            return address
+        else:
+            raise BitcoinException(str(bad_addr[0][1]))
 
     def delete_address(self, address):
-        if address not in self.addresses:
+        if not self.db.has_imported_address(address):
             return
-
         transactions_to_remove = set()  # only referred to by this address
         transactions_new = set()  # txs that are not only referred to by address
         with self.lock:
-            for addr, details in self.history.items():
+            for addr in self.db.get_history():
+                details = self.db.get_addr_history(addr)
                 if addr == address:
                     for tx_hash, height in details:
                         transactions_to_remove.add(tx_hash)
@@ -1249,23 +1397,18 @@ class Imported_Wallet(Simple_Wallet):
                     for tx_hash, height in details:
                         transactions_new.add(tx_hash)
             transactions_to_remove -= transactions_new
-            self.history.pop(address, None)
-
+            self.db.remove_addr_history(address)
             for tx_hash in transactions_to_remove:
                 self.remove_transaction(tx_hash)
-                self.tx_fees.pop(tx_hash, None)
-                self.verified_tx.pop(tx_hash, None)
+                self.db.remove_tx_fee(tx_hash)
+                self.db.remove_verified_tx(tx_hash)
                 self.unverified_tx.pop(tx_hash, None)
-                self.transactions.pop(tx_hash, None)
-            self.save_verified_tx()
-        self.save_transactions()
-
+                self.db.remove_transaction(tx_hash)
         self.set_label(address, None)
         self.remove_payment_request(address, {})
-        self.set_frozen_state([address], False)
-
+        self.set_frozen_state_of_addresses([address], False)
         pubkey = self.get_public_key(address)
-        self.addresses.pop(address)
+        self.db.remove_imported_address(address)
         if pubkey:
             # delete key iff no other address uses it (e.g. p2pkh and p2wpkh for same key)
             for txin_type in bitcoin.WIF_SCRIPT_TYPES.keys():
@@ -1274,51 +1417,60 @@ class Imported_Wallet(Simple_Wallet):
                 except NotImplementedError:
                     pass
                 else:
-                    if addr2 in self.addresses:
+                    if self.db.has_imported_address(addr2):
                         break
             else:
                 self.keystore.delete_imported_key(pubkey)
                 self.save_keystore()
-        self.save_addresses()
-
         self.storage.write()
 
+    def is_mine(self, address):
+        return self.db.has_imported_address(address)
+
     def get_address_index(self, address):
+        # returns None is address is not mine
         return self.get_public_key(address)
 
     def get_public_key(self, address):
-        return self.addresses[address].get('pubkey')
+        x = self.db.get_imported_address(address)
+        return x.get('pubkey') if x else None
 
-    def import_private_key(self, sec, pw, redeem_script=None):
-        try:
-            txin_type, pubkey = self.keystore.import_privkey(sec, pw)
-        except Exception:
-            neutered_privkey = str(sec)[:3] + '..' + str(sec)[-2:]
-            raise BitcoinException('Invalid private key: {}'.format(neutered_privkey))
-        if txin_type in ['p2pkh']:
-            if redeem_script is not None:
-                raise BitcoinException('Cannot use redeem script with script type {}'.format(txin_type))
+    def import_private_keys(self, keys: List[str], password: Optional[str], *,
+                            write_to_disk=True) -> Tuple[List[str], List[Tuple[str, str]]]:
+        good_addr = []  # type: List[str]
+        bad_keys = []  # type: List[Tuple[str, str]]
+        for key in keys:
+            try:
+                txin_type, pubkey = self.keystore.import_privkey(key, password)
+            except Exception as e:
+                bad_keys.append((key, _('invalid private key') + f': {e}'))
+                continue
+            if txin_type not in ('p2pkh', ):
+                bad_keys.append((key, _('not implemented type') + f': {txin_type}'))
+                continue
             addr = bitcoin.pubkey_to_address(txin_type, pubkey)
-        elif txin_type in ['p2sh']:
-            if redeem_script is None:
-                raise BitcoinException('Redeem script required for script type {}'.format(txin_type))
-            addr = bitcoin.redeem_script_to_address(txin_type, redeem_script)
-        else:
-            raise NotImplementedError(txin_type)
-        self.addresses[addr] = {'type':txin_type, 'pubkey':pubkey, 'redeem_script':redeem_script}
+            good_addr.append(addr)
+            self.db.add_imported_address(addr, {'type':txin_type, 'pubkey':pubkey, 'redeem_script':None})
+            self.add_address(addr)
         self.save_keystore()
-        self.add_address(addr)
-        self.save_addresses()
-        self.save_transactions(write=True)
-        return addr
+        if write_to_disk:
+            self.storage.write()
+        return good_addr, bad_keys
+
+    def import_private_key(self, key: str, password: Optional[str]) -> str:
+        good_addr, bad_keys = self.import_private_keys([key], password=password)
+        if good_addr:
+            return good_addr[0]
+        else:
+            raise BitcoinException(str(bad_keys[0][1]))
 
     def get_redeem_script(self, address):
-        d = self.addresses[address]
+        d = self.db.get_imported_address(address)
         redeem_script = d['redeem_script']
         return redeem_script
 
     def get_txin_type(self, address):
-        return self.addresses[address].get('type', 'address')
+        return self.db.get_imported_address(address).get('type', 'address')
 
     def add_input_sig_info(self, txin, address):
         if self.is_watching_only():
@@ -1327,7 +1479,7 @@ class Imported_Wallet(Simple_Wallet):
             txin['signatures'] = [None]
             return
         if txin['type'] in ['p2pkh']:
-            pubkey = self.addresses[address]['pubkey']
+            pubkey = self.db.get_imported_address(address)['pubkey']
             txin['num_sig'] = 1
             txin['x_pubkeys'] = [pubkey]
             txin['signatures'] = [None]
@@ -1335,8 +1487,8 @@ class Imported_Wallet(Simple_Wallet):
             raise NotImplementedError('imported wallets for p2sh are not implemented')
 
     def pubkeys_to_address(self, pubkey):
-        for addr, v in self.addresses.items():
-            if v.get('pubkey') == pubkey:
+        for addr in self.db.get_imported_addresses():
+            if self.db.get_imported_address(addr)['pubkey'] == pubkey:
                 return addr
 
 class Deterministic_Wallet(Abstract_Wallet):
@@ -1344,6 +1496,9 @@ class Deterministic_Wallet(Abstract_Wallet):
     def __init__(self, storage):
         Abstract_Wallet.__init__(self, storage)
         self.gap_limit = storage.get('gap_limit', 20)
+        # generate addresses now. note that without libsecp this might block
+        # for a few seconds!
+        self.synchronize()
 
     def has_seed(self):
         return self.keystore.has_seed()
@@ -1357,10 +1512,29 @@ class Deterministic_Wallet(Abstract_Wallet):
         return out
 
     def get_receiving_addresses(self):
-        return self.receiving_addresses
+        return self.db.get_receiving_addresses()
 
     def get_change_addresses(self):
-        return self.change_addresses
+        return self.db.get_change_addresses()
+
+    @profiler
+    def try_detecting_internal_addresses_corruption(self):
+        if not is_using_fast_ecc():
+            self.logger.info("internal address corruption test skipped due to missing libsecp256k1")
+            return
+        addresses_all = self.get_addresses()
+        # sample 1: first few
+        addresses_sample1 = addresses_all[:10]
+        # sample2: a few more randomly selected
+        addresses_rand = addresses_all[10:]
+        addresses_sample2 = random.sample(addresses_rand, min(len(addresses_rand), 10))
+        for addr_found in addresses_sample1 + addresses_sample2:
+            self.check_address(addr_found)
+
+    def check_address(self, addr):
+        if addr and self.is_mine(addr):
+            if addr != self.derive_address(*self.get_address_index(addr)):
+                raise InternalAddressCorruption()
 
     def get_seed(self, password):
         return self.keystore.get_seed(password)
@@ -1370,27 +1544,20 @@ class Deterministic_Wallet(Abstract_Wallet):
 
     def change_gap_limit(self, value):
         '''This method is not called in the code, it is kept for console use'''
-        if value >= self.gap_limit:
+        if value >= self.min_acceptable_gap():
             self.gap_limit = value
             self.storage.put('gap_limit', self.gap_limit)
-            return True
-        elif value >= self.min_acceptable_gap():
-            addresses = self.get_receiving_addresses()
-            k = self.num_unused_trailing_addresses(addresses)
-            n = len(addresses) - k + value
-            self.receiving_addresses = self.receiving_addresses[0:n]
-            self.gap_limit = value
-            self.storage.put('gap_limit', self.gap_limit)
-            self.save_addresses()
+            self.storage.write()
             return True
         else:
             return False
 
     def num_unused_trailing_addresses(self, addresses):
         k = 0
-        for a in addresses[::-1]:
-            if self.history.get(a):break
-            k = k + 1
+        for addr in addresses[::-1]:
+            if self.db.get_addr_history(addr):
+                break
+            k += 1
         return k
 
     def min_acceptable_gap(self):
@@ -1399,32 +1566,24 @@ class Deterministic_Wallet(Abstract_Wallet):
         nmax = 0
         addresses = self.get_receiving_addresses()
         k = self.num_unused_trailing_addresses(addresses)
-        for a in addresses[0:-k]:
-            if self.history.get(a):
+        for addr in addresses[0:-k]:
+            if self.db.get_addr_history(addr):
                 n = 0
             else:
                 n += 1
-                if n > nmax: nmax = n
+                nmax = max(nmax, n)
         return nmax + 1
 
-    def load_addresses(self):
-        super().load_addresses()
-        self._addr_to_addr_index = {}  # key: address, value: (is_change, index)
-        for i, addr in enumerate(self.receiving_addresses):
-            self._addr_to_addr_index[addr] = (False, i)
-        for i, addr in enumerate(self.change_addresses):
-            self._addr_to_addr_index[addr] = (True, i)
+    def derive_address(self, for_change, n):
+        x = self.derive_pubkeys(for_change, n)
+        return self.pubkeys_to_address(x)
 
     def create_new_address(self, for_change=False):
         assert type(for_change) is bool
         with self.lock:
-            addr_list = self.change_addresses if for_change else self.receiving_addresses
-            n = len(addr_list)
-            x = self.derive_pubkeys(for_change, n)
-            address = self.pubkeys_to_address(x)
-            addr_list.append(address)
-            self._addr_to_addr_index[address] = (for_change, n)
-            self.save_addresses()
+            n = self.db.num_change_addresses() if for_change else self.db.num_receiving_addresses()
+            address = self.derive_address(for_change, n)
+            self.db.add_change_address(address) if for_change else self.db.add_receiving_address(address)
             self.add_address(address)
             if for_change:
                 # note: if it's actually used, it will get filtered later
@@ -1438,10 +1597,10 @@ class Deterministic_Wallet(Abstract_Wallet):
             if len(addresses) < limit:
                 self.create_new_address(for_change)
                 continue
-            if list(map(lambda a: self.address_is_old(a), addresses[-limit:] )) == limit*[False]:
-                break
-            else:
+            if any(map(self.address_is_old, addresses[-limit:])):
                 self.create_new_address(for_change)
+            else:
+                break
 
     def synchronize(self):
         with self.lock:
@@ -1456,12 +1615,12 @@ class Deterministic_Wallet(Abstract_Wallet):
             return False
         prev_addresses = addr_list[max(0, i - limit):max(0, i)]
         for addr in prev_addresses:
-            if self.history.get(addr):
+            if self.db.get_addr_history(addr):
                 return False
         return True
 
     def get_address_index(self, address):
-        return self._addr_to_addr_index[address]
+        return self.db.get_address_index(address)
 
     def get_master_public_keys(self):
         return [self.get_master_public_key()]
@@ -1488,7 +1647,7 @@ class Simple_Deterministic_Wallet(Simple_Wallet, Deterministic_Wallet):
     def load_keystore(self):
         self.keystore = load_keystore(self.storage, 'keystore')
         try:
-            xtype = bitcoin.xpub_type(self.keystore.xpub)
+            xtype = bip32.xpub_type(self.keystore.xpub)
         except:
             xtype = 'standard'
         self.txin_type = 'p2pkh' if xtype == 'standard' else xtype
@@ -1558,7 +1717,7 @@ class Multisig_Wallet(Deterministic_Wallet):
             name = 'x%d/'%(i+1)
             self.keystores[name] = load_keystore(self.storage, name)
         self.keystore = self.keystores['x1/']
-        xtype = bitcoin.xpub_type(self.keystore.xpub)
+        xtype = bip32.xpub_type(self.keystore.xpub)
         self.txin_type = 'p2sh' if xtype == 'standard' else xtype
 
     def save_keystore(self):
@@ -1594,7 +1753,7 @@ class Multisig_Wallet(Deterministic_Wallet):
         return self.keystore.has_seed()
 
     def is_watching_only(self):
-        return not any([not k.is_watching_only() for k in self.get_keystores()])
+        return all([k.is_watching_only() for k in self.get_keystores()])
 
     def get_master_public_key(self):
         return self.keystore.get_master_public_key()
@@ -1648,14 +1807,6 @@ class Wallet(object):
         wallet_type = storage.get('wallet_type')
         WalletClass = Wallet.wallet_class(wallet_type)
         wallet = WalletClass(storage)
-        # Convert hardware wallets restored with older versions of
-        # Electrum to BIP44 wallets.  A hardware wallet does not have
-        # a seed and plugins do not need to handle having one.
-        rwc = getattr(wallet, 'restore_wallet_class', None)
-        if rwc and storage.get('seed', ''):
-            storage.print_error("converting wallet type to " + rwc.wallet_type)
-            storage.put('wallet_type', rwc.wallet_type)
-            wallet = rwc(storage)
         return wallet
 
     @staticmethod
@@ -1665,3 +1816,79 @@ class Wallet(object):
         if wallet_type in wallet_constructors:
             return wallet_constructors[wallet_type]
         raise WalletFileException("Unknown wallet type: " + str(wallet_type))
+
+
+def create_new_wallet(*, path, passphrase=None, password=None, encrypt_file=True):
+    """Create a new wallet"""
+    storage = WalletStorage(path)
+    if storage.file_exists():
+        raise Exception("Remove the existing wallet first!")
+
+    seed_type = 'standard'
+    seed = Mnemonic('en').make_seed(seed_type)
+    k = keystore.from_seed(seed, passphrase)
+    storage.put('keystore', k.dump())
+    storage.put('wallet_type', 'standard')
+    wallet = Wallet(storage)
+    wallet.update_password(old_pw=None, new_pw=password, encrypt_storage=encrypt_file)
+    wallet.synchronize()
+    msg = "Please keep your seed in a safe place; if you lose it, you will not be able to restore your wallet."
+
+    wallet.storage.write()
+    return {'seed': seed, 'wallet': wallet, 'msg': msg}
+
+
+def restore_wallet_from_text(text, *, path, network=None,
+                             passphrase=None, password=None, encrypt_file=True):
+    """Restore a wallet from text. Text can be a seed phrase, a master
+    public key, a master private key, a list of Axe addresses
+    or Axe private keys."""
+    storage = WalletStorage(path)
+    if storage.file_exists():
+        raise Exception("Remove the existing wallet first!")
+
+    text = text.strip()
+    if keystore.is_address_list(text):
+        wallet = Imported_Wallet(storage)
+        addresses = text.split()
+        good_inputs, bad_inputs = wallet.import_addresses(addresses, write_to_disk=False)
+        # FIXME tell user about bad_inputs
+        if not good_inputs:
+            raise Exception("None of the given addresses can be imported")
+    elif keystore.is_private_key_list(text, allow_spaces_inside_key=False):
+        k = keystore.Imported_KeyStore({})
+        storage.put('keystore', k.dump())
+        wallet = Imported_Wallet(storage)
+        keys = keystore.get_private_keys(text, allow_spaces_inside_key=False)
+        good_inputs, bad_inputs = wallet.import_private_keys(keys, None, write_to_disk=False)
+        # FIXME tell user about bad_inputs
+        if not good_inputs:
+            raise Exception("None of the given privkeys can be imported")
+    else:
+        if keystore.is_seed(text):
+            k = keystore.from_seed(text, passphrase)
+        elif keystore.is_master_key(text):
+            k = keystore.from_master_key(text)
+        else:
+            raise Exception("Seed or key not recognized")
+        storage.put('keystore', k.dump())
+        storage.put('wallet_type', 'standard')
+        wallet = Wallet(storage)
+
+    assert not storage.file_exists(), "file was created too soon! plaintext keys might have been written to disk"
+    wallet.update_password(old_pw=None, new_pw=password, encrypt_storage=encrypt_file)
+    wallet.synchronize()
+
+    if network:
+        wallet.start_network(network)
+        _logger.info("Recovering wallet...")
+        wallet.wait_until_synchronized()
+        wallet.stop_threads()
+        # note: we don't wait for SPV
+        msg = "Recovery successful" if wallet.is_found() else "Found no history for this wallet"
+    else:
+        msg = ("This wallet was restored offline. It may contain more addresses than displayed. "
+               "Start a daemon (not offline) to sync history.")
+
+    wallet.storage.write()
+    return {'wallet': wallet, 'msg': msg}

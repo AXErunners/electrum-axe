@@ -1,0 +1,26 @@
+"""This is used to patch the QApplication style sheet.
+It reads the current stylesheet, appends our modifications and sets the new stylesheet.
+"""
+
+from PyQt5 import QtWidgets
+
+
+def patch_qt_stylesheet(use_dark_theme: bool) -> None:
+    if not use_dark_theme:
+        return
+
+    app = QtWidgets.QApplication.instance()
+
+    style_sheet = app.styleSheet()
+    style_sheet = style_sheet + '''
+    /* PayToEdit text was being clipped */
+    /* Fixed in Axe Electrum code/styles
+    QAbstractScrollArea {
+        padding: 0px;
+    }*/
+    /* In History tab, labels while edited were being clipped (Windows) */
+    QAbstractItemView QLineEdit {
+        padding: 0px;
+    }
+    '''
+    app.setStyleSheet(style_sheet)

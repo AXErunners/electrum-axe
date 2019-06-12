@@ -13,12 +13,19 @@ else:
     raise Exception('no name')
 
 PY36BINDIR =  os.environ.get('PY36BINDIR')
+AXE_ELECTRUM_VERSION =  os.environ.get('AXE_ELECTRUM_VERSION')
 
 hiddenimports = collect_submodules('trezorlib')
+hiddenimports += collect_submodules('hideezlib')
 hiddenimports += collect_submodules('safetlib')
 hiddenimports += collect_submodules('btchip')
 hiddenimports += collect_submodules('keepkeylib')
 hiddenimports += collect_submodules('websocket')
+
+# safetlib imports PyQt5.Qt.  We use a local updated copy of pinmatrix.py until they
+# release a new version that includes https://github.com/archos-safe-t/python-safet/commit/b1eab3dba4c04fdfc1fcf17b66662c28c5f2380e
+hiddenimports.remove('safetlib.qt.pinmatrix')
+
 hiddenimports += [
     'electrum_axe',
     'electrum_axe.base_crash_reporter',
@@ -28,6 +35,7 @@ hiddenimports += [
     'electrum_axe.websockets',
     'electrum_axe.gui.qt',
     'PyQt5.sip',
+    'PyQt5.QtPrintSupport',  # needed by Revealer
 
     'electrum_axe.plugins',
 
@@ -40,8 +48,9 @@ hiddenimports += [
     'electrum_axe.plugins.keepkey.qt',
     'electrum_axe.plugins.revealer.qt',
     'electrum_axe.plugins.labels.qt',
-    'electrum_axe.plugins.trezor.client',
     'electrum_axe.plugins.trezor.qt',
+    'electrum_axe.plugins.hideez.client',
+    'electrum_axe.plugins.hideez.qt',
     'electrum_axe.plugins.safe_t.client',
     'electrum_axe.plugins.safe_t.qt',
     'electrum_axe.plugins.ledger.qt',
@@ -49,18 +58,20 @@ hiddenimports += [
 ]
 
 datas = [
-    ('electrum_axe/servers.json', 'electrum_axe'),
-    ('electrum_axe/servers_testnet.json', 'electrum_axe'),
-    ('electrum_axe/servers_regtest.json', 'electrum_axe'),
-    ('electrum_axe/currencies.json', 'electrum_axe'),
-    ('electrum_axe/checkpoints.json', 'electrum_axe'),
+    ('electrum_axe/*.json', 'electrum_axe'),
     ('electrum_axe/locale', 'electrum_axe/locale'),
     ('electrum_axe/wordlist', 'electrum_axe/wordlist'),
+    ('electrum_axe/gui/icons', 'electrum_axe/gui/icons'),
 ]
+
 datas += collect_data_files('trezorlib')
+datas += collect_data_files('hideezlib')
 datas += collect_data_files('safetlib')
 datas += collect_data_files('btchip')
 datas += collect_data_files('keepkeylib')
+
+# Add the QR Scanner helper app
+datas += [('contrib/CalinsQRReader/build/Release/CalinsQRReader.app', './contrib/CalinsQRReader/build/Release/CalinsQRReader.app')]
 
 # Add libusb so Trezor and Safe-T mini will work
 binaries = [('../libusb-1.0.dylib', '.')]
@@ -132,7 +143,7 @@ exe = EXE(pyz,
           strip=False,
           upx=False,
           console=False,
-          icon='icons/electrum-axe.ico',
+          icon='electrum_axe/gui/icons/electrum-axe.ico',
           name=os.path.join('build/electrum-axe/electrum-axe', cmdline_name))
 
 # trezorctl separate bin
@@ -163,4 +174,4 @@ app = BUNDLE(coll,
              name=os.path.join('dist', 'Axe Electrum.app'),
              appname="Axe Electrum",
 	         icon='electrum-axe.icns',
-             version = 'ELECTRUM_VERSION')
+             version=AXE_ELECTRUM_VERSION)

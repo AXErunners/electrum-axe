@@ -31,7 +31,7 @@ from bls_py import bls
 
 from .util import bh2u, bfh
 from .bitcoin import script_to_address, hash160_to_p2pkh
-from .crypto import Hash
+from .crypto import sha256d
 
 
 def tx_header_to_tx_type(tx_header_bytes):
@@ -157,7 +157,7 @@ class ProTxBase:
         '''Update spec tx signature when keystore password is accessible'''
         return
 
-    def after_broadcast(self, *args, **kwargs):
+    def after_confirmation(self, *args, **kwargs):
         '''Run after successful broadcast of spec tx'''
         return
 
@@ -250,7 +250,7 @@ class AxeProRegTx(ProTxBase):
         outpoints = [TxOutPoint(bfh(i['prevout_hash'])[::-1], i['prevout_n'])
                      for i in tx.inputs()]
         outpoints_ser = [o.serialize() for o in outpoints]
-        self.inputsHash = Hash(b''.join(outpoints_ser))
+        self.inputsHash = sha256d(b''.join(outpoints_ser))
 
     def check_after_tx_prepared(self, tx):
         outpoints = [TxOutPoint(bfh(i['prevout_hash'])[::-1], i['prevout_n'])
@@ -263,8 +263,8 @@ class AxeProRegTx(ProTxBase):
                               'of freeze collateral at Addresses tab.')
 
     def update_with_keystore_password(self, tx, wallet, keystore, password):
-        coins = wallet.get_utxos(domain=None, excluded=False,
-                                 mature=True, confirmed_only=True)
+        coins = wallet.get_utxos(domain=None, excluded_addresses=False,
+                                 mature_only=True, confirmed_only=True)
 
         c_hash = bh2u(self.collateralOutpoint.hash[::-1])
         c_index = self.collateralOutpoint.index
@@ -273,13 +273,13 @@ class AxeProRegTx(ProTxBase):
                             coins))
         if len(coins) == 1:
             coll_address = coins[0]['address']
-            payload_hash = bh2u(Hash(self.serialize(full=False))[::-1])
+            payload_hash = bh2u(sha256d(self.serialize(full=False))[::-1])
             payload_sig_msg = self.payload_sig_msg_part + payload_hash
             self.payloadSig = wallet.sign_message(coll_address,
                                                   payload_sig_msg,
                                                   password)
 
-    def after_broadcast(self, tx, manager):
+    def after_confirmation(self, tx, manager):
         ctx = self.collateralOutpoint
         for alias, mn in manager.mns.items():
             c_hash = mn.collateral.hash
@@ -353,7 +353,7 @@ class AxeProUpServTx(ProTxBase):
         outpoints = [TxOutPoint(bfh(i['prevout_hash'])[::-1], i['prevout_n'])
                      for i in tx.inputs()]
         outpoints_ser = [o.serialize() for o in outpoints]
-        self.inputsHash = Hash(b''.join(outpoints_ser))
+        self.inputsHash = sha256d(b''.join(outpoints_ser))
 
     def update_with_keystore_password(self, tx, wallet, keystore, password):
         protx_hash = bh2u(self.proTxHash[::-1])
@@ -366,10 +366,10 @@ class AxeProUpServTx(ProTxBase):
         if not bls_privk_bytes:
             return
         bls_privk = bls.PrivateKey.from_bytes(bls_privk_bytes)
-        bls_sig = bls_privk.sign_prehashed(Hash(self.serialize(full=False)))
+        bls_sig = bls_privk.sign_prehashed(sha256d(self.serialize(full=False)))
         self.payloadSig = bls_sig.serialize()
 
-    def after_broadcast(self, tx, manager):
+    def after_confirmation(self, tx, manager):
         protx_hash = bh2u(self.proTxHash[::-1])
         for alias, mn in manager.mns.items():
             if mn.protx_hash == protx_hash:
@@ -440,18 +440,18 @@ class AxeProUpRegTx(ProTxBase):
         outpoints = [TxOutPoint(bfh(i['prevout_hash'])[::-1], i['prevout_n'])
                      for i in tx.inputs()]
         outpoints_ser = [o.serialize() for o in outpoints]
-        self.inputsHash = Hash(b''.join(outpoints_ser))
+        self.inputsHash = sha256d(b''.join(outpoints_ser))
 
     def update_with_keystore_password(self, tx, wallet, keystore, password):
         protx_hash = bh2u(self.proTxHash[::-1])
         for alias, mn in wallet.protx_manager.mns.items():
             if mn.protx_hash == protx_hash:
                 owner_addr = mn.owner_addr
-        payload_hash = Hash(self.serialize(full=False))
+        payload_hash = sha256d(self.serialize(full=False))
         self.payloadSig = wallet.sign_digest(owner_addr, payload_hash,
                                              password)
 
-    def after_broadcast(self, tx, manager):
+    def after_confirmation(self, tx, manager):
         protx_hash = bh2u(self.proTxHash[::-1])
         for alias, mn in manager.mns.items():
             if mn.protx_hash == protx_hash:
@@ -507,7 +507,7 @@ class AxeProUpRevTx(ProTxBase):
         outpoints = [TxOutPoint(bfh(i['prevout_hash'])[::-1], i['prevout_n'])
                      for i in tx.inputs()]
         outpoints_ser = [o.serialize() for o in outpoints]
-        self.inputsHash = Hash(b''.join(outpoints_ser))
+        self.inputsHash = sha256d(b''.join(outpoints_ser))
 
     def update_with_keystore_password(self, tx, wallet, keystore, password):
         protx_hash = bh2u(self.proTxHash[::-1])
@@ -520,37 +520,48 @@ class AxeProUpRevTx(ProTxBase):
         if not bls_privk_bytes:
             return
         bls_privk = bls.PrivateKey.from_bytes(bls_privk_bytes)
-        bls_sig = bls_privk.sign_prehashed(Hash(self.serialize(full=False)))
+        bls_sig = bls_privk.sign_prehashed(sha256d(self.serialize(full=False)))
         self.payloadSig = bls_sig.serialize()
 
 
 class AxeCbTx(ProTxBase):
     '''Class representing DIP4 coinbase special tx'''
 
-    fields = ('version height merkleRootMNList').split()
+    fields = ('version height merkleRootMNList merkleRootQuorums').split()
 
     def __str__(self):
-        return ('CbTx Version: %s\n'
-                'height: %s\n'
-                'merkleRootMNList: %s\n'
-                % (self.version, self.height,
-                   bh2u(self.merkleRootMNList[::-1])))
+        res = ('CbTx Version: %s\n'
+               'height: %s\n'
+               'merkleRootMNList: %s\n'
+               % (self.version, self.height,
+                  bh2u(self.merkleRootMNList[::-1])))
+        if self.version > 1:
+            res += ('merkleRootQuorums: %s\n' %
+                    bh2u(self.merkleRootQuorums[::-1]))
+        return res
 
     def serialize(self):
         assert len(self.merkleRootMNList) == 32
-        return (
+        res = (
             struct.pack('<H', self.version) +           # version
             struct.pack('<I', self.height) +            # height
             self.merkleRootMNList                       # merkleRootMNList
         )
+        if self.version > 1:
+            assert len(self.merkleRootQuorums) == 32
+            res += self.merkleRootQuorums               # merkleRootQuorums
+        return res
+
 
     @classmethod
     def read_vds(cls, vds):
-        return AxeCbTx(
-            vds.read_uint16(),                          # version
-            vds.read_uint32(),                          # height
-            vds.read_bytes(32)                          # merkleRootMNList
-        )
+        version = vds.read_uint16()
+        height = vds.read_uint32()
+        merkleRootMNList = vds.read_bytes(32)
+        merkleRootQuorums = b''
+        if version > 1:
+            merkleRootQuorums = vds.read_bytes(32)
+        return AxeCbTx(version, height, merkleRootMNList, merkleRootQuorums)
 
 
 class AxeSubTxRegister(ProTxBase):
@@ -742,8 +753,8 @@ def read_extra_payload(vds, tx_type):
         if spec_tx_class:
             read_method = getattr(spec_tx_class, 'read_vds', None)
             if not read_method:
-                raise NotImplementedError('Transaction method %s unknown' %
-                                          read_method_name)
+                raise NotImplementedError('%s has no read_vds method' %
+                                          spec_tx_class)
             extra_payload = read_method(vds)
             assert isinstance(extra_payload, spec_tx_class)
         else:

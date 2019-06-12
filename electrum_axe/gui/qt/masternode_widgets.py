@@ -1,8 +1,11 @@
 """Masternode-related widgets."""
 
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
-from PyQt5.QtWidgets import *
+from PyQt5.QtGui import QFont
+from PyQt5.QtCore import pyqtSignal, pyqtProperty, QSize
+from PyQt5.QtWidgets import (QLineEdit, QListWidget, QAbstractItemView,
+                             QListWidgetItem, QVBoxLayout, QLabel,
+                             QCheckBox, QPushButton, QWidget, QSpinBox,
+                             QHBoxLayout, QFormLayout, QDataWidgetMapper)
 
 from electrum_axe import bitcoin
 from electrum_axe.bitcoin import COIN
