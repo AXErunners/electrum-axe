@@ -619,7 +619,7 @@ class BlsKeysWizardPage(QWizardPage):
         bls_pubk_hex = bh2u(bls_pubk.serialize())
         self.bls_info_label.setText(_('BLS keypair generated. Before '
                                       'registering new Masternode copy next '
-                                      'line to ~/.dashcore/dashd.conf and '
+                                      'line to ~/.dashcore/dash.conf and '
                                       'restart masternode:'))
         self.bls_info_label.show()
         self.bls_info_edit.setText('masternodeblsprivkey=%s' % bls_privk_hex)
