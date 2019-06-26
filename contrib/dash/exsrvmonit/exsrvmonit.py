@@ -49,21 +49,17 @@ def peer_info_as_dict(peer):
 
 
 def read_recent_file():
-    try:
-        with open(RECENT_FNAME, 'r', encoding='utf-8') as f:
-            data = f.read()
-            return json.loads(data)
-    except Exception:
+    if not os.path.isfile(RECENT_FNAME):
         return []
+    with open(RECENT_FNAME, 'r', encoding='utf-8') as f:
+        data = f.read()
+        return json.loads(data)
 
 
 def save_recent_file(recent):
     s = json.dumps(recent, indent=4, sort_keys=True)
-    try:
-        with open(RECENT_FNAME, 'w', encoding='utf-8') as f:
-            f.write(s)
-    except Exception:
-        pass
+    with open(RECENT_FNAME, 'w', encoding='utf-8') as f:
+        f.write(s)
 
 
 def add_to_recent_file(checked, failed):
