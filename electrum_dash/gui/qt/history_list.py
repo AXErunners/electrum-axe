@@ -150,7 +150,7 @@ class HistoryModel(QAbstractItemModel, Logger):
                 HistoryColumns.STATUS_ICON:
                     # height breaks ties for unverified txns
                     # txpos breaks ties for verified same block txns
-                    (status, conf, -height, -txpos),
+                    (conf, -status, -height, -txpos),
                 HistoryColumns.STATUS_TEXT: status_str,
                 HistoryColumns.DIP2: tx_item.get('dip2', ''),
                 HistoryColumns.DESCRIPTION: tx_item['label'],

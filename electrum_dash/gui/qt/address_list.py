@@ -31,7 +31,7 @@ from PyQt5.QtGui import QStandardItemModel, QStandardItem, QFont
 from PyQt5.QtWidgets import QAbstractItemView, QComboBox, QLabel, QMenu
 
 from electrum_dash.i18n import _
-from electrum_dash.util import block_explorer_URL
+from electrum_dash.util import block_explorer_URL, profiler
 from electrum_dash.plugin import run_hook
 from electrum_dash.bitcoin import is_address
 from electrum_dash.wallet import InternalAddressCorruption
@@ -107,6 +107,7 @@ class AddressList(MyTreeView):
         self.show_used = state
         self.update()
 
+    @profiler
     def update(self):
         self.wallet = self.parent.wallet
         current_address = self.current_item_user_role(col=self.Columns.LABEL)
@@ -187,6 +188,8 @@ class AddressList(MyTreeView):
         menu = QMenu()
         if not multi_select:
             idx = self.indexAt(position)
+            if not idx.isValid():
+                return
             col = idx.column()
             item = self.model().itemFromIndex(idx)
             if not item:

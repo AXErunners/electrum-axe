@@ -37,6 +37,7 @@ import base64
 from functools import partial
 import queue
 import asyncio
+from typing import Optional
 
 from PyQt5.QtGui import QPixmap, QKeySequence, QIcon, QCursor
 from PyQt5.QtCore import Qt, QRect, QStringListModel, QSize, pyqtSignal, pyqtSlot
@@ -61,7 +62,8 @@ from electrum_dash.util import (format_time, format_satoshis, format_fee_satoshi
                                 base_units, base_units_list, base_unit_name_to_decimal_point,
                                 decimal_point_to_base_unit_name, quantize_feerate,
                                 UnknownBaseUnit, DECIMAL_POINT_DEFAULT, UserFacingException,
-                                get_new_wallet_name, send_exception_to_crash_reporter)
+                                get_new_wallet_name, send_exception_to_crash_reporter,
+                                InvalidBitcoinURI)
 from electrum_dash.transaction import Transaction, TxOutput
 from electrum_dash.address_synchronizer import AddTransactionException
 from electrum_dash.wallet import (Multisig_Wallet, Abstract_Wallet,
@@ -71,6 +73,7 @@ from electrum_dash.network import Network, TxBroadcastError, BestEffortRequestFa
 from electrum_dash.exchange_rate import FxThread
 from electrum_dash.simple_config import SimpleConfig
 from electrum_dash.logging import Logger
+from electrum_dash.paymentrequest import PR_PAID
 from electrum_dash.base_crash_reporter import BaseCrashReporter
 from electrum_dash.masternode_manager import MasternodeManager
 
@@ -85,7 +88,7 @@ from .util import (read_QIcon, ColorScheme, text_dialog, icon_path, WaitingDialo
                    OkButton, InfoButton, WWLabel, TaskThread, CancelButton,
                    CloseButton, HelpButton, MessageBoxMixin, EnterButton, expiration_values,
                    ButtonsLineEdit, CopyCloseButton, import_meta_gui, export_meta_gui,
-                   filename_field, address_field)
+                   filename_field, address_field, char_width_in_lineedit)
 from .installwizard import WIF_HELP_TEXT
 from .history_list import HistoryList, HistoryModel
 from .update_checker import UpdateCheck, UpdateCheckThread
@@ -112,9 +115,6 @@ class StatusBarButton(QPushButton):
     def keyPressEvent(self, e):
         if e.key() == Qt.Key_Return:
             self.func()
-
-
-from electrum_dash.paymentrequest import PR_PAID
 
 
 class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
@@ -150,7 +150,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         self.tray = gui_object.tray
         self.app = gui_object.app
         self.cleaned_up = False
-        self.payment_request = None
+        self.payment_request = None  # type: Optional[paymentrequest.PaymentRequest]
         self.checking_accounts = False
         self.qr_window = None
         self.not_enough_funds = False
@@ -960,6 +960,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         msg = _('Dash address where the payment should be received. Note that each payment request uses a different Dash address.')
         self.receive_address_label = HelpLabel(_('Receiving address'), msg)
         self.receive_address_e.textChanged.connect(self.update_receive_qr)
+        self.receive_address_e.textChanged.connect(self.update_receive_address_styling)
         self.receive_address_e.setFocusPolicy(Qt.ClickFocus)
         grid.addWidget(self.receive_address_label, 0, 0)
         grid.addWidget(self.receive_address_e, 0, 1, 1, -1)
@@ -1206,6 +1207,16 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         if self.qr_window and self.qr_window.isVisible():
             self.qr_window.qrw.setData(uri)
 
+    def update_receive_address_styling(self):
+        addr = str(self.receive_address_e.text())
+        if self.wallet.is_used(addr):
+            self.receive_address_e.setStyleSheet(ColorScheme.RED.as_stylesheet(True))
+            self.receive_address_e.setToolTip(_("This address has already been used. "
+                                                "For better privacy, do not reuse it for new payments."))
+        else:
+            self.receive_address_e.setStyleSheet("")
+            self.receive_address_e.setToolTip("")
+
     def set_feerounding_text(self, num_satoshis_added):
         self.feerounding_text = (_('Additional {} duffs are going to be added.')
                                  .format(num_satoshis_added))
@@ -1260,7 +1271,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             lambda: self.fiat_send_e.setFrozen(self.amount_e.isReadOnly()))
 
         self.max_button = EnterButton(_("Max"), self.spend_max)
-        self.max_button.setFixedWidth(140)
+        self.max_button.setFixedWidth(self.amount_e.width())
         self.max_button.setCheckable(True)
         grid.addWidget(self.max_button, 4, 3)
         hbox = QHBoxLayout()
@@ -1301,7 +1312,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             self.spend_max() if self.max_button.isChecked() else self.update_fee()
 
         self.fee_slider = FeeSlider(self, self.config, fee_cb)
-        self.fee_slider.setFixedWidth(140)
+        self.fee_slider.setFixedWidth(self.amount_e.width())
 
         def on_fee_or_feerate(edit_changed, editing_finished):
             edit_other = self.feerate_e if edit_changed == self.fee_e else self.fee_e
@@ -1324,7 +1335,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         self.size_e = TxSizeLabel()
         self.size_e.setAlignment(Qt.AlignCenter)
         self.size_e.setAmount(0)
-        self.size_e.setFixedWidth(140)
+        self.size_e.setFixedWidth(self.amount_e.width())
         self.size_e.setStyleSheet(ColorScheme.DEFAULT.as_stylesheet())
 
         self.feerate_e = FeerateEdit(lambda: 0)
@@ -1345,7 +1356,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             self.show_message(title=_('Fee rounding'), msg=text)
 
         self.feerounding_icon = QPushButton(read_QIcon('info.png'), '')
-        self.feerounding_icon.setFixedWidth(30)
+        self.feerounding_icon.setFixedWidth(round(2.2 * char_width_in_lineedit()))
         self.feerounding_icon.setFlat(True)
         self.feerounding_icon.clicked.connect(feerounding_onclick)
         self.feerounding_icon.setVisible(False)
@@ -1657,11 +1668,13 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         """Returns whether there are errors with outputs.
         Also shows error dialog to user if so.
         """
-        if self.payment_request and self.payment_request.has_expired():
-            self.show_error(_('Payment request has expired'))
-            return True
+        pr = self.payment_request
+        if pr:
+            if pr.has_expired():
+                self.show_error(_('Payment request has expired'))
+                return True
 
-        if not self.payment_request:
+        if not pr:
             errors = self.payto_e.get_errors()
             if errors:
                 self.show_warning(_("Invalid Lines found:") + "\n\n" + '\n'.join([ _("Line #") + str(x[0]+1) + ": " + x[1] for x in errors]))
@@ -1754,8 +1767,8 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             x_fee_address, x_fee_amount = x_fee
             msg.append( _("Additional fees") + ": " + self.format_amount_and_units(x_fee_amount) )
 
-        confirm_rate = simple_config.FEERATE_WARNING_HIGH_FEE
-        if fee > confirm_rate * tx.estimated_size() / 1000:
+        feerate_warning = simple_config.FEERATE_WARNING_HIGH_FEE
+        if fee > feerate_warning * tx.estimated_size() / 1000:
             msg.append(_('Warning') + ': ' + _("The fee for this transaction seems unusually high."))
 
         if self.wallet.has_keystore_encryption():
@@ -1879,6 +1892,8 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
 
     def payment_request_ok(self):
         pr = self.payment_request
+        if not pr:
+            return
         key = self.invoices.add(pr)
         status = self.invoices.get_status(key)
         self.invoice_list.update()
@@ -1899,7 +1914,10 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         self.amount_e.textEdited.emit("")
 
     def payment_request_error(self):
-        self.show_message(self.payment_request.error)
+        pr = self.payment_request
+        if not pr:
+            return
+        self.show_message(pr.error)
         self.payment_request = None
         self.do_clear()
 
@@ -1915,8 +1933,8 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             return
         try:
             out = util.parse_URI(URI, self.on_pr)
-        except BaseException as e:
-            self.show_error(_('Invalid Dash URI:') + '\n' + str(e))
+        except InvalidBitcoinURI as e:
+            self.show_error(_("Error parsing URI") + f":\n{e}")
             return
         self.show_send_tab()
         r = out.get('r')
@@ -2278,9 +2296,9 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         vbox.addWidget(QLabel(_('New Contact') + ':'))
         grid = QGridLayout()
         line1 = QLineEdit()
-        line1.setFixedWidth(280)
+        line1.setFixedWidth(32 * char_width_in_lineedit())
         line2 = QLineEdit()
-        line2.setFixedWidth(280)
+        line2.setFixedWidth(32 * char_width_in_lineedit())
         grid.addWidget(QLabel(_("Address")), 1, 0)
         grid.addWidget(line1, 1, 1)
         grid.addWidget(QLabel(_("Name")), 2, 0)
@@ -2321,6 +2339,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             mpk_text.addCopyButton(self.app)
             def show_mpk(index):
                 mpk_text.setText(mpk_list[index])
+                mpk_text.repaint()  # macOS hack for #4777
             # only show the combobox in case multiple accounts are available
             if len(mpk_list) > 1:
                 def label(key):
@@ -3100,6 +3119,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         filelogging_cb.setChecked(bool(self.config.get('log_to_file', False)))
         def on_set_filelogging(v):
             self.config.set_key('log_to_file', v == Qt.Checked, save=True)
+            self.need_restart = True
         filelogging_cb.stateChanged.connect(on_set_filelogging)
         filelogging_cb.setToolTip(_('Debug logs can be persisted to disk. These are useful for troubleshooting.'))
         gui_widgets.append((filelogging_cb, None))

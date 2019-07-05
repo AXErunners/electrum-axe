@@ -1,3 +1,25 @@
+# Release 3.3.7
+
+ * CoinChooser improvements:
+   - more likely to construct txs without change (when possible)
+   - less likely to construct txs with really small change
+   - will now only spend negative effective value coins when
+     beneficial for privacy
+ * fix long-standing bug that broke wallets with >65k addresses (#5366)
+ * Android: (fix) BIP70 payment requests could not be paid (#5376)
+ * Android: allow copy-pasting partial transactions from/to clipboard
+ * Fix a performance regression for large wallets
+ * Qt: fix some high DPI issues related to text fields
+ * Trezor:
+   - allow bypassing "too old firmware" error (#5391)
+   - use only the Bridge to scan devices if it is available (#5420)
+ * hw wallets: (known issue) on Win10-1903, some hw devices
+   (that also have U2F functionality) can only be detected with
+   Administrator privileges. (see #5420 and #5437)
+   A workaround is to run as Admin, or for Trezor to install the Bridge.
+ * Several other minor bugfixes and usability improvements.
+
+
 # Release 3.3.6
 
  * fix synchronizer not to keep resubscribing to addresses of

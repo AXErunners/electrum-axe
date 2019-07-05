@@ -11,8 +11,9 @@ CACHEDIR="$BUILDDIR/.cache/appimage"
 
 # pinned versions
 PYTHON_VERSION=3.6.8
-PKG2APPIMAGE_COMMIT="83483c2971fcaa1cb0c1253acd6c731ef8404381"
+PKG2APPIMAGE_COMMIT="eb8f3acdd9f11ab19b78f5cb15daa772367daf15"
 LIBSECP_VERSION="b408c6a8b287003d1ade5709e6f7bc3c7f1d5be7"
+SQUASHFSKIT_COMMIT="ae0d656efa2d0df2fcac795b6823b44462f19386"
 
 pushd $PROJECT_ROOT
 source $CONTRIB/dash/travis/electrum_dash_version_env.sh
@@ -28,10 +29,19 @@ mkdir -p "$APPDIR" "$CACHEDIR" "$DISTDIR"
 
 info "downloading some dependencies."
 download_if_not_exist "$CACHEDIR/functions.sh" "https://raw.githubusercontent.com/AppImage/pkg2appimage/$PKG2APPIMAGE_COMMIT/functions.sh"
-verify_hash "$CACHEDIR/functions.sh" "a73a21a6c1d1e15c0a9f47f017ae833873d1dc6aa74a4c840c0b901bf1dcf09c"
+verify_hash "$CACHEDIR/functions.sh" "78b7ee5a04ffb84ee1c93f0cb2900123773bc6709e5d1e43c37519f590f86918"
 
-download_if_not_exist "$CACHEDIR/appimagetool" "https://github.com/probonopd/AppImageKit/releases/download/11/appimagetool-x86_64.AppImage"
-verify_hash "$CACHEDIR/appimagetool" "c13026b9ebaa20a17e7e0a4c818a901f0faba759801d8ceab3bb6007dde00372"
+download_if_not_exist "$CACHEDIR/appimagetool" "https://github.com/AppImage/AppImageKit/releases/download/12/appimagetool-x86_64.AppImage"
+verify_hash "$CACHEDIR/appimagetool" "d918b4df547b388ef253f3c9e7f6529ca81a885395c31f619d9aaf7030499a13"
+
+git clone "https://github.com/squashfskit/squashfskit.git" "$BUILDDIR/squashfskit"
+(
+    cd "$BUILDDIR/squashfskit"
+    git checkout "$SQUASHFSKIT_COMMIT"
+    make -C squashfs-tools mksquashfs || fail "Could not build squashfskit"
+)
+MKSQUASHFS="$BUILDDIR/squashfskit/squashfs-tools/mksquashfs"
+
 
 appdir_python() {
   env \
@@ -113,23 +123,33 @@ remove_emptydirs
 
 
 info "removing some unneeded stuff to decrease binary size."
-rm -rf "$APPDIR"/usr/lib/python3.6/test
-rm -rf "$APPDIR"/usr/lib/python3.6/config-3.6m-x86_64-linux-gnu
-rm -rf "$APPDIR"/usr/lib/python3.6/site-packages/PyQt5/Qt/translations/qtwebengine_locales
-rm -rf "$APPDIR"/usr/lib/python3.6/site-packages/PyQt5/Qt/resources/qtwebengine_*
-rm -rf "$APPDIR"/usr/lib/python3.6/site-packages/PyQt5/Qt/qml
-for component in Web Designer Qml Quick Location Test Xml ; do
-    rm -rf "$APPDIR"/usr/lib/python3.6/site-packages/PyQt5/Qt/lib/libQt5${component}*
-    rm -rf "$APPDIR"/usr/lib/python3.6/site-packages/PyQt5/Qt${component}*
+rm -rf "$APPDIR"/usr/{share,include}
+PYDIR="$APPDIR"/usr/lib/python3.6
+rm -rf "$PYDIR"/{test,ensurepip,lib2to3,idlelib,turtledemo}
+rm -rf "$PYDIR"/{ctypes,sqlite3,tkinter,unittest}/test
+rm -rf "$PYDIR"/distutils/{command,tests}
+rm -rf "$PYDIR"/config-3.6m-x86_64-linux-gnu
+rm -rf "$PYDIR"/site-packages/{opt,pip,setuptools,wheel}
+rm -rf "$PYDIR"/site-packages/Cryptodome/SelfTest
+rm -rf "$PYDIR"/site-packages/{psutil,qrcode,websocket}/tests
+for component in connectivity declarative help location multimedia quickcontrols2 serialport webengine websockets xmlpatterns ; do
+  rm -rf "$PYDIR"/site-packages/PyQt5/Qt/translations/qt${component}_*
+  rm -rf "$PYDIR"/site-packages/PyQt5/Qt/resources/qt${component}_*
 done
-rm -rf "$APPDIR"/usr/lib/python3.6/site-packages/PyQt5/Qt.so
-
+rm -rf "$PYDIR"/site-packages/PyQt5/Qt/{qml,libexec}
+rm -rf "$PYDIR"/site-packages/PyQt5/{pyrcc.so,pylupdate.so,uic}
+rm -rf "$PYDIR"/site-packages/PyQt5/Qt/plugins/{bearer,gamepads,geometryloaders,geoservices,playlistformats,position,renderplugins,sceneparsers,sensors,sqldrivers,texttospeech,webview}
+for component in Bluetooth Concurrent Designer Help Location NetworkAuth Nfc Positioning PositioningQuick Qml Quick Sensors SerialPort Sql Test Web Xml ; do
+    rm -rf "$PYDIR"/site-packages/PyQt5/Qt/lib/libQt5${component}*
+    rm -rf "$PYDIR"/site-packages/PyQt5/Qt${component}*
+done
+rm -rf "$PYDIR"/site-packages/PyQt5/Qt.so
 
 # these are deleted as they were not deterministic; and are not needed anyway
 find "$APPDIR" -path '*/__pycache__*' -delete
 rm "$APPDIR"/usr/lib/libsecp256k1.a
-rm "$APPDIR"/usr/lib/python3.6/site-packages/pyblake2-*.dist-info/RECORD
-rm "$APPDIR"/usr/lib/python3.6/site-packages/hidapi-*.dist-info/RECORD
+rm -rf "$PYDIR"/site-packages/*.dist-info/
+rm -rf "$PYDIR"/site-packages/*.egg-info/
 
 
 find -exec touch -h -d '2000-11-11T11:11:11+00:00' {} +
@@ -140,7 +160,14 @@ info "creating the AppImage."
     cd "$BUILDDIR"
     chmod +x "$CACHEDIR/appimagetool"
     "$CACHEDIR/appimagetool" --appimage-extract
-    env VERSION="$VERSION" ARCH=x86_64 ./squashfs-root/AppRun --no-appstream --verbose "$APPDIR" "$APPIMAGE"
+    # We build a small wrapper for mksquashfs that removes the -mkfs-fixed-time option
+    # that mksquashfs from squashfskit does not support. It is not needed for squashfskit.
+    cat > ./squashfs-root/usr/lib/appimagekit/mksquashfs << EOF
+#!/bin/sh
+args=\$(echo "\$@" | sed -e 's/-mkfs-fixed-time 0//')
+"$MKSQUASHFS" \$args
+EOF
+    env VERSION="$VERSION" ARCH=x86_64 SOURCE_DATE_EPOCH=1530212462 ./squashfs-root/AppRun --no-appstream --verbose "$APPDIR" "$APPIMAGE"
 )
 
 
