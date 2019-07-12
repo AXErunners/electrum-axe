@@ -1,3 +1,9 @@
+# Release 3.3.8
+
+ * appimage: URLs could not be opened on some desktop environments (#5425)
+ * A few other minor bugfixes and usability improvements.
+
+
 # Release 3.3.7
 
  * CoinChooser improvements:

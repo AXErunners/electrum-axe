@@ -618,7 +618,9 @@ class Transaction:
     def remove_signatures(self):
         for txin in self.inputs():
             txin['signatures'] = [None] * len(txin['signatures'])
+            txin['scriptSig'] = None
         assert not self.is_complete()
+        self.raw = None
 
     def deserialize(self, force_full_parse=False):
         if self.raw is None:
@@ -825,14 +827,14 @@ class Transaction:
         s += script
         return s
 
-    def serialize_preimage(self, i):
-        nHashType = int_to_hex(1, 4)
+    def serialize_preimage(self, txin_index: int) -> str:
+        nHashType = int_to_hex(1, 4)  # SIGHASH_ALL
         nLocktime = int_to_hex(self.locktime, 4)
         inputs = self.inputs()
         outputs = self.outputs()
-        txin = inputs[i]
-        # TODO: py3 hex
-        txins = var_int(len(inputs)) + ''.join(self.serialize_input(txin, self.get_preimage_script(txin) if i==k else '') for k, txin in enumerate(inputs))
+        txin = inputs[txin_index]
+        txins = var_int(len(inputs)) + ''.join(self.serialize_input(txin, self.get_preimage_script(txin) if txin_index==k else '')
+                                               for k, txin in enumerate(inputs))
         txouts = var_int(len(outputs)) + ''.join(self.serialize_output(o) for o in outputs)
         if self.tx_type:
             uVersion = int_to_hex(self.version, 2)
@@ -887,13 +889,13 @@ class Transaction:
         self.raw = None
         self.BIP69_sort(inputs=False)
 
-    def input_value(self):
+    def input_value(self) -> int:
         return sum(x['value'] for x in self.inputs())
 
-    def output_value(self):
+    def output_value(self) -> int:
         return sum(o.value for o in self.outputs())
 
-    def get_fee(self):
+    def get_fee(self) -> int:
         return self.input_value() - self.output_value()
 
     def is_final(self):

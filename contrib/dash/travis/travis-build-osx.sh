@@ -30,11 +30,11 @@ rm -fr build
 xcodebuild || fail "Could not build CalinsQRReader"
 popd
 
-sudo pip3 install -r contrib/deterministic-build/requirements.txt
-sudo pip3 install -r contrib/deterministic-build/requirements-hw.txt
-sudo pip3 install -r contrib/deterministic-build/requirements-binaries.txt
-sudo pip3 install x11_hash>=1.4
-sudo pip3 install PyInstaller==3.4 --no-use-pep517
+sudo pip3 install --no-warn-script-location -r contrib/deterministic-build/requirements.txt
+sudo pip3 install --no-warn-script-location -r contrib/deterministic-build/requirements-hw.txt
+sudo pip3 install --no-warn-script-location -r contrib/deterministic-build/requirements-binaries.txt
+sudo pip3 install --no-warn-script-location x11_hash>=1.4
+sudo pip3 install --no-warn-script-location PyInstaller==3.4 --no-use-pep517
 
 export PATH="/usr/local/opt/gettext/bin:$PATH"
 ./contrib/make_locale
