@@ -35,8 +35,9 @@ from typing import Optional, Tuple
 
 from .bitcoin import public_key_to_p2pkh
 from .crypto import sha256d
-from .dash_msg import (SporkID, DashType, DashCmd, DashVersionMsg, DashPingMsg,
-                       DashPongMsg, DashGetDataMsg, DashGetMNListDMsg)
+from .dash_msg import (SporkID, LLMQType, DashType, DashCmd, DashVersionMsg,
+                       DashPingMsg, DashPongMsg, DashGetDataMsg,
+                       DashGetMNListDMsg)
 from .ecc import ECPubkey
 from .interface import GracefulDisconnect
 from .logging import Logger
@@ -49,6 +50,9 @@ DASH_PROTO_VERSION = 70214
 LOCAL_IP_ADDR = ipaddress.ip_address('127.0.0.1')
 PAYLOAD_LIMIT = 32*2**20  # 32MiB
 READ_LIMIT = 64*2**10     # 64KiB
+
+IS_LLMQ_TYPE = LLMQType.LLMQ_50_60
+CL_LLMQ_TYPE = LLMQType.LLMQ_400_60
 
 
 def deserialize_peer(peer_str: str) -> Tuple[str, str]:
@@ -245,8 +249,8 @@ class DashPeer(Logger):
                 elif res.cmd == 'inv':
                     out_inventory = []
                     for di in res.payload.inventory:
+                        inv_hash = di.hash
                         if di.type == DashType.MSG_ISLOCK:
-                            inv_hash = di.hash
                             recent_invs = dash_net.recent_islock_invs
                             if inv_hash not in recent_invs:
                                 recent_invs.append(inv_hash)
@@ -264,6 +268,27 @@ class DashPeer(Logger):
                         self.mnlistdiffs.put_nowait(res.payload)
                     except asyncio.QueueFull:
                         self.logger.info('excess mnlistdiff msg')
+                elif res.cmd == 'islock':
+                    islock = res.payload
+                    request_id = islock.calc_request_id()
+                    mn_list = dash_net.network.mn_list
+                    quorum = mn_list.calc_responsible_quorum(IS_LLMQ_TYPE,
+                                                             request_id)
+                    if quorum is None:
+                        self.logger.info('no fourm found to verify islock')
+                        continue
+                    loop = dash_net.loop
+                    v_ok = await loop.run_in_executor(None,
+                                                      dash_net.verify_islock,
+                                                      islock, quorum,
+                                                      request_id)
+                    txid = bh2u(islock.txid[::-1])
+                    if v_ok:
+                        self.logger.info(f'verify islock ok: {txid}')
+                        dash_net.recent_islocks.append(txid)
+                        dash_net.trigger_callback('dash-islock', txid)
+                    else:
+                        self.logger.info(f'verify islock failed: {txid}')
             await asyncio.sleep(0.1)
 
     async def monitor_connection(self):

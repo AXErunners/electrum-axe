@@ -936,9 +936,12 @@ class Commands:
             raise Exception(f"{repr(txid)} is not a txid")
         if not self.wallet.db.get_transaction(txid):
             raise Exception("Transaction not in wallet.")
-        return {
+        res = {
             "confirmations": self.wallet.get_tx_height(txid).conf,
         }
+        if txid in self.wallet.db.islocks:
+            res['instantsend_locked'] = True
+        return res
 
     @command('n')
     def exportcp(self, cpfile):

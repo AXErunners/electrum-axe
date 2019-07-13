@@ -27,6 +27,7 @@ import ast
 import json
 import copy
 import threading
+import time
 from collections import defaultdict
 from typing import Dict, Optional
 
@@ -635,6 +636,22 @@ class JsonDB(Logger):
     def remove_addr_history(self, addr):
         self.history.pop(addr, None)
 
+    @modifier
+    def add_islock(self, txid, height):
+        '''Stores new islock as {txid: (height, timestamp)}'''
+        # Clear if height is older than 6 blocks
+        to_clear = list(filter(lambda x: height - x[1][0] > 6,
+                               self.islocks.items()))
+        for txid_to_clear, h in to_clear:
+            self.islocks.pop(txid_to_clear, None)
+        timestamp = int(time.time())
+        self.islocks[txid] = (height, timestamp)
+
+    def get_islock(self, tx_hash):
+        '''Return timestamp of islock createion or None if not found'''
+        islock = self.islocks.get(tx_hash)
+        return islock[1] if islock else None
+
     @locked
     def list_verified_tx(self):
         return list(self.verified_tx.keys())
@@ -759,6 +776,7 @@ class JsonDB(Logger):
         self.spent_outpoints = self.get_data_ref('spent_outpoints')
         self.history = self.get_data_ref('addr_history')  # address -> list of (txid, height)
         self.verified_tx = self.get_data_ref('verified_tx3')  # txid -> (height, timestamp, txpos, header_hash)
+        self.islocks = self.get_data_ref('islocks')  # txid -> (height, timestamp)
         self.tx_fees = self.get_data_ref('tx_fees')
         # convert raw hex transactions to Transaction objects
         for tx_hash, raw_tx in self.transactions.items():

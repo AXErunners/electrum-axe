@@ -112,7 +112,8 @@ class ElectrumGui:
                           "%" + "%d" % (width[1] + wdelta) + "s" +
                           "%" + "%d" % (width[2] + wdelta) + "s" +
                           "%" + "%d" % (width[3] + wdelta) + "s")
-        for tx_hash, tx_type, tx_mined_status, delta, balance in hist_list:
+        for (tx_hash, tx_type, tx_mined_status, delta, balance,
+             islock) in hist_list:
             if tx_mined_status.conf:
                 timestamp = tx_mined_status.timestamp
                 try:
@@ -120,6 +121,9 @@ class ElectrumGui:
                     time_str = dttm.isoformat(' ')[:-3]
                 except Exception:
                     time_str = "unknown"
+            elif islock:
+                dttm = datetime.fromtimestamp(islock)
+                time_str = dttm.isoformat(' ')[:-3]
             else:
                 time_str = 'unconfirmed'
 

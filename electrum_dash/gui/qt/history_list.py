@@ -72,6 +72,7 @@ TX_ICONS = [
     "clock3.png",
     "clock4.png",
     "clock5.png",
+    "instantsend_locked.png",
     "confirmed.png",
 ]
 
@@ -138,18 +139,21 @@ class HistoryModel(QAbstractItemModel, Logger):
         conf = tx_item['confirmations']
         txpos = tx_item['txpos_in_block'] or 0
         height = tx_item['height']
+        islock = tx_item['islock']
         try:
             status, status_str = self.tx_status_cache[tx_hash]
         except KeyError:
             tx_mined_info = self.tx_mined_info_from_tx_item(tx_item)
-            status, status_str = self.parent.wallet.get_tx_status(tx_hash, tx_mined_info)
+            status, status_str = self.parent.wallet.get_tx_status(tx_hash, tx_mined_info, islock)
         if role == Qt.UserRole:
             # for sorting
             d = {
                 HistoryColumns.STATUS_ICON:
                     # height breaks ties for unverified txns
                     # txpos breaks ties for verified same block txns
-                    (conf, -status, -height, -txpos),
+                    ((conf, -status, -height, -islock)
+                     if not conf and islock else
+                     (conf, -status, -height, -txpos)),
                 HistoryColumns.STATUS_TEXT: status_str,
                 HistoryColumns.DIP2: tx_item.get('dip2', ''),
                 HistoryColumns.DESCRIPTION: tx_item['label'],
@@ -168,7 +172,12 @@ class HistoryModel(QAbstractItemModel, Logger):
             if col == HistoryColumns.STATUS_ICON and role == Qt.DecorationRole:
                 return QVariant(read_QIcon(TX_ICONS[status]))
             elif col == HistoryColumns.STATUS_ICON and role == Qt.ToolTipRole:
-                return QVariant(str(conf) + _(" confirmation" + ("s" if conf != 1 else "")))
+                c = str(conf) + _(' confirmation' + ('s' if conf != 1 else ''))
+                if conf < 6 and islock:
+                    res = 'InstantSend, %s' % c
+                else:
+                    res = c
+                return QVariant(res)
             elif col != HistoryColumns.DESCRIPTION and role == Qt.TextAlignmentRole:
                 return QVariant(Qt.AlignRight | Qt.AlignVCenter)
             elif col != HistoryColumns.DESCRIPTION and role == Qt.FontRole:
@@ -279,8 +288,9 @@ class HistoryModel(QAbstractItemModel, Logger):
         # update tx_status_cache
         self.tx_status_cache.clear()
         for txid, tx_item in self.transactions.items():
+            islock = tx_item['islock']
             tx_mined_info = self.tx_mined_info_from_tx_item(tx_item)
-            self.tx_status_cache[txid] = self.parent.wallet.get_tx_status(txid, tx_mined_info)
+            self.tx_status_cache[txid] = self.parent.wallet.get_tx_status(txid, tx_mined_info, islock)
 
     def set_visibility_of_columns(self):
         def set_visible(col: int, b: bool):
@@ -309,9 +319,10 @@ class HistoryModel(QAbstractItemModel, Logger):
         try:
             row = self.transactions.pos_from_key(tx_hash)
             tx_item = self.transactions[tx_hash]
+            islock = tx_item['islock']
         except KeyError:
             return
-        self.tx_status_cache[tx_hash] = self.parent.wallet.get_tx_status(tx_hash, tx_mined_info)
+        self.tx_status_cache[tx_hash] = self.parent.wallet.get_tx_status(tx_hash, tx_mined_info, islock)
         tx_item.update({
             'confirmations':  tx_mined_info.conf,
             'timestamp':      tx_mined_info.timestamp,

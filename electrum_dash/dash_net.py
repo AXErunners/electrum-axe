@@ -34,6 +34,7 @@ import re
 import threading
 import time
 from aiorpcx import TaskGroup
+from bls_py import bls
 from collections import defaultdict, deque
 from typing import Optional, Dict
 
@@ -219,8 +220,10 @@ class DashNet(Logger):
         self._max_peers = self.config.get('dash_max_peers', MAX_PEERS_DEFAULT)
         # sporks manager
         self.sporks = DashSporks()
-        # Recent islock inv hashes with maxsize 500
+
+        # Recent islocks and chainlocks data
         self.recent_islock_invs = deque([], 200)
+        self.recent_islocks = deque([], 200)
 
         # Activity data
         self.read_bytes = 0
@@ -722,3 +725,12 @@ class DashNet(Logger):
             return block_hash
         else:
             return bfh(block_hash)[::-1]
+
+    @staticmethod
+    def verify_islock(islock, quorum, request_id):
+        msg_hash = islock.msg_hash(quorum, request_id)
+        pubk = bls.PublicKey.from_bytes(quorum.quorumPublicKey)
+        sig = bls.Signature.from_bytes(islock.sig)
+        aggr_info = bls.AggregationInfo.from_msg_hash(pubk, msg_hash)
+        sig.set_aggregation_info(aggr_info)
+        return bls.BLS.verify(sig)
