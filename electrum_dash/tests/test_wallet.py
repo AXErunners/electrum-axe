@@ -156,7 +156,8 @@ class TestCreateRestoreWallet(WalletTestCase):
         d = create_new_wallet(path=self.wallet_path,
                               passphrase=passphrase,
                               password=password,
-                              encrypt_file=encrypt_file)
+                              encrypt_file=encrypt_file,
+                              gap_limit=1)
         wallet = d['wallet']  # type: Standard_Wallet
         wallet.check_password(password)
         self.assertEqual(passphrase, wallet.keystore.get_passphrase(password))
@@ -173,7 +174,8 @@ class TestCreateRestoreWallet(WalletTestCase):
                                      network=None,
                                      passphrase=passphrase,
                                      password=password,
-                                     encrypt_file=encrypt_file)
+                                     encrypt_file=encrypt_file,
+                                     gap_limit=1)
         wallet = d['wallet']  # type: Standard_Wallet
         self.assertEqual(passphrase, wallet.keystore.get_passphrase(password))
         self.assertEqual(text, wallet.keystore.get_seed(password))
@@ -182,14 +184,14 @@ class TestCreateRestoreWallet(WalletTestCase):
 
     def test_restore_wallet_from_text_xpub(self):
         text = 'xpub6ASuArnXKPbfEwhqN6e3mwBcDTgzisQN1wXN9BJcM47sSikHjJf3UFHKkNAWbWMiGj7Wf5uMash7SyYq527Hqck2AxYysAA7xmALppuCkwQ'
-        d = restore_wallet_from_text(text, path=self.wallet_path, network=None)
+        d = restore_wallet_from_text(text, path=self.wallet_path, network=None, gap_limit=1)
         wallet = d['wallet']  # type: Standard_Wallet
         self.assertEqual(text, wallet.keystore.get_master_public_key())
         self.assertEqual('XmQ3Tn67Fgs7bwNXthtiEnBFh7ZeDG3aw2', wallet.get_receiving_addresses()[0])
 
     def test_restore_wallet_from_text_xprv(self):
         text = 'xprv9wTYmMFdV23N2TdNG573QoEsfRrWKQgWeibmLntzniatZvR9BmLnvSxqu53Kw1UmYPxLgboyZQaXwTCg8MSY3H2EU4pWcQDnRnrVA1xe8fs'
-        d = restore_wallet_from_text(text, path=self.wallet_path, network=None)
+        d = restore_wallet_from_text(text, path=self.wallet_path, network=None, gap_limit=1)
         wallet = d['wallet']  # type: Standard_Wallet
         self.assertEqual(text, wallet.keystore.get_master_private_key(password=None))
         self.assertEqual('XmQ3Tn67Fgs7bwNXthtiEnBFh7ZeDG3aw2', wallet.get_receiving_addresses()[0])

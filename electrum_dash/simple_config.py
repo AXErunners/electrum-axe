@@ -20,8 +20,8 @@ FEE_ETA_TARGETS = [25, 10, 5, 2]
 FEE_DEPTH_TARGETS = [10000000, 5000000, 2000000, 1000000, 500000, 200000, 100000]
 
 # satoshi per kbyte
-FEERATE_MAX_DYNAMIC = 150000
-FEERATE_WARNING_HIGH_FEE = 100000
+FEERATE_MAX_DYNAMIC = 15000
+FEERATE_WARNING_HIGH_FEE = 10000
 FEERATE_FALLBACK_STATIC_FEE = 1000
 FEERATE_DEFAULT_RELAY = 1000
 FEERATE_STATIC_VALUES = [150, 300, 500, 1000,
@@ -522,14 +522,16 @@ class SimpleConfig(Logger):
             fee_rate = self.get('fee_per_kb', FEERATE_FALLBACK_STATIC_FEE)
         return fee_rate
 
-    def estimate_fee(self, size):
+    def estimate_fee(self, size: Union[int, float, Decimal]) -> int:
         fee_per_kb = self.fee_per_kb()
         if fee_per_kb is None:
             raise NoDynamicFeeEstimates()
         return self.estimate_fee_for_feerate(fee_per_kb, size)
 
     @classmethod
-    def estimate_fee_for_feerate(cls, fee_per_kb, size):
+    def estimate_fee_for_feerate(cls, fee_per_kb: Union[int, float, Decimal],
+                                 size: Union[int, float, Decimal]) -> int:
+        size = Decimal(size)
         return round(fee_per_kb * size / 1000)
 
     def update_fee_estimates(self, key, value):
