@@ -2,6 +2,10 @@
 
  * appimage: URLs could not be opened on some desktop environments (#5425)
  * A few other minor bugfixes and usability improvements.
+ * add DashNetwork for support (dash_net, dash_peer, dash_msg modules,
+   qt/kivy gui)
+ * refactor ProTx support (stores ProTX MNs and LLMQ lists in file)
+ * add InstantSend support (wallet/stdio/text/qt/kivy)
 
 
 # Release 3.3.7
