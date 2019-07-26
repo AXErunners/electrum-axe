@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (QLineEdit, QComboBox, QAbstractItemView,
                              QVBoxLayout, QLabel, QPushButton, QMenu,
                              QWidget, QTableView, QHeaderView,
                              QDataWidgetMapper, QHBoxLayout, QFormLayout,
-                             QSpinBox, QMessageBox, QTreeWidgetItem)
+                             QSpinBox, QTreeWidgetItem)
 
 from electrum_dash.i18n import _
 from electrum_dash.masternode_budget import BudgetProposal, BudgetVote
@@ -231,7 +231,7 @@ class ProposalEditor(QWidget):
         self.main_widget.dialog.cast_vote(name, vote_yes)
 
 
-class ProposalsTab(QWidget):
+class ProposalsTab(QWidget, util.MessageBoxMixin):
     """Wallet tab for budget proposals."""
     def __init__(self, parent):
         super(QWidget, self).__init__(parent)
@@ -341,7 +341,7 @@ class ProposalsTab(QWidget):
         try:
             proposal = self.create_proposal_from_widgets()
         except Exception as e:
-            return QMessageBox.critical(self, _('Error'), _(str(e)))
+            return self.show_critical(str(e), title=_('Error'))
 
         pw = None
         if manager.wallet.has_password():
@@ -400,7 +400,7 @@ class ProposalsTab(QWidget):
                     msg += '<b>' + proposal_name + '</b>' + _(': failed! "%s"' % errmsg)
 
                 msg += '\n'
-            QMessageBox.information(self, _('Results'), msg)
+            self.show_message(msg, title=_('Results'))
             self.update_unsubmitted_proposals()
             self.parent.masternode_manager.save()
 
