@@ -67,7 +67,7 @@ Builder.load_string('''
     size_hint: None, None
     canvas.before:
         Color:
-            rgba: .239, .588, .882, 1
+            rgba: (.45, .2, 0, 1) if app.testnet else (.239, .588, .882, 1)
         Rectangle:
             size: Window.size
 
@@ -88,6 +88,13 @@ Builder.load_string('''
             Label:
                 color: root.text_color
                 text: 'DASH ELECTRUM'
+                size_hint: 1, None
+                height: self.texture_size[1] if self.opacity else 0
+                font_size: '33sp'
+                font_name: 'electrum_dash/gui/kivy/data/fonts/tron/Tr2n.ttf'
+            Label:
+                color: root.text_color
+                text: 'TESTNET' if app.testnet else ''
                 size_hint: 1, None
                 height: self.texture_size[1] if self.opacity else 0
                 font_size: '33sp'

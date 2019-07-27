@@ -20,6 +20,12 @@ matrix:
     python: "3.6"
     dist: xenial
   - os: linux
+    env: ELECTRUM_MAINNET=true
+    python: "3.7"
+    dist: xenial
+  - if: tag =~ .+
+    os: linux
+    env: ELECTRUM_MAINNET=false
     python: "3.7"
     dist: xenial
 before_install:
@@ -72,6 +78,7 @@ deploy:
   - build/electrum-dash/dist/Dash-Electrum-$DASH_ELECTRUM_VERSION-setup-win32.exe
   - build/electrum-dash/dist/Dash-Electrum-$DASH_ELECTRUM_VERSION-setup-win64.exe
   - build/electrum-dash/bin/Electrum_DASH-$DASH_ELECTRUM_APK_VERSION-release-unsigned.apk
+  - build/electrum-dash/bin/Electrum_DASH_Testnet-$DASH_ELECTRUM_APK_VERSION-release-unsigned.apk
   on:
     repo: akhavr/electrum-dash
     tags: true

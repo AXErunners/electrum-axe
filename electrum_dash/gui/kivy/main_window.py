@@ -76,6 +76,9 @@ from electrum_dash.util import (base_units, NoDynamicFeeEstimates, decimal_point
                                 DECIMAL_POINT_DEFAULT)
 
 
+ATLAS_ICON = 'atlas://electrum_dash/gui/kivy/theming/light/%s'
+
+
 class ElectrumWindow(App):
 
     electrum_config = ObjectProperty(None)
@@ -730,7 +733,10 @@ class ElectrumWindow(App):
         self.receive_screen = None
         self.requests_screen = None
         self.address_screen = None
-        self.icon = "electrum_dash/gui/icons/electrum-dash.png"
+        if self.testnet:
+            self.icon = 'electrum_dash/gui/icons/electrum-dash-testnet.png'
+        else:
+            self.icon = 'electrum_dash/gui/icons/electrum-dash.png'
         self.tabs = self.root.ids['tabs']
 
     def update_interfaces(self, dt):
@@ -871,6 +877,14 @@ class ElectrumWindow(App):
                             app_icon=icon, app_name='Dash Electrum')
         except ImportError:
             Logger.Error('Notification: needs plyer; `sudo python3 -m pip install plyer`')
+
+    @property
+    def testnet(self):
+        return self.electrum_config.get('testnet')
+
+    @property
+    def app_icon(self):
+        return ATLAS_ICON % ('logo-testnet' if self.testnet else 'logo')
 
     def on_pause(self):
         self.pause_time = time.time()

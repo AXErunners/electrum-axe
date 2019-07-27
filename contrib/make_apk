@@ -19,5 +19,11 @@ fi
 
 pushd ./electrum_dash/gui/kivy/
 make theming
-make release
+if [[ -n $1 ]]; then
+    echo make $1
+    make $1
+else
+    echo make release
+    make release
+fi
 popd
