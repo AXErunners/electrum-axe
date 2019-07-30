@@ -76,7 +76,10 @@ class UpdateCheck(QWidget, Logger):
 
     @staticmethod
     def is_newer(latest_version):
-        return latest_version > StrictVersion(version.ELECTRUM_VERSION)
+        v = version.ELECTRUM_VERSION
+        if 'rc' in v:
+            v = v[:v.index('rc')]
+        return latest_version > StrictVersion(v)
 
     def update_view(self, latest_version=None):
         if latest_version:

@@ -11,7 +11,7 @@ from PyQt5.QtWidgets import (QWidget, QTableView, QHeaderView,
                              QAbstractItemView, QVBoxLayout, QDialog,
                              QTabWidget, QLabel, QDataWidgetMapper,
                              QPushButton, QLineEdit, QHBoxLayout,
-                             QFileDialog, QMessageBox)
+                             QFileDialog)
 
 from electrum_dash import bitcoin
 from electrum_dash.i18n import _
@@ -268,7 +268,7 @@ class MasternodesWidget(QWidget):
     def import_masternode_conf_lines(self, conf_lines, pw):
         return self.model.import_masternode_conf_lines(conf_lines, pw)
 
-class MasternodeDialog(QDialog, Logger):
+class MasternodeDialog(QDialog, util.MessageBoxMixin, Logger):
     """GUI for managing masternodes."""
     diff_updated = pyqtSignal(int)
 
@@ -437,7 +437,7 @@ class MasternodeDialog(QDialog, Logger):
                 return
 
         if not os.path.exists(filename):
-            QMessageBox.critical(self, _('Error'), _('File does not exist'))
+            self.show_critical(_('File does not exist'), title=_('Error'))
             return
         with open(filename, 'r') as f:
             lines = f.readlines()
@@ -446,19 +446,22 @@ class MasternodeDialog(QDialog, Logger):
         try:
             conf_lines = parse_masternode_conf(lines)
         except Exception as e:
-            QMessageBox.critical(self, _('Error'), _(str(e)))
+            self.show_critical(str(e), title=_('Error'))
             return
 
         num = self.masternodes_widget.import_masternode_conf_lines(conf_lines, pw)
         if not num:
-            return QMessageBox.warning(self, _('Failed to Import'), _('Could not import any masternode configurations. Please ensure that they are not already imported.'))
+            return self.show_warning(_('Could not import any masternode'
+                                       ' configurations. Please ensure that'
+                                       ' they are not already imported.'),
+                                     title=_('Failed to Import'))
         # Grammar is important.
         configurations = 'configuration' if num == 1 else 'configurations'
         adjective = 'this' if num == 1 else 'these'
         noun = 'masternode' if num == 1 else 'masternodes'
         words = {'adjective': adjective, 'configurations': configurations, 'noun': noun, 'num': num,}
         msg = '{num} {noun} {configurations} imported.\n\nPlease wait for transactions involving {adjective} {configurations} to be retrieved before activating {adjective} {noun}.'.format(**words)
-        QMessageBox.information(self, _('Success'), _(msg))
+        self.show_message(_(msg), title=_('Success'))
 
     def selected_masternode(self):
         """Get the currently-selected masternode."""
@@ -469,8 +472,9 @@ class MasternodeDialog(QDialog, Logger):
     def delete_current_masternode(self):
         """Delete the masternode that is being viewed."""
         mn = self.selected_masternode()
-        if QMessageBox.question(self, _('Delete'), _('Do you want to remove the masternode configuration for') + ' %s?'%mn.alias,
-                    QMessageBox.Yes | QMessageBox.No, QMessageBox.No) == QMessageBox.Yes:
+        if self.question(_('Do you want to remove the masternode'
+                           ' configuration for') + ' %s?' % mn.alias,
+                         title=_('Delete')):
             self.masternodes_widget.remove_masternode(mn.alias)
             self.masternodes_widget.view.selectRow(0)
 
@@ -481,7 +485,8 @@ class MasternodeDialog(QDialog, Logger):
         """
         delegate_privkey = str(self.masternode_editor.delegate_key_edit.text())
         if not delegate_privkey:
-            QMessageBox.warning(self, _('Warning'), _('Delegate private key is empty.'))
+            self.show_warning(_('Delegate private key is empty.'),
+                              title=_('Warning'))
             return
 
         try:
@@ -489,7 +494,8 @@ class MasternodeDialog(QDialog, Logger):
         except Exception:
             # Show an error if the private key is invalid and not an empty string.
             if delegate_privkey:
-                QMessageBox.warning(self, _('Warning'), _('Ignoring invalid delegate private key.'))
+                self.show_warning(_('Ignoring invalid delegate private key.'),
+                                  title=_('Warning'))
             delegate_pubkey = ''
 
         alias = str(self.masternode_editor.alias_edit.text())
@@ -595,11 +601,12 @@ class MasternodeDialog(QDialog, Logger):
             if errmsg:
                 self.logger.error(f'Failed to broadcast MasternodeAnnounce: '
                                   f'{errmsg}')
-                QMessageBox.critical(self, _('Error Sending'), _(errmsg))
+                self.show_critical(errmsg, title=_('Error Sending'))
             elif was_announced:
                 self.logger.info(f'Successfully broadcasted '
                                  f'MasternodeAnnounce for "{alias}"')
-                QMessageBox.information(self, _('Success'), _('Masternode activated successfully.'))
+                self.show_message(_('Masternode activated successfully.'),
+                                  title=_('Success'))
             self.masternodes_widget.refresh_items()
             self.masternodes_widget.select_masternode(alias)
 
@@ -630,12 +637,13 @@ class MasternodeDialog(QDialog, Logger):
         vote_choice = 'yes' if vote_yes else 'no'
         mn = self.selected_masternode()
         if not mn.announced:
-            return QMessageBox.critical(self, _('Cannot Vote'), _('Masternode has not been activated.'))
+            return self.show_critical(_('Masternode has not been activated.'),
+                                      title=_('Cannot Vote'))
         # Check that we can vote before asking for a password.
         try:
             self.manager.check_can_vote(mn.alias, proposal_name)
         except Exception as e:
-            return QMessageBox.critical(self, _('Cannot Vote'), _(str(e)))
+            return self.show_critical(str(e), title=_('Cannot Vote'))
 
         self.proposals_widget.editor.vote_button.setEnabled(False)
 
@@ -646,9 +654,9 @@ class MasternodeDialog(QDialog, Logger):
         def on_vote_successful(result):
             errmsg, res = result
             if res:
-                QMessageBox.information(self, _('Success'), _('Successfully voted'))
+                self.show_message(_('Successfully voted'), title=_('Success'))
             else:
-                QMessageBox.critical(self, _('Error Voting'), _(errmsg))
+                self.show_critical(errmsg, title=_('Error Voting'))
             self.proposals_widget.editor.vote_button.setEnabled(True)
 
         def on_vote_failed(err):
