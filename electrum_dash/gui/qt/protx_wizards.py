@@ -15,7 +15,7 @@ from PyQt5.QtWidgets import (QLineEdit, QComboBox, QListWidget, QDoubleSpinBox,
 
 from electrum_dash import dash_tx
 from electrum_dash.bitcoin import COIN, is_b58_address
-from electrum_dash.dash_tx import TxOutPoint
+from electrum_dash.dash_tx import TxOutPoint, service_to_ip_port
 from electrum_dash.protx import ProTxMN, ProTxService, ProRegTxExc
 from electrum_dash.util import bfh, bh2u
 from electrum_dash.i18n import _
@@ -1476,15 +1476,7 @@ class Dip3MasternodeWizard(QWizard):
         if not service:
             raise ValidationError('No service value specified')
         try:
-            if ']' in service:          # IPv6 [ipv6]:portnum
-                ip, port = service.split(']')
-                ip = ip[1:]             # remove opening square bracket
-                ipaddress.ip_address(ip)
-                port = int(port[1:])    # remove colon before portnum
-            else:                       # IPv4 ipv4:portnum
-                ip, port = service.split(':')
-                ipaddress.ip_address(ip)
-                port = int(port)
+            ip, port = service_to_ip_port(service)
         except BaseException:
             raise ValidationError('Wrong service format specified')
         return ip, port

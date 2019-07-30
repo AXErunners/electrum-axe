@@ -17,7 +17,7 @@ from electrum_dash import bitcoin
 from electrum_dash.i18n import _
 from electrum_dash.masternode import MasternodeAnnounce
 from electrum_dash.masternode_manager import parse_masternode_conf
-from electrum_dash.protx import ProTxManager
+from electrum_dash.protx_list import MNList
 from electrum_dash.util import bfh
 from electrum_dash.logging import Logger
 
@@ -286,22 +286,26 @@ class MasternodeDialog(QDialog, util.MessageBoxMixin, Logger):
             self.masternodes_widget.add_masternode(MasternodeAnnounce(alias='default'), save=False)
         self.masternodes_widget.view.selectRow(0)
 
-        manager = self.gui.dip3_tab.manager
-        manager.register_callback(self.on_manager_diff_updated,
-                                  ['manager-diff-updated'])
+        mn_list = self.gui.dip3_tab.mn_list
+        if mn_list:
+            mn_list.register_callback(self.on_mn_list_diff_updated,
+                                      ['mn-list-diff-updated'])
         self.diff_updated.connect(self.on_diff_updated)
-        manager.subscribe_to_network_updates()
 
     def closeEvent(self, event):
-        manager = self.gui.dip3_tab.manager
-        manager.unregister_callback(self.on_manager_diff_updated)
+        mn_list = self.gui.dip3_tab.mn_list
+        if mn_list:
+            mn_list.unregister_callback(self.on_mn_list_diff_updated)
 
-    def on_manager_diff_updated(self, key, value):
+    def on_mn_list_diff_updated(self, key, value):
         self.diff_updated.emit(value.get('state'))
 
     @pyqtSlot(int)
     def on_diff_updated(self, state):
-        if state == ProTxManager.DIP3_ENABLED:
+        self.on_dip3_state(state)
+
+    def on_dip3_state(self, state):
+        if state == MNList.DIP3_ENABLED:
             self.dip3_warn.show()
             dip3_tab = self.gui.dip3_tab
             i = self.gui.tabs.indexOf(dip3_tab)
@@ -336,9 +340,9 @@ class MasternodeDialog(QDialog, util.MessageBoxMixin, Logger):
                                   'use DIP3 tab instead this dialog '
                                   'to manage masternodes!'))
         self.dip3_warn.setObjectName("dip3_warn")
-        protx_manager = self.gui.wallet.protx_manager
-        if protx_manager.protx_state != ProTxManager.DIP3_ENABLED:
-            self.dip3_warn.hide()
+        mn_list = self.gui.dip3_tab.mn_list
+        dip3_state = mn_list.protx_state if mn_list else MNList.DIP3_UNKNOWN
+        self.on_dip3_state(dip3_state)
         vbox.addWidget(self.dip3_warn)
         vbox.addWidget(QLabel(_('Masternodes:')))
         vbox.addWidget(self.masternodes_widget, stretch=1)

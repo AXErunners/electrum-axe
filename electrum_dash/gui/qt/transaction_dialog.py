@@ -252,8 +252,13 @@ class TxDialog(QDialog, MessageBoxMixin):
             self.tx_desc.show()
         self.status_label.setText(_('Status:') + ' ' + tx_details.status)
 
-        if tx_mined_status.timestamp:
-            time_str = datetime.datetime.fromtimestamp(tx_mined_status.timestamp).isoformat(' ')[:-3]
+        islock = tx_details.islock
+        timestamp = tx_mined_status.timestamp
+        if not timestamp and islock:
+            timestamp = islock
+        if timestamp:
+            dttm = datetime.datetime.fromtimestamp(timestamp)
+            time_str = dttm.isoformat(' ')[:-3]
             self.date_label.setText(_("Date: {}").format(time_str))
             self.date_label.show()
         elif exp_n:

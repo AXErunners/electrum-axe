@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
 
-import asyncio
 from pprint import pformat
 
 from PyQt5.QtGui import QColor, QPixmap
 from PyQt5.QtCore import (Qt, QSortFilterProxyModel, QAbstractTableModel,
-                          QModelIndex, pyqtSlot, QVariant, QRect,
+                          QModelIndex, pyqtSlot, QVariant, QRect, QSize,
                           QPoint, pyqtSignal, QItemSelectionModel)
 from PyQt5.QtWidgets import (QTabBar, QTabWidget, QWidget, QLabel, QPushButton,
                              QTableView, QHeaderView, QAbstractItemView,
@@ -69,9 +68,9 @@ class RegisteredMNsModel(QAbstractTableModel):
     TOTAL_FIELDS = 3
     filterColumns = [PROTX_HASH, SERVICE, VALID]
 
-    def __init__(self, manager):
+    def __init__(self, mn_list):
         super(RegisteredMNsModel, self).__init__()
-        self.manager = manager
+        self.mn_list = mn_list
 
         headers = [
             {Qt.DisplayRole: _('ProRegTx hash')},
@@ -87,8 +86,11 @@ class RegisteredMNsModel(QAbstractTableModel):
 
     def reload_data(self):
         self.beginResetModel()
-        self.mns = sorted(self.manager.protx_mns.values(),
-                          key=lambda x: x.get('proRegTxHash', ''))
+        if self.mn_list:
+            mns = [mn.as_dict() for mn in self.mn_list.protx_mns.values()]
+            self.mns = sorted(mns, key=lambda x: x['proRegTxHash'])
+        else:
+            self.mns = []
         self.row_count = len(self.mns)
         self.endResetModel()
 
@@ -159,10 +161,11 @@ class WalletMNsModel(QAbstractTableModel):
         STATE_REMOVED: _('Removed'),
     }
 
-    def __init__(self, manager, gui, row_h):
+    def __init__(self, manager, mn_list, gui, row_h):
         super(WalletMNsModel, self).__init__()
         self.gui = gui
         self.manager = manager
+        self.mn_list = mn_list
 
         sz = row_h - 10
         mode = Qt.SmoothTransformation
@@ -199,25 +202,32 @@ class WalletMNsModel(QAbstractTableModel):
     def reload_data(self):
         self.beginResetModel()
         self.mns = sorted(self.manager.mns.values(), key=lambda x: x.alias)
+        protx_mns = {h: mn.as_dict()
+                     for h, mn in self.mn_list.protx_mns.items()}
         for mn in self.mns:
             h = mn.protx_hash
-            if h:
-                protx_mn = self.manager.protx_mns.get(h)
-                if not self.manager.diffs_ready:
-                    self.mns_states[mn.alias] = self.STATE_LOADING
-                elif protx_mn:
-                    if protx_mn['isValid']:
-                        self.mns_states[mn.alias] = self.STATE_VALID
-                    else:
-                        self.mns_states[mn.alias] = self.STATE_BANNED
-                else:
-                    conf = self.manager.wallet.get_tx_height(h).conf
-                    if conf > 0:
-                        self.mns_states[mn.alias] = self.STATE_REMOVED
-                    else:
-                        self.mns_states[mn.alias] = self.STATE_UNREGISTERED
-            else:
+
+            if not h:
                 self.mns_states[mn.alias] = self.STATE_UNREGISTERED
+                continue
+
+            if not self.mn_list or not self.mn_list.protx_loaded:
+                self.mns_states[mn.alias] = self.STATE_LOADING
+                continue
+
+            protx_mn = protx_mns.get(h)
+            if protx_mn:
+                if protx_mn['isValid']:
+                    self.mns_states[mn.alias] = self.STATE_VALID
+                else:
+                    self.mns_states[mn.alias] = self.STATE_BANNED
+            else:
+                conf = self.manager.wallet.get_tx_height(h).conf
+                if conf > 0:
+                    self.mns_states[mn.alias] = self.STATE_REMOVED
+                else:
+                    self.mns_states[mn.alias] = self.STATE_UNREGISTERED
+
         self.row_count = len(self.mns)
         self.endResetModel()
 
@@ -336,10 +346,46 @@ class WalletMNsModel(QAbstractTableModel):
 
 class Dip3TabBar(QTabBar):
 
+    def __init__(self, tab_w):
+        super(Dip3TabBar, self).__init__(tab_w)
+        self.tab_w = tab_w
+
+        self.data_w = QWidget()
+        gen_l = QLabel('Actual heights:')
+        mns_h_l = QLabel('ProTx:')
+        self.mns_h = QLabel('0')
+        llmq_h_l = QLabel('LLMQ:')
+        self.llmq_h = QLabel('0')
+        loc_h_l = QLabel('Local:')
+        self.local_h = QLabel('0')
+        gl = QGridLayout()
+        gl.addWidget(gen_l, 0, 0, 1, -1)
+        gl.addWidget(mns_h_l, 1, 0)
+        gl.addWidget(self.mns_h, 1, 2)
+        gl.addWidget(llmq_h_l, 2, 0)
+        gl.addWidget(self.llmq_h, 2, 2)
+        gl.addWidget(loc_h_l, 3, 0)
+        gl.addWidget(self.local_h, 3, 2)
+        gl.setColumnStretch(1, 1)
+        self.data_w.setLayout(gl)
+
+        hbox = QHBoxLayout()
+        hbox.addStretch(1)
+        hbox.addWidget(self.data_w)
+        hbox.setContentsMargins(0, 0, 0, 0)
+        hw = QWidget()
+        hw.setLayout(hbox)
+        vbox = QVBoxLayout()
+        vbox.addStretch(1)
+        vbox.addWidget(hw)
+        vbox.setContentsMargins(0, 0, 0, 0)
+        self.tab_w.setLayout(vbox)
+
     def tabSizeHint(self, index):
         s = QTabBar.tabSizeHint(self, index)
         s.transpose()
-        return s
+        return QSize(max(s.width(), self.data_w.sizeHint().width()),
+                     s.height())
 
     def paintEvent(self, event):
         painter = QStylePainter(self)
@@ -363,20 +409,34 @@ class Dip3TabBar(QTabBar):
             painter.drawControl(QStyle.CE_TabBarTabLabel, opt);
             painter.restore()
 
+    def resizeEvent(self, *args):
+        super(Dip3TabBar, self).resizeEvent(*args)
+        self.data_w.setMinimumWidth(self.width())
+
+    def update_heights(self, mns_h, llmq_h, local_h):
+        if mns_h is not None:
+            self.mns_h.setText(str(mns_h))
+        if llmq_h is not None:
+            self.llmq_h.setText(str(llmq_h))
+        if local_h is not None:
+            self.local_h.setText(str(local_h))
+
 
 class Dip3TabWidget(QTabWidget):
-    alias_updated = pyqtSignal(str) # Signals need to notify from not Qt thread
+    # Signals need to notify from not Qt thread
+    alias_updated = pyqtSignal(str)
     diff_updated = pyqtSignal(dict)
-    net_state_changed = pyqtSignal(bool)
+    network_updated = pyqtSignal()
 
     def __init__(self, gui, wallet, *args, **kwargs):
         QTabWidget.__init__(self, *args, **kwargs)
-        self.setTabBar(Dip3TabBar(self))
+        self.tab_bar = Dip3TabBar(self)
+        self.setTabBar(self.tab_bar)
         self.setTabPosition(QTabWidget.East)
         self.gui = gui
         self.wallet = wallet
         self.manager = wallet.protx_manager
-        self.have_been_shown = False
+        self.mn_list = gui.network.mn_list if gui.network else None
         self.reg_cur_protx = ''
         self.w_cur_alias = ''
         self.w_cur_state = ''
@@ -387,15 +447,19 @@ class Dip3TabWidget(QTabWidget):
         self.searchable_list = self.w_model
         self.currentChanged.connect(self.on_tabs_current_changed)
 
-        self.manager.register_callback(self.on_manager_net_state_changed,
-                                       ['manager-net-state-changed'])
-        self.manager.register_callback(self.on_manager_diff_updated,
-                                       ['manager-diff-updated'])
+        if self.mn_list:
+            self.tab_bar.update_heights(self.mn_list.protx_height,
+                                        self.mn_list.llmq_human_height,
+                                        gui.network.get_local_height())
+            self.mn_list.register_callback(self.on_mn_list_diff_updated,
+                                           ['mn-list-diff-updated'])
+            self.gui.network.register_callback(self.on_cb_network_updated,
+                                               ['network_updated'])
         self.manager.register_callback(self.on_manager_alias_updated,
                                        ['manager-alias-updated'])
         self.alias_updated.connect(self.on_alias_updated)
         self.diff_updated.connect(self.on_diff_updated)
-        self.net_state_changed.connect(self.on_net_state_changed)
+        self.network_updated.connect(self.on_network_updated)
 
     @pyqtSlot()
     def on_tabs_current_changed(self):
@@ -405,93 +469,79 @@ class Dip3TabWidget(QTabWidget):
         else:
             self.searchable_list = self.reg_model
 
-    def on_first_showing(self):
-        self.have_been_shown = True
-        self.manager.subscribe_to_network_updates()
-
-    def on_manager_net_state_changed(self, key, value):
-        self.net_state_changed.emit(value)
-
-    def on_manager_diff_updated(self, key, value):
+    def on_mn_list_diff_updated(self, key, value):
         self.diff_updated.emit(value)
 
     def on_manager_alias_updated(self, key, value):
         self.alias_updated.emit(value)
 
+    def on_cb_network_updated(self, key):
+        self.network_updated.emit()
+
     @pyqtSlot(str)
     def on_alias_updated(self, alias):
         self.w_model.reload_data()
 
+    @pyqtSlot()
+    def on_network_updated(self):
+        self.tab_bar.update_heights(None, None,
+                                    self.gui.network.get_local_height())
+
     @pyqtSlot(dict)
     def on_diff_updated(self, value):
-        state = value.get('state', self.manager.DIP3_DISABLED)
-        diff_hashes = value.get('diff_hashes', [])
-        deleted_mns = value.get('deleted_mns', [])
-
-        if not self.manager.diffs_ready:
-            base_height = self.manager.protx_base_height
-            coro = self.gui.network.request_protx_diff(base_height)
-            loop = self.gui.network.asyncio_loop
-            asyncio.run_coroutine_threadsafe(coro, loop)
-        else:
+        state = value.get('state', self.mn_list.DIP3_DISABLED)
+        if self.mn_list.load_mns and self.mn_list.protx_loaded:
             self.reg_model.reload_data()
             self.w_model.reload_data()
 
-        if state == self.manager.DIP3_ENABLED:
+        if state == self.mn_list.DIP3_ENABLED:
             self.reg_search_btn.setEnabled(True)
         else:
             self.reg_search_btn.setEnabled(False)
 
+        self.tab_bar.update_heights(self.mn_list.protx_height,
+                                    self.mn_list.llmq_human_height,
+                                    self.gui.network.get_local_height())
         self.update_registered_label()
         self.update_wallet_label()
-
-    @pyqtSlot(bool)
-    def on_net_state_changed(self, is_connected):
-        if is_connected and self.have_been_shown:
-            if not self.manager.protx_subscribed:
-                self.manager.subscribe_to_network_updates()
-            else:
-                base_height = self.manager.protx_base_height
-                coro = self.gui.network.request_protx_diff(base_height)
-                loop = self.gui.network.asyncio_loop
-                asyncio.run_coroutine_threadsafe(coro, loop)
-        self.update_registered_label()
-        self.update_wallet_label()
-        self.reg_model.reload_data()
-        self.w_model.reload_data()
 
     def registered_label(self):
-        state = self.manager.protx_state
-        if state == self.manager.DIP3_DISABLED:
-            return (_('DIP3 Masternodes is currently disabled.'))
+        if not self.mn_list:
+            return _('Offline')
 
-        height = self.manager.protx_base_height
-        mns = self.manager.protx_mns
-        count = len(mns)
+        state = self.mn_list.protx_state
+        if state == self.mn_list.DIP3_DISABLED:
+            return _('DIP3 Masternodes is currently disabled.')
+
+        count = len(self.mn_list.protx_mns)
         connected = self.gui.network.is_connected()
-        loading = connected and not self.manager.diffs_ready
+        loading = connected and not self.mn_list.protx_loaded
         ready = _('Loading') if loading else _('Found')
-        return (_('%s %s registered DIP3 Masternodes at Height: %s.') %
-                (ready, count, height))
+        return (_('%s %s registered DIP3 Masternodes.') % (ready, count))
 
     def update_registered_label(self):
         self.reg_label.setText(self.registered_label())
 
     def wallet_label(self):
-        state = self.manager.protx_state
-        if state == self.manager.DIP3_DISABLED:
+        mns = self.manager.mns
+        count = len(mns)
+        mn_str = _('Masternode') if count == 1 else _('Masternodes')
+        def_label_str = _('Wallet contains %s DIP3 %s.') % (count, mn_str)
+
+        if not self.mn_list:
+            return def_label_str
+
+        state = self.mn_list.protx_state
+        if state == self.mn_list.DIP3_DISABLED:
             return (_('DIP3 Masternodes is currently disabled.'))
 
         connected = self.gui.network.is_connected()
-        loading = connected and not self.manager.diffs_ready
-        if not loading:
-            mns = self.manager.mns
-            count = len(mns)
-            mn_str = _('Masternode') if count == 1 else _('Masternodes')
-            return (_('Wallet contains %s DIP3 %s.') % (count, mn_str))
-        else:
-            height = self.manager.protx_base_height
+        loading = connected and not self.mn_list.protx_loaded
+        if loading:
+            height = self.mn_list.protx_height
             return (_('Loading DIP3 data at Height: %s.') % height)
+
+        return def_label_str
 
     def update_wallet_label(self):
         self.w_label.setText(self.wallet_label())
@@ -504,7 +554,7 @@ class Dip3TabWidget(QTabWidget):
         self.reg_search_btn = QPushButton(_('Search'))
         self.reg_search_btn.clicked.connect(self.on_reg_search)
 
-        src_model = RegisteredMNsModel(self.manager)
+        src_model = RegisteredMNsModel(self.mn_list)
         self.reg_model = Dip3FilterProxyModel()
         self.reg_model.setSourceModel(src_model)
 
@@ -536,6 +586,8 @@ class Dip3TabWidget(QTabWidget):
         vbox.addWidget(self.reg_view)
         w.setLayout(vbox)
         self.addTab(w, read_QIcon('tab_search.png'), _('Registered MNs'))
+        if self.mn_list.protx_loaded:
+            self.reg_model.reload_data()
         return w
 
     def create_reg_menu(self, position):
@@ -582,7 +634,7 @@ class Dip3TabWidget(QTabWidget):
 
         row_h = self.w_view.verticalHeader().defaultSectionSize()
         self.w_hheader.setMinimumSectionSize(row_h)
-        src_model = WalletMNsModel(self.manager, self.gui, row_h)
+        src_model = WalletMNsModel(self.manager, self.mn_list, self.gui, row_h)
         src_model.dataChanged.connect(self.w_data_changed)
         self.w_model = Dip3FilterProxyModel()
         self.w_model.setSourceModel(src_model)
@@ -610,6 +662,8 @@ class Dip3TabWidget(QTabWidget):
         vbox.addWidget(self.w_view)
         w.setLayout(vbox)
         self.addTab(w, read_QIcon('tab_dip3.png'), _('Wallet MNs'))
+        if self.mn_list.protx_loaded:
+            self.w_model.reload_data()
         return w
 
     @pyqtSlot()
@@ -855,6 +909,7 @@ class Dip3MNInfoDialog(QDialog):
         self.parent = parent
         self.gui = parent.gui
         self.manager = parent.manager
+        self.mn_list = parent.mn_list
         self.diff_updated.connect(self.on_diff_updated)
         self.info_updated.connect(self.on_info_updated)
 
@@ -870,14 +925,15 @@ class Dip3MNInfoDialog(QDialog):
             self.protx_hash = protx_hash
             self.setWindowTitle(_('%s... Dip3 Masternode Info') % protx_hash[:32])
 
-        if self.protx_hash:
-            manager = self.manager
-            self.diff_info = manager.protx_mns.get(self.protx_hash, {})
-            self.manager.register_callback(self.on_manager_diff_updated,
-                                           ['manager-diff-updated'])
-            self.manager.register_callback(self.on_manager_info_updated,
-                                           ['manager-info-updated'])
-            self.info = manager.protx_info.get(self.protx_hash, {})
+        if self.mn_list and self.protx_hash:
+            mn_list = self.mn_list
+            sml_entry = mn_list.protx_mns.get(self.protx_hash, {})
+            self.diff_info = sml_entry.as_dict() if sml_entry else {}
+            self.mn_list.register_callback(self.on_mn_list_diff_updated,
+                                           ['mn-list-diff-updated'])
+            self.mn_list.register_callback(self.on_mn_list_info_updated,
+                                           ['mn-list-info-updated'])
+            self.info = mn_list.protx_info.get(self.protx_hash, {})
             if not self.info and self.gui.network.is_connected():
                 self.gui.network.run_from_another_thread(
                     self.gui.network.request_protx_info(self.protx_hash)
@@ -927,13 +983,13 @@ class Dip3MNInfoDialog(QDialog):
             self.info_tab.setLayout(info_vbox)
             self.tabs.addTab(self.info_tab, _('protx.info data (unverified)'))
 
-    def on_manager_diff_updated(self, key, value):
+    def on_mn_list_diff_updated(self, key, value):
         self.diff_updated.emit(value)
 
-    def on_manager_info_updated(self, key, info_hash):
+    def on_mn_list_info_updated(self, key, info_hash):
         if self.protx_hash and self.protx_hash == info_hash:
-            manager = self.manager
-            self.info = manager.protx_info.get(self.protx_hash, {})
+            mn_list = self.mn_list
+            self.info = mn_list.protx_info.get(self.protx_hash, {})
             self.info_updated.emit()
 
     @pyqtSlot(dict)
@@ -941,11 +997,12 @@ class Dip3MNInfoDialog(QDialog):
         diff_hashes = value.get('diff_hashes', [])
         deleted_mns = value.get('deleted_mns', [])
         if self.protx_hash in diff_hashes:
-            manager = self.manager
-            self.diff_info = manager.protx_mns.get(self.protx_hash, '{}')
+            mn_list = self.mn_list
+            sml_entry = mn_list.protx_mns.get(self.protx_hash, {})
+            self.diff_info = sml_entry.as_dict() if sml_entry else {}
             self.diff_info_view.setText(pformat(self.diff_info))
         elif self.protx_hash in deleted_mns:
-            self.diff_info = '{}'
+            self.diff_info = {}
             self.info = self.diff_info
             self.diff_info_view.setText(pformat(self.diff_info))
             self.info_updated.emit()
@@ -955,6 +1012,6 @@ class Dip3MNInfoDialog(QDialog):
         self.info_view.setText(pformat(self.info))
 
     def closeEvent(self, e):
-        if self.protx_hash:
-            self.manager.unregister_callback(self.on_manager_diff_updated)
-            self.manager.unregister_callback(self.on_manager_info_updated)
+        if self.mn_list and self.protx_hash:
+            self.mn_list.unregister_callback(self.on_mn_list_diff_updated)
+            self.mn_list.unregister_callback(self.on_mn_list_info_updated)

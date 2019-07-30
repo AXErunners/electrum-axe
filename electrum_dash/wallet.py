@@ -188,6 +188,7 @@ class TxWalletDetails(NamedTuple):
     fee: Optional[int]
     tx_mined_status: TxMinedInfo
     mempool_depth_bytes: Optional[int]
+    islock: Optional[int]
 
 
 class Abstract_Wallet(AddressSynchronizer):
@@ -381,17 +382,28 @@ class Abstract_Wallet(AddressSynchronizer):
         can_broadcast = False
         label = ''
         tx_hash = tx.txid()
+        islock = self.db.get_islock(tx_hash)
         tx_mined_status = self.get_tx_height(tx_hash)
         if tx.is_complete():
             if self.db.get_transaction(tx_hash):
                 label = self.get_label(tx_hash)
+                conf = tx_mined_status.conf
                 if tx_mined_status.height > 0:
-                    if tx_mined_status.conf:
-                        status = _("{} confirmations").format(tx_mined_status.conf)
+                    if conf:
+                        if conf < 6 and islock:
+                            status = (_('InstantSend') + ', ' +
+                                      _('{} confirmations').format(conf))
+                        else:
+                            status = _('{} confirmations').format(conf)
                     else:
                         status = _('Not verified')
-                elif tx_mined_status.height in (TX_HEIGHT_UNCONF_PARENT, TX_HEIGHT_UNCONFIRMED):
-                    status = _('Unconfirmed')
+                elif tx_mined_status.height in (TX_HEIGHT_UNCONF_PARENT,
+                                                TX_HEIGHT_UNCONFIRMED):
+                    if islock:
+                        status = (_('InstantSend') + ', ' +
+                                  _('{} confirmations').format(conf))
+                    else:
+                        status = _('Unconfirmed')
                     if fee is None:
                         fee = self.db.get_tx_fee(tx_hash)
                     if fee and self.network and self.network.config.has_fee_mempool():
@@ -428,6 +440,7 @@ class Abstract_Wallet(AddressSynchronizer):
             fee=fee,
             tx_mined_status=tx_mined_status,
             mempool_depth_bytes=exp_n,
+            islock=islock,
         )
 
     def get_spendable_coins(self, domain, config, *, nonlocal_only=False):
@@ -463,8 +476,11 @@ class Abstract_Wallet(AddressSynchronizer):
         # we also assume that block timestamps are monotonic (which is false...!)
         h = self.get_history(domain)
         balance = 0
-        for tx_hash, tx_type, tx_mined_status, value, balance in h:
-            if tx_mined_status.timestamp is None or tx_mined_status.timestamp > target_timestamp:
+        for tx_hash, tx_type, tx_mined_status, value, balance, islock in h:
+            mined_ts = tx_mined_status.timestamp
+            if not mined_ts and islock:
+                mined_ts = islock
+            if mined_ts is None or mined_ts > target_timestamp:
                 return balance - value
         # return last balance
         return balance
@@ -472,7 +488,7 @@ class Abstract_Wallet(AddressSynchronizer):
     @profiler
     def get_full_history(self, domain=None, from_timestamp=None, to_timestamp=None,
                          fx=None, show_addresses=False, show_fees=False,
-                         from_height=None, to_height=None):
+                         from_height=None, to_height=None, config=None):
         if (from_timestamp is not None or to_timestamp is not None) \
                 and (from_height is not None or to_height is not None):
             raise Exception('timestamp and block height based filtering cannot be used together')
@@ -482,11 +498,13 @@ class Abstract_Wallet(AddressSynchronizer):
         capital_gains = Decimal(0)
         fiat_income = Decimal(0)
         fiat_expenditures = Decimal(0)
-        h = self.get_history(domain)
+        h = self.get_history(domain, config=config)
         now = time.time()
-        show_dip2 = self.network.config.get('show_dip2_tx_type', False)
-        for tx_hash, tx_type, tx_mined_status, value, balance in h:
+        show_dip2 = config.get('show_dip2_tx_type', False) if config else False
+        for tx_hash, tx_type, tx_mined_status, value, balance, islock in h:
             timestamp = tx_mined_status.timestamp
+            if not timestamp and islock:
+                timestamp = islock
             if from_timestamp and (timestamp or now) < from_timestamp:
                 continue
             if to_timestamp and (timestamp or now) >= to_timestamp:
@@ -508,6 +526,7 @@ class Abstract_Wallet(AddressSynchronizer):
                 'date': timestamp_to_datetime(timestamp),
                 'label': self.get_label(tx_hash),
                 'txpos_in_block': tx_mined_status.txpos,
+                'islock': islock,
             }
             if show_dip2:
                 tx_type_name = SPEC_TX_NAMES.get(tx_type, str(tx_type))
@@ -617,11 +636,13 @@ class Abstract_Wallet(AddressSynchronizer):
             return ', '.join(labels)
         return ''
 
-    def get_tx_status(self, tx_hash, tx_mined_info: TxMinedInfo):
+    def get_tx_status(self, tx_hash, tx_mined_info: TxMinedInfo, islock):
         extra = []
         height = tx_mined_info.height
         conf = tx_mined_info.conf
         timestamp = tx_mined_info.timestamp
+        if not timestamp and islock:
+            timestamp = islock
         if conf == 0:
             tx = self.db.get_transaction(tx_hash)
             if not tx:
@@ -641,16 +662,21 @@ class Abstract_Wallet(AddressSynchronizer):
             if height == TX_HEIGHT_LOCAL:
                 status = 3
             elif height == TX_HEIGHT_UNCONF_PARENT:
-                status = 1
+                status = 1 if not islock else 9
             elif height == TX_HEIGHT_UNCONFIRMED:
-                status = 0
+                status = 0 if not islock else 9
             else:
                 status = 2  # not SPV verified
         else:
-            status = 3 + min(conf, 6)
+            if conf >= 6:
+                status = 10
+            elif islock:
+                status = 9
+            else:
+                status = 3 + conf
         time_str = format_time(timestamp) if timestamp else _("unknown")
         status_str = TX_STATUS[status] if status < 4 else time_str
-        if extra:
+        if extra and not islock:
             status_str += ' [%s]'%(', '.join(extra))
         return status, status_str
 
@@ -969,7 +995,7 @@ class Abstract_Wallet(AddressSynchronizer):
         received, sent = self.get_addr_io(address)
         l = []
         for txo, x in received.items():
-            h, v, is_cb = x
+            h, v, is_cb, islock = x
             txid, n = txo.split(':')
             info = self.db.get_verified_tx(txid)
             if info:

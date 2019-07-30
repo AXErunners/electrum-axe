@@ -132,9 +132,14 @@ class TxDialog(Factory.Popup):
         self.description = tx_details.label
         self.can_broadcast = tx_details.can_broadcast
         self.tx_hash = tx_details.txid or ''
-        if tx_mined_status.timestamp:
+        islock = tx_details.islock
+        timestamp = tx_mined_status.timestamp
+        if not timestamp and islock:
+            timestamp = islock
+        if timestamp:
             self.date_label = _('Date')
-            self.date_str = datetime.fromtimestamp(tx_mined_status.timestamp).isoformat(' ')[:-3]
+            dttm = datetime.fromtimestamp(timestamp)
+            self.date_str = dttm.isoformat(' ')[:-3]
         elif exp_n:
             self.date_label = _('Mempool depth')
             self.date_str = _('{} from tip').format('%.2f MB'%(exp_n/1000000))

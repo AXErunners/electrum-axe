@@ -103,6 +103,7 @@ TX_ICONS = [
     "clock3",
     "clock4",
     "clock5",
+    "instantsend_locked",
     "confirmed",
 ]
 
@@ -134,8 +135,11 @@ class HistoryScreen(CScreen):
         d = LabelDialog(_('Enter Transaction Label'), text, callback)
         d.open()
 
-    def get_card(self, tx_hash, tx_type, tx_mined_status, value, balance):
-        status, status_str = self.app.wallet.get_tx_status(tx_hash, tx_mined_status)
+    def get_card(self, tx_hash, tx_type, tx_mined_status, value, balance,
+                 islock):
+        status, status_str = self.app.wallet.get_tx_status(tx_hash,
+                                                           tx_mined_status,
+                                                           islock)
         icon = "atlas://electrum_dash/gui/kivy/theming/light/" + TX_ICONS[status]
         label = self.app.wallet.get_label(tx_hash) if tx_hash else _('Pruned transaction outputs')
         ri = {}
@@ -159,7 +163,8 @@ class HistoryScreen(CScreen):
     def update(self, see_all=False):
         if self.app.wallet is None:
             return
-        history = reversed(self.app.wallet.get_history())
+        config = self.app.electrum_config
+        history = reversed(self.app.wallet.get_history(config=config))
         history_card = self.screen.ids.history_container
         history_card.data = [self.get_card(*item) for item in history]
 

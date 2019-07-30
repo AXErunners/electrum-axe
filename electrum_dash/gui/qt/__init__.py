@@ -53,6 +53,7 @@ from electrum_dash.logging import Logger
 from .installwizard import InstallWizard, WalletAlreadyOpenInMemory
 
 
+from .dash_net_dialog import DashNetDialog
 from .util import get_default_language, read_QIcon, ColorScheme, custom_message_box
 from .main_window import ElectrumWindow
 from .network_dialog import NetworkDialog
@@ -78,6 +79,11 @@ class QElectrumApplication(QApplication):
 
 class QNetworkUpdatedSignalObject(QObject):
     network_updated_signal = pyqtSignal(str, object)
+
+
+class QDashNetSignalsObject(QObject):
+    main = pyqtSignal(str, object)
+    dlg = pyqtSignal(str, object)
 
 
 class ElectrumGui(Logger):
@@ -110,7 +116,9 @@ class ElectrumGui(Logger):
         self.timer.setInterval(500)  # msec
 
         self.nd = None
+        self.dash_net_dialog = None
         self.network_updated_signal_obj = QNetworkUpdatedSignalObject()
+        self.dash_net_sobj = QDashNetSignalsObject()
         self._num_wizards_in_progress = 0
         self._num_wizards_lock = threading.Lock()
         # init tray
@@ -196,6 +204,21 @@ class ElectrumGui(Logger):
         self.nd = NetworkDialog(self.daemon.network, self.config,
                                 self.network_updated_signal_obj)
         self.nd.show()
+
+    def show_dash_net_dialog(self, parent):
+        if not self.daemon.network:
+            parent.show_warning(_('You are using Dash Electrum in offline'
+                                  ' mode; restart Dash Electrum if you want'
+                                  ' to get connected'), title=_('Offline'))
+            return
+        if self.dash_net_dialog:
+            self.dash_net_dialog.on_updated()
+            self.dash_net_dialog.show()
+            self.dash_net_dialog.raise_()
+            return
+        self.dash_net_dialog = DashNetDialog(self.daemon.network, self.config,
+                                             self.dash_net_sobj)
+        self.dash_net_dialog.show()
 
     def _create_window_for_wallet(self, wallet):
         w = ElectrumWindow(self, wallet)
