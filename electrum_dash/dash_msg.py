@@ -38,6 +38,19 @@ from .transaction import Transaction, BCDataStream, SerializationError
 from .util import bh2u, bfh
 
 
+# https://dash-docs.github.io/en/developer-reference#version
+MAX_USER_AGENT_SIZE = 256
+# https://dash-docs.github.io/en/developer-reference#addr
+MAX_ADDRESSES = 1000
+# https://dash-docs.github.io/en/developer-reference#inv
+MAX_INV_ENTRIES = 50000
+# https://dash-docs.github.io/en/developer-reference#filterload
+FILTERLOAD_MAX_HASH_FUNCS = 50
+FILTERLOAD_MAX_FILTER_BYTES = 36000
+# https://dash-docs.github.io/en/developer-reference#filteradd
+FILTERADD_MAX_ELEMENT_BYTES = 520
+
+
 class DashMsgError(Exception):
     """Thrown when there's a problem with Dash message serialize/deserialize"""
 
@@ -341,7 +354,7 @@ class DashVersionMsg(DashMsgBase):
         trans_port = read_uint16_nbo(vds)               # trans_port
         nonce = vds.read_uint64()                       # nonce
         user_agent_csize = vds.read_compact_size()
-        if user_agent_csize > 256:
+        if user_agent_csize > MAX_USER_AGENT_SIZE:
             raise DashMsgError('version msg: user_agent too long')
         user_agent = vds.read_bytes(user_agent_csize)   # user_agent
         start_height = vds.read_int32()                 # start_height
@@ -368,7 +381,7 @@ class DashVersionMsg(DashMsgBase):
 class DashPingMsg(DashMsgBase):
     '''Class representing ping message'''
 
-    fields = ('nonce').split()
+    fields = 'nonce'.split()
 
     def __init__(self, *args, **kwargs):
         super(DashPingMsg, self).__init__(*args, **kwargs)
@@ -404,7 +417,7 @@ class DashPongMsg(DashPingMsg):
 class DashAddrMsg(DashMsgBase):
     '''Class representing addr message'''
 
-    fields = ('addresses').split()
+    fields = 'addresses'.split()
 
     def __init__(self, *args, **kwargs):
         super(DashAddrMsg, self).__init__(*args, **kwargs)
@@ -416,7 +429,7 @@ class DashAddrMsg(DashMsgBase):
 
     def serialize(self):
         addr_cnt = len(self.addresses)
-        if addr_cnt > 1000:
+        if addr_cnt > MAX_ADDRESSES:
             raise DashMsgError('addr msg: too many addresses to send')
         res = to_compact_size(addr_cnt)
         for a in self.addresses:
@@ -430,7 +443,7 @@ class DashAddrMsg(DashMsgBase):
     @classmethod
     def read_vds(cls, vds, alone_data=False):
         addr_cnt = vds.read_compact_size()
-        if addr_cnt > 1000:
+        if addr_cnt > MAX_ADDRESSES:
             raise DashMsgError('addr msg: too many addresses')
         addresses = []
         for addr_i in range(addr_cnt):
@@ -447,7 +460,7 @@ class DashAddrMsg(DashMsgBase):
 class DashInvMsg(DashMsgBase):
     '''Class representing inv message'''
 
-    fields = ('inventory').split()
+    fields = 'inventory'.split()
 
     def __init__(self, *args, **kwargs):
         super(DashInvMsg, self).__init__(*args, **kwargs)
@@ -462,7 +475,7 @@ class DashInvMsg(DashMsgBase):
 
     def _serialize(self, msg):
         inv_cnt = len(self.inventory)
-        if inv_cnt > 50000:
+        if inv_cnt > MAX_INV_ENTRIES:
             raise DashMsgError(f'{msg} msg: too long inventory to send')
         res = to_compact_size(inv_cnt)
         for i in self.inventory:
@@ -478,7 +491,7 @@ class DashInvMsg(DashMsgBase):
     @classmethod
     def _read_vds(cls, vds, msg, alone_data=False):
         inv_cnt = vds.read_compact_size()
-        if inv_cnt > 50000:
+        if inv_cnt > MAX_INV_ENTRIES:
             raise DashMsgError(f'{msg} msg: too long inventory')
         inventory = []
         for inv_i in range(inv_cnt):
@@ -509,7 +522,7 @@ class DashGetDataMsg(DashInvMsg):
 class DashSporkMsg(DashMsgBase):
     '''Class representing islock message'''
 
-    fields = ('nSporkID nValue nTimeSigned vchSig').split()
+    fields = 'nSporkID nValue nTimeSigned vchSig'.split()
 
     def __init__(self, *args, **kwargs):
         super(DashSporkMsg, self).__init__(*args, **kwargs)
@@ -547,7 +560,7 @@ class DashSporkMsg(DashMsgBase):
 class DashISLockMsg(DashMsgBase):
     '''Class representing islock message'''
 
-    fields = ('inputs txid sig').split()
+    fields = 'inputs txid sig'.split()
 
     def __init__(self, *args, **kwargs):
         super(DashISLockMsg, self).__init__(*args, **kwargs)
@@ -560,8 +573,6 @@ class DashISLockMsg(DashMsgBase):
     @classmethod
     def read_vds(cls, vds, alone_data=False):
         in_cnt = vds.read_compact_size()
-        if in_cnt > 50000:
-            raise DashMsgError(f'islock msg: too many inputs')
         inputs = []
         for in_i in range(in_cnt):                      # read outpoints
             in_hash = vds.read_bytes(32)                # hash
@@ -591,7 +602,7 @@ class DashISLockMsg(DashMsgBase):
 class DashCLSigMsg(DashMsgBase):
     '''Class representing clsig message'''
 
-    fields = ('nHeight blockHash sig').split()
+    fields = 'nHeight blockHash sig'.split()
 
     def __init__(self, *args, **kwargs):
         super(DashCLSigMsg, self).__init__(*args, **kwargs)
@@ -624,7 +635,7 @@ class DashCLSigMsg(DashMsgBase):
 class DashGetMNListDMsg(DashMsgBase):
     '''Class representing getmnlistd message'''
 
-    fields = ('baseBlockHash blockHash').split()
+    fields = 'baseBlockHash blockHash'.split()
 
     def __init__(self, *args, **kwargs):
         super(DashGetMNListDMsg, self).__init__(*args, **kwargs)
@@ -810,7 +821,7 @@ class DashQFCommitMsg(DashMsgBase):
 class DashFliterLoadMsg(DashMsgBase):
     '''Class representing filterload message'''
 
-    fields = ('filter nHashFuncs nTweak nFlags').split()
+    fields = 'filter nHashFuncs nTweak nFlags'.split()
 
     def __init__(self, *args, **kwargs):
         super(DashFliterLoadMsg, self).__init__(*args, **kwargs)
@@ -821,8 +832,8 @@ class DashFliterLoadMsg(DashMsgBase):
                 (bh2u(self.filter), self.nHashFuncs, self.nTweak, self.nFlags))
 
     def serialize(self):
-        assert self.nHashFuncs <= 50
-        assert len(self.filter) <= 36000
+        assert self.nHashFuncs <= FILTERLOAD_MAX_HASH_FUNCS
+        assert len(self.filter) <= FILTERLOAD_MAX_FILTER_BYTES
         return (
             self.filter +                               # filter
             pack('<I', self.nHashFuncs) +               # nHashFuncs
@@ -833,11 +844,11 @@ class DashFliterLoadMsg(DashMsgBase):
     @classmethod
     def read_vds(cls, vds, alone_data=False):
         filter_bcnt = vds.read_compact_size()
-        if filter_bcnt > 36000:
+        if filter_bcnt > FILTERLOAD_MAX_FILTER_BYTES:
             raise DashMsgError(f'filterload msg: too long filter filed')
         filter_bytes = vds.read_bytes(filter_bcnt)      # filter
         nHashFuncs = vds.read_uint32()                  # nHashFuncs
-        if nHashFuncs > 50:
+        if nHashFuncs > FILTERLOAD_MAX_HASH_FUNCS:
             raise DashMsgError(f'filterload msg: too high value of nHashFuncs')
         nTweak = vds.read_uint32()                      # nTweak
         nFlags = vds.read_uchar()                       # nFlags
@@ -849,7 +860,7 @@ class DashFliterLoadMsg(DashMsgBase):
 class DashFilterAddMsg(DashMsgBase):
     '''Class representing filteradd message'''
 
-    fields = ('element').split()
+    fields = 'element'.split()
 
     def __init__(self, *args, **kwargs):
         super(DashFilterAddMsg, self).__init__(*args, **kwargs)
@@ -858,13 +869,13 @@ class DashFilterAddMsg(DashMsgBase):
         return ('DashFilterAddMsg: element: %s' % self.element)
 
     def serialize(self):
-        assert len(self.element) <= 520
+        assert len(self.element) <= FILTERADD_MAX_ELEMENT_BYTES
         return self.element                             # element
 
     @classmethod
     def read_vds(cls, vds, alone_data=False):
         element_bcnt = vds.read_compact_size()
-        if element_bcnt > 520:
+        if element_bcnt > FILTERADD_MAX_ELEMENT_BYTES:
             raise DashMsgError(f'filteradd msg: too long element field')
         element_bytes = vds.read_bytes(element_bcnt)    # element
         if alone_data and vds.can_read_more():

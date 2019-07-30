@@ -291,7 +291,6 @@ class MasternodeDialog(QDialog, Logger):
             mn_list.register_callback(self.on_mn_list_diff_updated,
                                       ['mn-list-diff-updated'])
         self.diff_updated.connect(self.on_diff_updated)
-        manager.subscribe_to_network_updates()
 
     def closeEvent(self, event):
         mn_list = self.gui.dip3_tab.mn_list
