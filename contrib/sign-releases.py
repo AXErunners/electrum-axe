@@ -136,7 +136,6 @@ SHA_FNAME = 'SHA256SUMS.txt'
 PPA_SERIES = {
     'xenial': '16.04.1',
     'bionic': '18.04.1',
-    'cosmic': '18.10.1',
     'disco': '19.04.1',
 }
 PEP440_PUBVER_PATTERN = re.compile('^((\d+)!)?'

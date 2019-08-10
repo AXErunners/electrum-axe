@@ -56,7 +56,7 @@ script:
       ./build/travis-build-linux.sh;
   fi
 - if [[ -n $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]] && [[ $TRAVIS_PYTHON_VERSION == '3.7' ]]; then
-      ./build/travis-build-linux-apk.sh;
+     travis_wait 30 ./build/travis-build-linux-apk.sh;
   fi
 deploy:
 - provider: releases

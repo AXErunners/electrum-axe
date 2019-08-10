@@ -51,11 +51,12 @@ RUN dpkg --add-architecture i386 \
         libswscale-dev \
         libavformat-dev \
         libavcodec-dev \
+        libgmp-dev \
     && locale-gen en_US.UTF-8 \
     && rm -rf /var/lib/apt/lists/*
 
 RUN wget https://bootstrap.pypa.io/get-pip.py && python3 get-pip.py \
-    && pip3 install --upgrade setuptools cython==0.28.6 image
+    && pip3 install --upgrade setuptools cython==0.29.9 image
 
 RUN git config --global user.email "buildozer@example.com" \
     && git config --global user.name "Buildozer"
@@ -75,7 +76,6 @@ RUN cd ${OPTDIR} \
     && git checkout ccb0f8e1bab36f1b7d1508216b4b4afb076e614f \
     && git cherry-pick d7f722e4e5d4b3e6f5b1733c95e6a433f78ee570 \
     && git cherry-pick ed20e196fbcdce718a180f88f23bb2d165c4c5d8 \
-    && git cherry-pick aaa0d5d0e7a334631df71e0a9bf127817e0ab9ab \
     && python3 -m pip install -e . \
     && cd ${OPTDIR} \
     && git clone https://github.com/kivy/buildozer \

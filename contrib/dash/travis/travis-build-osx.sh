@@ -23,7 +23,7 @@ echo osx build version is $DASH_ELECTRUM_VERSION
 git submodule init
 git submodule update
 
-info "Building CalinsQRReader..."
+echo "Building CalinsQRReader..."
 d=contrib/CalinsQRReader
 pushd $d
 rm -fr build
