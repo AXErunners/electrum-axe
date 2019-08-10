@@ -171,6 +171,13 @@ coll = COLLECT(exe, #tctl_exe,
                name=os.path.join('dist', 'electrum-dash'))
 
 app = BUNDLE(coll,
+             info_plist={
+                'NSHighResolutionCapable': True,
+                'NSSupportsAutomaticGraphicsSwitching': True,
+                'CFBundleURLTypes': [
+                    {'CFBundleURLName': 'dash', 'CFBundleURLSchemes': ['dash']}
+                ],
+             },
              name=os.path.join('dist', 'Dash Electrum.app'),
              appname="Dash Electrum",
 	         icon='electrum-dash.icns',
