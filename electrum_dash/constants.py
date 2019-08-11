@@ -24,9 +24,14 @@
 # SOFTWARE.
 
 import os
+import gzip
 import json
 
+from .logging import get_logger
 from .util import inv_dict
+
+
+_logger = get_logger(__name__)
 
 
 def read_json(filename, default):
@@ -35,6 +40,18 @@ def read_json(filename, default):
         with open(path, 'r') as f:
             r = json.loads(f.read())
     except:
+        r = default
+    return r
+
+
+def read_json_gz(filename, default):
+    path = os.path.join(os.path.dirname(__file__), filename)
+    try:
+        with gzip.open(path, 'rb') as f:
+            data = f.read()
+            r = json.loads(data.decode('utf-8'))
+    except:
+        _logger.info(f'file not found: {filename}')
         r = default
     return r
 
@@ -59,7 +76,7 @@ class BitcoinMainnet(AbstractNet):
     GENESIS = "00000ffd590b1485b3caadc19b22e6379c733355108f107a430458cdf3407ab6"
     DEFAULT_PORTS = {'t': '50001', 's': '50002'}
     DEFAULT_SERVERS = read_json('servers.json', {})
-    CHECKPOINTS = read_json('checkpoints.json', [])
+    CHECKPOINTS = read_json_gz('checkpoints.json.gz', [])
 
     XPRV_HEADERS = {
         'standard':    0x0488ade4,  # xprv
@@ -84,7 +101,7 @@ class BitcoinTestnet(AbstractNet):
     GENESIS = "00000bafbc94add76cb75e2ec92894837288a481e5c005f6563d91623bf8bc2c"
     DEFAULT_PORTS = {'t': '51001', 's': '51002'}
     DEFAULT_SERVERS = read_json('servers_testnet.json', {})
-    CHECKPOINTS = read_json('checkpoints_testnet.json', [])
+    CHECKPOINTS = read_json_gz('checkpoints_testnet.json.gz', [])
 
     XPRV_HEADERS = {
         'standard':    0x04358394,  # tprv
