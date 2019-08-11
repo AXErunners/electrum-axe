@@ -34,6 +34,7 @@ import re
 import threading
 import time
 from aiorpcx import TaskGroup
+from binascii import unhexlify
 from bls_py import bls
 from collections import defaultdict, deque
 from typing import Optional, Dict
@@ -734,3 +735,20 @@ class DashNet(Logger):
         aggr_info = bls.AggregationInfo.from_msg_hash(pubk, msg_hash)
         sig.set_aggregation_info(aggr_info)
         return bls.BLS.verify(sig)
+
+    @classmethod
+    def test_bls_speed(cls):
+        # Testnet islock siangature
+        pubk = unhexlify('11df44be9c80fd7c7bfee40ab08e4cf9c84a674250f7d299'
+                         '5d36de0ea1d8ce9d3f18e12e24b84e2f3f00e44ab439cdbd')
+        sig = unhexlify('9851d45e5bfa9d632c346b655a4c47f1b74e41a328f5cebd'
+                        'f05994b75ce271954cc4b92268ce7e18a73a0ab6e49129cf'
+                        '0fa769c65b9b69f82f576c73c91c65968658194a8cf5fdd2'
+                        'c600cb5d75b77906b32b9a41444a5cda660c184c00cda71e')
+        msg_hash = unhexlify('3151f47bacf5a9f335e358083418819d'
+                             '015b801a0fa6a3493f4728980ea99a3f')
+        bpubk = bls.PublicKey.from_bytes(pubk)
+        bsig = bls.Signature.from_bytes(sig)
+        aggr_info = bls.AggregationInfo.from_msg_hash(bpubk, msg_hash)
+        bsig.set_aggregation_info(aggr_info)
+        return bls.BLS.verify(bsig)
