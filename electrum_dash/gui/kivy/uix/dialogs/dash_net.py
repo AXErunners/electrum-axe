@@ -395,8 +395,8 @@ class StaticPeersPopup(Factory.Popup):
         else:
             super(StaticPeersPopup, self).dismiss()
             self.dn_dlg.config.set_key('dash_peers', res, True)
-            self.dn_dlg.static_peers = dash_net.dash_peers_as_str()
             net.run_from_another_thread(dash_net.set_parameters())
+            self.dn_dlg.static_peers = dash_net.dash_peers_as_str()
 
 
 class SporkCard(Factory.BoxLayout):
@@ -550,7 +550,7 @@ class DashNetDialog(Factory.Popup):
         self.on_network_updated()
         self.run_dash_net = self.config.get('run_dash_net', True)
         self.max_peers = self.dash_net.max_peers
-        self.use_static_peers = self.config.get('dash_use_static_peers', True)
+        self.use_static_peers = self.config.get('dash_use_static_peers', False)
         self.static_peers = self.dash_net.dash_peers_as_str()
 
     def open(self, *args, **kwargs):
@@ -627,7 +627,7 @@ class DashNetDialog(Factory.Popup):
         MaxPeersPopup(self).open()
 
     def toggle_use_static_peers(self, *args):
-        use_static_peers = not self.config.get('dash_use_static_peers', True)
+        use_static_peers = not self.config.get('dash_use_static_peers', False)
         self.use_static_peers = use_static_peers
         self.config.set_key('dash_use_static_peers', use_static_peers, True)
         net = self.net
