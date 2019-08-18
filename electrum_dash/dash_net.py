@@ -670,9 +670,11 @@ class DashNet(Logger):
         activation_height = constants.net.DIP3_ACTIVATION_HEIGHT
         if base_height <= 1:
             if height > activation_height:
-                height = activation_height // max_blocks * max_blocks
+                height = activation_height // max_blocks + 1
+                height = height * max_blocks - 1
         elif height - (base_height + llmq_offset) > max_blocks:
-            height = (base_height + max_blocks) // max_blocks * max_blocks
+            height = (base_height + max_blocks) // max_blocks + 1
+            height = height * max_blocks - 1
         elif height - base_height > llmq_offset:
             height = height - llmq_offset
 
