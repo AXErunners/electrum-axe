@@ -165,20 +165,21 @@ class AddressSynchronizer(Logger):
     def on_dash_islock(self, event, txid):
         if txid in self.db.islocks:
             self.logger.info(f'islock for {txid} already in wallet islocks')
-        elif txid in self.unverified_tx:
-            self.logger.info(f'found islock pair for: {txid}')
-            self.db.add_islock(txid, self.get_local_height())
-            self._get_addr_balance_cache = {}  # invalidate cache
-            self.storage.write()
-            self.network.trigger_callback('wallet_updated', self)
+        elif txid in self.unverified_tx or txid in self.db.verified_tx:
+            self.logger.info(f'found tx for islock: {txid}')
+            dash_net = self.network.dash_net
+            if dash_net.verify_on_recent_islocks(txid):
+                self.db.add_islock(txid, self.get_local_height())
+                self._get_addr_balance_cache = {}  # invalidate cache
+                self.storage.write()
+                self.network.trigger_callback('wallet_updated', self)
 
     def find_islock_pair(self, txid):
         if txid in self.db.islocks:
             self.logger.info(f'islock for {txid} already in wallet islocks')
         else:
             dash_net = self.network.dash_net
-            if txid in dash_net.recent_islocks:
-                self.logger.info(f'found islock pair for: {txid}')
+            if dash_net.verify_on_recent_islocks(txid):
                 self.db.add_islock(txid, self.get_local_height())
                 self._get_addr_balance_cache = {}  # invalidate cache
                 self.storage.write()

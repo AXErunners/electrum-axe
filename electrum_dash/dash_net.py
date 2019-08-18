@@ -42,12 +42,12 @@ from typing import Optional, Dict
 from . import constants
 from .blockchain import MissingHeader
 from .dash_peer import DashPeer
-from .dash_msg import SporkID
+from .dash_msg import SporkID, LLMQType
 from .i18n import _
 from .logging import Logger
 from .simple_config import SimpleConfig
 from .util import (log_exceptions, ignore_exceptions, SilentTaskGroup,
-                   make_aiohttp_session, make_dir, bfh)
+                   make_aiohttp_session, make_dir, bfh, bh2u)
 
 
 Y2099 = 4070908800  # Thursday, January 1, 2099 12:00:00 AM
@@ -62,6 +62,8 @@ DNS_OVER_HTTPS_ENDPOINTS = [
 ]
 ALLOWED_HOSTNAME_RE = re.compile(r'(?!-)[A-Z\d-]{1,63}(?<!-)$', re.IGNORECASE)
 INSTANCE = None
+
+IS_LLMQ_TYPE = LLMQType.LLMQ_50_60
 
 
 def is_valid_hostname(hostname):
@@ -224,7 +226,9 @@ class DashNet(Logger):
 
         # Recent islocks and chainlocks data
         self.recent_islock_invs = deque([], 200)
-        self.recent_islocks = deque([], 200)
+        self.recent_islocks_lock = threading.Lock()
+        self.recent_islocks_clear = time.time()
+        self.recent_islocks = list()
 
         # Activity data
         self.read_bytes = 0
@@ -398,6 +402,45 @@ class DashNet(Logger):
                 return 'dash_net_4.png'
         else:
             return 'dash_net_off.png'
+
+    def append_to_recent_islocks(self, islock):
+        request_id = islock.calc_request_id()
+        mn_list = self.network.mn_list
+        quorum = mn_list.calc_responsible_quorum(IS_LLMQ_TYPE, request_id)
+        if quorum is None:
+            self.logger.info('no fourm found to verify islock')
+            return
+        txid = bh2u(islock.txid[::-1])
+        with self.recent_islocks_lock:
+            self.recent_islocks.append((txid,
+                                        time.time(),
+                                        islock,
+                                        quorum,
+                                        request_id))
+        self.clear_recent_islocks()
+        self.trigger_callback('dash-islock', txid)
+
+    def verify_on_recent_islocks(self, txid):
+        found = list(filter(lambda x: x[0] == txid, self.recent_islocks))
+        found_cnt = len(found)
+        self.logger.info(f'found {found_cnt} islocks in recent for {txid}')
+        for txid, t, islock, quorum, request_id in found:
+            v_ok = self.verify_islock(islock, quorum, request_id)
+            if v_ok:
+                self.logger.info(f'verify islock ok: {txid}')
+                return True
+            else:
+                self.logger.info(f'verify islock failed: {txid}')
+        return False
+
+    def clear_recent_islocks(self, keep_sec=60):
+        now = time.time()
+        if now - self.recent_islocks_clear < keep_sec/4:
+            return
+        with self.recent_islocks_lock:
+            self.recent_islocks = list(filter(lambda x: now - x[1] < keep_sec,
+                                              self.recent_islocks))
+            self.recent_islocks_clear = now
 
     @log_exceptions
     async def set_parameters(self):
