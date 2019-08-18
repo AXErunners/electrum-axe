@@ -139,15 +139,17 @@ class MNList(Logger):
         return self.network.get_local_height() - self.LLMQ_OFFSET
 
     @property
-    def protx_loaded(self):
+    def protx_loading(self):
         if not self.load_mns:
-            return True
+            return False
         h = self.network.get_local_height()
-        return h <= self.protx_height
+        return h > self.protx_height
 
     @property
-    def llmq_loaded(self):
-        return self.llmq_tip <= self.llmq_height
+    def llmq_loading(self):
+        if not self.dash_net_enabled:
+            return False
+        return self.llmq_tip > self.llmq_height
 
     @property
     def llmq_human_height(self):
@@ -264,16 +266,16 @@ class MNList(Logger):
     async def on_network_status(self, event):
         if (not self.dash_net_enabled
                 and self.network.is_connected()
-                and not self.protx_loaded):
+                and self.protx_loading):
             await self.network.request_protx_diff()
 
     async def on_network_updated(self, key):
         if self.dash_net_enabled:
-            if not self.llmq_loaded:
+            if self.llmq_loading:
                 await self.dash_net.getmnlistd()
-            elif not self.protx_loaded:
+            elif self.protx_loading:
                 await self.dash_net.getmnlistd(get_mns=True)
-        elif not self.protx_loaded:
+        elif self.protx_loading:
             await self.network.request_protx_diff()
 
     async def on_dash_net_updated(self, key, *args):
@@ -283,11 +285,11 @@ class MNList(Logger):
         elif status == 'disabled':
             self.dash_net_enabled = False
         if self.dash_net_enabled:
-            if not self.llmq_loaded:
+            if self.llmq_loading:
                 await self.dash_net.getmnlistd()
-            elif not self.protx_loaded:
+            elif self.protx_loading:
                 await self.dash_net.getmnlistd(get_mns=True)
-        elif not self.protx_loaded:
+        elif self.protx_loading:
             await self.network.request_protx_diff()
 
     def start(self):
@@ -534,9 +536,9 @@ class MNList(Logger):
                     if h in self.diff_hashes:
                         await self.network.request_protx_info(h)
 
-            if not self.llmq_loaded:
+            if self.llmq_loading:
                 await self.dash_net.getmnlistd()
-            elif not self.protx_loaded:
+            elif self.protx_loading:
                 await self.dash_net.getmnlistd(get_mns=True)
             self.notify('mn-list-diff-updated')
 
@@ -634,7 +636,7 @@ class MNList(Logger):
                     if h in self.diff_hashes:
                         await self.network.request_protx_info(h)
 
-            if not self.protx_loaded:
+            if self.protx_loading:
                 await self.network.request_protx_diff()
             self.notify('mn-list-diff-updated')
 

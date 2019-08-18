@@ -211,7 +211,7 @@ class WalletMNsModel(QAbstractTableModel):
                 self.mns_states[mn.alias] = self.STATE_UNREGISTERED
                 continue
 
-            if not self.mn_list or not self.mn_list.protx_loaded:
+            if not self.mn_list or self.mn_list.protx_loading:
                 self.mns_states[mn.alias] = self.STATE_LOADING
                 continue
 
@@ -490,7 +490,7 @@ class Dip3TabWidget(QTabWidget):
     @pyqtSlot(dict)
     def on_diff_updated(self, value):
         state = value.get('state', self.mn_list.DIP3_DISABLED)
-        if self.mn_list.load_mns and self.mn_list.protx_loaded:
+        if self.mn_list.load_mns and not self.mn_list.protx_loading:
             self.reg_model.reload_data()
             self.w_model.reload_data()
 
@@ -515,7 +515,7 @@ class Dip3TabWidget(QTabWidget):
 
         count = len(self.mn_list.protx_mns)
         connected = self.gui.network.is_connected()
-        loading = connected and not self.mn_list.protx_loaded
+        loading = connected and self.mn_list.protx_loading
         ready = _('Loading') if loading else _('Found')
         return (_('%s %s registered DIP3 Masternodes.') % (ready, count))
 
@@ -536,7 +536,7 @@ class Dip3TabWidget(QTabWidget):
             return (_('DIP3 Masternodes is currently disabled.'))
 
         connected = self.gui.network.is_connected()
-        loading = connected and not self.mn_list.protx_loaded
+        loading = connected and self.mn_list.protx_loading
         if loading:
             height = self.mn_list.protx_height
             return (_('Loading DIP3 data at Height: %s.') % height)
@@ -586,7 +586,7 @@ class Dip3TabWidget(QTabWidget):
         vbox.addWidget(self.reg_view)
         w.setLayout(vbox)
         self.addTab(w, read_QIcon('tab_search.png'), _('Registered MNs'))
-        if self.mn_list.protx_loaded:
+        if not self.mn_list.protx_loading:
             self.reg_model.reload_data()
         return w
 
@@ -662,7 +662,7 @@ class Dip3TabWidget(QTabWidget):
         vbox.addWidget(self.w_view)
         w.setLayout(vbox)
         self.addTab(w, read_QIcon('tab_dip3.png'), _('Wallet MNs'))
-        if self.mn_list.protx_loaded:
+        if not self.mn_list.protx_loading:
             self.w_model.reload_data()
         return w
 
