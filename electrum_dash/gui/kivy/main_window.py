@@ -890,12 +890,18 @@ class ElectrumWindow(App):
         # pause nfc
         if self.nfcscanner:
             self.nfcscanner.nfc_disable()
+        if self.network:
+            self.network.stop()
+        if self.wallet:
+            self.electrum_config.save_last_wallet(self.wallet)
         return True
 
     def on_resume(self):
         now = time.time()
         if self.wallet and self.wallet.has_password() and now - self.pause_time > 60:
             self.password_dialog(self.wallet, _('Enter PIN'), None, self.stop)
+        if self.network:
+            self.network.start([self.fx.run])
         if self.nfcscanner:
             self.nfcscanner.nfc_enable()
 
