@@ -130,6 +130,9 @@ class MNList(Logger):
         self.sent_getmnlistd = asyncio.Queue(1)
         self.sent_protx_diff = asyncio.Queue(1)
 
+        # Wait for wallet updated before request LLMQ/ProTx diffs
+        self.wallet_updated = False
+
     @staticmethod
     def get_instance():
         return MN_LIST_INSTANCE
@@ -264,12 +267,20 @@ class MNList(Logger):
         self.trigger_callback(key, value)
 
     async def on_network_status(self, event):
+        if not self.wallet_updated:
+            return
         if (not self.dash_net_enabled
                 and self.network.is_connected()
                 and self.protx_loading):
             await self.network.request_protx_diff()
 
+    async def on_wallet_updated(self, key, val):
+        self.wallet_updated = True
+        await self.on_network_updated('network_updated')
+
     async def on_network_updated(self, key):
+        if not self.wallet_updated:
+            return
         if self.dash_net_enabled:
             if self.llmq_loading:
                 await self.dash_net.getmnlistd()
@@ -284,6 +295,8 @@ class MNList(Logger):
             self.dash_net_enabled = True
         elif status == 'disabled':
             self.dash_net_enabled = False
+        if not self.wallet_updated:
+            return
         if self.dash_net_enabled:
             if self.llmq_loading:
                 await self.dash_net.getmnlistd()
@@ -299,6 +312,8 @@ class MNList(Logger):
         self.network.register_callback(self.on_network_status, ['status'])
         self.network.register_callback(self.on_network_updated,
                                        ['network_updated'])
+        self.network.register_callback(self.on_wallet_updated,
+                                       ['wallet_updated'])
         # dash_net
         self.dash_net.register_callback(self.on_dash_net_updated,
                                         ['dash-net-updated'])
@@ -311,6 +326,7 @@ class MNList(Logger):
         self.network.unregister_callback(self.on_protx_info)
         self.network.unregister_callback(self.on_network_updated)
         self.network.unregister_callback(self.on_network_status)
+        self.network.unregister_callback(self.on_wallet_updated)
         # dash_net
         self.dash_net.unregister_callback(self.on_dash_net_updated)
         self.dash_net.unregister_callback(self.on_mnlistdiff)
