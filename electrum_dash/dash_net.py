@@ -202,7 +202,6 @@ class DashNet(Logger):
         # locks
         self.restart_lock = asyncio.Lock()
         self.callback_lock = threading.Lock()
-        self.recent_peers_lock = threading.RLock()       # <- re-entrant
         self.banlist_lock = threading.RLock()            # <- re-entrant
         self.peers_lock = threading.Lock()  # for mutating/iterating self.peers
 
@@ -213,9 +212,8 @@ class DashNet(Logger):
         self.peers = {}  # type: Dict[str, DashPeer]
         self.connecting = set()
         self.peers_queue = None
-        self.recent_peers = self._read_recent_peers()
         self.banlist = self._read_banlist()
-        self.found_peers = set(self.recent_peers)
+        self.found_peers = set()
 
         self.is_cmd_dash_peers = not config.is_modifiable('dash_peers')
         self.read_conf()
@@ -274,12 +272,6 @@ class DashNet(Logger):
     def get_instance() -> Optional['DashNet']:
         return INSTANCE
 
-    def with_recent_peers_lock(func):
-        def func_wrapper(self, *args, **kwargs):
-            with self.recent_peers_lock:
-                return func(self, *args, **kwargs)
-        return func_wrapper
-
     def with_banlist_lock(func):
         def func_wrapper(self, *args, **kwargs):
             with self.banlist_lock:
@@ -307,40 +299,6 @@ class DashNet(Logger):
                                                  self.loop)
             else:
                 self.loop.call_soon_threadsafe(callback, event, *args)
-
-    @with_recent_peers_lock
-    def _read_recent_peers(self):
-        if not self.data_dir:
-            return []
-        path = os.path.join(self.data_dir, 'recent_peers')
-        try:
-            with open(path, 'r', encoding='utf-8') as f:
-                data = f.read()
-                return json.loads(data)
-        except Exception as e:
-            self.logger.info(f'failed to load recent_peers: {repr(e)}')
-            return []
-
-    @with_recent_peers_lock
-    def _save_recent_peers(self):
-        if not self.data_dir:
-            return
-        path = os.path.join(self.data_dir, 'recent_peers')
-        s = json.dumps(self.recent_peers, indent=4, sort_keys=True)
-        try:
-            with open(path, 'w', encoding='utf-8') as f:
-                f.write(s)
-        except Exception as e:
-            self.logger.info(f'failed to save recent_peers: {repr(e)}')
-
-    @with_recent_peers_lock
-    def _add_recent_peer(self, peer):
-        # list is ordered
-        if peer in self.recent_peers:
-            self.recent_peers.remove(peer)
-        self.recent_peers.insert(0, peer)
-        self.recent_peers = self.recent_peers[:NUM_RECENT_PEERS]
-        self._save_recent_peers()
 
     @with_banlist_lock
     def _read_banlist(self):
@@ -693,7 +651,6 @@ class DashNet(Logger):
             except KeyError:
                 pass
 
-        self._add_recent_peer(peer)
         self.trigger_callback('dash-peers-updated', 'added', peer)
 
     async def getmnlistd(self, get_mns=False):
