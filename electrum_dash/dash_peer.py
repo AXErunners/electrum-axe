@@ -52,6 +52,10 @@ PAYLOAD_LIMIT = 32*2**20  # 32MiB
 READ_LIMIT = 64*2**10     # 64KiB
 
 
+class PeerDisconnected(Exception):
+    pass
+
+
 def deserialize_peer(peer_str: str) -> Tuple[str, str]:
     # host might be IPv6 address, hence do rsplit:
     host, port = str(peer_str).rsplit(':', 1)
@@ -203,7 +207,7 @@ class DashPeer(Logger):
                 await group.spawn(self.process_msgs)
                 await group.spawn(self.process_ping)
                 await group.spawn(self.monitor_connection)
-        except (asyncio.CancelledError, OSError) as e:
+        except (asyncio.CancelledError, OSError, PeerDisconnected) as e:
             raise GracefulDisconnect(e) from e
         except Exception as e:
             raise GracefulDisconnect(e, log_level=logging.ERROR) from e
@@ -382,8 +386,8 @@ class DashPeer(Logger):
                     await self.ban(ban_msg)
                     raise GracefulDisconnect(ban_msg)
             except asyncio.IncompleteReadError:
-                raise GracefulDisconnect('start str not found '
-                                         'in buffer, EOF found')
+                raise PeerDisconnected('start str not found '
+                                       'in buffer, EOF found')
 
         try:
             res = None
@@ -417,7 +421,7 @@ class DashPeer(Logger):
                 return res
             res = DashCmd(cmd, payload)
         except asyncio.IncompleteReadError:
-            raise GracefulDisconnect('error reading msg, EOF reached')
+            raise PeerDisconnected('error reading msg, EOF reached')
         except Exception as e:
             raise GracefulDisconnect(e) from e
         return res
