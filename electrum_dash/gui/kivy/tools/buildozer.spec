@@ -13,7 +13,7 @@ package.domain = org.dash.electrum
 source.dir = .
 
 # (list) Source files to include (let empty to include all the files)
-source.include_exts = py,png,jpg,kv,atlas,ttf,txt,gif,pem,mo,vs,fs,json
+source.include_exts = py,png,jpg,kv,atlas,ttf,txt,gif,pem,mo,vs,fs,json,gz
 
 # (list) Source files to exclude (let empty to not exclude anything)
 source.exclude_exts = spec
@@ -43,7 +43,9 @@ requirements =
     kivy==82d561d62577757d478df52173610f925c05ecab,
     libffi,
     libsecp256k1,
-    x11_hash
+    pycryptodomex==3.6.3,
+    x11_hash,
+    bls_py
 
 # (str) Presplash of the application
 #presplash.filename = %(source.dir)s/gui/kivy/theming/splash.png
@@ -181,7 +183,7 @@ p4a.local_recipes = %(source.dir)s/contrib/p4a
 [buildozer]
 
 # (int) Log level (0 = error only, 1 = info, 2 = debug (with command output))
-log_level = 2
+log_level = 1
 
 
 # -----------------------------------------------------------------------------

@@ -34,6 +34,7 @@ import re
 import threading
 import time
 from aiorpcx import TaskGroup
+from binascii import unhexlify
 from bls_py import bls
 from collections import defaultdict, deque
 from typing import Optional, Dict
@@ -41,12 +42,12 @@ from typing import Optional, Dict
 from . import constants
 from .blockchain import MissingHeader
 from .dash_peer import DashPeer
-from .dash_msg import SporkID
+from .dash_msg import SporkID, LLMQType
 from .i18n import _
 from .logging import Logger
 from .simple_config import SimpleConfig
 from .util import (log_exceptions, ignore_exceptions, SilentTaskGroup,
-                   make_aiohttp_session, make_dir, bfh)
+                   make_aiohttp_session, make_dir, bfh, bh2u)
 
 
 Y2099 = 4070908800  # Thursday, January 1, 2099 12:00:00 AM
@@ -61,6 +62,8 @@ DNS_OVER_HTTPS_ENDPOINTS = [
 ]
 ALLOWED_HOSTNAME_RE = re.compile(r'(?!-)[A-Z\d-]{1,63}(?<!-)$', re.IGNORECASE)
 INSTANCE = None
+
+IS_LLMQ_TYPE = LLMQType.LLMQ_50_60
 
 
 def is_valid_hostname(hostname):
@@ -199,7 +202,6 @@ class DashNet(Logger):
         # locks
         self.restart_lock = asyncio.Lock()
         self.callback_lock = threading.Lock()
-        self.recent_peers_lock = threading.RLock()       # <- re-entrant
         self.banlist_lock = threading.RLock()            # <- re-entrant
         self.peers_lock = threading.Lock()  # for mutating/iterating self.peers
 
@@ -210,9 +212,8 @@ class DashNet(Logger):
         self.peers = {}  # type: Dict[str, DashPeer]
         self.connecting = set()
         self.peers_queue = None
-        self.recent_peers = self._read_recent_peers()
         self.banlist = self._read_banlist()
-        self.found_peers = set(self.recent_peers)
+        self.found_peers = set()
 
         self.is_cmd_dash_peers = not config.is_modifiable('dash_peers')
         self.read_conf()
@@ -223,7 +224,9 @@ class DashNet(Logger):
 
         # Recent islocks and chainlocks data
         self.recent_islock_invs = deque([], 200)
-        self.recent_islocks = deque([], 200)
+        self.recent_islocks_lock = threading.Lock()
+        self.recent_islocks_clear = time.time()
+        self.recent_islocks = list()
 
         # Activity data
         self.read_bytes = 0
@@ -269,12 +272,6 @@ class DashNet(Logger):
     def get_instance() -> Optional['DashNet']:
         return INSTANCE
 
-    def with_recent_peers_lock(func):
-        def func_wrapper(self, *args, **kwargs):
-            with self.recent_peers_lock:
-                return func(self, *args, **kwargs)
-        return func_wrapper
-
     def with_banlist_lock(func):
         def func_wrapper(self, *args, **kwargs):
             with self.banlist_lock:
@@ -302,40 +299,6 @@ class DashNet(Logger):
                                                  self.loop)
             else:
                 self.loop.call_soon_threadsafe(callback, event, *args)
-
-    @with_recent_peers_lock
-    def _read_recent_peers(self):
-        if not self.data_dir:
-            return []
-        path = os.path.join(self.data_dir, 'recent_peers')
-        try:
-            with open(path, 'r', encoding='utf-8') as f:
-                data = f.read()
-                return json.loads(data)
-        except Exception as e:
-            self.logger.info(f'failed to load recent_peers: {repr(e)}')
-            return []
-
-    @with_recent_peers_lock
-    def _save_recent_peers(self):
-        if not self.data_dir:
-            return
-        path = os.path.join(self.data_dir, 'recent_peers')
-        s = json.dumps(self.recent_peers, indent=4, sort_keys=True)
-        try:
-            with open(path, 'w', encoding='utf-8') as f:
-                f.write(s)
-        except Exception as e:
-            self.logger.info(f'failed to save recent_peers: {repr(e)}')
-
-    @with_recent_peers_lock
-    def _add_recent_peer(self, peer):
-        # list is ordered
-        if peer in self.recent_peers:
-            self.recent_peers.remove(peer)
-        self.recent_peers.insert(0, peer)
-        self.recent_peers = self.recent_peers[:NUM_RECENT_PEERS]
-        self._save_recent_peers()
 
     @with_banlist_lock
     def _read_banlist(self):
@@ -397,6 +360,45 @@ class DashNet(Logger):
                 return 'dash_net_4.png'
         else:
             return 'dash_net_off.png'
+
+    def append_to_recent_islocks(self, islock):
+        request_id = islock.calc_request_id()
+        mn_list = self.network.mn_list
+        quorum = mn_list.calc_responsible_quorum(IS_LLMQ_TYPE, request_id)
+        if quorum is None:
+            self.logger.info('no fourm found to verify islock')
+            return
+        txid = bh2u(islock.txid[::-1])
+        with self.recent_islocks_lock:
+            self.recent_islocks.append((txid,
+                                        time.time(),
+                                        islock,
+                                        quorum,
+                                        request_id))
+        self.clear_recent_islocks()
+        self.trigger_callback('dash-islock', txid)
+
+    def verify_on_recent_islocks(self, txid):
+        found = list(filter(lambda x: x[0] == txid, self.recent_islocks))
+        found_cnt = len(found)
+        self.logger.info(f'found {found_cnt} islocks in recent for {txid}')
+        for txid, t, islock, quorum, request_id in found:
+            v_ok = self.verify_islock(islock, quorum, request_id)
+            if v_ok:
+                self.logger.info(f'verify islock ok: {txid}')
+                return True
+            else:
+                self.logger.info(f'verify islock failed: {txid}')
+        return False
+
+    def clear_recent_islocks(self, keep_sec=60):
+        now = time.time()
+        if now - self.recent_islocks_clear < keep_sec/4:
+            return
+        with self.recent_islocks_lock:
+            self.recent_islocks = list(filter(lambda x: now - x[1] < keep_sec,
+                                              self.recent_islocks))
+            self.recent_islocks_clear = now
 
     @log_exceptions
     async def set_parameters(self):
@@ -649,7 +651,6 @@ class DashNet(Logger):
             except KeyError:
                 pass
 
-        self._add_recent_peer(peer)
         self.trigger_callback('dash-peers-updated', 'added', peer)
 
     async def getmnlistd(self, get_mns=False):
@@ -669,9 +670,11 @@ class DashNet(Logger):
         activation_height = constants.net.DIP3_ACTIVATION_HEIGHT
         if base_height <= 1:
             if height > activation_height:
-                height = activation_height // max_blocks * max_blocks
+                height = activation_height // max_blocks + 1
+                height = height * max_blocks - 1
         elif height - (base_height + llmq_offset) > max_blocks:
-            height = (base_height + max_blocks) // max_blocks * max_blocks
+            height = (base_height + max_blocks) // max_blocks + 1
+            height = height * max_blocks - 1
         elif height - base_height > llmq_offset:
             height = height - llmq_offset
 
@@ -734,3 +737,20 @@ class DashNet(Logger):
         aggr_info = bls.AggregationInfo.from_msg_hash(pubk, msg_hash)
         sig.set_aggregation_info(aggr_info)
         return bls.BLS.verify(sig)
+
+    @classmethod
+    def test_bls_speed(cls):
+        # Testnet islock siangature
+        pubk = unhexlify('11df44be9c80fd7c7bfee40ab08e4cf9c84a674250f7d299'
+                         '5d36de0ea1d8ce9d3f18e12e24b84e2f3f00e44ab439cdbd')
+        sig = unhexlify('9851d45e5bfa9d632c346b655a4c47f1b74e41a328f5cebd'
+                        'f05994b75ce271954cc4b92268ce7e18a73a0ab6e49129cf'
+                        '0fa769c65b9b69f82f576c73c91c65968658194a8cf5fdd2'
+                        'c600cb5d75b77906b32b9a41444a5cda660c184c00cda71e')
+        msg_hash = unhexlify('3151f47bacf5a9f335e358083418819d'
+                             '015b801a0fa6a3493f4728980ea99a3f')
+        bpubk = bls.PublicKey.from_bytes(pubk)
+        bsig = bls.Signature.from_bytes(sig)
+        aggr_info = bls.AggregationInfo.from_msg_hash(bpubk, msg_hash)
+        bsig.set_aggregation_info(aggr_info)
+        return bls.BLS.verify(bsig)

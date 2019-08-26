@@ -136,7 +136,6 @@ SHA_FNAME = 'SHA256SUMS.txt'
 PPA_SERIES = {
     'xenial': '16.04.1',
     'bionic': '18.04.1',
-    'cosmic': '18.10.1',
     'disco': '19.04.1',
 }
 PEP440_PUBVER_PATTERN = re.compile('^((\d+)!)?'
@@ -169,8 +168,8 @@ JARSIGNER_ARGS = [
     '-storepass:env', JKS_STOREPASS,
     '-keypass:env', JKS_KEYPASS,
 ]
-UNSIGNED_APK_PATTERN = re.compile('^Electrum_DASH-(.*)-release-unsigned.apk$')
-SIGNED_APK_TEMPLATE = 'Dash-Electrum-{version}-release.apk'
+UNSIGNED_APK_PATTERN = re.compile('^Electrum_DASH(_Testnet)?-(.*)-release-unsigned.apk$')
+SIGNED_APK_TEMPLATE = 'Dash-Electrum{testnet}-{version}-release.apk'
 
 
 os.environ['QUILT_PATCHES'] = 'debian/patches'
@@ -484,7 +483,9 @@ class SignApp(object):
                     apk_match = UNSIGNED_APK_PATTERN.match(name)
                     if apk_match:
                         unsigned_name = name
-                        name = self.sign_apk(unsigned_name, apk_match.group(1))
+                        name = self.sign_apk(unsigned_name,
+                                             apk_match.group(1),
+                                             apk_match.group(2))
 
                         gh_asset_upload(repo, tag, name, dry_run=self.dry_run)
                         gh_asset_delete(repo, tag, unsigned_name,
@@ -514,12 +515,13 @@ class SignApp(object):
             if sdist_match and is_newest_release:
                 self.make_ppa(sdist_match, tmpdir, tag)
 
-    def sign_apk(self, unsigned_name, version):
+    def sign_apk(self, unsigned_name, testnet, version):
         """Sign unsigned release apk"""
         if not (JKS_STOREPASS in os.environ and JKS_KEYPASS in os.environ):
             raise Exception('Found unsigned apk and no zipalign path set')
 
-        name = SIGNED_APK_TEMPLATE.format(version=version)
+        testnet = '-Testnet' if testnet else ''
+        name = SIGNED_APK_TEMPLATE.format(testnet=testnet, version=version)
 
         print('Signing apk: %s' % name)
         apk_args = ['-keystore', self.jks_keystore,

@@ -58,6 +58,7 @@ hiddenimports += [
 ]
 
 datas = [
+    ('electrum_dash/checkpoints*.*', 'electrum_dash'),
     ('electrum_dash/*.json', 'electrum_dash'),
     ('electrum_dash/locale', 'electrum_dash/locale'),
     ('electrum_dash/wordlist', 'electrum_dash/wordlist'),
@@ -171,6 +172,13 @@ coll = COLLECT(exe, #tctl_exe,
                name=os.path.join('dist', 'electrum-dash'))
 
 app = BUNDLE(coll,
+             info_plist={
+                'NSHighResolutionCapable': True,
+                'NSSupportsAutomaticGraphicsSwitching': True,
+                'CFBundleURLTypes': [
+                    {'CFBundleURLName': 'dash', 'CFBundleURLSchemes': ['dash']}
+                ],
+             },
              name=os.path.join('dist', 'Dash Electrum.app'),
              appname="Dash Electrum",
 	         icon='electrum-dash.icns',

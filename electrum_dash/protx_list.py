@@ -130,6 +130,9 @@ class MNList(Logger):
         self.sent_getmnlistd = asyncio.Queue(1)
         self.sent_protx_diff = asyncio.Queue(1)
 
+        # Wait for wallet updated before request LLMQ/ProTx diffs
+        self.wallet_updated = False
+
     @staticmethod
     def get_instance():
         return MN_LIST_INSTANCE
@@ -139,15 +142,17 @@ class MNList(Logger):
         return self.network.get_local_height() - self.LLMQ_OFFSET
 
     @property
-    def protx_loaded(self):
+    def protx_loading(self):
         if not self.load_mns:
-            return True
+            return False
         h = self.network.get_local_height()
-        return h <= self.protx_height
+        return h > self.protx_height
 
     @property
-    def llmq_loaded(self):
-        return self.llmq_tip <= self.llmq_height
+    def llmq_loading(self):
+        if not self.dash_net_enabled:
+            return False
+        return self.llmq_tip > self.llmq_height
 
     @property
     def llmq_human_height(self):
@@ -262,18 +267,26 @@ class MNList(Logger):
         self.trigger_callback(key, value)
 
     async def on_network_status(self, event):
+        if not self.wallet_updated:
+            return
         if (not self.dash_net_enabled
                 and self.network.is_connected()
-                and not self.protx_loaded):
+                and self.protx_loading):
             await self.network.request_protx_diff()
 
+    async def on_wallet_updated(self, key, val):
+        self.wallet_updated = True
+        await self.on_network_updated('network_updated')
+
     async def on_network_updated(self, key):
+        if not self.wallet_updated:
+            return
         if self.dash_net_enabled:
-            if not self.llmq_loaded:
+            if self.llmq_loading:
                 await self.dash_net.getmnlistd()
-            elif not self.protx_loaded:
+            elif self.protx_loading:
                 await self.dash_net.getmnlistd(get_mns=True)
-        elif not self.protx_loaded:
+        elif self.protx_loading:
             await self.network.request_protx_diff()
 
     async def on_dash_net_updated(self, key, *args):
@@ -282,12 +295,14 @@ class MNList(Logger):
             self.dash_net_enabled = True
         elif status == 'disabled':
             self.dash_net_enabled = False
+        if not self.wallet_updated:
+            return
         if self.dash_net_enabled:
-            if not self.llmq_loaded:
+            if self.llmq_loading:
                 await self.dash_net.getmnlistd()
-            elif not self.protx_loaded:
+            elif self.protx_loading:
                 await self.dash_net.getmnlistd(get_mns=True)
-        elif not self.protx_loaded:
+        elif self.protx_loading:
             await self.network.request_protx_diff()
 
     def start(self):
@@ -297,6 +312,8 @@ class MNList(Logger):
         self.network.register_callback(self.on_network_status, ['status'])
         self.network.register_callback(self.on_network_updated,
                                        ['network_updated'])
+        self.network.register_callback(self.on_wallet_updated,
+                                       ['wallet_updated'])
         # dash_net
         self.dash_net.register_callback(self.on_dash_net_updated,
                                         ['dash-net-updated'])
@@ -309,6 +326,7 @@ class MNList(Logger):
         self.network.unregister_callback(self.on_protx_info)
         self.network.unregister_callback(self.on_network_updated)
         self.network.unregister_callback(self.on_network_status)
+        self.network.unregister_callback(self.on_wallet_updated)
         # dash_net
         self.dash_net.unregister_callback(self.on_dash_net_updated)
         self.dash_net.unregister_callback(self.on_mnlistdiff)
@@ -534,9 +552,9 @@ class MNList(Logger):
                     if h in self.diff_hashes:
                         await self.network.request_protx_info(h)
 
-            if not self.llmq_loaded:
+            if self.llmq_loading:
                 await self.dash_net.getmnlistd()
-            elif not self.protx_loaded:
+            elif self.protx_loading:
                 await self.dash_net.getmnlistd(get_mns=True)
             self.notify('mn-list-diff-updated')
 
@@ -634,7 +652,7 @@ class MNList(Logger):
                     if h in self.diff_hashes:
                         await self.network.request_protx_info(h)
 
-            if not self.protx_loaded:
+            if self.protx_loading:
                 await self.network.request_protx_diff()
             self.notify('mn-list-diff-updated')
 

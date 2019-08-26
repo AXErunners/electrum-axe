@@ -1188,15 +1188,17 @@ class Network(Logger):
         if not height or height <= base_height:
             return
 
-        max_blocks = self.config.get('protx_diff_max_blocks', 1000)
+        max_blocks = 2016  # block headers chunk size
         activation_height = constants.net.DIP3_ACTIVATION_HEIGHT
         if base_height <= 1:
             if base_height == 0:  # on protx diff first allowed height is 1
                 base_height = 1
             if height > activation_height:
-                height = activation_height
+                height = activation_height // max_blocks + 1
+                height = height * max_blocks - 1
         elif height - base_height > max_blocks:
-            height = base_height + max_blocks
+            height = (base_height + max_blocks) // max_blocks + 1
+            height = height * max_blocks - 1
 
         try:
             params = (base_height, height)

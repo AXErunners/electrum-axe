@@ -23,7 +23,7 @@ echo osx build version is $DASH_ELECTRUM_VERSION
 git submodule init
 git submodule update
 
-info "Building CalinsQRReader..."
+echo "Building CalinsQRReader..."
 d=contrib/CalinsQRReader
 pushd $d
 rm -fr build
@@ -49,12 +49,6 @@ pyinstaller \
     -y \
     --name electrum-dash-$DASH_ELECTRUM_VERSION.bin \
     osx.spec
-
-info "Adding Dash URI types to Info.plist"
-plutil -insert 'CFBundleURLTypes' \
-   -xml '<array><dict> <key>CFBundleURLName</key> <string>dash</string> <key>CFBundleURLSchemes</key> <array><string>dash</string></array> </dict></array>' \
-   -- dist/Dash\ Electrum.app/Contents/Info.plist \
-   || fail "Could not add keys to Info.plist. Make sure the program 'plutil' exists and is installed."
 
 sudo hdiutil create -fs HFS+ -volname "Dash Electrum" \
     -srcfolder dist/Dash\ Electrum.app \

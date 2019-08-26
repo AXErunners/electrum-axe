@@ -3,11 +3,12 @@
 import time
 from enum import IntEnum
 
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtWidgets import (QGridLayout, QDialog, QVBoxLayout, QCheckBox,
                              QTabWidget, QWidget, QLabel, QSpinBox, QLineEdit,
                              QTreeWidget, QTreeWidgetItem, QMenu, QHeaderView)
 
+from electrum_dash import constants
 from electrum_dash.dash_net import MIN_PEERS_LIMIT, MAX_PEERS_LIMIT
 from electrum_dash.i18n import _
 from electrum_dash.logging import get_logger
@@ -229,9 +230,49 @@ class DashNetDialogLayout(object):
         dash_net_tab = QWidget()
         sporks_tab = QWidget()
         banlist_tab = QWidget()
+        bls_speed_tab = QWidget()
         tabs.addTab(dash_net_tab, _('Dash Network'))
         tabs.addTab(sporks_tab, _('Sporks'))
         tabs.addTab(banlist_tab, _('Banlist'))
+
+        if parent.is_testnet:
+            tabs.addTab(bls_speed_tab, _('BLS Speed'))
+            self.min_t = 1000
+            self.max_t = 0
+            self.n_measures = -1
+            def min_str():
+                return _('Min time') + f': {self.min_t}'
+            def max_str():
+                return _('Max time') + f': {self.max_t}'
+            self.min_label = QLabel(min_str())
+            self.max_label = QLabel(max_str())
+            vbox = QVBoxLayout(bls_speed_tab)
+            vbox.addWidget(self.min_label)
+            vbox.addWidget(self.max_label)
+            self.timer = QTimer()
+            self.timer.setInterval(500)
+
+            def update_bls_speed():
+                if self.parent.isVisible() and bls_speed_tab.isVisible():
+                    start_t = time.time()
+                    res = self.network.dash_net.test_bls_speed()
+                    res_t = time.time() - start_t
+                    _logger.info(f'Test BLS Speed: res={res}, time={res_t}')
+                    self.min_t = min(self.min_t, res_t)
+                    self.max_t = max(self.max_t, res_t)
+                    self.min_label.setText(min_str())
+                    self.max_label.setText(max_str())
+                    self.n_measures +=1
+                    if self.n_measures >= 100:
+                        self.timer.stop()
+            self.timer.timeout.connect(update_bls_speed)
+
+            def on_tabs_current_changed(*args):
+                cur_widget = self.tabs.currentWidget()
+                if cur_widget == bls_speed_tab and self.n_measures < 0:
+                    self.n_measures = 0
+                    self.timer.start()
+            tabs.currentChanged.connect(on_tabs_current_changed)
 
         # Dash Network tab
         grid = QGridLayout(dash_net_tab)
@@ -375,6 +416,7 @@ class DashNetDialog(QDialog):
         QDialog.__init__(self)
         self.setWindowTitle(_('Dash Network'))
         self.setMinimumSize(700, 400)
+        self.is_testnet = constants.net.TESTNET
         self.dnlayout = DashNetDialogLayout(network, config, self)
         self.dash_net_sobj = dash_net_sobj
         vbox = QVBoxLayout(self)

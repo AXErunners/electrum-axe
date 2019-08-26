@@ -76,6 +76,9 @@ from electrum_dash.util import (base_units, NoDynamicFeeEstimates, decimal_point
                                 DECIMAL_POINT_DEFAULT)
 
 
+ATLAS_ICON = 'atlas://electrum_dash/gui/kivy/theming/light/%s'
+
+
 class ElectrumWindow(App):
 
     electrum_config = ObjectProperty(None)
@@ -497,11 +500,10 @@ class ElectrumWindow(App):
         '''
         import time
         Logger.info('Time to on_start: {} <<<<<<<<'.format(time.clock()))
-        win = Window
-        win.bind(size=self.on_size, on_keyboard=self.on_keyboard)
-        win.bind(on_key_down=self.on_key_down)
-        #win.softinput_mode = 'below_target'
-        self.on_size(win, win.size)
+        Window.bind(size=self.on_size, on_keyboard=self.on_keyboard)
+        Window.bind(on_key_down=self.on_key_down)
+        #Window.softinput_mode = 'below_target'
+        self.on_size(Window, Window.size)
         self.init_ui()
         crash_reporter.ExceptionHook(self)
         # init plugins
@@ -730,7 +732,10 @@ class ElectrumWindow(App):
         self.receive_screen = None
         self.requests_screen = None
         self.address_screen = None
-        self.icon = "electrum_dash/gui/icons/electrum-dash.png"
+        if self.testnet:
+            self.icon = 'electrum_dash/gui/icons/electrum-dash-testnet.png'
+        else:
+            self.icon = 'electrum_dash/gui/icons/electrum-dash.png'
         self.tabs = self.root.ids['tabs']
 
     def update_interfaces(self, dt):
@@ -872,17 +877,31 @@ class ElectrumWindow(App):
         except ImportError:
             Logger.Error('Notification: needs plyer; `sudo python3 -m pip install plyer`')
 
+    @property
+    def testnet(self):
+        return self.electrum_config.get('testnet')
+
+    @property
+    def app_icon(self):
+        return ATLAS_ICON % ('logo-testnet' if self.testnet else 'logo')
+
     def on_pause(self):
         self.pause_time = time.time()
         # pause nfc
         if self.nfcscanner:
             self.nfcscanner.nfc_disable()
+        if self.network:
+            self.network.stop()
+        if self.wallet:
+            self.electrum_config.save_last_wallet(self.wallet)
         return True
 
     def on_resume(self):
         now = time.time()
         if self.wallet and self.wallet.has_password() and now - self.pause_time > 60:
             self.password_dialog(self.wallet, _('Enter PIN'), None, self.stop)
+        if self.network:
+            self.network.start([self.fx.run])
         if self.nfcscanner:
             self.nfcscanner.nfc_enable()
 

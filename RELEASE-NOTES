@@ -1,11 +1,14 @@
 # Release 3.3.8
 
  * appimage: URLs could not be opened on some desktop environments (#5425)
- * A few other minor bugfixes and usability improvements.
- * add DashNetwork for support (dash_net, dash_peer, dash_msg modules,
-   qt/kivy gui)
- * refactor ProTx support (stores ProTX MNs and LLMQ lists in file)
+ * add Dash P2P Network for InstantSend support (dash_net, dash_peer,
+   dash_msg modules, qt/kivy gui)
  * add InstantSend support (wallet/stdio/text/qt/kivy)
+ * refactor ProTx support (stores ProTX MNs and LLMQ lists in file)
+ * refresh checkpoints, use gzipped checkpoints, add testnet checkpoints
+ * fix fonts bluring on macOS retina
+ * fix android install wizard back button behavior
+ * A few other minor bugfixes and usability improvements.
 
 
 # Release 3.3.7

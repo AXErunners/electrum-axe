@@ -311,10 +311,16 @@ if __name__ == '__main__':
 
     # config is an object passed to the various constructors (wallet, interface, gui)
     if is_android:
+        from plyer.platforms.android import activity
+        package_name = activity.getPackageName().lower()
+        if package_name.endswith('testnet'):
+            args.testnet = True
+
         config_options = {
             'verbosity': '',
             'cmd': 'gui',
             'gui': 'kivy',
+            'testnet': args.testnet,
         }
     else:
         config_options = args.__dict__
