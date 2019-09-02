@@ -1,20 +1,38 @@
 # -*- coding: utf-8 -*-
+#
+# Axe-Electrum - lightweight Axe client
+# Copyright (C) 2019 Axe Developers
+#
+# Permission is hereby granted, free of charge, to any person
+# obtaining a copy of this software and associated documentation files
+# (the "Software"), to deal in the Software without restriction,
+# including without limitation the rights to use, copy, modify, merge,
+# publish, distribute, sublicense, and/or sell copies of the Software,
+# and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+# BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+# ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 
-import asyncio
-import ipaddress
-import struct
 import threading
-from collections import namedtuple, defaultdict
+from collections import defaultdict
 
-from . import bitcoin
 from .bitcoin import TYPE_ADDRESS, is_b58_address, b58_address_to_hash160
-from .crypto import sha256d
 from .axe_tx import (TxOutPoint, ProTxService, AxeProRegTx, AxeProUpServTx,
-                      AxeProUpRegTx, AxeProUpRevTx, AxeCbTx, SPEC_PRO_REG_TX,
-                      SPEC_PRO_UP_SERV_TX, SPEC_PRO_UP_REG_TX, SPEC_PRO_UP_REV_TX)
-from .transaction import Transaction, BCDataStream, SerializationError
-from .util import bfh, bh2u, hfu
-from .verifier import SPV
+                      AxeProUpRegTx, AxeProUpRevTx,
+                      SPEC_PRO_REG_TX, SPEC_PRO_UP_SERV_TX,
+                      SPEC_PRO_UP_REG_TX, SPEC_PRO_UP_REV_TX)
+from .transaction import Transaction
+from .util import bfh
 from .logging import Logger
 
 
@@ -29,32 +47,8 @@ PROTX_TX_TYPES = [
 class ProTxMNExc(Exception): pass
 
 
-class PartialMerkleTree(namedtuple('PartialMerkleTree', 'total hashes flags')):
-    '''Class representing CPartialMerkleTree of axed'''
-    @classmethod
-    def read_bytes(cls, raw_bytes):
-        vds = BCDataStream()
-        vds.write(raw_bytes)
-
-        total = vds.read_uint32()
-        n_hashes = vds.read_compact_size()
-        hashes = []
-        for n in range(n_hashes):
-            hashes.append(bh2u(vds.read_bytes(32)[::-1]))
-        n_flags = vds.read_compact_size()
-        flags = []
-        for n in range(n_flags):
-            flags_n = vds.read_uchar()
-            for i in range(8):
-                flags.append((flags_n >> i) & 1)
-        if vds.can_read_more():
-            raise SerializationError('extra junk at the '
-                                     'end of PartialMerkleTree')
-        return PartialMerkleTree(total, hashes, flags)
-
-
 class ProTxMN:
-    """
+    '''
     Masternode data with next properties:
 
     alias               MN alias
@@ -74,7 +68,7 @@ class ProTxMN:
     op_payout_address   Operator payee address
 
     protx_hash          Hash of ProRegTx transaction
-    """
+    '''
 
     fields = ('alias is_owned is_operated bls_privk type mode '
               'collateral service owner_addr pubkey_operator voting_addr '
@@ -137,9 +131,9 @@ class ProRegTxExc(Exception): pass
 
 
 class ProTxManager(Logger):
-    DIP3_DISABLED = 0
-    DIP3_ENABLED = 1
-    DIP3_UNKNOWN = 2
+    '''Class representing wallet DIP3 masternodes manager'''
+
+    LOGGING_SHORTCUT = 'M'
 
     def __init__(self, wallet):
         Logger.__init__(self)
@@ -149,71 +143,13 @@ class ProTxManager(Logger):
         self.callback_lock = threading.Lock()
         self.manager_lock = threading.Lock()
         self.callbacks = defaultdict(list)
-        self.network_subscribed = False
-        self.protx_subscribed = False
-
-        self.protx_base_height = 1
-        self.protx_state = ProTxManager.DIP3_UNKNOWN
-        self.protx_mns = {}  # Network registered MNs
-        self.protx_info = {} # Detailed info on registered ProTxHash
-
-        self.diffs_ready = False
-        self.diff_deleted_mns = []
-        self.diff_hashes = []
-        self.info_hash = ''
         self.alias_updated = ''
-        self.sml_hashes_cache = {}
 
     def with_manager_lock(func):
         def func_wrapper(self, *args, **kwargs):
             with self.manager_lock:
                 return func(self, *args, **kwargs)
         return func_wrapper
-
-    def clean_up(self):
-        self.unsubscribe_from_network_updates()
-
-    def subscribe_to_network_updates(self):
-        if self.network and not self.protx_subscribed:
-            if not self.network.is_connected():
-                return
-            self.protx_subscribed = True
-            self.network.register_callback(self.on_protx_diff,
-                                           ['protx-diff'])
-            self.network.register_callback(self.on_protx_info,
-                                           ['protx-info'])
-            self.network.register_callback(self.on_network_updated,
-                                           ['network_updated'])
-            coro = self.network.request_protx_diff(self.protx_base_height)
-            loop = self.network.asyncio_loop
-            asyncio.run_coroutine_threadsafe(coro, loop)
-
-    def unsubscribe_from_network_updates(self):
-        if self.network:
-            if self.protx_subscribed:
-                self.protx_subscribed = False
-                self.network.unregister_callback(self.on_protx_diff)
-                self.network.unregister_callback(self.on_protx_info)
-                self.network.unregister_callback(self.on_network_updated)
-            if self.network_subscribed:
-                self.network_subscribed = False
-                self.network.unregister_callback(self.on_verified_tx)
-                self.network.unregister_callback(self.on_network_status)
-
-    def on_network_start(self, network):
-        self.network = network
-        if not self.network_subscribed:
-            self.network_subscribed = True
-            self.network.register_callback(self.on_verified_tx, ['verified'])
-            self.network.register_callback(self.on_network_status, ['status'])
-
-    def on_network_status(self, event):
-        self.notify('manager-net-state-changed')
-
-    async def on_network_updated(self, key):
-        if not self.network or not self.diffs_ready:
-            return
-        await self.network.request_protx_diff(self.protx_base_height)
 
     def register_callback(self, callback, events):
         with self.callback_lock:
@@ -232,34 +168,29 @@ class ProTxManager(Logger):
         [callback(event, *args) for callback in callbacks]
 
     def notify(self, key):
-        if key == 'manager-diff-updated':
-            value = {
-                'state': self.protx_state,
-                'deleted_mns': self.diff_deleted_mns,
-                'diff_hashes': self.diff_hashes,
-            }
-            self.diff_deleted_mns = []
-            self.diff_hashes = []
-        elif key == 'manager-info-updated':
-            value = self.info_hash
-            self.info_hash = ''
-        elif key == 'manager-alias-updated':
+        if key == 'manager-alias-updated':
             value = self.alias_updated
             self.alias_updated = ''
-        elif key == 'manager-net-state-changed':
-            value = True if self.network.is_connected() else False
         else:
             value = None
         self.trigger_callback(key, value)
 
+    def on_network_start(self, network):
+        self.network = network
+        self.network.register_callback(self.on_verified_tx, ['verified'])
+
+    def clean_up(self):
+        if self.network:
+            self.network.unregister_callback(self.on_verified_tx)
+
     @with_manager_lock
     def load(self):
-        """Load masternodes from wallet storage."""
+        '''Load masternodes from wallet storage.'''
         stored_mns = self.wallet.storage.get('protx_mns', {})
         self.mns = {k: ProTxMN.from_dict(d) for k, d in stored_mns.items()}
 
-    def save(self, with_lock=False):
-        """Save masternodes to wallet storage with lock."""
+    def save(self, with_lock=True):
+        '''Save masternodes to wallet storage with lock.'''
         if with_lock:
             with self.manager_lock:
                 self._do_save()
@@ -267,7 +198,7 @@ class ProTxManager(Logger):
             self._do_save()
 
     def _do_save(self):
-        """Save masternodes to wallet storage."""
+        '''Save masternodes to wallet storage.'''
         stored_mns = {}
         for mn in self.mns.values():
             if not mn.alias:
@@ -285,11 +216,11 @@ class ProTxManager(Logger):
         if len(new_alias) > 32:
             raise ProTxManagerExc('Masternode alias can not be longer '
                                   'than 32 characters')
-        if not alias in self.mns.keys():
+        if alias not in self.mns.keys():
             raise ProTxManagerExc('Masternode with alias %s does not exists' %
                                   alias)
         self.mns[alias] = new_mn
-        self.save()
+        self.save(with_lock=False)
 
     @with_manager_lock
     def add_mn(self, mn):
@@ -303,15 +234,15 @@ class ProTxManager(Logger):
             raise ProTxManagerExc('Masternode with alias %s already exists' %
                                   alias)
         self.mns[alias] = mn
-        self.save()
+        self.save(with_lock=False)
 
     @with_manager_lock
     def remove_mn(self, alias):
-        if not alias in self.mns.keys():
+        if alias not in self.mns.keys():
             raise ProTxManagerExc('Masternode with alias %s does not exists' %
                                   alias)
         del self.mns[alias]
-        self.save()
+        self.save(with_lock=False)
 
     @with_manager_lock
     def rename_mn(self, alias, new_alias):
@@ -320,7 +251,7 @@ class ProTxManager(Logger):
         if len(new_alias) > 32:
             raise ProTxManagerExc('Masternode alias can not be longer '
                                   'than 32 characters')
-        if not alias in self.mns.keys():
+        if alias not in self.mns.keys():
             raise ProTxManagerExc('Masternode with alias %s does not exists' %
                                   alias)
         if new_alias in self.mns.keys():
@@ -330,10 +261,10 @@ class ProTxManager(Logger):
         mn.alias = new_alias
         self.mns[new_alias] = mn
         del self.mns[alias]
-        self.save()
+        self.save(with_lock=False)
 
     def prepare_pro_reg_tx(self, alias):
-        """Prepare and return ProRegTx from ProTxMN alias"""
+        '''Prepare and return ProRegTx from ProTxMN alias'''
         mn = self.mns.get('%s' % alias)
         if not mn:
             raise ProRegTxExc('Masternode alias %s not found' % alias)
@@ -390,7 +321,7 @@ class ProTxManager(Logger):
         return tx
 
     def prepare_pro_up_srv_tx(self, mn):
-        """Prepare and return ProUpServTx from ProTxMN alias"""
+        '''Prepare and return ProUpServTx from ProTxMN alias'''
         if not mn.protx_hash:
             raise ProRegTxExc('Masternode has no proTxHash')
 
@@ -414,7 +345,7 @@ class ProTxManager(Logger):
         return tx
 
     def prepare_pro_up_reg_tx(self, mn):
-        """Prepare and return ProUpRegTx from ProTxMN alias"""
+        '''Prepare and return ProUpRegTx from ProTxMN alias'''
         if not mn.protx_hash:
             raise ProRegTxExc('Masternode has no proTxHash')
 
@@ -444,7 +375,7 @@ class ProTxManager(Logger):
         return tx
 
     def prepare_pro_up_rev_tx(self, alias, reason):
-        """Prepare and return ProUpRevTx from ProTxMN alias"""
+        '''Prepare and return ProUpRevTx from ProTxMN alias'''
         mn = self.mns.get('%s' % alias)
         if not mn:
             raise ProRegTxExc('Masternode alias %s not found' % alias)
@@ -461,191 +392,6 @@ class ProTxManager(Logger):
         tx = AxeProUpRevTx(1, bfh(mn.protx_hash)[::-1], reason,
                             b'\x00'*32, b'\x00'*96)
         return tx
-
-    async def on_protx_diff(self, key, value):
-        '''Process and check protx.diff data, update protx_mns data/status'''
-        base_height, height = value.get('params')
-        if base_height != self.protx_base_height:
-            return  # not this instance base height
-
-        self.diff_deleted_mns = []
-        self.diff_hashes = []
-
-        error = value.get('error')
-        if error:
-            self.logger.error(f'on_protx_diff: error: {error}')
-            self.protx_state = ProTxManager.DIP3_DISABLED
-            self.notify('manager-diff-updated')
-            return
-
-        protx_diff = value.get('result')
-
-        cbtx = Transaction(protx_diff.get('cbTx', ''))
-        cbtx.deserialize()
-        if cbtx.tx_type != 5:
-            self.protx_base_height = height
-            self.protx_state = ProTxManager.DIP3_DISABLED
-            self.notify('manager-diff-updated')
-            return
-
-        cbtx_extra = cbtx.extra_payload
-        if not isinstance(cbtx_extra, AxeCbTx):
-            self.logger.error('on_protx_diff: wrong CbTx extra_payload')
-            self.protx_state = ProTxManager.DIP3_DISABLED
-            self.notify('manager-diff-updated')
-            return
-
-        if cbtx_extra.version > 2:
-            self.logger.error(f'on_protx_diff: unkonw CbTx '
-                              f'version {cbtx_extra.version}')
-            self.protx_state = ProTxManager.DIP3_DISABLED
-            self.notify('manager-diff-updated')
-            return
-
-        protx_new = {k: v.copy() for k, v in self.protx_mns.items()}
-        deleted_mns = protx_diff.get('deletedMNs', [])
-        for del_hash in deleted_mns:
-            if del_hash in protx_new:
-                del protx_new[del_hash]
-
-        for mn in protx_diff.get('mnList', []):
-            protx_hash = mn.get('proRegTxHash', '')
-            protx_new[protx_hash] = mn
-
-        hash_sorted = [v for k,v in sorted(protx_new.items(),
-                                           key=lambda x: bfh(x[0])[::-1])]
-
-        # Calculate SML entries hashes
-        sml_hashes = []
-        for protx_entry in hash_sorted:
-            proRegTxHash = protx_entry.get('proRegTxHash')
-            confirmedHash = protx_entry.get('confirmedHash')
-            service = protx_entry.get('service')
-            pubKeyOperator = protx_entry.get('pubKeyOperator')
-            votingAddress = protx_entry.get('votingAddress')
-            isValid = protx_entry.get('isValid')
-            cache_key = (proRegTxHash + confirmedHash + service +
-                         pubKeyOperator + votingAddress + str(isValid))
-            sml_hash = self.sml_hashes_cache.get(cache_key)
-            if not sml_hash:
-                sml_entry = bfh(proRegTxHash)[::-1]
-                sml_entry += bfh(confirmedHash)[::-1]
-                if ']' in service:          # IPv6
-                    ip, port = service.split(']')
-                    ip = ip[1:]             # remove opening square bracket
-                    port = port[1:]         # remove colon before portnum
-                    sml_entry += ipaddress.ip_address(ip).packed
-                else:                       # IPv4
-                    ip, port = service.split(':')
-                    sml_entry += b'\x00'*10 + b'\xff'*2
-                    sml_entry += ipaddress.ip_address(ip).packed
-                sml_entry += struct.pack('>H', int(port))
-                sml_entry += bfh(pubKeyOperator)
-                sml_entry += bitcoin.b58_address_to_hash160(votingAddress)[1]
-                sml_entry += b'\x01' if isValid else b'\x00'
-                sml_hash = sha256d(sml_entry)
-                self.sml_hashes_cache[cache_key] = sml_hash
-            sml_hashes.append(sml_hash)
-
-        # Calculate Merkle root for SML hashes
-        hashes_len = len(sml_hashes)
-        if hashes_len == 0:
-            self.protx_base_height = height
-            self.protx_state = ProTxManager.DIP3_ENABLED
-            self.notify('manager-diff-updated')
-            return
-
-        while True:
-            if hashes_len == 1:
-                break
-            if hashes_len % 2 == 1:
-                sml_hashes.append(sml_hashes[-1])
-                hashes_len += 1
-            res = []
-            for i in range(hashes_len//2):
-                res.append(sha256d(sml_hashes[i*2] + sml_hashes[i*2+1]))
-            sml_hashes = res
-            hashes_len = len(sml_hashes)
-
-        # Check merkle root to match protx.diff merkleRootMNList
-        mr_calculated = hfu(sml_hashes[0][::-1])
-        mr_diff = protx_diff.get('merkleRootMNList', '').encode('utf-8')
-        if mr_calculated != mr_diff:
-            self.logger.error('on_protx_diff: SML merkle root '
-                              'differs from protx.diff merkle root')
-            return
-
-        # Check merkle root to match CbTx merkleRootMNList
-        mr_cbtx = hfu(cbtx_extra.merkleRootMNList[::-1])
-        if mr_calculated != mr_cbtx:
-            self.logger.error('on_protx_diff: SML merkle root '
-                              'differs from CbTx merkle root')
-            return
-
-        # Check CbTx in blockchain
-        cbtx_txid = cbtx.txid()
-        cbtx_height = cbtx_extra.height
-        cbtx_merkle_tree = protx_diff.get('cbTxMerkleTree', '')
-        pmt = PartialMerkleTree.read_bytes(bfh(cbtx_merkle_tree)).hashes
-
-        if cbtx_txid != pmt[0]:
-            self.logger.error('on_protx_diff: CbTx txid differs '
-                              'from merkle tree hash 0')
-            return
-
-        pmt.pop(0)  # remove cbtx_txid
-        if len(pmt) > 0:
-            merkle_root_calculated = SPV.hash_merkle_root(pmt, cbtx_txid, 0)
-        else:
-            merkle_root_calculated = cbtx_txid
-
-        cbtx_header = self.network.blockchain().read_header(cbtx_height)
-        if not cbtx_header or not 'merkle_root' in cbtx_header:
-            self.logger.error('on_protx_diff: can not read blockchain'
-                              'header to check merkle root')
-            return
-
-        if cbtx_header['merkle_root'] != merkle_root_calculated:
-            self.logger.error('on_protx_diff: CbTx calculated merkle root '
-                              'differs from blockchain merkle root')
-            return
-
-        self.protx_mns = protx_new
-        self.protx_base_height = cbtx_height
-        self.protx_state = ProTxManager.DIP3_ENABLED
-        self.diff_deleted_mns = deleted_mns
-        self.diff_hashes = list(map(lambda x: x['proRegTxHash'],
-                                    protx_diff.get('mnList', [])))
-
-        for h in self.diff_deleted_mns:
-            self.protx_info.pop(h, None)
-
-        for h in self.protx_info.keys():
-            await self.network.request_protx_info(h)
-
-        if self.protx_base_height >= self.network.get_server_height():
-            self.diffs_ready = True
-
-        self.notify('manager-diff-updated')
-
-    async def on_protx_info(self, key, value):
-        self.info_hash = ''
-
-        error = value.get('error')
-        if error:
-            self.logger.error(f'on_protx_info: error: {error}')
-            return
-
-        protx_info = value.get('result')
-        protx_hash = protx_info.get('proTxHash', '')
-
-        if not protx_hash:
-            self.logger.error('on_protx_info: empty result')
-            return
-
-        self.protx_info[protx_hash] = protx_info
-        self.info_hash = protx_hash
-        self.notify('manager-info-updated')
 
     def on_verified_tx(self, event, wallet, tx_hash, tx_mined_status):
         tx = wallet.db.get_transaction(tx_hash)

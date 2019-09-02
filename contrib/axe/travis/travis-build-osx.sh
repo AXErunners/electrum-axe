@@ -23,18 +23,18 @@ echo osx build version is $AXE_ELECTRUM_VERSION
 git submodule init
 git submodule update
 
-info "Building CalinsQRReader..."
+echo "Building CalinsQRReader..."
 d=contrib/CalinsQRReader
 pushd $d
 rm -fr build
 xcodebuild || fail "Could not build CalinsQRReader"
 popd
 
-sudo pip3 install -r contrib/deterministic-build/requirements.txt
-sudo pip3 install -r contrib/deterministic-build/requirements-hw.txt
-sudo pip3 install -r contrib/deterministic-build/requirements-binaries.txt
-sudo pip3 install x11_hash>=1.4
-sudo pip3 install PyInstaller==3.4 --no-use-pep517
+sudo pip3 install --no-warn-script-location -r contrib/deterministic-build/requirements.txt
+sudo pip3 install --no-warn-script-location -r contrib/deterministic-build/requirements-hw.txt
+sudo pip3 install --no-warn-script-location -r contrib/deterministic-build/requirements-binaries.txt
+sudo pip3 install --no-warn-script-location x11_hash>=1.4
+sudo pip3 install --no-warn-script-location PyInstaller==3.4 --no-use-pep517
 
 export PATH="/usr/local/opt/gettext/bin:$PATH"
 ./contrib/make_locale
@@ -49,12 +49,6 @@ pyinstaller \
     -y \
     --name electrum-axe-$AXE_ELECTRUM_VERSION.bin \
     osx.spec
-
-info "Adding Axe URI types to Info.plist"
-plutil -insert 'CFBundleURLTypes' \
-   -xml '<array><dict> <key>CFBundleURLName</key> <string>axe</string> <key>CFBundleURLSchemes</key> <array><string>axe</string></array> </dict></array>' \
-   -- dist/Axe\ Electrum.app/Contents/Info.plist \
-   || fail "Could not add keys to Info.plist. Make sure the program 'plutil' exists and is installed."
 
 sudo hdiutil create -fs HFS+ -volname "Axe Electrum" \
     -srcfolder dist/Axe\ Electrum.app \

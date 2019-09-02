@@ -78,8 +78,8 @@ def parse_proposals_subscription_result(results):
         kwargs['payment_amount'] = pow(10, 8) * payment_amount
         proposals.append(BudgetProposal.from_dict(kwargs))
 
-    _logger.error(f'Received updated budget proposal information '
-                  f'({len(proposals)} proposals)')
+    _logger.info(f'Received updated budget proposal information '
+                 f'({len(proposals)} proposals)')
     return proposals
 
 class MasternodeManager(object):
@@ -120,9 +120,12 @@ class MasternodeManager(object):
                 request = ('masternode.subscribe', [collateral])
                 async def update_collateral_status():
                     self.masternode_statuses[collateral] = ''
-                    res = await method(*request)
-                    response = {'params': request[1], 'result': res}
-                    self.masternode_subscription_response(response)
+                    try:
+                        res = await method(*request)
+                        response = {'params': request[1], 'result': res}
+                        self.masternode_subscription_response(response)
+                    except Exception as e:
+                        _logger.info(f'subscribe_to_masternodes: {repr(e)}')
                 network.run_from_another_thread(update_collateral_status())
 
     def get_masternode(self, alias):
@@ -286,24 +289,31 @@ class MasternodeManager(object):
         # Vector-serialize the masternode.
         serialized = '01' + mn.serialize()
         errmsg = []
-        callback = lambda r: self.broadcast_announce_callback(alias, errmsg, r)
+
         self.network_event.clear()
-        self.wallet.network.send([('masternode.announce.broadcast', [serialized])], callback)
+        network = self.wallet.network
+        method = network.interface.session.send_request
+        request = ('masternode.announce.broadcast', [serialized])
+        async def masternode_announce_broadcast():
+            try:
+                r = {}
+                r['result'] = await method(*request)
+            except Exception as e:
+                r['result'] = {}
+                r['error'] = str(e)
+            try:
+                self.on_broadcast_announce(alias, r)
+            except Exception as e:
+                errmsg.append(str(e))
+            finally:
+                self.save()
+                self.network_event.set()
+        network.run_from_another_thread(masternode_announce_broadcast())
         self.network_event.wait()
         self.subscribe_to_masternodes()
         if errmsg:
             errmsg = errmsg[0]
         return (errmsg, mn.announced)
-
-    def broadcast_announce_callback(self, alias, errmsg, r):
-        """Callback for when a Masternode Announce message is broadcasted."""
-        try:
-            self.on_broadcast_announce(alias, r)
-        except Exception as e:
-            errmsg.append(str(e))
-        finally:
-            self.save()
-            self.network_event.set()
 
     def on_broadcast_announce(self, alias, r):
         """Validate the server response."""
@@ -367,7 +377,7 @@ class MasternodeManager(object):
             try:
                 self.populate_masternode_output(mn.alias)
             except Exception as e:
-                _logger.error(str(e))
+                _logger.info(str(e))
             num_imported += 1
 
         return num_imported
@@ -432,27 +442,32 @@ class MasternodeManager(object):
         Returns a 2-tuple of (error_message, success).
         """
         errmsg = []
-        callback = lambda r: self.broadcast_vote_callback(vote, errmsg, r)
-        params = [vote.vin['prevout_hash'], vote.vin['prevout_n'], vote.proposal_hash, vote.vote.lower(),
-                vote.timestamp, sig]
+        params = [vote.vin['prevout_hash'],
+                  vote.vin['prevout_n'],
+                  vote.proposal_hash, vote.vote.lower(),
+                  vote.timestamp, sig]
         self.network_event.clear()
-        self.wallet.network.send([('masternode.budget.submitvote', params)], callback)
+        network = self.wallet.network
+        method = network.interface.session.send_request
+        request = ('masternode.budget.submitvote', params)
+        async def masternode_budget_submitvote():
+            try:
+                r = {}
+                r['result'] = await method(*request)
+            except Exception as e:
+                r['result'] = {}
+                r['error'] = str(e)
+            if r.get('error'):
+                errmsg.append(r['error'])
+            else:
+                self.budget_votes.append(vote)
+                self.save()
+            self.network_event.set()
+        network.run_from_another_thread(masternode_budget_submitvote())
         self.network_event.wait()
         if errmsg:
             return (errmsg[0], False)
         return (errmsg, True)
-
-    def broadcast_vote_callback(self, vote, errmsg, r):
-        """Callback for when a vote is broadcast."""
-        if r.get('error'):
-            errmsg.append(r['error'])
-        else:
-            self.budget_votes.append(vote)
-            self.save()
-
-        self.network_event.set()
-
-
 
     def get_proposal(self, name):
         for proposal in self.proposals:
@@ -480,8 +495,8 @@ class MasternodeManager(object):
         """Create a fee transaction for proposal_name."""
         proposal = self.get_proposal(proposal_name)
         if proposal.fee_txid:
-            _logger.error(f'Warning: Proposal "{proposal_name}" already '
-                          f'has a fee tx: {proposal.fee_txid}')
+            _logger.info(f'Warning: Proposal "{proposal_name}" already '
+                         f'has a fee tx: {proposal.fee_txid}')
         if proposal.submitted:
             raise Exception('Proposal has already been submitted')
 
@@ -511,27 +526,38 @@ class MasternodeManager(object):
 
         payments_count = proposal.get_payments_count()
         payment_amount = format_satoshis_plain(proposal.payment_amount)
-        params = [proposal.proposal_name, proposal.proposal_url, payments_count, proposal.start_block, proposal.address, payment_amount, proposal.fee_txid]
-
+        params = [proposal.proposal_name,
+                  proposal.proposal_url,
+                  payments_count,
+                  proposal.start_block,
+                  proposal.address,
+                  payment_amount,
+                  proposal.fee_txid]
         errmsg = []
-        callback = lambda r: self.submit_proposal_callback(proposal.proposal_name, errmsg, r, save)
         self.network_event.clear()
-        self.wallet.network.send([('masternode.budget.submit', params)], callback)
+        network = self.wallet.network
+        method = network.interface.session.send_request
+        request = ('masternode.budget.submit', params)
+        async def masternode_budget_submit():
+            try:
+                r = {}
+                r['result'] = await method(*request)
+            except Exception as e:
+                r['result'] = {}
+                r['error'] = str(e)
+            try:
+                self.on_proposal_submitted(proposal.proposal_name, r)
+            except Exception as e:
+                errmsg.append(str(e))
+            finally:
+                if save:
+                    self.save()
+                self.network_event.set()
+        network.run_from_another_thread(masternode_budget_submit())
         self.network_event.wait()
         if errmsg:
             errmsg = errmsg[0]
         return (errmsg, proposal.submitted)
-
-    def submit_proposal_callback(self, proposal_name, errmsg, r, save = True):
-        """Callback for when a proposal has been submitted."""
-        try:
-            self.on_proposal_submitted(proposal_name, r)
-        except Exception as e:
-            errmsg.append(str(e))
-        finally:
-            if save:
-                self.save()
-            self.network_event.set()
 
     def on_proposal_submitted(self, proposal_name, r):
         """Validate the server response."""
@@ -567,5 +593,5 @@ class MasternodeManager(object):
         if status is None:
             status = False
         _logger.info(f'Received updated status for masternode '
-                      f'{mn.alias}: "{status}"')
+                     f'{mn.alias}: "{status}"')
         self.masternode_statuses[collateral] = status

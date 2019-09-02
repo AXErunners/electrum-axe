@@ -58,6 +58,7 @@ hiddenimports += [
 ]
 
 datas = [
+    ('electrum_axe/checkpoints*.*', 'electrum_axe'),
     ('electrum_axe/*.json', 'electrum_axe'),
     ('electrum_axe/locale', 'electrum_axe/locale'),
     ('electrum_axe/wordlist', 'electrum_axe/wordlist'),
@@ -171,6 +172,13 @@ coll = COLLECT(exe, #tctl_exe,
                name=os.path.join('dist', 'electrum-axe'))
 
 app = BUNDLE(coll,
+             info_plist={
+                'NSHighResolutionCapable': True,
+                'NSSupportsAutomaticGraphicsSwitching': True,
+                'CFBundleURLTypes': [
+                    {'CFBundleURLName': 'axe', 'CFBundleURLSchemes': ['axe']}
+                ],
+             },
              name=os.path.join('dist', 'Axe Electrum.app'),
              appname="Axe Electrum",
 	         icon='electrum-axe.icns',

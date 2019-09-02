@@ -15,7 +15,7 @@ from PyQt5.QtWidgets import (QLineEdit, QComboBox, QListWidget, QDoubleSpinBox,
 
 from electrum_axe import axe_tx
 from electrum_axe.bitcoin import COIN, is_b58_address
-from electrum_axe.axe_tx import TxOutPoint
+from electrum_axe.axe_tx import TxOutPoint, service_to_ip_port
 from electrum_axe.protx import ProTxMN, ProTxService, ProRegTxExc
 from electrum_axe.util import bfh, bh2u
 from electrum_axe.i18n import _
@@ -619,7 +619,7 @@ class BlsKeysWizardPage(QWizardPage):
         bls_pubk_hex = bh2u(bls_pubk.serialize())
         self.bls_info_label.setText(_('BLS keypair generated. Before '
                                       'registering new Masternode copy next '
-                                      'line to ~/.axecore/axed.conf and '
+                                      'line to ~/.axecore/axe.conf and '
                                       'restart masternode:'))
         self.bls_info_label.show()
         self.bls_info_edit.setText('masternodeblsprivkey=%s' % bls_privk_hex)
@@ -1476,15 +1476,7 @@ class Dip3MasternodeWizard(QWizard):
         if not service:
             raise ValidationError('No service value specified')
         try:
-            if ']' in service:          # IPv6 [ipv6]:portnum
-                ip, port = service.split(']')
-                ip = ip[1:]             # remove opening square bracket
-                ipaddress.ip_address(ip)
-                port = int(port[1:])    # remove colon before portnum
-            else:                       # IPv4 ipv4:portnum
-                ip, port = service.split(':')
-                ipaddress.ip_address(ip)
-                port = int(port)
+            ip, port = service_to_ip_port(service)
         except BaseException:
             raise ValidationError('Wrong service format specified')
         return ip, port

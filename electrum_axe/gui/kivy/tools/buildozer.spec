@@ -13,7 +13,7 @@ package.domain = org.axe.electrum
 source.dir = .
 
 # (list) Source files to include (let empty to include all the files)
-source.include_exts = py,png,jpg,kv,atlas,ttf,txt,gif,pem,mo,vs,fs,json
+source.include_exts = py,png,jpg,kv,atlas,ttf,txt,gif,pem,mo,vs,fs,json,gz
 
 # (list) Source files to exclude (let empty to not exclude anything)
 source.exclude_exts = spec
@@ -35,7 +35,17 @@ version.filename = %(source.dir)s/electrum_axe/version.py
 #version = 1.9.8
 
 # (list) Application requirements
-requirements = python3, android, openssl, plyer, kivy==b47f669f44dbda4f463bcb7d2cada639f7fed3bc, libffi, libsecp256k1, x11_hash
+requirements =
+    python3,
+    android,
+    openssl,
+    plyer,
+    kivy==82d561d62577757d478df52173610f925c05ecab,
+    libffi,
+    libsecp256k1,
+    pycryptodomex==3.6.3,
+    x11_hash,
+    bls_py
 
 # (str) Presplash of the application
 #presplash.filename = %(source.dir)s/gui/kivy/theming/splash.png
@@ -64,11 +74,8 @@ android.api = 28
 # (int) Minimum API required. You will need to set the android.ndk_api to be as low as this value.
 android.minapi = 21
 
-# (int) Android SDK version to use
-android.sdk = 24
-
 # (str) Android NDK version to use
-android.ndk = 14b
+android.ndk = 17c
 
 # (int) Android NDK API to use (optional). This is the minimum API your app will support.
 android.ndk_api = 21
@@ -81,6 +88,9 @@ android.ndk_path = /opt/android-ndk
 
 # (str) Android SDK directory (if empty, it will be automatically downloaded.)
 android.sdk_path = /opt/android-sdk
+
+# (str) ANT directory (if empty, it will be automatically downloaded.)
+#android.ant_path =
 
 # (str) Android entry point, default is ok for Kivy-based app
 #android.entrypoint = org.renpy.android.PythonActivity
@@ -124,6 +134,9 @@ android.manifest.launch_mode = singleTask
 # Don't forget to add the WAKE_LOCK permission if you set this to True
 #android.wakelock = False
 
+# (str) The Android arch to build for, choices: armeabi-v7a, arm64-v8a, x86, x86_64
+android.arch = armeabi-v7a
+
 # (list) Android application meta-data to set (key=value format)
 #android.meta_data =
 
@@ -133,9 +146,26 @@ android.manifest.launch_mode = singleTask
 
 android.whitelist = lib-dynload/_csv.so
 
-# local version that merges branch 866
+
+#
+# Python for android (p4a) specific
+#
+
+# (str) python-for-android git clone directory (if empty, it will be automatically cloned from github)
 p4a.source_dir = /opt/python-for-android
+
+# (str) The directory in which python-for-android should look for your own build recipes (if any)
 p4a.local_recipes = %(source.dir)s/contrib/p4a
+
+# (str) Filename to the hook for p4a
+#p4a.hook =
+
+# (str) Bootstrap to use for android builds
+# p4a.bootstrap = sdl2
+
+# (int) port number to specify an explicit --port= p4a argument (eg for bootstrap flask)
+#p4a.port =
+
 
 #
 # iOS specific
@@ -153,7 +183,7 @@ p4a.local_recipes = %(source.dir)s/contrib/p4a
 [buildozer]
 
 # (int) Log level (0 = error only, 1 = info, 2 = debug (with command output))
-log_level = 2
+log_level = 1
 
 
 # -----------------------------------------------------------------------------

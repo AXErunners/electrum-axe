@@ -20,11 +20,12 @@ from kivy.utils import platform
 
 from electrum_axe.util import profiler, parse_URI, format_time, InvalidPassword, NotEnoughFunds, Fiat
 from electrum_axe import bitcoin
-from electrum_axe .transaction import TxOutput
-from electrum_axe.util import send_exception_to_crash_reporter
+from electrum_axe.transaction import TxOutput, Transaction, tx_from_str
+from electrum_axe.util import send_exception_to_crash_reporter, parse_URI, InvalidBitcoinURI
 from electrum_axe.paymentrequest import PR_UNPAID, PR_PAID, PR_UNKNOWN, PR_EXPIRED
 from electrum_axe.plugin import run_hook
 from electrum_axe.wallet import InternalAddressCorruption
+from electrum_axe import simple_config
 
 from .context_menu import ContextMenu
 
@@ -102,6 +103,7 @@ TX_ICONS = [
     "clock3",
     "clock4",
     "clock5",
+    "instantsend_locked",
     "confirmed",
 ]
 
@@ -133,8 +135,11 @@ class HistoryScreen(CScreen):
         d = LabelDialog(_('Enter Transaction Label'), text, callback)
         d.open()
 
-    def get_card(self, tx_hash, tx_type, tx_mined_status, value, balance):
-        status, status_str = self.app.wallet.get_tx_status(tx_hash, tx_mined_status)
+    def get_card(self, tx_hash, tx_type, tx_mined_status, value, balance,
+                 islock):
+        status, status_str = self.app.wallet.get_tx_status(tx_hash,
+                                                           tx_mined_status,
+                                                           islock)
         icon = "atlas://electrum_axe/gui/kivy/theming/light/" + TX_ICONS[status]
         label = self.app.wallet.get_label(tx_hash) if tx_hash else _('Pruned transaction outputs')
         ri = {}
@@ -158,7 +163,8 @@ class HistoryScreen(CScreen):
     def update(self, see_all=False):
         if self.app.wallet is None:
             return
-        history = reversed(self.app.wallet.get_history())
+        config = self.app.electrum_config
+        history = reversed(self.app.wallet.get_history(config=config))
         history_card = self.screen.ids.history_container
         history_card.data = [self.get_card(*item) for item in history]
 
@@ -173,11 +179,10 @@ class SendScreen(CScreen):
         if not self.app.wallet:
             self.payment_request_queued = text
             return
-        import electrum_axe
         try:
-            uri = electrum_axe.util.parse_URI(text, self.app.on_pr)
-        except:
-            self.app.show_info(_("Not a Axe URI"))
+            uri = parse_URI(text, self.app.on_pr, loop=self.app.asyncio_loop)
+        except InvalidBitcoinURI as e:
+            self.app.show_info(_("Error parsing URI") + f":\n{e}")
             return
         amount = uri.get('amount')
         self.screen.address = uri.get('address', '')
@@ -233,11 +238,22 @@ class SendScreen(CScreen):
             self.payment_request = None
 
     def do_paste(self):
-        contents = self.app._clipboard.paste()
-        if not contents:
+        data = self.app._clipboard.paste()
+        if not data:
             self.app.show_info(_("Clipboard is empty"))
             return
-        self.set_URI(contents)
+        # try to decode as transaction
+        try:
+            raw_tx = tx_from_str(data)
+            tx = Transaction(raw_tx)
+            tx.deserialize()
+        except:
+            tx = None
+        if tx:
+            self.app.tx_dialog(tx)
+            return
+        # try to decode as URI/address
+        self.set_URI(data)
 
     def do_send(self):
         if self.screen.is_pr:
@@ -286,8 +302,9 @@ class SendScreen(CScreen):
             x_fee_address, x_fee_amount = x_fee
             msg.append(_("Additional fees") + ": " + self.app.format_amount_and_units(x_fee_amount))
 
-        if fee >= config.get('confirm_fee', 10000):
-            msg.append(_('Warning')+ ': ' + _("The fee for this transaction seems unusually high."))
+        feerate_warning = simple_config.FEERATE_WARNING_HIGH_FEE
+        if fee > feerate_warning * tx.estimated_size() / 1000:
+            msg.append(_('Warning') + ': ' + _("The fee for this transaction seems unusually high."))
         msg.append(_("Enter your PIN code to proceed"))
         self.app.protected('\n'.join(msg), self.send_tx, (tx, message))
 

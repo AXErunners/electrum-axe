@@ -1,20 +1,20 @@
 {
-    "axet.random.re": {
-        "pruning": "-",
-        "s": "54002",
-        "t": "54001",
-        "version": "1.2"
-    },
     "dword.ga": {
         "pruning": "-",
         "s": "51002",
         "t": "51001",
-        "version": "1.2"
+        "version": "1.4"
+    },
+    "axet.random.re": {
+        "pruning": "-",
+        "s": "54002",
+        "t": "54001",
+        "version": "1.4"
     },
     "127.0.0.1": {
         "pruning": "-",
         "s": "51002",
         "t": "51001",
-        "version": "1.2"
+        "version": "1.4"
     }
 }

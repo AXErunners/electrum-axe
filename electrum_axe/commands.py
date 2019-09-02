@@ -503,6 +503,7 @@ class Commands:
             'show_fees': show_fees,
             'from_height': from_height,
             'to_height': to_height,
+            'config': self.config,
         }
         if year:
             import time
@@ -935,9 +936,12 @@ class Commands:
             raise Exception(f"{repr(txid)} is not a txid")
         if not self.wallet.db.get_transaction(txid):
             raise Exception("Transaction not in wallet.")
-        return {
+        res = {
             "confirmations": self.wallet.get_tx_height(txid).conf,
         }
+        if txid in self.wallet.db.islocks:
+            res['instantsend_locked'] = True
+        return res
 
     @command('n')
     def exportcp(self, cpfile):
@@ -1123,6 +1127,9 @@ def add_network_options(parser):
     parser.add_argument("-p", "--proxy", dest="proxy", default=None, help="set proxy [type:]host[:port], where type is socks4,socks5 or http")
     parser.add_argument("--noonion", action="store_true", dest="noonion", default=None, help="do not try to connect to onion servers")
     parser.add_argument("--skipmerklecheck", action="store_true", dest="skipmerklecheck", default=False, help="Tolerate invalid merkle proofs from server")
+    parser.add_argument("--axe-peer", action="append", dest="axe_peers", default=None, help="add axe network peer host[:port]")
+    parser.add_argument("--no-axe-net", action="store_false", default=None, dest="run_axe_net", help="do not run axe network")
+    parser.add_argument("--no-load-mns", action="store_false", default=None, dest="protx_load_mns", help="do not load protx Masternodes")
 
 def add_global_options(parser):
     group = parser.add_argument_group('global options')
