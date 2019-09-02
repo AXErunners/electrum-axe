@@ -82,12 +82,12 @@ class TestCommands(unittest.TestCase):
         with self.assertRaises(Exception):
             cmds.getprivatekeys("XdDHzW6aTeuQsraNXeEsPy5gAv1nUz7Y7Q")  # not in wallet
         self.assertEqual("p2pkh:XEn9o6oayjsRmoEQwDbvkrWVvjRNqPj3xNskJJPAKraJTrWuutwd",
-                         cmds.getprivatekeys("Xci5KnMVkHrqBQk9cU4jwmzJfgaTPopHbz"))
+                         cmds.getprivatekeys("PAcQeW6SqW8S1JpL6f53m9GnT6AeRFndWo"))
         # list of addresses tests
         with self.assertRaises(Exception):
-            cmds.getprivatekeys(['XmQ3Tn67Fgs7bwNXthtiEnBFh7ZeDG3aw2', 'asd'])
+            cmds.getprivatekeys(['PKJNnVq4Lu8iRqSiNtu249TjUX9qELpRmH', 'asd'])
         self.assertEqual(['p2pkh:XGx8LpkmLRv9RiMvpYx965BCaQKQbeMVVqgAh7B5SQVdosQiKJ4i', 'p2pkh:XEn9o6oayjsRmoEQwDbvkrWVvjRNqPj3xNskJJPAKraJTrWuutwd'],
-                         cmds.getprivatekeys(['XmQ3Tn67Fgs7bwNXthtiEnBFh7ZeDG3aw2', 'Xci5KnMVkHrqBQk9cU4jwmzJfgaTPopHbz']))
+                         cmds.getprivatekeys(['PKJNnVq4Lu8iRqSiNtu249TjUX9qELpRmH', 'PAcQeW6SqW8S1JpL6f53m9GnT6AeRFndWo']))
 
     @mock.patch.object(storage.WalletStorage, '_write')
     def test_export_private_key_deterministic(self, mock_write):
@@ -101,12 +101,12 @@ class TestCommands(unittest.TestCase):
         with self.assertRaises(Exception):
             cmds.getprivatekeys("XdDHzW6aTeuQsraNXeEsPy5gAv1nUz7Y7Q")  # not in wallet
         self.assertEqual("p2pkh:XE5VEmWKQRK5N7kQMfw6KqoRp3ExKWgaeCKsxsmDFBxJJBgdQdTH",
-                         cmds.getprivatekeys("XvmHzyQe8QWbvv17wc1PPMyJgaomknSp7W"))
+                         cmds.getprivatekeys("PUfdKh9bDcnCkp5JRo1hCjFnTzPxq77fVk"))
         # list of addresses tests
         with self.assertRaises(Exception):
-            cmds.getprivatekeys(['XvmHzyQe8QWbvv17wc1PPMyJgaomknSp7W', 'asd'])
+            cmds.getprivatekeys(['PUfdKh9bDcnCkp5JRo1hCjFnTzPxq77fVk', 'asd'])
         self.assertEqual(['p2pkh:XE5VEmWKQRK5N7kQMfw6KqoRp3ExKWgaeCKsxsmDFBxJJBgdQdTH', 'p2pkh:XGtpLmVGmaRnfvRvd4qxSeE7PqJoi9FUfkgPKD24PeoJsZCh1EXg'],
-                         cmds.getprivatekeys(['XvmHzyQe8QWbvv17wc1PPMyJgaomknSp7W', 'XoEUKPPiPETff1S4oQmo4HGR1rYrRAX6uT']))
+                         cmds.getprivatekeys(['PUfdKh9bDcnCkp5JRo1hCjFnTzPxq77fVk', 'PM8oe78fUSjGUuWFHbn6seYtoG93SynJy1']))
 
 
 class TestCommandsTestnet(TestCaseForTestnet):
