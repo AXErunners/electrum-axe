@@ -145,7 +145,7 @@ class TxOutPoint(namedtuple('TxOutPoint', 'hash index')):
         }
 
 
-# https://github.com/axepay/dips/blob/master/dip-0002-special-transactions.md
+# https://github.com/axerunners/dips/blob/master/dip-0002-special-transactions.md
 class ProTxBase:
     '''Base Class representing DIP2 Special Transactions'''
     def __init__(self, *args, **kwargs):
