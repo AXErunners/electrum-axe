@@ -28,6 +28,7 @@ import copy
 import datetime
 import json
 import traceback
+from typing import TYPE_CHECKING
 
 from PyQt5.QtCore import QSize, Qt
 from PyQt5.QtGui import QTextCharFormat, QBrush, QFont
@@ -47,6 +48,9 @@ from electrum_axe.logging import get_logger
 from .axe_qt import ExtraPayloadWidget
 from .util import (MessageBoxMixin, read_QIcon, Buttons, CopyButton,
                    MONOSPACE_FONT, ColorScheme, ButtonsLineEdit)
+
+if TYPE_CHECKING:
+    from .main_window import ElectrumWindow
 
 
 SAVE_BUTTON_ENABLED_TOOLTIP = _("Save transaction offline")
@@ -84,7 +88,7 @@ class TxDialog(QDialog, MessageBoxMixin):
             self.tx.deserialize()
         except BaseException as e:
             raise SerializationError(e)
-        self.main_window = parent
+        self.main_window = parent  # type: ElectrumWindow
         self.wallet = parent.wallet
         self.prompt_if_unsaved = prompt_if_unsaved
         self.saved = False
@@ -248,8 +252,13 @@ class TxDialog(QDialog, MessageBoxMixin):
             self.tx_desc.show()
         self.status_label.setText(_('Status:') + ' ' + tx_details.status)
 
-        if tx_mined_status.timestamp:
-            time_str = datetime.datetime.fromtimestamp(tx_mined_status.timestamp).isoformat(' ')[:-3]
+        islock = tx_details.islock
+        timestamp = tx_mined_status.timestamp
+        if not timestamp and islock:
+            timestamp = islock
+        if timestamp:
+            dttm = datetime.datetime.fromtimestamp(timestamp)
+            time_str = dttm.isoformat(' ')[:-3]
             self.date_label.setText(_("Date: {}").format(time_str))
             self.date_label.show()
         elif exp_n:
@@ -278,8 +287,8 @@ class TxDialog(QDialog, MessageBoxMixin):
         if fee is not None:
             fee_rate = fee/size*1000
             fee_str += '  ( %s ) ' % self.main_window.format_fee_rate(fee_rate)
-            confirm_rate = simple_config.FEERATE_WARNING_HIGH_FEE
-            if fee_rate > confirm_rate:
+            feerate_warning = simple_config.FEERATE_WARNING_HIGH_FEE
+            if fee_rate > feerate_warning:
                 fee_str += ' - ' + _('Warning') + ': ' + _("high fee") + '!'
         self.amount_label.setText(amount_str)
         self.fee_label.setText(fee_str)

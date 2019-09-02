@@ -30,13 +30,13 @@ import traceback
 import json
 import shutil
 import weakref
-import webbrowser
 import csv
 from decimal import Decimal
 import base64
 from functools import partial
 import queue
 import asyncio
+from typing import Optional
 
 from PyQt5.QtGui import QPixmap, QKeySequence, QIcon, QCursor
 from PyQt5.QtCore import Qt, QRect, QStringListModel, QSize, pyqtSignal, pyqtSlot
@@ -61,7 +61,8 @@ from electrum_axe.util import (format_time, format_satoshis, format_fee_satoshis
                                 base_units, base_units_list, base_unit_name_to_decimal_point,
                                 decimal_point_to_base_unit_name, quantize_feerate,
                                 UnknownBaseUnit, DECIMAL_POINT_DEFAULT, UserFacingException,
-                                get_new_wallet_name, send_exception_to_crash_reporter)
+                                get_new_wallet_name, send_exception_to_crash_reporter,
+                                InvalidBitcoinURI)
 from electrum_axe.transaction import Transaction, TxOutput
 from electrum_axe.address_synchronizer import AddTransactionException
 from electrum_axe.wallet import (Multisig_Wallet, Abstract_Wallet,
@@ -71,6 +72,7 @@ from electrum_axe.network import Network, TxBroadcastError, BestEffortRequestFai
 from electrum_axe.exchange_rate import FxThread
 from electrum_axe.simple_config import SimpleConfig
 from electrum_axe.logging import Logger
+from electrum_axe.paymentrequest import PR_PAID
 from electrum_axe.base_crash_reporter import BaseCrashReporter
 from electrum_axe.masternode_manager import MasternodeManager
 
@@ -85,7 +87,7 @@ from .util import (read_QIcon, ColorScheme, text_dialog, icon_path, WaitingDialo
                    OkButton, InfoButton, WWLabel, TaskThread, CancelButton,
                    CloseButton, HelpButton, MessageBoxMixin, EnterButton, expiration_values,
                    ButtonsLineEdit, CopyCloseButton, import_meta_gui, export_meta_gui,
-                   filename_field, address_field)
+                   filename_field, address_field, char_width_in_lineedit, webopen)
 from .installwizard import WIF_HELP_TEXT
 from .history_list import HistoryList, HistoryModel
 from .update_checker import UpdateCheck, UpdateCheckThread
@@ -112,9 +114,6 @@ class StatusBarButton(QPushButton):
     def keyPressEvent(self, e):
         if e.key() == Qt.Key_Return:
             self.func()
-
-
-from electrum_axe.paymentrequest import PR_PAID
 
 
 class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
@@ -150,7 +149,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         self.tray = gui_object.tray
         self.app = gui_object.app
         self.cleaned_up = False
-        self.payment_request = None
+        self.payment_request = None  # type: Optional[paymentrequest.PaymentRequest]
         self.checking_accounts = False
         self.qr_window = None
         self.not_enough_funds = False
@@ -234,6 +233,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         # network callbacks
         if self.network:
             self.network_signal.connect(self.on_network_qt)
+            self.gui_object.axe_net_sobj.main.connect(self.on_axe_net_qt)
             interests = ['wallet_updated', 'network_updated', 'blockchain_updated',
                          'new_transaction', 'status',
                          'banner', 'verified', 'fee', 'fee_histogram']
@@ -250,6 +250,12 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             self.new_fx_quotes_signal.connect(self.on_fx_quotes)
             self.new_fx_history_signal.connect(self.on_fx_history)
 
+            # axe net callbacks
+            self.network.axe_net.register_callback(self.on_axe_net,
+                                                    ['axe-net-updated',
+                                                     'axe-peers-updated'])
+            self.update_axe_net_status_btn()
+
         # update fee slider in case we missed the callback
         self.fee_slider.update()
         self.load_wallet(wallet)
@@ -260,10 +266,10 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             self.show_warning(self.wallet.storage.backup_message,
                               title=_('Information'))
 
-        if self.network.tor_auto_on and not self.network.tor_on:
+        if (self.network
+                and self.network.tor_auto_on and not self.network.tor_on):
             self.show_warning(self.network.tor_warn_msg +
                               self.network.tor_docs_uri_qt, rich_text=True)
-        self.tabs.currentChanged.connect(self.on_tabs_current_changed)
 
         # If the option hasn't been set yet
         if config.get('check_updates') is None:
@@ -283,12 +289,6 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             self._update_check_thread = UpdateCheckThread(self)
             self._update_check_thread.checked.connect(on_version_received)
             self._update_check_thread.start()
-
-    @pyqtSlot()
-    def on_tabs_current_changed(self):
-        cur_widget = self.tabs.currentWidget()
-        if cur_widget == self.dip3_tab and not cur_widget.have_been_shown:
-            cur_widget.on_first_showing()
 
     def on_history(self, b):
         self.wallet.clear_coin_price_cache()
@@ -403,6 +403,17 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             self.network_signal.emit(event, args)
         else:
             self.logger.info(f"unexpected network message: {event} {args}")
+
+    def on_axe_net(self, event, *args):
+        self.gui_object.axe_net_sobj.main.emit(event, args)
+
+    def on_axe_net_qt(self, event, args=None):
+        self.update_axe_net_status_btn()
+
+    def update_axe_net_status_btn(self):
+        net = self.network
+        icon = (net.axe_net.status_icon() if net else 'axe_net_off.png')
+        self.axe_net_button.setIcon(read_QIcon(icon))
 
     def on_network_qt(self, event, args=None):
         # Handle a network message in the GUI thread
@@ -676,9 +687,9 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         help_menu = menubar.addMenu(_("&Help"))
         help_menu.addAction(_("&About"), self.show_about)
         help_menu.addAction(_("&Check for updates"), self.show_update_check)
-        help_menu.addAction(_("&Official website"), lambda: webbrowser.open("https://electrum.axe.org"))
+        help_menu.addAction(_("&Official website"), lambda: webopen("https://electrum.axe.org"))
         help_menu.addSeparator()
-        help_menu.addAction(_("&Documentation"), lambda: webbrowser.open("https://docs.axe.org/en/latest/wallets/index.html#axe-electrum-wallet")).setShortcut(QKeySequence.HelpContents)
+        help_menu.addAction(_("&Documentation"), lambda: webopen("https://docs.axe.org/en/stable/wallets/index.html#axe-electrum-wallet")).setShortcut(QKeySequence.HelpContents)
         self._auto_crash_reports = QAction(_("&Automated Crash Reports"), self, checkable=True)
         self._auto_crash_reports.setChecked(self.config.get(BaseCrashReporter.config_key, default=False))
         self._auto_crash_reports.triggered.connect(self.auto_crash_reports)
@@ -717,7 +728,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
     def show_report_bug(self):
         msg = ' '.join([
             _("Please report any bugs as issues on github:<br/>"),
-            "<a href=\"https://github.com/axerunners/electrum-axe/issues\">https://github.com/axerunners/electrum-axe/issues</a><br/><br/>",
+            f'''<a href="{constants.GIT_REPO_ISSUES_URL}">{constants.GIT_REPO_ISSUES_URL}</a><br/><br/>''',
             _("Before reporting a bug, upgrade to the most recent version of Axe Electrum (latest release or git HEAD), and include the version number in your report."),
             _("Try to explain not only what the bug is, but how it occurs.")
          ])
@@ -960,6 +971,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         msg = _('Axe address where the payment should be received. Note that each payment request uses a different Axe address.')
         self.receive_address_label = HelpLabel(_('Receiving address'), msg)
         self.receive_address_e.textChanged.connect(self.update_receive_qr)
+        self.receive_address_e.textChanged.connect(self.update_receive_address_styling)
         self.receive_address_e.setFocusPolicy(Qt.ClickFocus)
         grid.addWidget(self.receive_address_label, 0, 0)
         grid.addWidget(self.receive_address_e, 0, 1, 1, -1)
@@ -1206,6 +1218,16 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         if self.qr_window and self.qr_window.isVisible():
             self.qr_window.qrw.setData(uri)
 
+    def update_receive_address_styling(self):
+        addr = str(self.receive_address_e.text())
+        if self.wallet.is_used(addr):
+            self.receive_address_e.setStyleSheet(ColorScheme.RED.as_stylesheet(True))
+            self.receive_address_e.setToolTip(_("This address has already been used. "
+                                                "For better privacy, do not reuse it for new payments."))
+        else:
+            self.receive_address_e.setStyleSheet("")
+            self.receive_address_e.setToolTip("")
+
     def set_feerounding_text(self, num_satoshis_added):
         self.feerounding_text = (_('Additional {} haks are going to be added.')
                                  .format(num_satoshis_added))
@@ -1260,7 +1282,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             lambda: self.fiat_send_e.setFrozen(self.amount_e.isReadOnly()))
 
         self.max_button = EnterButton(_("Max"), self.spend_max)
-        self.max_button.setFixedWidth(140)
+        self.max_button.setFixedWidth(self.amount_e.width())
         self.max_button.setCheckable(True)
         grid.addWidget(self.max_button, 4, 3)
         hbox = QHBoxLayout()
@@ -1301,7 +1323,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             self.spend_max() if self.max_button.isChecked() else self.update_fee()
 
         self.fee_slider = FeeSlider(self, self.config, fee_cb)
-        self.fee_slider.setFixedWidth(140)
+        self.fee_slider.setFixedWidth(self.amount_e.width())
 
         def on_fee_or_feerate(edit_changed, editing_finished):
             edit_other = self.feerate_e if edit_changed == self.fee_e else self.fee_e
@@ -1324,7 +1346,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         self.size_e = TxSizeLabel()
         self.size_e.setAlignment(Qt.AlignCenter)
         self.size_e.setAmount(0)
-        self.size_e.setFixedWidth(140)
+        self.size_e.setFixedWidth(self.amount_e.width())
         self.size_e.setStyleSheet(ColorScheme.DEFAULT.as_stylesheet())
 
         self.feerate_e = FeerateEdit(lambda: 0)
@@ -1345,7 +1367,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             self.show_message(title=_('Fee rounding'), msg=text)
 
         self.feerounding_icon = QPushButton(read_QIcon('info.png'), '')
-        self.feerounding_icon.setFixedWidth(30)
+        self.feerounding_icon.setFixedWidth(round(2.2 * char_width_in_lineedit()))
         self.feerounding_icon.setFlat(True)
         self.feerounding_icon.clicked.connect(feerounding_onclick)
         self.feerounding_icon.setVisible(False)
@@ -1657,11 +1679,13 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         """Returns whether there are errors with outputs.
         Also shows error dialog to user if so.
         """
-        if self.payment_request and self.payment_request.has_expired():
-            self.show_error(_('Payment request has expired'))
-            return True
+        pr = self.payment_request
+        if pr:
+            if pr.has_expired():
+                self.show_error(_('Payment request has expired'))
+                return True
 
-        if not self.payment_request:
+        if not pr:
             errors = self.payto_e.get_errors()
             if errors:
                 self.show_warning(_("Invalid Lines found:") + "\n\n" + '\n'.join([ _("Line #") + str(x[0]+1) + ": " + x[1] for x in errors]))
@@ -1754,8 +1778,8 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             x_fee_address, x_fee_amount = x_fee
             msg.append( _("Additional fees") + ": " + self.format_amount_and_units(x_fee_amount) )
 
-        confirm_rate = simple_config.FEERATE_WARNING_HIGH_FEE
-        if fee > confirm_rate * tx.estimated_size() / 1000:
+        feerate_warning = simple_config.FEERATE_WARNING_HIGH_FEE
+        if fee > feerate_warning * tx.estimated_size() / 1000:
             msg.append(_('Warning') + ': ' + _("The fee for this transaction seems unusually high."))
 
         if self.wallet.has_keystore_encryption():
@@ -1879,6 +1903,8 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
 
     def payment_request_ok(self):
         pr = self.payment_request
+        if not pr:
+            return
         key = self.invoices.add(pr)
         status = self.invoices.get_status(key)
         self.invoice_list.update()
@@ -1899,7 +1925,10 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         self.amount_e.textEdited.emit("")
 
     def payment_request_error(self):
-        self.show_message(self.payment_request.error)
+        pr = self.payment_request
+        if not pr:
+            return
+        self.show_message(pr.error)
         self.payment_request = None
         self.do_clear()
 
@@ -1915,8 +1944,8 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             return
         try:
             out = util.parse_URI(URI, self.on_pr)
-        except BaseException as e:
-            self.show_error(_('Invalid Axe URI:') + '\n' + str(e))
+        except InvalidBitcoinURI as e:
+            self.show_error(_("Error parsing URI") + f":\n{e}")
             return
         self.show_send_tab()
         r = out.get('r')
@@ -2205,6 +2234,9 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         sb.addPermanentWidget(self.seed_button)
         self.status_button = StatusBarButton(read_QIcon("status_disconnected.png"), _("Network"), lambda: self.gui_object.show_network_dialog(self))
         sb.addPermanentWidget(self.status_button)
+        self.axe_net_button = StatusBarButton(read_QIcon('axe_net_0.png'), _("Axe Network"), lambda: self.gui_object.show_axe_net_dialog(self))
+        self.update_axe_net_status_btn()
+        sb.addPermanentWidget(self.axe_net_button)
         run_hook('create_status_bar', sb)
         self.setStatusBar(sb)
 
@@ -2278,9 +2310,9 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         vbox.addWidget(QLabel(_('New Contact') + ':'))
         grid = QGridLayout()
         line1 = QLineEdit()
-        line1.setFixedWidth(280)
+        line1.setFixedWidth(32 * char_width_in_lineedit())
         line2 = QLineEdit()
-        line2.setFixedWidth(280)
+        line2.setFixedWidth(32 * char_width_in_lineedit())
         grid.addWidget(QLabel(_("Address")), 1, 0)
         grid.addWidget(line1, 1, 1)
         grid.addWidget(QLabel(_("Name")), 2, 0)
@@ -2321,6 +2353,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             mpk_text.addCopyButton(self.app)
             def show_mpk(index):
                 mpk_text.setText(mpk_list[index])
+                mpk_text.repaint()  # macOS hack for #4777
             # only show the combobox in case multiple accounts are available
             if len(mpk_list) > 1:
                 def label(key):
@@ -3100,6 +3133,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         filelogging_cb.setChecked(bool(self.config.get('log_to_file', False)))
         def on_set_filelogging(v):
             self.config.set_key('log_to_file', v == Qt.Checked, save=True)
+            self.need_restart = True
         filelogging_cb.stateChanged.connect(on_set_filelogging)
         filelogging_cb.setToolTip(_('Debug logs can be persisted to disk. These are useful for troubleshooting.'))
         gui_widgets.append((filelogging_cb, None))
@@ -3326,7 +3360,8 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             self.network.unregister_callback(self.on_network)
             self.network.unregister_callback(self.on_quotes)
             self.network.unregister_callback(self.on_history)
-        self.wallet.protx_manager.clean_up()
+            self.wallet.protx_manager.clean_up()
+            self.network.axe_net.unregister_callback(self.on_axe_net)
         self.config.set_key("is_maximized", self.isMaximized())
         if not self.isMaximized():
             g = self.geometry()

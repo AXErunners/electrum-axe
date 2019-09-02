@@ -6,6 +6,7 @@ import datetime
 import traceback
 from decimal import Decimal
 import threading
+import asyncio
 
 from electrum_axe.bitcoin import TYPE_ADDRESS
 from electrum_axe.storage import WalletStorage
@@ -13,7 +14,7 @@ from electrum_axe.wallet import Wallet, InternalAddressCorruption
 from electrum_axe.paymentrequest import InvoiceStore
 from electrum_axe.util import profiler, InvalidPassword, send_exception_to_crash_reporter
 from electrum_axe.plugin import run_hook
-from electrum_axe.util import format_satoshis, format_satoshis_plain
+from electrum_axe.util import format_satoshis, format_satoshis_plain, format_fee_satoshis
 from electrum_axe.paymentrequest import PR_UNPAID, PR_PAID, PR_UNKNOWN, PR_EXPIRED
 from electrum_axe import blockchain
 from electrum_axe.network import Network, TxBroadcastError, BestEffortRequestFailed
@@ -73,6 +74,9 @@ Label.register('Roboto',
 from electrum_axe.util import (base_units, NoDynamicFeeEstimates, decimal_point_to_base_unit_name,
                                 base_unit_name_to_decimal_point, NotEnoughFunds, UnknownBaseUnit,
                                 DECIMAL_POINT_DEFAULT)
+
+
+ATLAS_ICON = 'atlas://electrum_axe/gui/kivy/theming/light/%s'
 
 
 class ElectrumWindow(App):
@@ -281,6 +285,7 @@ class ElectrumWindow(App):
         self.is_exit = False
         self.wallet = None
         self.pause_time = 0
+        self.asyncio_loop = asyncio.get_event_loop()
 
         App.__init__(self)#, **kwargs)
 
@@ -318,6 +323,7 @@ class ElectrumWindow(App):
 
         # cached dialogs
         self._settings_dialog = None
+        self._axe_net_dialog = None
         self._password_dialog = None
         self.fee_status = self.electrum_config.get_fee_status()
 
@@ -434,7 +440,8 @@ class ElectrumWindow(App):
                 msg += '\n' + _('Text copied to clipboard.')
                 self._clipboard.copy(text_for_clipboard)
             Clock.schedule_once(lambda dt: self.show_info(msg))
-        popup = QRDialog(title, data, show_text, on_qr_failure)
+        popup = QRDialog(title, data, show_text, failure_cb=on_qr_failure,
+                         text_for_clipboard=text_for_clipboard)
         popup.open()
 
     def scan_qr(self, on_complete):
@@ -455,6 +462,8 @@ class ElectrumWindow(App):
                     String = autoclass("java.lang.String")
                     contents = intent.getStringExtra(String("text"))
                     on_complete(contents)
+            except Exception as e:  # exc would otherwise get lost
+                send_exception_to_crash_reporter(e)
             finally:
                 activity.unbind(on_activity_result=on_qr_result)
         activity.bind(on_activity_result=on_qr_result)
@@ -491,11 +500,10 @@ class ElectrumWindow(App):
         '''
         import time
         Logger.info('Time to on_start: {} <<<<<<<<'.format(time.clock()))
-        win = Window
-        win.bind(size=self.on_size, on_keyboard=self.on_keyboard)
-        win.bind(on_key_down=self.on_key_down)
-        #win.softinput_mode = 'below_target'
-        self.on_size(win, win.size)
+        Window.bind(size=self.on_size, on_keyboard=self.on_keyboard)
+        Window.bind(on_key_down=self.on_key_down)
+        #Window.softinput_mode = 'below_target'
+        self.on_size(Window, Window.size)
         self.init_ui()
         crash_reporter.ExceptionHook(self)
         # init plugins
@@ -663,9 +671,18 @@ class ElectrumWindow(App):
         self._settings_dialog.update()
         self._settings_dialog.open()
 
+    def axe_net_dialog(self):
+        from .uix.dialogs.axe_net import AxeNetDialog
+        if self._axe_net_dialog is None:
+            self._axe_net_dialog = AxeNetDialog(self)
+        self._axe_net_dialog.update()
+        self._axe_net_dialog.open()
+
     def popup_dialog(self, name):
         if name == 'settings':
             self.settings_dialog()
+        elif name == 'axe_net':
+            self.axe_net_dialog()
         elif name == 'wallets':
             from .uix.dialogs.wallets import WalletDialog
             d = WalletDialog()
@@ -715,7 +732,10 @@ class ElectrumWindow(App):
         self.receive_screen = None
         self.requests_screen = None
         self.address_screen = None
-        self.icon = "electrum_axe/gui/icons/electrum-axe.png"
+        if self.testnet:
+            self.icon = 'electrum_axe/gui/icons/electrum-axe-testnet.png'
+        else:
+            self.icon = 'electrum_axe/gui/icons/electrum-axe.png'
         self.tabs = self.root.ids['tabs']
 
     def update_interfaces(self, dt):
@@ -835,6 +855,10 @@ class ElectrumWindow(App):
     def format_amount_and_units(self, x):
         return format_satoshis_plain(x, self.decimal_point()) + ' ' + self.base_unit
 
+    def format_fee_rate(self, fee_rate):
+        # fee_rate is in haks/kB
+        return format_fee_satoshis(fee_rate) + ' haks/kB'
+
     #@profiler
     def update_wallet(self, *dt):
         self._trigger_update_status()
@@ -853,17 +877,31 @@ class ElectrumWindow(App):
         except ImportError:
             Logger.Error('Notification: needs plyer; `sudo python3 -m pip install plyer`')
 
+    @property
+    def testnet(self):
+        return self.electrum_config.get('testnet')
+
+    @property
+    def app_icon(self):
+        return ATLAS_ICON % ('logo-testnet' if self.testnet else 'logo')
+
     def on_pause(self):
         self.pause_time = time.time()
         # pause nfc
         if self.nfcscanner:
             self.nfcscanner.nfc_disable()
+        if self.network:
+            self.network.stop()
+        if self.wallet:
+            self.electrum_config.save_last_wallet(self.wallet)
         return True
 
     def on_resume(self):
         now = time.time()
         if self.wallet and self.wallet.has_password() and now - self.pause_time > 60:
             self.password_dialog(self.wallet, _('Enter PIN'), None, self.stop)
+        if self.network:
+            self.network.start([self.fx.run])
         if self.nfcscanner:
             self.nfcscanner.nfc_enable()
 

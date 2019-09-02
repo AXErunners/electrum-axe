@@ -2,7 +2,7 @@ PYTHON = python3
 
 # needs kivy installed or in PYTHONPATH
 
-.PHONY: theming apk clean
+.PHONY: theming prepare prepare-testnet apk apk-testnet release release-testnet clean
 
 theming:
 	$(PYTHON) -m kivy.atlas theming/light 1024 theming/light/*.png
@@ -11,17 +11,27 @@ prepare:
 	@cp tools/buildozer.spec ../../../buildozer.spec
 	# copy electrum-axe to main.py
 	@cp ../../../electrum-axe ../../../main.py
-	@-if [ ! -d "../../../.buildozer" ];then \
-		cd ../../..; buildozer android debug;\
-		cp -f electrum_axe/gui/kivy/tools/blacklist.txt .buildozer/android/platform/python-for-android/src/blacklist.txt;\
-		rm -rf ./.buildozer/android/platform/python-for-android/dist;\
-	fi
+prepare-testnet:
+	@-cd ../../..; sed -r "s:^(title =.*):\1 Testnet:" -i buildozer.spec
+	@-cd ../../..; sed -r "s:^(package.nam.*):\1_Testnet:" -i buildozer.spec
+	@-cd ../../..; sed -r "s:^(presp.*).png:\1_testnet.png:" -i buildozer.spec
+	@-cd ../../..; sed -r "s:^(icon.*).png:\1-testnet.png:" -i buildozer.spec
 apk:
 	@make prepare
-	@-cd ../../..; buildozer android debug deploy run
+	@-cd ../../..; buildozer android debug
+	@make clean
+apk-testnet:
+	@make prepare
+	@make prepare-testnet
+	@-cd ../../..; buildozer android debug
 	@make clean
 release:
 	@make prepare
+	@-cd ../../..; buildozer android release
+	@make clean
+release-testnet:
+	@make prepare
+	@make prepare-testnet
 	@-cd ../../..; buildozer android release
 	@make clean
 clean:

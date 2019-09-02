@@ -67,7 +67,7 @@ Builder.load_string('''
     size_hint: None, None
     canvas.before:
         Color:
-            rgba: .239, .588, .882, 1
+            rgba: (.45, .2, 0, 1) if app.testnet else (.239, .588, .882, 1)
         Rectangle:
             size: Window.size
 
@@ -88,6 +88,13 @@ Builder.load_string('''
             Label:
                 color: root.text_color
                 text: 'AXE ELECTRUM'
+                size_hint: 1, None
+                height: self.texture_size[1] if self.opacity else 0
+                font_size: '33sp'
+                font_name: 'electrum_axe/gui/kivy/data/fonts/tron/Tr2n.ttf'
+            Label:
+                color: root.text_color
+                text: 'TESTNET' if app.testnet else ''
                 size_hint: 1, None
                 height: self.texture_size[1] if self.opacity else 0
                 font_size: '33sp'
@@ -533,15 +540,20 @@ class WizardDialog(EventsDialog):
     crcontent = ObjectProperty(None)
 
     def __init__(self, wizard, **kwargs):
+        self.auto_dismiss = False
         super(WizardDialog, self).__init__()
         self.wizard = wizard
         self.ids.back.disabled = not wizard.can_go_back()
         self.app = App.get_running_app()
         self.run_next = kwargs['run_next']
-        _trigger_size_dialog = Clock.create_trigger(self._size_dialog)
-        Window.bind(size=_trigger_size_dialog,
-                    rotation=_trigger_size_dialog)
-        _trigger_size_dialog()
+
+        self._trigger_size_dialog = Clock.create_trigger(self._size_dialog)
+        # note: everything bound here needs to be unbound as otherwise the
+        # objects will be kept around and keep receiving the callbacks
+        Window.bind(size=self._trigger_size_dialog,
+                    rotation=self._trigger_size_dialog,
+                    on_keyboard=self.on_keyboard)
+        self._trigger_size_dialog()
         self._on_release = False
 
     def _size_dialog(self, dt):
@@ -562,7 +574,26 @@ class WizardDialog(EventsDialog):
         else:
             self.crcontent.add_widget(widget, index=index)
 
+    def on_keyboard(self, instance, key, keycode, codepoint, modifier):
+        if key == 27:
+            if self.wizard.can_go_back():
+                self._on_release = True
+                self.dismiss()
+                self.wizard.go_back()
+            else:
+                app = App.get_running_app()
+                if not app.is_exit:
+                    app.is_exit = True
+                    app.show_info(_('Press again to exit'))
+                else:
+                    self._on_release = False
+                    self.dismiss()
+            return True
+
     def on_dismiss(self):
+        Window.unbind(size=self._trigger_size_dialog,
+                      rotation=self._trigger_size_dialog,
+                      on_keyboard=self.on_keyboard)
         app = App.get_running_app()
         if app.wallet is None and not self._on_release:
             app.stop()
@@ -572,7 +603,7 @@ class WizardDialog(EventsDialog):
 
     def on_release(self, button):
         self._on_release = True
-        self.close()
+        self.dismiss()
         if not button:
             self.parent.dispatch('on_wizard_complete', None)
             return
