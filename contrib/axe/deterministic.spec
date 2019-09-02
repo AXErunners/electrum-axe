@@ -53,6 +53,7 @@ hiddenimports += [
 ]
 
 datas = [
+    ('electrum_axe/checkpoints*.*', 'electrum_axe'),
     ('electrum_axe/*.json', 'electrum_axe'),
     ('electrum_axe/locale', 'electrum_axe/locale'),
     ('electrum_axe/wordlist', 'electrum_axe/wordlist'),

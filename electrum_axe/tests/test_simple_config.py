@@ -116,7 +116,7 @@ class Test_SimpleConfig(SequentialTestCase):
         self.assertEqual( 6 * 1000, config.depth_target_to_fee( 500000))
         self.assertEqual( 7 * 1000, config.depth_target_to_fee( 250000))
         self.assertEqual(11 * 1000, config.depth_target_to_fee( 200000))
-        self.assertEqual(50 * 1000, config.depth_target_to_fee( 100000))
+        self.assertEqual(15 * 1000, config.depth_target_to_fee( 100000))
         config.mempool_fees = []
         self.assertEqual( 1 * 1000, config.depth_target_to_fee(10 ** 5))
         self.assertEqual( 1 * 1000, config.depth_target_to_fee(10 ** 6))

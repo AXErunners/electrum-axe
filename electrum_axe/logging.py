@@ -243,9 +243,9 @@ def configure_logging(config):
     logging.getLogger('kivy').propagate = False
 
     from . import ELECTRUM_VERSION
+    from .constants import GIT_REPO_URL
     _logger.info(f"Axe Electrum version: {ELECTRUM_VERSION} - "
-                 f"https://electrum.axe.org - "
-                 f"https://github.com/axerunners/electrum-axe")
+                 f"https://github.com/axerunners/electrum-axe - {GIT_REPO_URL}")
     _logger.info(f"Python version: {sys.version}. On platform: {describe_os_version()}")
     _logger.info(f"Logging to file: {str(_logfile_path)}")
     _logger.info(f"Log filters: verbosity {repr(verbosity)}, verbosity_shortcuts {repr(verbosity_shortcuts)}")

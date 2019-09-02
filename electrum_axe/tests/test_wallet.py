@@ -156,7 +156,8 @@ class TestCreateRestoreWallet(WalletTestCase):
         d = create_new_wallet(path=self.wallet_path,
                               passphrase=passphrase,
                               password=password,
-                              encrypt_file=encrypt_file)
+                              encrypt_file=encrypt_file,
+                              gap_limit=1)
         wallet = d['wallet']  # type: Standard_Wallet
         wallet.check_password(password)
         self.assertEqual(passphrase, wallet.keystore.get_passphrase(password))
@@ -173,7 +174,8 @@ class TestCreateRestoreWallet(WalletTestCase):
                                      network=None,
                                      passphrase=passphrase,
                                      password=password,
-                                     encrypt_file=encrypt_file)
+                                     encrypt_file=encrypt_file,
+                                     gap_limit=1)
         wallet = d['wallet']  # type: Standard_Wallet
         self.assertEqual(passphrase, wallet.keystore.get_passphrase(password))
         self.assertEqual(text, wallet.keystore.get_seed(password))
@@ -208,7 +210,6 @@ class TestCreateRestoreWallet(WalletTestCase):
         text = 'p2pkh:XGx8LpkmLRv9RiMvpYx965BCaQKQbeMVVqgAh7B5SQVdosQiKJ4i p2pkh:XEn9o6oayjsRmoEQwDbvkrWVvjRNqPj3xNskJJPAKraJTrWuutwd'
         d = restore_wallet_from_text(text, path=self.wallet_path, network=None)
         wallet = d['wallet']  # type: Imported_Wallet
-        #print(wallet)
         addr0 = wallet.get_receiving_addresses()[0]
         self.assertEqual('PAcQeW6SqW8S1JpL6f53m9GnT6AeRFndWo', addr0)
         self.assertEqual('p2pkh:XEn9o6oayjsRmoEQwDbvkrWVvjRNqPj3xNskJJPAKraJTrWuutwd',

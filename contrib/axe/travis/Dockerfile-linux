@@ -1,5 +1,5 @@
 FROM ubuntu:18.04
-LABEL maintainer "AXErunners"
+LABEL maintainer "Andriy Khavryuchenko <akhavr@khavr.com>"
 
 RUN apt-get update -y \
     && apt-get install -y python3-pip \

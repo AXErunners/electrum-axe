@@ -1,11 +1,11 @@
 import tty
 import sys
 import curses
-import datetime
 import locale
-from decimal import Decimal
 import getpass
 import logging
+from datetime import datetime
+from decimal import Decimal
 
 import electrum_axe
 from electrum_axe.axe_tx import SPEC_TX_NAMES
@@ -136,13 +136,19 @@ class ElectrumGui:
     def update_history(self):
         b = 0
         self.history = []
-        for tx_hash, tx_type, tx_mined_status, value, balance in self.wallet.get_history():
+        hist_list = self.wallet.get_history(config=self.config)
+        for (tx_hash, tx_type, tx_mined_status, value, balance,
+             islock) in hist_list:
             if tx_mined_status.conf:
                 timestamp = tx_mined_status.timestamp
                 try:
-                    time_str = datetime.datetime.fromtimestamp(timestamp).isoformat(' ')[:-3]
+                    dttm = datetime.fromtimestamp(timestamp)
+                    time_str = dttm.isoformat(' ')[:-3]
                 except Exception:
                     time_str = "------"
+            elif islock:
+                dttm = datetime.fromtimestamp(islock)
+                time_str = dttm.isoformat(' ')[:-3]
             else:
                 time_str = 'unconfirmed'
 

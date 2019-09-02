@@ -1,3 +1,4 @@
+import unittest
 from unittest import mock
 import shutil
 import tempfile
@@ -7,7 +8,7 @@ from electrum_axe import storage, bitcoin, keystore
 from electrum_axe.transaction import Transaction
 from electrum_axe.simple_config import SimpleConfig
 from electrum_axe.address_synchronizer import TX_HEIGHT_UNCONFIRMED, TX_HEIGHT_UNCONF_PARENT
-from electrum_axe.wallet import sweep, Multisig_Wallet, Standard_Wallet, Imported_Wallet
+from electrum_axe.wallet import sweep, Multisig_Wallet, Standard_Wallet, Imported_Wallet, restore_wallet_from_text
 from electrum_axe.util import bfh, bh2u
 from electrum_axe.transaction import TxOutput
 from electrum_axe.mnemonic import seed_type
@@ -19,7 +20,7 @@ from .test_bitcoin import needs_test_with_all_ecc_implementations
 
 UNICODE_HORROR_HEX = 'e282bf20f09f988020f09f98882020202020e3818620e38191e3819fe381be20e3828fe3828b2077cda2cda2cd9d68cda16fcda2cda120ccb8cda26bccb5cd9f6eccb4cd98c7ab77ccb8cc9b73cd9820cc80cc8177cd98cda2e1b8a9ccb561d289cca1cda27420cca7cc9568cc816fccb572cd8fccb5726f7273cca120ccb6cda1cda06cc4afccb665cd9fcd9f20ccb6cd9d696ecda220cd8f74cc9568ccb7cca1cd9f6520cd9fcd9f64cc9b61cd9c72cc95cda16bcca2cca820cda168ccb465cd8f61ccb7cca2cca17274cc81cd8f20ccb4ccb7cda0c3b2ccb5ccb666ccb82075cca7cd986ec3adcc9bcd9c63cda2cd8f6fccb7cd8f64ccb8cda265cca1cd9d3fcd9e'
 UNICODE_HORROR = bfh(UNICODE_HORROR_HEX).decode('utf-8')
-# '₿ 😀 😈     う けたま わる w͢͢͝h͡o͢͡ ̸͢k̵͟n̴͘ǫw̸̛s͘ ̀́w͘͢ḩ̵a҉̡͢t ̧̕h́o̵r͏̵rors̡ ̶͡͠lį̶e͟͟ ̶͝in͢ ͏t̕h̷̡͟e ͟͟d̛a͜r̕͡k̢̨ ͡h̴e͏a̷̢̡rt́͏ ̴̷͠ò̵̶f̸ u̧͘ní̛͜c͢͏o̷͏d̸͢e̡͝?͞'
+assert UNICODE_HORROR == '₿ 😀 😈     う けたま わる w͢͢͝h͡o͢͡ ̸͢k̵͟n̴͘ǫw̸̛s͘ ̀́w͘͢ḩ̵a҉̡͢t ̧̕h́o̵r͏̵rors̡ ̶͡͠lį̶e͟͟ ̶͝in͢ ͏t̕h̷̡͟e ͟͟d̛a͜r̕͡k̢̨ ͡h̴e͏a̷̢̡rt́͏ ̴̷͠ò̵̶f̸ u̧͘ní̛͜c͢͏o̷͏d̸͢e̡͝?͞'
 
 
 class WalletIntegrityHelper:
@@ -263,3 +264,47 @@ class TestWalletKeystoreAddressIntegrityForTestnet(TestCaseForTestnet):
         self.assertEqual(ks.xpub, 'tpubD6NzVbkrYhZ4Y5Epun1qZKcACU6NQqocgYyC4RYaYBMWw8nuLSMR7DvzVamkqxwRgrTJ1MBMhc8wwxT2vbHqMu8RBXy4BvjWMxR5EdZroxE')
         self.assertEqual(w.get_receiving_addresses()[0], '8soEYefwj7c3QZt43M3UptCZVhduigoYNs')
         self.assertEqual(w.get_change_addresses()[0], '8zsBhqSouWyYgSjJWwevRKh4BDCySjizKi')
+
+
+class TestWalletHistory_DoubleSpend(TestCaseForTestnet):
+    transactions = {
+        # txn A:
+        "0cce62d61ec87ad3e391e8cd752df62e0c952ce45f52885d6d10988e02794060": "0200000001191601a44a81e061502b7bfbc6eaa1cef6d1e6af5308ef96c9342f71dbf4b9b5000000006b483045022100a6d44d0a651790a477e75334adfb8aae94d6612d01187b2c02526e340a7fd6c8022028bdf7a64a54906b13b145cd5dab21a26bd4b85d6044e9b97bceab5be44c2a9201210253e8e0254b0c95776786e40984c1aa32a7d03efa6bdacdea5f421b774917d346feffffff026b20fa04000000001976a914dc3a05eb562fb6f3ef8076946514d4730cff299988aca0860100000000001976a91421919b94ae5cefcdf0271191459157cdb41c4cbf88aca6240700",
+        # txn B:
+        "e7f4e47f41421e37a8600b6350befd586f30db60a88d0992d54df280498f0968": "0200000001604079028e98106d5d88525fe42c950c2ef62d75cde891e3d37ac81ed662ce0c000000006b483045022100a6d44d0a651790a477e75334adfb8aae94d6612d01187b2c02526e340a7fd6c8022028bdf7a64a54906b13b145cd5dab21a26bd4b85d6044e9b97bceab5be44c2a9201210253e8e0254b0c95776786e40984c1aa32a7d03efa6bdacdea5f421b774917d346feffffff01831cfa04000000001976a914024db2e87dd7cfd0e5f266c5f212e21a31d805a588aca6240700",
+        # txn C:
+        "a04328fbc9f28268378a8b9cf103db21ca7d673bf1cc7fa4d61b6a7265f07a6b": "0200000001604079028e98106d5d88525fe42c950c2ef62d75cde891e3d37ac81ed662ce0c000000006b483045022100a6d44d0a651790a477e75334adfb8aae94d6612d01187b2c02526e340a7fd6c8022028bdf7a64a54906b13b145cd5dab21a26bd4b85d6044e9b97bceab5be44c2a9201210253e8e0254b0c95776786e40984c1aa32a7d03efa6bdacdea5f421b774917d346feffffff01831cfa04000000001976a914899cdc441b5ec43f1e157d1f93e2ffbea99e051f88aca6240700",
+    }
+
+    @mock.patch.object(storage.WalletStorage, '_write')
+    def test_restoring_wallet_without_manual_delete(self, mock_write):
+        w = restore_wallet_from_text("hint shock chair puzzle shock traffic drastic note dinosaur mention suggest sweet",
+                                     path='if_this_exists_mocking_failed_648151893',
+                                     gap_limit=5)['wallet']
+        for txid in self.transactions:
+            tx = Transaction(self.transactions[txid])
+            w.add_transaction(tx.txid(), tx)
+        # txn A is an external incoming txn funding the wallet
+        # txn B is an outgoing payment to an external address
+        # txn C is double-spending txn B, to a wallet address
+        self.assertEqual(83500163, sum(w.get_balance()))
+
+    @mock.patch.object(storage.WalletStorage, '_write')
+    def test_restoring_wallet_with_manual_delete(self, mock_write):
+        w = restore_wallet_from_text("hint shock chair puzzle shock traffic drastic note dinosaur mention suggest sweet",
+                                     path='if_this_exists_mocking_failed_648151893',
+                                     gap_limit=5)['wallet']
+        # txn A is an external incoming txn funding the wallet
+        txA = Transaction(self.transactions["0cce62d61ec87ad3e391e8cd752df62e0c952ce45f52885d6d10988e02794060"])
+        w.add_transaction(txA.txid(), txA)
+        # txn B is an outgoing payment to an external address
+        txB = Transaction(self.transactions["e7f4e47f41421e37a8600b6350befd586f30db60a88d0992d54df280498f0968"])
+        w.add_transaction(txB.txid(), txB)
+        # now the user manually deletes txn B to attempt the double spend
+        # txn C is double-spending txn B, to a wallet address
+        # rationale1: user might do this with opt-in RBF transactions
+        # rationale2: this might be a local transaction, in which case the GUI even allows it
+        w.remove_transaction(txB)
+        txC = Transaction(self.transactions["a04328fbc9f28268378a8b9cf103db21ca7d673bf1cc7fa4d61b6a7265f07a6b"])
+        w.add_transaction(txC.txid(), txC)
+        self.assertEqual(83500163, sum(w.get_balance()))

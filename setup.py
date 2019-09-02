@@ -76,6 +76,7 @@ setup(
     package_data={
         '': ['*.txt', '*.json', '*.ttf', '*.otf'],
         'electrum_axe': [
+            'checkpoints*.gz',
             'wordlist/*.txt',
             'locale/*/LC_MESSAGES/electrum.mo',
         ],

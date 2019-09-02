@@ -26,7 +26,7 @@
 
 import struct
 from collections import namedtuple
-from ipaddress import ip_address
+from ipaddress import ip_address, IPv6Address
 from bls_py import bls
 
 from .util import bh2u, bfh
@@ -40,6 +40,31 @@ def tx_header_to_tx_type(tx_header_bytes):
     if tx_type and (tx_header & 0x0000ffff) < 3:
         tx_type = 0
     return tx_type
+
+
+def serialize_ip(ip):
+    if ip.version == 4:
+        return b'\x00'*10 + b'\xff'*2 + ip.packed
+    else:
+        return ip.packed
+
+
+def service_to_ip_port(service):
+    '''Convert str service to ipaddress, port tuple'''
+    if ']' in service:                  # IPv6
+        ip, port = service.split(']')
+        ip = ip[1:]                     # remove opening square bracket
+        port = port[1:]                 # remove colon before portnum
+    else:                               # IPv4
+        ip, port = service.split(':')
+    return ip_address(ip), int(port)
+
+
+def str_ip(ip):
+    if type(ip) == IPv6Address and ip.ipv4_mapped:
+        return str(ip.ipv4_mapped)
+    else:
+        return str(ip)
 
 
 def to_compact_size(size):
@@ -194,15 +219,12 @@ class AxeProRegTx(ProTxBase):
                    bh2u(self.scriptPayout)))
 
     def serialize(self, full=True):
-        assert (len(self.KeyIdOwner) == 20
-                and len(self.PubKeyOperator) == 48
-                and len(self.KeyIdVoting) == 20
-                and len(self.inputsHash) == 32)
+        assert len(self.KeyIdOwner) == 20
+        assert len(self.PubKeyOperator) == 48
+        assert len(self.KeyIdVoting) == 20
+        assert len(self.inputsHash) == 32
         ipAddress = ip_address(self.ipAddress)
-        if ipAddress.version == 4:
-            ipAddress = b'\x00'*10 + b'\xff'*2 + ipAddress.packed
-        else:
-            ipAddress = ipAddress.packed
+        ipAddress = serialize_ip(ipAddress)
         payloadSig = to_varbytes(self.payloadSig) if full else b''
         return (
             struct.pack('<H', self.version) +           # version
@@ -312,14 +334,11 @@ class AxeProUpServTx(ProTxBase):
         return res
 
     def serialize(self, full=True):
-        assert (len(self.proTxHash) == 32
-                and len(self.inputsHash) == 32
-                and len(self.payloadSig) == 96)
+        assert len(self.proTxHash) == 32
+        assert len(self.inputsHash) == 32
+        assert len(self.payloadSig) == 96
         ipAddress = ip_address(self.ipAddress)
-        if ipAddress.version == 4:
-            ipAddress = b'\x00'*10 + b'\xff'*2 + ipAddress.packed
-        else:
-            ipAddress = ipAddress.packed
+        ipAddress = serialize_ip(ipAddress)
         payloadSig = self.payloadSig if full else b''
         return (
             struct.pack('<H', self.version) +           # version
@@ -407,10 +426,10 @@ class AxeProUpRegTx(ProTxBase):
                    bh2u(self.scriptPayout)))
 
     def serialize(self, full=True):
-        assert (len(self.proTxHash) == 32
-                and len(self.PubKeyOperator) == 48
-                and len(self.KeyIdVoting) == 20
-                and len(self.inputsHash) == 32)
+        assert len(self.proTxHash) == 32
+        assert len(self.PubKeyOperator) == 48
+        assert len(self.KeyIdVoting) == 20
+        assert len(self.inputsHash) == 32
         payloadSig = to_varbytes(self.payloadSig) if full else b''
         return (
             struct.pack('<H', self.version) +           # version
@@ -481,9 +500,9 @@ class AxeProUpRevTx(ProTxBase):
                    self.reason))
 
     def serialize(self, full=True):
-        assert (len(self.proTxHash) == 32
-                and len(self.inputsHash) == 32
-                and len(self.payloadSig) == 96)
+        assert len(self.proTxHash) == 32
+        assert len(self.inputsHash) == 32
+        assert len(self.payloadSig) == 96
         payloadSig = self.payloadSig if full else b''
         return (
             struct.pack('<H', self.version) +           # version
@@ -552,7 +571,6 @@ class AxeCbTx(ProTxBase):
             res += self.merkleRootQuorums               # merkleRootQuorums
         return res
 
-
     @classmethod
     def read_vds(cls, vds):
         version = vds.read_uint16()
@@ -577,8 +595,8 @@ class AxeSubTxRegister(ProTxBase):
                    bh2u(self.pubKey)))
 
     def serialize(self):
-        assert (len(self.pubKey) == 48
-                and len(self.payloadSig) == 96)
+        assert len(self.pubKey) == 48
+        assert len(self.payloadSig) == 96
         return (
             struct.pack('<H', self.version) +           # version
             to_varbytes(self.userName) +                # userName
@@ -641,10 +659,10 @@ class AxeSubTxResetKey(ProTxBase):
                    bh2u(self.newPubKey)))
 
     def serialize(self):
-        assert (len(self.regTxHash) == 32
-                and len(self.hashPrevSubTx) == 32
-                and len(self.newPubKey) == 48
-                and len(self.payloadSig) == 96)
+        assert len(self.regTxHash) == 32
+        assert len(self.hashPrevSubTx) == 32
+        assert len(self.newPubKey) == 48
+        assert len(self.payloadSig) == 96
         return (
             struct.pack('<H', self.version) +           # version
             self.regTxHash +                            # regTxHash
@@ -683,9 +701,9 @@ class AxeSubTxCloseAccount(ProTxBase):
                    self.creditFee))
 
     def serialize(self):
-        assert (len(self.regTxHash) == 32
-                and len(self.hashPrevSubTx) == 32
-                and len(self.payloadSig) == 96)
+        assert len(self.regTxHash) == 32
+        assert len(self.hashPrevSubTx) == 32
+        assert len(self.payloadSig) == 96
         return (
             struct.pack('<H', self.version) +           # version
             self.regTxHash +                            # regTxHash
