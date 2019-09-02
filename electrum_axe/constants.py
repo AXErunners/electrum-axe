@@ -24,9 +24,14 @@
 # SOFTWARE.
 
 import os
+import gzip
 import json
 
+from .logging import get_logger
 from .util import inv_dict
+
+
+_logger = get_logger(__name__)
 
 
 def read_json(filename, default):
@@ -37,6 +42,22 @@ def read_json(filename, default):
     except:
         r = default
     return r
+
+
+def read_json_gz(filename, default):
+    path = os.path.join(os.path.dirname(__file__), filename)
+    try:
+        with gzip.open(path, 'rb') as f:
+            data = f.read()
+            r = json.loads(data.decode('utf-8'))
+    except:
+        _logger.info(f'file not found: {filename}')
+        r = default
+    return r
+
+
+GIT_REPO_URL = "https://github.com/axerunners/electrum-axe"
+GIT_REPO_ISSUES_URL = f"{GIT_REPO_URL}/issues"
 
 
 class AbstractNet:
@@ -55,7 +76,7 @@ class BitcoinMainnet(AbstractNet):
     GENESIS = "00000c33631ca6f2f61368991ce2dc03306b5bb50bf7cede5cfbba6db38e52e6"
     DEFAULT_PORTS = {'t': '50001', 's': '50001'}
     DEFAULT_SERVERS = read_json('servers.json', {})
-    CHECKPOINTS = read_json('checkpoints.json', [])
+    CHECKPOINTS = read_json_gz('checkpoints.json.gz', [])
 
     XPRV_HEADERS = {
         'standard':    0x0488ade4,  # xprv
@@ -80,7 +101,7 @@ class BitcoinTestnet(AbstractNet):
     GENESIS = "00000c33631ca6f2f61368991ce2dc03306b5bb50bf7cede5cfbba6db38e52e6"
     DEFAULT_PORTS = {'t': '51001', 's': '51002'}
     DEFAULT_SERVERS = read_json('servers_testnet.json', {})
-    CHECKPOINTS = read_json('checkpoints_testnet.json', [])
+    CHECKPOINTS = read_json_gz('checkpoints_testnet.json.gz', [])
 
     XPRV_HEADERS = {
         'standard':    0x04358394,  # tprv
