@@ -20,10 +20,10 @@ cp contrib/axe/deterministic.spec .
 cp contrib/axe/pyi_runtimehook.py .
 cp contrib/axe/pyi_tctl_runtimehook.py .
 
-wine python -m pip install -r contrib/deterministic-build/requirements.txt
-wine python -m pip install -r contrib/deterministic-build/requirements-hw.txt
-wine python -m pip install -r contrib/deterministic-build/requirements-binaries.txt
-wine python -m pip install PyInstaller==3.4 --no-use-pep517
+wine python -m pip install --no-warn-script-location -r contrib/deterministic-build/requirements.txt
+wine python -m pip install --no-warn-script-location -r contrib/deterministic-build/requirements-hw.txt
+wine python -m pip install --no-warn-script-location -r contrib/deterministic-build/requirements-binaries.txt
+wine python -m pip install --no-warn-script-location PyInstaller==3.4 --no-use-pep517
 
 wine pyinstaller -y \
     --name electrum-axe-$AXE_ELECTRUM_VERSION.exe \

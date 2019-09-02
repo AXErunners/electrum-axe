@@ -4,10 +4,10 @@ qrcode
 protobuf
 dnspython
 jsonrpclib-pelix
-aiorpcx>=0.17,<0.18
+aiorpcx>=0.18,<0.19
 aiohttp>=3.3.0
 aiohttp_socks
 certifi
 pycryptodomex
 x11_hash
-python-bls
+python-bls>=0.1.8

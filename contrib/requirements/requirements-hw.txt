@@ -1,4 +1,3 @@
-Cython>=0.27
 hideez>=0.2.1
 trezor[hidapi]>=0.11.0
 safet[hidapi]>=0.1.0

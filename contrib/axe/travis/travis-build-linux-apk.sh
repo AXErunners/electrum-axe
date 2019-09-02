@@ -6,7 +6,7 @@ if [[ -z $TRAVIS_TAG ]]; then
   exit 1
 fi
 
-BUILD_REPO_URL=https://github.com/AXErunners/electrum-axe.git
+BUILD_REPO_URL=https://github.com/axerunners/electrum-axe.git
 
 cd build
 
@@ -20,7 +20,16 @@ popd
 
 sudo chown -R 1000 electrum-axe
 
+DOCKER_CMD="rm -rf packages"
+DOCKER_CMD="$DOCKER_CMD && ./contrib/make_packages"
+DOCKER_CMD="$DOCKER_CMD && rm -rf packages/bls_py"
+DOCKER_CMD="$DOCKER_CMD && rm -rf packages/python_bls*"
+DOCKER_CMD="$DOCKER_CMD && ./contrib/make_apk"
+if [ $ELECTRUM_MAINNET = false ] ; then
+    DOCKER_CMD="$DOCKER_CMD release-testnet"
+fi
+
 docker run --rm \
     -v $(pwd)/electrum-axe:/home/buildozer/build \
     -t zebralucky/electrum-dash-winebuild:Kivy33x bash -c \
-    'rm -rf packages && ./contrib/make_packages && ./contrib/make_apk'
+    "$DOCKER_CMD"
