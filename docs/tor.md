@@ -1,8 +1,8 @@
-# Using AXE Electrum with Tor Proxy
+# Using Axe Electrum with Tor Proxy
 
 ## Use Tor Proxy on startup
 
-Starting from AXE Electrum release 3.2.3.2 automatic Tor Proxy
+Starting from Axe Electrum release 3.2.3.1 automatic Tor Proxy
 detection and use on wallet startup is added to
 [Network](tor/tor-proxy-on-startup.md) preferences.
 
