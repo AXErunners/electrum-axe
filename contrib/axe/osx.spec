@@ -12,8 +12,9 @@ for i, x in enumerate(sys.argv):
 else:
     raise Exception('no name')
 
-PY36BINDIR =  os.environ.get('PY36BINDIR')
-AXE_ELECTRUM_VERSION =  os.environ.get('AXE_ELECTRUM_VERSION')
+PY36BINDIR = os.environ.get('PY36BINDIR')
+AXE_ELECTRUM_VERSION = os.environ.get('AXE_ELECTRUM_VERSION')
+ICONS_FILE = 'electrum_axe/gui/icons/electrum-axe.icns'
 
 hiddenimports = collect_submodules('trezorlib')
 hiddenimports += collect_submodules('hideezlib')
@@ -181,5 +182,5 @@ app = BUNDLE(coll,
              },
              name=os.path.join('dist', 'Axe Electrum.app'),
              appname="Axe Electrum",
-	         icon='electrum-axe.icns',
+	         icon=ICONS_FILE,
              version=AXE_ELECTRUM_VERSION)
