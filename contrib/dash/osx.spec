@@ -12,8 +12,9 @@ for i, x in enumerate(sys.argv):
 else:
     raise Exception('no name')
 
-PY36BINDIR =  os.environ.get('PY36BINDIR')
-DASH_ELECTRUM_VERSION =  os.environ.get('DASH_ELECTRUM_VERSION')
+PY36BINDIR = os.environ.get('PY36BINDIR')
+DASH_ELECTRUM_VERSION = os.environ.get('DASH_ELECTRUM_VERSION')
+ICONS_FILE = 'electrum_dash/gui/icons/electrum-dash.icns'
 
 hiddenimports = collect_submodules('trezorlib')
 hiddenimports += collect_submodules('hideezlib')
@@ -181,5 +182,5 @@ app = BUNDLE(coll,
              },
              name=os.path.join('dist', 'Dash Electrum.app'),
              appname="Dash Electrum",
-	         icon='electrum-dash.icns',
+	         icon=ICONS_FILE,
              version=DASH_ELECTRUM_VERSION)
