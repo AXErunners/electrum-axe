@@ -15,7 +15,6 @@ Build-Depends:
  python3-protobuf (>= 3.0.0),
  python3-dnspython (>= 1.11.1),
  python3-jsonrpclib-pelix (>= 0.3.1),
- python3-socks (>= 1.6.5),
  python3-aiorpcx (<< 0.19),
  python3-aiohttp (>= 3.3.0),
  python3-aiohttp-socks,
@@ -57,7 +56,7 @@ Depends:
  python3:any (>= 3.5.36~),
 Description: Easy to use Dash client - Python module
  This package provides a lightweight Dash client which protects
- you from losing your Dashcoins in a backup mistake or computer
+ you from losing your Dash coins in a backup mistake or computer
  failure. Also, Dash Electrum does not require waiting time because it does
  not download the Dash blockchain.
  .
@@ -75,7 +74,7 @@ Breaks: dash-electrum (<= ${binary:Version})
 Recommends: python3-pyqt5
 Description: Easy to use Dash client
  This package provides a lightweight Dash client which protects
- you from losing your Dashcoins in a backup mistake or computer
+ you from losing your Dash coins in a backup mistake or computer
  failure. Also, Dash Electrum does not require waiting time because it does
  not download the Dash blockchain.
  .
@@ -110,7 +109,7 @@ Replaces: electrum-dash (<= ${binary:Version})
 Breaks: electrum-dash (<= ${binary:Version})
 Description: Easy to use Dash client
  This package provides a lightweight Dash client which protects
- you from losing your Dashcoins in a backup mistake or computer
+ you from losing your Dash coins in a backup mistake or computer
  failure. Also, Dash Electrum does not require waiting time because it does
  not download the Dash blockchain.
  .
