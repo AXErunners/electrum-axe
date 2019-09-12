@@ -7,10 +7,17 @@ Axe Electrum - Lightweight AXE client
     :alt: Build Status
 
 Getting started
----------------
+===============
+
+Homebrew
+-------------
+
+On macOS you can install Axe Electrum using `Homebrew <https://brew.sh>`_::
+
+    brew cask install axe-electrum
 
 
-Use PPA setup
+PPA
 -------------
 
 On Ubuntu/Linux Mint you can try to install Axe Electrum with next commands::
@@ -20,8 +27,9 @@ On Ubuntu/Linux Mint you can try to install Axe Electrum with next commands::
     sudo apt-get install axe-electrum
 
 
-Use source distribution
------------------------
+
+Source
+----------------
 
 Axe Electrum is a pure python application. If you want to use the
 Qt interface, install the Qt dependencies::
