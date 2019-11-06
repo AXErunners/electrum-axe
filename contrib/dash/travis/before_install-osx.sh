@@ -13,7 +13,7 @@ brew tap zebra-lucky/qt5
 brew install zebra-lucky/qt5/qt
 brew install gettext
 brew install libusb
-cp /usr/local/Cellar/libusb/1.0.22/lib/libusb-1.0.dylib .
+cp /usr/local/Cellar/libusb/1.0.*/lib/libusb-1.0.dylib .
 
 PYTHON_VERSION=3.6.8
 PYFTP=https://www.python.org/ftp/python/$PYTHON_VERSION
