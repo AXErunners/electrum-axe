@@ -1,3 +1,9 @@
+# Release 3.3.8.1
+
+ * fix extra_payload output in Commands.deserialize
+ * other small fixes
+
+
 # Release 3.3.8
 
  * appimage: URLs could not be opened on some desktop environments (#5425)
