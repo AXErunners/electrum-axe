@@ -172,7 +172,7 @@ class AddressSynchronizer(Logger):
                 self.db.add_islock(txid, self.get_local_height())
                 self._get_addr_balance_cache = {}  # invalidate cache
                 self.storage.write()
-                self.network.trigger_callback('wallet_updated', self)
+                self.network.trigger_callback('verified-islock', self, txid)
 
     def find_islock_pair(self, txid):
         if txid in self.db.islocks:
@@ -183,6 +183,7 @@ class AddressSynchronizer(Logger):
                 self.db.add_islock(txid, self.get_local_height())
                 self._get_addr_balance_cache = {}  # invalidate cache
                 self.storage.write()
+                self.network.trigger_callback('verified-islock', self, txid)
 
     def stop_threads(self):
         if self.network:
@@ -360,6 +361,7 @@ class AddressSynchronizer(Logger):
 
     def receive_tx_callback(self, tx_hash, tx, tx_height):
         self.add_unverified_tx(tx_hash, tx_height)
+        self.find_islock_pair(tx_hash)
         self.add_transaction(tx_hash, tx, allow_unrelated=True)
 
     def receive_history_callback(self, addr, hist, tx_fees):
@@ -377,6 +379,7 @@ class AddressSynchronizer(Logger):
         for tx_hash, tx_height in hist:
             # add it in case it was previously unconfirmed
             self.add_unverified_tx(tx_hash, tx_height)
+            self.find_islock_pair(tx_hash)
             # if addr is new, we have to recompute txi and txo
             tx = self.db.get_transaction(tx_hash)
             if tx is None:
@@ -430,8 +433,6 @@ class AddressSynchronizer(Logger):
                 height = self.unverified_tx[tx_hash]
                 if height > 0:
                     return (height, 0)
-                elif height <= TX_HEIGHT_LOCAL:
-                    return ((1e10 - height), 0)
                 elif not islock:
                     return ((1e10 - height), 0)
                 else:
