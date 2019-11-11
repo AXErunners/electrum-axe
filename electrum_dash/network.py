@@ -50,6 +50,7 @@ from .bitcoin import COIN
 from . import constants
 from . import blockchain
 from . import bitcoin
+from .constants import CHUNK_SIZE
 from .blockchain import Blockchain, HEADER_SIZE
 from .dash_net import DashNet
 from .interface import (Interface, serialize_server, deserialize_server,
@@ -839,7 +840,7 @@ class Network(Logger):
         b = blockchain.get_best_chain()
         filename = b.path()
         len_checkpoints = len(constants.net.CHECKPOINTS)
-        length = HEADER_SIZE * len_checkpoints * 2016
+        length = HEADER_SIZE * len_checkpoints * CHUNK_SIZE
         if not os.path.exists(filename) or os.path.getsize(filename) < length:
             with open(filename, 'wb') as f:
                 for i in range(len_checkpoints):
@@ -1188,17 +1189,14 @@ class Network(Logger):
         if not height or height <= base_height:
             return
 
-        max_blocks = 2016  # block headers chunk size
         activation_height = constants.net.DIP3_ACTIVATION_HEIGHT
         if base_height <= 1:
             if base_height == 0:  # on protx diff first allowed height is 1
                 base_height = 1
             if height > activation_height:
-                height = activation_height // max_blocks + 1
-                height = height * max_blocks - 1
-        elif height - base_height > max_blocks:
-            height = (base_height + max_blocks) // max_blocks + 1
-            height = height * max_blocks - 1
+                height = activation_height + 1
+        elif height - base_height > CHUNK_SIZE:
+            height = mn_list.calc_max_height(base_height, height)
 
         try:
             params = (base_height, height)

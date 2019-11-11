@@ -60,11 +60,14 @@ GIT_REPO_URL = "https://github.com/akhavr/electrum-dash"
 GIT_REPO_ISSUES_URL = f"{GIT_REPO_URL}/issues"
 
 
+CHUNK_SIZE = 2016
+
+
 class AbstractNet:
 
     @classmethod
     def max_checkpoint(cls) -> int:
-        return max(0, len(cls.CHECKPOINTS) * 2016 - 1)
+        return max(0, len(cls.CHECKPOINTS) * CHUNK_SIZE - 1)
 
 
 class BitcoinMainnet(AbstractNet):
