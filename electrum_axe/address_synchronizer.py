@@ -164,7 +164,7 @@ class AddressSynchronizer(Logger):
 
     def on_axe_islock(self, event, txid):
         if txid in self.db.islocks:
-            self.logger.info(f'islock for {txid} already in wallet islocks')
+            return
         elif txid in self.unverified_tx or txid in self.db.verified_tx:
             self.logger.info(f'found tx for islock: {txid}')
             axe_net = self.network.axe_net
@@ -176,7 +176,7 @@ class AddressSynchronizer(Logger):
 
     def find_islock_pair(self, txid):
         if txid in self.db.islocks:
-            self.logger.info(f'islock for {txid} already in wallet islocks')
+            return
         else:
             axe_net = self.network.axe_net
             if axe_net.verify_on_recent_islocks(txid):
@@ -361,8 +361,8 @@ class AddressSynchronizer(Logger):
 
     def receive_tx_callback(self, tx_hash, tx, tx_height):
         self.add_unverified_tx(tx_hash, tx_height)
-        self.find_islock_pair(tx_hash)
         self.add_transaction(tx_hash, tx, allow_unrelated=True)
+        self.find_islock_pair(tx_hash)
 
     def receive_history_callback(self, addr, hist, tx_fees):
         with self.lock:
@@ -379,12 +379,12 @@ class AddressSynchronizer(Logger):
         for tx_hash, tx_height in hist:
             # add it in case it was previously unconfirmed
             self.add_unverified_tx(tx_hash, tx_height)
-            self.find_islock_pair(tx_hash)
             # if addr is new, we have to recompute txi and txo
             tx = self.db.get_transaction(tx_hash)
             if tx is None:
                 continue
             self.add_transaction(tx_hash, tx, allow_unrelated=True)
+            self.find_islock_pair(tx_hash)
 
         # Store fees
         self.db.update_tx_fees(tx_fees)
@@ -470,7 +470,8 @@ class AddressSynchronizer(Logger):
                     tx_deltas[tx_hash] = None
                 else:
                     tx_deltas[tx_hash] += delta
-                tx_islocks[tx_hash] = islock
+                if tx_hash not in tx_islocks:
+                    tx_islocks[tx_hash] = islock
         # 2. create sorted history
         history = []
         for tx_hash in tx_deltas:
