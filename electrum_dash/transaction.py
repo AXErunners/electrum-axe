@@ -42,7 +42,8 @@ from .bitcoin import (TYPE_ADDRESS, TYPE_PUBKEY, TYPE_SCRIPT, hash_160,
                       opcodes, add_number_to_script, base_decode)
 from .crypto import sha256d
 from .keystore import xpubkey_to_address, xpubkey_to_pubkey
-from .dash_tx import read_extra_payload, serialize_extra_payload, to_varbytes
+from .dash_tx import (ProTxBase, read_extra_payload, serialize_extra_payload,
+                      to_varbytes)
 from .logging import get_logger
 
 
@@ -633,14 +634,23 @@ class Transaction:
         assert not self.is_complete()
         self.raw = None
 
-    def deserialize(self, force_full_parse=False):
+    def deserialize(self, force_full_parse=False,
+                    extra_payload_for_json=False):
         if self.raw is None:
             return
             #self.raw = self.serialize()
         if self._inputs is not None:
             return
         d = deserialize(self.raw, force_full_parse)
-        return self.set_data_from_dict(d)
+        res = self.set_data_from_dict(d)
+        if extra_payload_for_json:
+            extra_payload = self.extra_payload
+            if isinstance(extra_payload, ProTxBase):
+                extra_payload_json = extra_payload._asdict()
+            else:
+                extra_payload_json = bh2u(extra_payload)
+            res.update({'extra_payload': extra_payload_json})
+        return res
 
     def set_data_from_dict(self, d):
         self._inputs = d['inputs']

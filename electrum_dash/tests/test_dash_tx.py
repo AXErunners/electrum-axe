@@ -2,6 +2,7 @@ import unittest
 
 from electrum_dash import transaction
 from electrum_dash.util import bh2u, bfh
+from electrum_dash.commands import Commands
 
 from . import SequentialTestCase
 
@@ -41,6 +42,15 @@ CB_TX_V2 = (
     'c15e2d1aa337c942000000000000000000000000460200c407040076629a6e42fb5191'
     '88f65889fd3ac0201be87aa227462b5643e8bb2ec1d7a82a76629a6e42fb519188f658'
     '89fd3ac0201be87aa227462b5643e8bb2ec1d7a82a')
+
+
+CB_TX_V2_EP_FOR_JSON = {
+    'height': 264132,
+    'merkleRootMNList': ('76629a6e42fb519188f65889fd3ac0201be87aa2'
+                         '27462b5643e8bb2ec1d7a82a'),
+    'merkleRootQuorums': ('76629a6e42fb519188f65889fd3ac0201be87aa'
+                          '227462b5643e8bb2ec1d7a82a'),
+    'version': 2}
 
 
 PRO_REG_TX = (
@@ -176,6 +186,17 @@ UNKNOWN_SPEC_TX = (
     '67b3d0103f761caf3e98e9601210293360bf2a2e810673412bc6e8e0e358f3fb7bdbe9'
     'a667b3d0103f761caf3e98e9601210293360bf2a2e810673412bc6e8e0e358f3fb7bdb'
     'e9a667b3d0103f761cabcdefab')
+
+
+UNKNOWN_SPEC_TX_EP_FOR_JSON = (
+    '0100d384e42374e8abfeffffff01570b000000a40100b67'
+    'ffbbd095de31ea3844675af3e98e9601210293360bf2a2e'
+    '810673412bc6e8e0e358f3fb7bdbe9a12bc6e8e0e358f3f'
+    'b7bdbe9a62bc6e8e0e358f3fb7bdbe9a667b3d0103f761c'
+    'af3e98e9601210293360bf2a2e810673412bc6e8e0e358f'
+    '3fb7bdbe9a667b3d0103f761caf3e98e9601210293360bf'
+    '2a2e810673412bc6e8e0e358f3fb7bdbe9a667b3d0103f7'
+    '61cabcdefab')
 
 
 WRONG_SPEC_TX = (  # Tx version < 3
@@ -466,3 +487,43 @@ class TestDashSpecTxSerialization(SequentialTestCase):
         assert extra == b''
         ser = tx.serialize()
         assert ser == WRONG_SPEC_TX
+
+    def test_deserialize_transaction_v2(self):
+        cmds = Commands(config=None, wallet=None, network=None)
+        deser = cmds.deserialize(V2_TX)
+        assert deser['extra_payload'] == ''
+
+    def test_deserialize_transaction_cbtx(self):
+        cmds = Commands(config=None, wallet=None, network=None)
+        deser = cmds.deserialize(CB_TX_V2)
+        assert deser['extra_payload'] == CB_TX_V2_EP_FOR_JSON
+
+    def test_deserialize_transaction_unknown_spec_tx(self):
+        cmds = Commands(config=None, wallet=None, network=None)
+        deser = cmds.deserialize(UNKNOWN_SPEC_TX)
+        assert deser['extra_payload'] == UNKNOWN_SPEC_TX_EP_FOR_JSON
+
+    def test_serialize_command_with_extra_payload(self):
+        cmds = Commands(config=None, wallet=None, network=None)
+        test_json_tx = {
+            'inputs': [],
+            'outputs': [],
+        }
+        res = cmds.serialize(test_json_tx)
+        assert res == {'complete': True, 'final': True,
+                       'hex': '02000000000000000000'}
+
+        test_json_tx.update({'extra_payload': ''})
+        res = cmds.serialize(test_json_tx)
+        assert res == {'complete': True, 'final': True,
+                       'hex': '02000000000000000000'}
+
+        test_json_tx.update({'extra_payload': {'key': 'value'}})
+        res = cmds.serialize(test_json_tx)
+        assert res == {'error': 'Transactions with extra payload can not'
+                                ' be created from serialize command'}
+
+        test_json_tx.update({'extra_payload': '0b0a'})
+        res = cmds.serialize(test_json_tx)
+        assert res == {'error': 'Transactions with extra payload can not'
+                                ' be created from serialize command'}

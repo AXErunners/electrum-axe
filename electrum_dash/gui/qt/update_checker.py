@@ -4,7 +4,6 @@
 
 import asyncio
 import base64
-from distutils.version import StrictVersion
 
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QLabel, QProgressBar,
@@ -14,7 +13,7 @@ from electrum_dash import version
 from electrum_dash import constants
 from electrum_dash import ecc
 from electrum_dash.i18n import _
-from electrum_dash.util import make_aiohttp_session
+from electrum_dash.util import make_aiohttp_session, versiontuple
 from electrum_dash.logging import Logger
 
 
@@ -79,7 +78,9 @@ class UpdateCheck(QWidget, Logger):
         v = version.ELECTRUM_VERSION
         if 'rc' in v:
             v = v[:v.index('rc')]
-        return latest_version > StrictVersion(v)
+        if 'rc' in latest_version:
+            latest_version = latest_version[:latest_version.index('rc')]
+        return versiontuple(latest_version) > versiontuple(v)
 
     def update_view(self, latest_version=None):
         if latest_version:
@@ -130,7 +131,7 @@ class UpdateCheckThread(QThread, Logger):
                         break
                 else:
                     raise Exception('no valid signature for version announcement')
-                return StrictVersion(version_num.strip())
+                return version_num.strip()
 
     def run(self):
         network = self.main_window.network

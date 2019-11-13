@@ -31,6 +31,7 @@ import threading
 from collections import namedtuple, defaultdict
 from struct import pack
 
+from .constants import CHUNK_SIZE
 from .crypto import sha256d
 from .dash_msg import DashSMLEntry, DashQFCommitMsg
 from .logging import Logger
@@ -136,6 +137,15 @@ class MNList(Logger):
     @staticmethod
     def get_instance():
         return MN_LIST_INSTANCE
+
+    @staticmethod
+    def calc_max_height(base_height, height):
+        if (base_height + 1) % CHUNK_SIZE == 0:
+            height = base_height + CHUNK_SIZE
+        else:
+            next_chunk = (base_height + CHUNK_SIZE) // CHUNK_SIZE
+            height = next_chunk * CHUNK_SIZE - 1
+        return height
 
     @property
     def llmq_tip(self):

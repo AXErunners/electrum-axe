@@ -164,7 +164,7 @@ class AddressSynchronizer(Logger):
 
     def on_dash_islock(self, event, txid):
         if txid in self.db.islocks:
-            self.logger.info(f'islock for {txid} already in wallet islocks')
+            return
         elif txid in self.unverified_tx or txid in self.db.verified_tx:
             self.logger.info(f'found tx for islock: {txid}')
             dash_net = self.network.dash_net
@@ -172,17 +172,18 @@ class AddressSynchronizer(Logger):
                 self.db.add_islock(txid, self.get_local_height())
                 self._get_addr_balance_cache = {}  # invalidate cache
                 self.storage.write()
-                self.network.trigger_callback('wallet_updated', self)
+                self.network.trigger_callback('verified-islock', self, txid)
 
     def find_islock_pair(self, txid):
         if txid in self.db.islocks:
-            self.logger.info(f'islock for {txid} already in wallet islocks')
+            return
         else:
             dash_net = self.network.dash_net
             if dash_net.verify_on_recent_islocks(txid):
                 self.db.add_islock(txid, self.get_local_height())
                 self._get_addr_balance_cache = {}  # invalidate cache
                 self.storage.write()
+                self.network.trigger_callback('verified-islock', self, txid)
 
     def stop_threads(self):
         if self.network:
@@ -361,6 +362,7 @@ class AddressSynchronizer(Logger):
     def receive_tx_callback(self, tx_hash, tx, tx_height):
         self.add_unverified_tx(tx_hash, tx_height)
         self.add_transaction(tx_hash, tx, allow_unrelated=True)
+        self.find_islock_pair(tx_hash)
 
     def receive_history_callback(self, addr, hist, tx_fees):
         with self.lock:
@@ -382,6 +384,7 @@ class AddressSynchronizer(Logger):
             if tx is None:
                 continue
             self.add_transaction(tx_hash, tx, allow_unrelated=True)
+            self.find_islock_pair(tx_hash)
 
         # Store fees
         self.db.update_tx_fees(tx_fees)
@@ -430,8 +433,6 @@ class AddressSynchronizer(Logger):
                 height = self.unverified_tx[tx_hash]
                 if height > 0:
                     return (height, 0)
-                elif height <= TX_HEIGHT_LOCAL:
-                    return ((1e10 - height), 0)
                 elif not islock:
                     return ((1e10 - height), 0)
                 else:
@@ -469,7 +470,8 @@ class AddressSynchronizer(Logger):
                     tx_deltas[tx_hash] = None
                 else:
                     tx_deltas[tx_hash] += delta
-                tx_islocks[tx_hash] = islock
+                if tx_hash not in tx_islocks:
+                    tx_islocks[tx_hash] = islock
         # 2. create sorted history
         history = []
         for tx_hash in tx_deltas:
