@@ -234,9 +234,10 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         if self.network:
             self.network_signal.connect(self.on_network_qt)
             self.gui_object.axe_net_sobj.main.connect(self.on_axe_net_qt)
-            interests = ['wallet_updated', 'network_updated', 'blockchain_updated',
-                         'new_transaction', 'status',
-                         'banner', 'verified', 'fee', 'fee_histogram']
+            interests = ['wallet_updated', 'network_updated',
+                         'blockchain_updated', 'new_transaction', 'status',
+                         'banner', 'verified', 'verified-islock',
+                         'fee', 'fee_histogram']
 #                         'proposals']
             # To avoid leaking references to "self" that prevent the
             # window from being GC-ed when closed, callbacks should be
@@ -398,7 +399,8 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             wallet, tx = args
             if wallet == self.wallet:
                 self.tx_notification_queue.put(tx)
-        elif event in ['status', 'banner', 'verified', 'fee', 'proposals', 'fee_histogram']:
+        elif event in ['status', 'banner', 'verified', 'verified-islock',
+                       'fee', 'proposals', 'fee_histogram']:
             # Handle in GUI thread
             self.network_signal.emit(event, args)
         else:
@@ -425,6 +427,10 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             wallet, tx_hash, tx_mined_status = args
             if wallet == self.wallet:
                 self.history_model.update_tx_mined_status(tx_hash, tx_mined_status)
+        elif event == 'verified-islock':
+            wallet, tx_hash = args
+            if wallet == self.wallet:
+                self.need_update.set()
         elif event == 'fee':
             if self.config.is_dynfee():
                 self.fee_slider.update()

@@ -251,6 +251,9 @@ class Commands:
         Outputs must be a list of {'address':address, 'value':satoshi_amount}.
         """
         keypairs = {}
+        if jsontx.get('extra_payload'):
+            return {'error': 'Transactions with extra payload can not'
+                             ' be created from serialize command'}
         inputs = jsontx.get('inputs')
         outputs = jsontx.get('outputs')
         locktime = jsontx.get('lockTime', 0)
@@ -292,7 +295,8 @@ class Commands:
     def deserialize(self, tx):
         """Deserialize a serialized transaction"""
         tx = Transaction(tx)
-        return tx.deserialize(force_full_parse=True)
+        return tx.deserialize(force_full_parse=True,
+                              extra_payload_for_json=True)
 
     @command('n')
     def broadcast(self, tx):

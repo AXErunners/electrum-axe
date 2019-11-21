@@ -24,6 +24,7 @@
 # SOFTWARE.
 
 import os
+import time
 import datetime
 from datetime import date
 from typing import TYPE_CHECKING, Tuple, Dict
@@ -147,11 +148,12 @@ class HistoryModel(QAbstractItemModel, Logger):
             status, status_str = self.parent.wallet.get_tx_status(tx_hash, tx_mined_info, islock)
         if role == Qt.UserRole:
             # for sorting
+            now = int(time.time())
             d = {
                 HistoryColumns.STATUS_ICON:
                     # height breaks ties for unverified txns
                     # txpos breaks ties for verified same block txns
-                    ((conf, -status, -height, -islock)
+                    ((conf, now - islock + 1)  # one more to be gt -status (-0)
                      if not conf and islock else
                      (conf, -status, -height, -txpos)),
                 HistoryColumns.STATUS_TEXT: status_str,

@@ -522,8 +522,9 @@ class ElectrumWindow(App):
             activity.bind(on_new_intent=self.on_new_intent)
         # connect callbacks
         if self.network:
-            interests = ['wallet_updated', 'network_updated', 'blockchain_updated',
-                         'status', 'new_transaction', 'verified']
+            interests = ['wallet_updated', 'network_updated',
+                         'blockchain_updated', 'status', 'new_transaction',
+                         'verified', 'verified-islock']
             self.network.register_callback(self.on_network_event, interests)
             self.network.register_callback(self.on_fee, ['fee'])
             self.network.register_callback(self.on_fee_histogram, ['fee_histogram'])
@@ -769,6 +770,8 @@ class ElectrumWindow(App):
         elif event == 'new_transaction':
             self._trigger_update_wallet()
         elif event == 'verified':
+            self._trigger_update_wallet()
+        elif event == 'verified-islock':
             self._trigger_update_wallet()
 
     @profiler
