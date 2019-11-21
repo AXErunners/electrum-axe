@@ -40,6 +40,7 @@ from collections import defaultdict, deque
 from typing import Optional, Dict
 
 from . import constants
+from .constants import CHUNK_SIZE
 from .blockchain import MissingHeader
 from .axe_peer import AxePeer
 from .axe_msg import SporkID, LLMQType
@@ -666,15 +667,12 @@ class AxeNet(Logger):
             if not height or height <= base_height + llmq_offset:
                 return
 
-        max_blocks = 2016  # block headers chunk size
         activation_height = constants.net.DIP3_ACTIVATION_HEIGHT
         if base_height <= 1:
             if height > activation_height:
-                height = activation_height // max_blocks + 1
-                height = height * max_blocks - 1
-        elif height - (base_height + llmq_offset) > max_blocks:
-            height = (base_height + max_blocks) // max_blocks + 1
-            height = height * max_blocks - 1
+                height = activation_height + 1
+        elif height - (base_height + llmq_offset) > CHUNK_SIZE:
+            height = mn_list.calc_max_height(base_height, height)
         elif height - base_height > llmq_offset:
             height = height - llmq_offset
 
