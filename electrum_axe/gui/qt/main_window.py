@@ -916,10 +916,11 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
                 else:
                     icon = read_QIcon("status_connected_proxy%s.png"%fork_str)
         else:
+            not_connected_msg = _('Electrum network not connected')
             if self.network.proxy:
-                text = "{} ({})".format(_("Not connected"), _("proxy enabled"))
+                text = "{} ({})".format(not_connected_msg, _("proxy enabled"))
             else:
-                text = _("Not connected")
+                text = not_connected_msg
             icon = read_QIcon("status_disconnected.png")
 
         self.tray.setToolTip("%s (%s)" % (text, self.wallet.basename()))
