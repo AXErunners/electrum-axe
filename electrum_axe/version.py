@@ -1,5 +1,5 @@
-ELECTRUM_VERSION = '3.3.8.3'   # version of the client package
-APK_VERSION = '3.3.8.3'      # read by buildozer.spec
+ELECTRUM_VERSION = '3.3.8.4'   # version of the client package
+APK_VERSION = '3.3.8.4'      # read by buildozer.spec
 
 PROTOCOL_VERSION = '1.4'     # protocol version requested
 
