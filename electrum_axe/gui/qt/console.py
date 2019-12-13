@@ -36,10 +36,10 @@ class ConsolePasswordDialog(WindowModalDialog):
         self.inactivity_sb.setValue(timeout)
         grid = QtWidgets.QGridLayout()
         grid.setSpacing(8)
-        grid.addWidget(inactivity_lb, 20, 0)
-        grid.addWidget(self.inactivity_sb, 20, 1, 1, -1)
         grid.addWidget(QtWidgets.QLabel(_('Password')), 1, 0)
         grid.addWidget(pw, 1, 1)
+        grid.addWidget(inactivity_lb, 20, 0)
+        grid.addWidget(self.inactivity_sb, 20, 1, 1, -1)
         vbox.addLayout(grid)
         vbox.addLayout(Buttons(CancelButton(self), OkButton(self)))
         self.setLayout(vbox)
@@ -83,7 +83,7 @@ class OverlayLabel(QtWidgets.QLabel):
 
 class Console(QtWidgets.QPlainTextEdit):
     def __init__(self, prompt='>> ', startup_message='', parent=None):
-        QtWidgets.QPlainTextEdit.__init__(self, parent)
+        QtWidgets.QPlainTextEdit.__init__(self)
 
         self.prompt = prompt
         self.parent = parent

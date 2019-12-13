@@ -1036,7 +1036,8 @@ class ElectrumWindow(App):
             self.show_info(_('Sending'))
             threading.Thread(target=self._broadcast_thread, args=(tx, on_complete)).start()
         else:
-            self.show_info(_('Cannot broadcast transaction') + ':\n' + _('Not connected'))
+            self.show_info(_('Cannot broadcast transaction') +
+                           ':\n' + _('Electrum network not connected'))
 
     def description_dialog(self, screen):
         from .uix.dialogs.label_dialog import LabelDialog
