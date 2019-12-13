@@ -802,6 +802,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
 
     def timer_actions(self):
         # Note this runs in the GUI thread
+        self.console_tab.lock_if_need()
         if self.need_update.is_set():
             self.need_update.clear()
             self.update_wallet()
@@ -2178,7 +2179,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
 
     def create_console_tab(self):
         from .console import Console
-        self.console = console = Console()
+        self.console = console = Console(parent=self)
         console.setObjectName("console_container")
         return console
 
@@ -2293,6 +2294,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         msg = _('Password was updated successfully') if self.wallet.has_password() else _('Password is disabled, this wallet is not protected')
         self.show_message(msg, title=_("Success"))
         self.update_lock_icon()
+        self.console_tab.update_lock_state()
 
     def toggle_search(self):
         tab = self.tabs.currentWidget()

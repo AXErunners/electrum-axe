@@ -280,6 +280,10 @@ QLabel {
     background-color: #232629;
 }
 
+#console_container > QWidget {
+    background-color: #232629;
+}
+
 
 /* Balance Label */
 #main_window_balance {
