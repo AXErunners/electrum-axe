@@ -309,7 +309,7 @@ class AxeProRegTx(ProTxBase):
             if c_hash == ctx.hash and c_index == ctx.index:
                 with manager.manager_lock:
                     mn.protx_hash = tx.txid()
-                    manager.save()
+                    manager.save(with_lock=False)
                     manager.alias_updated = mn.alias
                 manager.notify('manager-alias-updated')
 
@@ -399,7 +399,7 @@ class AxeProUpServTx(ProTxBase):
                         mn.op_payout_address = script_to_address(op_pay_script)
                     else:
                         mn.op_payout_address = ''
-                    manager.save()
+                    manager.save(with_lock=False)
                     manager.alias_updated = mn.alias
                 manager.notify('manager-alias-updated')
 
@@ -480,7 +480,7 @@ class AxeProUpRegTx(ProTxBase):
                     mn.voting_addr = hash160_to_p2pkh(self.KeyIdVoting)
                     mn.pubkey_operator = bh2u(self.PubKeyOperator)
                     mn.mode = self.mode
-                    manager.save()
+                    manager.save(with_lock=False)
                     manager.alias_updated = mn.alias
                 manager.notify('manager-alias-updated')
 

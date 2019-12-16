@@ -802,6 +802,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
 
     def timer_actions(self):
         # Note this runs in the GUI thread
+        self.console_tab.lock_if_need()
         if self.need_update.is_set():
             self.need_update.clear()
             self.update_wallet()
@@ -915,10 +916,11 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
                 else:
                     icon = read_QIcon("status_connected_proxy%s.png"%fork_str)
         else:
+            not_connected_msg = _('Electrum network not connected')
             if self.network.proxy:
-                text = "{} ({})".format(_("Not connected"), _("proxy enabled"))
+                text = "{} ({})".format(not_connected_msg, _("proxy enabled"))
             else:
-                text = _("Not connected")
+                text = not_connected_msg
             icon = read_QIcon("status_disconnected.png")
 
         self.tray.setToolTip("%s (%s)" % (text, self.wallet.basename()))
@@ -2178,7 +2180,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
 
     def create_console_tab(self):
         from .console import Console
-        self.console = console = Console()
+        self.console = console = Console(parent=self)
         console.setObjectName("console_container")
         return console
 
@@ -2238,7 +2240,9 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         sb.addPermanentWidget(StatusBarButton(read_QIcon("preferences.png"), _("Preferences"), self.settings_dialog ) )
         self.seed_button = StatusBarButton(read_QIcon("seed.png"), _("Seed"), self.show_seed_dialog )
         sb.addPermanentWidget(self.seed_button)
-        self.status_button = StatusBarButton(read_QIcon("status_disconnected.png"), _("Network"), lambda: self.gui_object.show_network_dialog(self))
+        self.status_button = StatusBarButton(
+            read_QIcon("status_disconnected.png"), _("Electrum Network"),
+            lambda: self.gui_object.show_network_dialog(self))
         sb.addPermanentWidget(self.status_button)
         self.axe_net_button = StatusBarButton(read_QIcon('axe_net_0.png'), _("Axe Network"), lambda: self.gui_object.show_axe_net_dialog(self))
         self.update_axe_net_status_btn()
@@ -2293,6 +2297,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         msg = _('Password was updated successfully') if self.wallet.has_password() else _('Password is disabled, this wallet is not protected')
         self.show_message(msg, title=_("Success"))
         self.update_lock_icon()
+        self.console_tab.update_lock_state()
 
     def toggle_search(self):
         tab = self.tabs.currentWidget()
