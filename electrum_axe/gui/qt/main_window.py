@@ -693,7 +693,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         help_menu = menubar.addMenu(_("&Help"))
         help_menu.addAction(_("&About"), self.show_about)
         help_menu.addAction(_("&Check for updates"), self.show_update_check)
-        help_menu.addAction(_("&Official website"), lambda: webopen("https://electrum.axe.org"))
+        help_menu.addAction(_("&Official website"), lambda: webopen("https://axerunners.com"))
         help_menu.addSeparator()
         help_menu.addAction(_("&Documentation"), lambda: webopen("https://docs.axe.org/en/stable/wallets/index.html#axe-electrum-wallet")).setShortcut(QKeySequence.HelpContents)
         self._auto_crash_reports = QAction(_("&Automated Crash Reports"), self, checkable=True)
