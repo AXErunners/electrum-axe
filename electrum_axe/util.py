@@ -675,7 +675,7 @@ def block_explorer_info():
 
 def block_explorer(config: 'SimpleConfig') -> str:
     from . import constants
-    default_ = 'Axe.org' if not constants.net.TESTNET else 'Axe.org'
+    default_ = 'Insight' if not constants.net.TESTNET else 'Insight'
     be_key = config.get('block_explorer', default_)
     be = block_explorer_info().get(be_key)
     return be_key if be is not None else default_
