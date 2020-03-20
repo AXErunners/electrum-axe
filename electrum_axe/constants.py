@@ -122,7 +122,7 @@ class BitcoinTestnet(AbstractNet):
 
 class BitcoinRegtest(BitcoinTestnet):
 
-    GENESIS = "00000c33631ca6f2f61368991ce2dc03306b5bb50bf7cede5cfbba6db38e52e6"
+    GENESIS = "2026b8850f3774a0536152ba868c4dcbde9aef5ffc28a5d23f76f80e9b46e565"
     DEFAULT_SERVERS = read_json('servers_regtest.json', {})
     CHECKPOINTS = []
 
