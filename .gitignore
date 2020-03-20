@@ -1,6 +1,7 @@
 ####-*.patch
 *.pyc
 *.swp
+.DS_Store
 build/
 dist/
 electrum_axe/locale/
@@ -21,5 +22,6 @@ bin/
 
 electrum_data/
 electrum_axe/gui/kivy/theming/light-0.png
+electrum_axe/gui/kivy/theming/light-1.png
 electrum_axe/gui/kivy/theming/light.atlas
 *.egg-info/
