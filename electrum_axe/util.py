@@ -47,7 +47,8 @@ from aiorpcx import TaskGroup
 import certifi
 
 from .i18n import _
-from .logging import get_logger, Logger
+from .logging import get_logger, Logger, ShortcutInjectingFilter
+from .version import VERSION_PATTERN
 
 if TYPE_CHECKING:
     from .network import Network
@@ -352,6 +353,7 @@ def constant_time_compare(val1, val2):
 
 # decorator that prints execution time
 _profiler_logger = _logger.getChild('profiler')
+_profiler_logger.addFilter(ShortcutInjectingFilter(shortcut='T'))
 def profiler(func):
     def do_profile(args, kw_args):
         name = func.__qualname__
@@ -474,6 +476,10 @@ def bh2u(x: bytes) -> str:
     '01020A'
     """
     return x.hex()
+
+
+def is_android():
+    return 'ANDROID_DATA' in os.environ
 
 
 def user_dir():
@@ -876,6 +882,7 @@ def send_exception_to_crash_reporter(e: BaseException):
 
 
 def versiontuple(v):
+    v = VERSION_PATTERN.match(v).group(1)
     return tuple(map(int, (v.split("."))))
 
 
