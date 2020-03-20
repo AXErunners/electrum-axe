@@ -156,7 +156,7 @@ if [[ "$OSTYPE" == "linux-gnu" ]]; then
             -storepass:env JKS_STOREPASS \
             -keypass:env JKS_KEYPASS \
             dist/${APK_NAME}-$AXE_ELECTRUM_APK_VERSION-$UAPK_TAIL \
-            electrum.axe.org
+            axerunners.com
 
         zipalign -v 4 \
             dist/${APK_NAME}-$AXE_ELECTRUM_APK_VERSION-$UAPK_TAIL \
@@ -174,7 +174,7 @@ if [[ "$OSTYPE" == "linux-gnu" ]]; then
         -storepass:env JKS_STOREPASS \
         -keypass:env JKS_KEYPASS \
         dist/${APK_TNAME}-$AXE_ELECTRUM_APK_VERSION-$UAPK_TAIL \
-        electrum.axe.org
+        axerunners.com
 
     zipalign -v 4 \
         dist/${APK_TNAME}-$AXE_ELECTRUM_APK_VERSION-$UAPK_TAIL \
