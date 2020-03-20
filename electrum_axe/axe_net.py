@@ -96,8 +96,8 @@ class AxeSporks:
         SporkID.SPORK_15_DETERMINISTIC_MNS_ENABLED.value: 0,        # ON
         SporkID.SPORK_16_INSTANTSEND_AUTOLOCKS.value: 0,            # ON
         SporkID.SPORK_17_QUORUM_DKG_ENABLED.value: 0,               # ON
-        SporkID.SPORK_19_CHAINLOCKS_ENABLED.value: Y2099,           # OFF
-        SporkID.SPORK_20_INSTANTSEND_LLMQ_BASED.value: Y2099,       # OFF
+        SporkID.SPORK_19_CHAINLOCKS_ENABLED.value: 0,               # ON
+        SporkID.SPORK_20_INSTANTSEND_LLMQ_BASED.value: 0,           # ON
     }
 
     def __init__(self):
