@@ -23,7 +23,7 @@ class UpdateCheck(QWidget, Logger):
 
 
     VERSION_ANNOUNCEMENT_SIGNING_KEYS = (
-        "XuKFPN7RDbrvNsPddPyUPzVqwdhvfB67cx",
+        "7XwiL79Ae8S9qyKbY58aGJRRf334UHwtCW",
     )
 
     def __init__(self, main_window, latest_version=None):
