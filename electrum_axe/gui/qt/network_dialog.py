@@ -539,10 +539,18 @@ class TorDetector(QThread):
             for p in ports:
                 net_addr = ("127.0.0.1", p)
                 if TorDetector.is_tor_port(net_addr):
-                    self.found_proxy.emit(net_addr)
+                    try:
+                        self.found_proxy.emit(net_addr)
+                    except AttributeError as e:
+                        _logger.info('found_proxy signal is already unbound')
+                        return
                     break
             else:
-                self.found_proxy.emit(None)
+                try:
+                    self.found_proxy.emit(None)
+                except AttributeError:
+                    _logger.info('found_proxy signal is already unbound')
+                    return
             time.sleep(10)
 
     @staticmethod

@@ -114,12 +114,13 @@ class SimpleConfig(Logger):
             path = self.user_dir()
 
         make_dir(path, allow_symlink=False)
-        if self.get('testnet'):
-            path = os.path.join(path, 'testnet')
-            make_dir(path, allow_symlink=False)
-        elif self.get('regtest'):
-            path = os.path.join(path, 'regtest')
-            make_dir(path, allow_symlink=False)
+        if not self.get('force_mainnet'):
+            if self.get('testnet'):
+                path = os.path.join(path, 'testnet')
+                make_dir(path, allow_symlink=False)
+            elif self.get('regtest'):
+                path = os.path.join(path, 'regtest')
+                make_dir(path, allow_symlink=False)
 
         self.logger.info(f"electrum-axe directory {path}")
         return path

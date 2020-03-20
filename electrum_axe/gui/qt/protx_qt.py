@@ -4,23 +4,26 @@ from pprint import pformat
 
 from PyQt5.QtGui import QColor, QPixmap
 from PyQt5.QtCore import (Qt, QSortFilterProxyModel, QAbstractTableModel,
-                          QModelIndex, pyqtSlot, QVariant, QRect, QSize,
-                          QPoint, pyqtSignal, QItemSelectionModel)
+                          QModelIndex, pyqtSlot, QVariant, QSize, pyqtSignal,
+                          QItemSelectionModel)
 from PyQt5.QtWidgets import (QTabBar, QTabWidget, QWidget, QLabel, QPushButton,
                              QTableView, QHeaderView, QAbstractItemView,
-                             QHBoxLayout, QVBoxLayout, QStylePainter,
-                             QStyleOptionTab, QStyle, QDialog, QGridLayout,
+                             QHBoxLayout, QVBoxLayout, QDialog, QGridLayout,
                              QTextEdit, QMenu)
 
 from electrum_axe.axe_tx import SPEC_PRO_REG_TX
 from electrum_axe.protx import ProRegTxExc, ProTxManagerExc
 from electrum_axe.i18n import _
 
+from .axe_qt import VTabBar
 from .protx_wizards import Dip3MasternodeWizard, Dip3FileWizard
 from .util import icon_path, read_QIcon
 
 
 VALID_MASTERNODE_COLOR = '#008000'
+
+
+mn_info_dialogs = []  # Otherwise python randomly garbage collects the dialogs
 
 
 def create_dip3_tab(gui, wallet):
@@ -147,7 +150,7 @@ class WalletMNsModel(QAbstractTableModel):
     TOTAL_FIELDS = 5
     filterColumns = [ALIAS, SERVICE, PROTX_HASH]
 
-    STATE_LOADING  = 'Loading'
+    STATE_LOADING = 'Loading'
     STATE_UNREGISTERED = 'Unregistered'
     STATE_VALID = 'Valid'
     STATE_BANNED = 'PoSe Banned'
@@ -242,7 +245,7 @@ class WalletMNsModel(QAbstractTableModel):
             return None
         if orientation != Qt.Horizontal:
             return None
-        dataItem  = self.headers[section]
+        dataItem = self.headers[section]
         data = dataItem.get(role) if dataItem else None
         return QVariant(data)
 
@@ -344,30 +347,48 @@ class WalletMNsModel(QAbstractTableModel):
             return super(WalletMNsModel, self).flags(idx) | Qt.ItemIsEditable
 
 
-class Dip3TabBar(QTabBar):
+class Dip3TabBar(VTabBar):
 
     def __init__(self, tab_w):
         super(Dip3TabBar, self).__init__(tab_w)
         self.tab_w = tab_w
 
         self.data_w = QWidget()
-        gen_l = QLabel('Actual heights:')
+        gl = QGridLayout()
+        gl.setColumnStretch(1, 1)
+        self.data_w.setLayout(gl)
+
+        heights_l = QLabel('Actual heights:')
+        loc_h_l = QLabel('Local:')
+        self.local_h = QLabel('0')
         mns_h_l = QLabel('ProTx:')
         self.mns_h = QLabel('0')
         llmq_h_l = QLabel('LLMQ:')
         self.llmq_h = QLabel('0')
-        loc_h_l = QLabel('Local:')
-        self.local_h = QLabel('0')
-        gl = QGridLayout()
-        gl.addWidget(gen_l, 0, 0, 1, -1)
-        gl.addWidget(mns_h_l, 1, 0)
-        gl.addWidget(self.mns_h, 1, 2)
-        gl.addWidget(llmq_h_l, 2, 0)
-        gl.addWidget(self.llmq_h, 2, 2)
-        gl.addWidget(loc_h_l, 3, 0)
-        gl.addWidget(self.local_h, 3, 2)
-        gl.setColumnStretch(1, 1)
-        self.data_w.setLayout(gl)
+
+        gl.addWidget(heights_l, 0, 0, 1, -1)
+        gl.addWidget(loc_h_l, 1, 0)
+        gl.addWidget(self.local_h, 1, 2)
+        gl.addWidget(mns_h_l, 2, 0)
+        gl.addWidget(self.mns_h, 2, 2)
+        gl.addWidget(llmq_h_l, 3, 0)
+        gl.addWidget(self.llmq_h, 3, 2)
+
+        readiness_l = QLabel('Readiness:')
+        protx_ready_l = QLabel('ProTx:')
+        self.protx_ready = QLabel('No')
+        protx_info_completeness_l = QLabel('ProTx Info:')
+        self.protx_info_completeness = QLabel('0%')
+        llmq_ready_l = QLabel('LLMQ:')
+        self.llmq_ready = QLabel('No')
+
+        gl.addWidget(readiness_l, 4, 0, 1, -1)
+        gl.addWidget(protx_ready_l, 5, 0)
+        gl.addWidget(self.protx_ready, 5, 2)
+        gl.addWidget(protx_info_completeness_l, 6, 0)
+        gl.addWidget(self.protx_info_completeness, 6, 2)
+        gl.addWidget(llmq_ready_l, 7, 0)
+        gl.addWidget(self.llmq_ready, 7, 2)
 
         hbox = QHBoxLayout()
         hbox.addStretch(1)
@@ -387,45 +408,26 @@ class Dip3TabBar(QTabBar):
         return QSize(max(s.width(), self.data_w.sizeHint().width()),
                      s.height())
 
-    def paintEvent(self, event):
-        painter = QStylePainter(self)
-        opt = QStyleOptionTab()
-
-        for i in range(self.count()):
-            self.initStyleOption(opt, i)
-            painter.drawControl(QStyle.CE_TabBarTabShape, opt)
-            painter.save()
-
-            s = opt.rect.size()
-            s.transpose()
-            r = QRect(QPoint(), s)
-            r.moveCenter(opt.rect.center())
-            opt.rect = r
-
-            c = self.tabRect(i).center()
-            painter.translate(c)
-            painter.rotate(270)
-            painter.translate(-c)
-            painter.drawControl(QStyle.CE_TabBarTabLabel, opt);
-            painter.restore()
-
     def resizeEvent(self, *args):
         super(Dip3TabBar, self).resizeEvent(*args)
         self.data_w.setMinimumWidth(self.width())
 
-    def update_heights(self, mns_h, llmq_h, local_h):
-        if mns_h is not None:
-            self.mns_h.setText(str(mns_h))
-        if llmq_h is not None:
-            self.llmq_h.setText(str(llmq_h))
-        if local_h is not None:
-            self.local_h.setText(str(local_h))
+    def update_stats(self, stats):
+        (local_h, mns_h, llmq_h,
+         protx_ready, llmq_ready, protx_info_completeness) = stats
+        self.local_h.setText(str(local_h))
+        self.mns_h.setText(str(mns_h))
+        self.llmq_h.setText(str(llmq_h))
+        self.protx_ready.setText(protx_ready)
+        self.llmq_ready.setText(llmq_ready)
+        self.protx_info_completeness.setText(protx_info_completeness)
 
 
 class Dip3TabWidget(QTabWidget):
     # Signals need to notify from not Qt thread
     alias_updated = pyqtSignal(str)
     diff_updated = pyqtSignal(dict)
+    info_updated = pyqtSignal(str)
     network_updated = pyqtSignal()
 
     def __init__(self, gui, wallet, *args, **kwargs):
@@ -448,18 +450,40 @@ class Dip3TabWidget(QTabWidget):
         self.currentChanged.connect(self.on_tabs_current_changed)
 
         if self.mn_list:
-            self.tab_bar.update_heights(self.mn_list.protx_height,
-                                        self.mn_list.llmq_human_height,
-                                        gui.network.get_local_height())
+            self.tab_bar.update_stats(self.get_stats())
             self.mn_list.register_callback(self.on_mn_list_diff_updated,
                                            ['mn-list-diff-updated'])
+            self.mn_list.register_callback(self.on_mn_list_info_updated,
+                                           ['mn-list-info-updated'])
+        if self.gui.network:
             self.gui.network.register_callback(self.on_cb_network_updated,
                                                ['network_updated'])
         self.manager.register_callback(self.on_manager_alias_updated,
                                        ['manager-alias-updated'])
         self.alias_updated.connect(self.on_alias_updated)
         self.diff_updated.connect(self.on_diff_updated)
+        self.info_updated.connect(self.on_info_updated)
         self.network_updated.connect(self.on_network_updated)
+
+    def unregister_callbacks(self):
+        if self.mn_list:
+            self.mn_list.unregister_callback(self.on_mn_list_diff_updated)
+            self.mn_list.unregister_callback(self.on_mn_list_info_updated)
+        if self.gui.network:
+            self.gui.network.unregister_callback(self.on_cb_network_updated)
+        self.manager.unregister_callback(self.on_manager_alias_updated)
+
+    def get_stats(self):
+        mn_list = self.mn_list
+        local_height = self.gui.network.get_local_height()
+        protx_height = mn_list.protx_height
+        llmq_height = mn_list.llmq_human_height
+        protx_ready = 'Yes' if mn_list.protx_ready else 'No'
+        llmq_ready = 'Yes' if mn_list.llmq_ready else 'No'
+        completeness = mn_list.protx_info_completeness
+        protx_info_completeness = '%s%%' % round(completeness*100)
+        return (local_height, protx_height, llmq_height,
+                protx_ready, llmq_ready, protx_info_completeness)
 
     @pyqtSlot()
     def on_tabs_current_changed(self):
@@ -471,6 +495,9 @@ class Dip3TabWidget(QTabWidget):
 
     def on_mn_list_diff_updated(self, key, value):
         self.diff_updated.emit(value)
+
+    def on_mn_list_info_updated(self, key, value):
+        self.info_updated.emit(value)
 
     def on_manager_alias_updated(self, key, value):
         self.alias_updated.emit(value)
@@ -484,8 +511,7 @@ class Dip3TabWidget(QTabWidget):
 
     @pyqtSlot()
     def on_network_updated(self):
-        self.tab_bar.update_heights(None, None,
-                                    self.gui.network.get_local_height())
+        self.tab_bar.update_stats(self.get_stats())
 
     @pyqtSlot(dict)
     def on_diff_updated(self, value):
@@ -499,11 +525,13 @@ class Dip3TabWidget(QTabWidget):
         else:
             self.reg_search_btn.setEnabled(False)
 
-        self.tab_bar.update_heights(self.mn_list.protx_height,
-                                    self.mn_list.llmq_human_height,
-                                    self.gui.network.get_local_height())
+        self.tab_bar.update_stats(self.get_stats())
         self.update_registered_label()
         self.update_wallet_label()
+
+    @pyqtSlot(str)
+    def on_info_updated(self, value):
+        self.tab_bar.update_stats(self.get_stats())
 
     def registered_label(self):
         if not self.mn_list:
@@ -593,8 +621,7 @@ class Dip3TabWidget(QTabWidget):
     def create_reg_menu(self, position):
         menu = QMenu()
         h = self.reg_cur_protx
-        menu.addAction(_('Details'),
-                       lambda: Dip3MNInfoDialog(self, protx_hash=h).show())
+        menu.addAction(_('Details'), lambda: self.show_protx_hash_info(h))
         menu.exec_(self.reg_view.viewport().mapToGlobal(position))
 
     def create_wallet_mn_tab(self):
@@ -705,8 +732,7 @@ class Dip3TabWidget(QTabWidget):
         menu.addAction(_('Rename Alias'),
                        lambda: self.w_view.edit(i))
         menu.addSeparator()
-        menu.addAction(_('Details'),
-                       lambda: Dip3MNInfoDialog(self, alias=a).show())
+        menu.addAction(_('Details'), lambda: self.show_alias_info(a))
         menu.exec_(self.w_view.viewport().mapToGlobal(position))
 
     @pyqtSlot()
@@ -868,7 +894,11 @@ class Dip3TabWidget(QTabWidget):
     @pyqtSlot(QModelIndex)
     def reg_mn_dbl_clicked(self, idx):
         row_idx = idx.sibling(idx.row(), 0)
-        d = Dip3MNInfoDialog(self, protx_hash=row_idx.data())
+        self.show_protx_hash_info(row_idx.data())
+
+    def show_protx_hash_info(self, protx_hash):
+        d = Dip3MNInfoDialog(self, protx_hash=protx_hash)
+        mn_info_dialogs.append(d)
         d.show()
 
     @pyqtSlot(QModelIndex)
@@ -877,7 +907,11 @@ class Dip3TabWidget(QTabWidget):
         if col == WalletMNsModel.ALIAS:
             return
         row_idx = idx.sibling(idx.row(), 0)
-        d = Dip3MNInfoDialog(self, alias=row_idx.data())
+        self.show_alias_info(row_idx.data())
+
+    def show_alias_info(self, alias):
+        d = Dip3MNInfoDialog(self, alias=alias)
+        mn_info_dialogs.append(d)
         d.show()
 
     @pyqtSlot(QModelIndex)
@@ -893,8 +927,8 @@ class Dip3TabWidget(QTabWidget):
 
 
 class Dip3MNInfoDialog(QDialog):
-
-    diff_updated = pyqtSignal(dict) # Signals need to notify from not Qt thread
+    # Signals need to notify from not Qt thread
+    diff_updated = pyqtSignal(dict)
     info_updated = pyqtSignal()
 
     def __init__(self, parent, protx_hash=None, alias=None):
@@ -923,7 +957,8 @@ class Dip3MNInfoDialog(QDialog):
             self.setWindowTitle(_('%s Dip3 Masternode Info') % alias)
         elif protx_hash:
             self.protx_hash = protx_hash
-            self.setWindowTitle(_('%s... Dip3 Masternode Info') % protx_hash[:32])
+            self.setWindowTitle(_('%s... Dip3 Masternode Info')
+                                % protx_hash[:32])
 
         if self.mn_list and self.protx_hash:
             mn_list = self.mn_list
@@ -1011,7 +1046,15 @@ class Dip3MNInfoDialog(QDialog):
     def on_info_updated(self):
         self.info_view.setText(pformat(self.info))
 
-    def closeEvent(self, e):
+    def reject(self):
+        self.close()
+
+    def closeEvent(self, event):
+        event.accept()
         if self.mn_list and self.protx_hash:
             self.mn_list.unregister_callback(self.on_mn_list_diff_updated)
             self.mn_list.unregister_callback(self.on_mn_list_info_updated)
+        try:
+            mn_info_dialogs.remove(self)
+        except ValueError:
+            pass

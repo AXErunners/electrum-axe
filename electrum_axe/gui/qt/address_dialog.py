@@ -50,7 +50,7 @@ class AddressDialog(WindowModalDialog):
         self.app = parent.app
         self.saved = True
 
-        self.setMinimumWidth(700)
+        self.setMinimumWidth(800)
         vbox = QVBoxLayout()
         self.setLayout(vbox)
 

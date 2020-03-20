@@ -62,8 +62,9 @@ class AxePeersWidget(QTreeWidget):
         axe_net = self.parent.network.axe_net
         axe_peer = axe_net.peers.get(peer)
         if axe_peer:
-            coro = axe_net.connection_down(axe_peer, msg)
-            axe_net.run_from_another_thread(coro)
+            if msg:
+                axe_peer.ban(msg)
+            axe_peer.close()
 
     def update(self, event=None, args=None):
         axe_net = self.parent.network.axe_net
@@ -115,6 +116,7 @@ class AxePeersWidget(QTreeWidget):
                 self.addTopLevelItem(peers_item)
         else:
             self.addTopLevelItem(peers_item)
+
 
 class SporksWidget(QTreeWidget):
     class Columns(IntEnum):
@@ -240,10 +242,13 @@ class AxeNetDialogLayout(object):
             self.min_t = 1000
             self.max_t = 0
             self.n_measures = -1
+
             def min_str():
                 return _('Min time') + f': {self.min_t}'
+
             def max_str():
                 return _('Max time') + f': {self.max_t}'
+
             self.min_label = QLabel(min_str())
             self.max_label = QLabel(max_str())
             vbox = QVBoxLayout(bls_speed_tab)
@@ -262,7 +267,7 @@ class AxeNetDialogLayout(object):
                     self.max_t = max(self.max_t, res_t)
                     self.min_label.setText(min_str())
                     self.max_label.setText(max_str())
-                    self.n_measures +=1
+                    self.n_measures += 1
                     if self.n_measures >= 100:
                         self.timer.stop()
             self.timer.timeout.connect(update_bls_speed)
@@ -292,10 +297,12 @@ class AxeNetDialogLayout(object):
         self.run_axe_net_cb.setChecked(self.config.get('run_axe_net', True))
         run_axe_net_modifiable = self.config.is_modifiable('run_axe_net')
         self.run_axe_net_cb.setEnabled(run_axe_net_modifiable)
+
         def on_run_axe_net_cb_clicked(run_axe_net):
             self.config.set_key('run_axe_net', run_axe_net, True)
             net.run_from_another_thread(net.axe_net.set_parameters())
         self.run_axe_net_cb.clicked.connect(on_run_axe_net_cb_clicked)
+
         grid.addWidget(self.run_axe_net_cb, 0, 6, 1, 2)
 
         # row 1
@@ -308,6 +315,7 @@ class AxeNetDialogLayout(object):
         self.axe_peers_e = QLineEdit()
         self.axe_peers_e.setText(axe_net.axe_peers_as_str())
         self.axe_peers_e.setReadOnly(is_cmd_axe_peers)
+
         def on_axe_peers_editing_end():
             if is_cmd_axe_peers:
                 return
@@ -318,19 +326,23 @@ class AxeNetDialogLayout(object):
                 self.config.set_key('axe_peers', res, True)
                 if axe_net.use_static_peers:
                     net.run_from_another_thread(net.axe_net.set_parameters())
+        self.axe_peers_e.editingFinished.connect(on_axe_peers_editing_end)
+
         def on_axe_peers_changed():
             self.err_label.setText('')
-        self.axe_peers_e.editingFinished.connect(on_axe_peers_editing_end)
         self.axe_peers_e.textChanged.connect(on_axe_peers_changed)
+
         grid.addWidget(self.axe_peers_e, 1, 1, 1, 5)
 
         self.use_static_cb = QCheckBox(_('Use Static Peers'))
         self.use_static_cb.setChecked(use_static_peers)
         self.use_static_cb.setEnabled(not is_cmd_axe_peers)
+
         def on_use_static_cb_clicked(use_static):
             self.config.set_key('axe_use_static_peers', use_static, True)
             net.run_from_another_thread(net.axe_net.set_parameters())
         self.use_static_cb.clicked.connect(on_use_static_cb_clicked)
+
         grid.addWidget(self.use_static_cb, 1, 6, 1, 2)
         # row 2 with error msg
         self.err_label = QLabel('')
@@ -347,6 +359,7 @@ class AxeNetDialogLayout(object):
         self.max_peers.setValue(axe_net.max_peers)
         self.max_peers.setRange(MIN_PEERS_LIMIT, MAX_PEERS_LIMIT)
         grid.addWidget(self.max_peers, 3, 7, 1, 1)
+
         def on_change_max_peers(max_peers):
             axe_net.max_peers = max_peers
         self.max_peers.valueChanged.connect(on_change_max_peers)
@@ -417,21 +430,28 @@ class AxeNetDialog(QDialog):
         self.setWindowTitle(_('Axe Network'))
         self.setMinimumSize(700, 400)
         self.is_testnet = constants.net.TESTNET
+        self.network = network
         self.dnlayout = AxeNetDialogLayout(network, config, self)
         self.axe_net_sobj = axe_net_sobj
         vbox = QVBoxLayout(self)
         vbox.addLayout(self.dnlayout.layout())
         vbox.addLayout(Buttons(CloseButton(self)))
         self.axe_net_sobj.dlg.connect(self.on_updated)
-        network.axe_net.register_callback(self.on_axe_net,
-                                           ['axe-peers-updated',
-                                            'axe-net-activity',
-                                            'sporks-activity',
-                                            'axe-banlist-updated'])
+
+    def show(self):
+        super(AxeNetDialog, self).show()
+        if self.network:
+            self.network.axe_net.register_callback(self.on_axe_net,
+                                                    ['axe-peers-updated',
+                                                     'axe-net-activity',
+                                                     'sporks-activity',
+                                                     'axe-banlist-updated'])
 
     def closeEvent(self, e):
         if self.dnlayout.err_label.text():
             e.ignore()
+        if self.network:
+            self.network.axe_net.unregister_callback(self.on_axe_net)
 
     def on_axe_net(self, event, *args):
         self.axe_net_sobj.dlg.emit(event, args)
