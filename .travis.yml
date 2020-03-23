@@ -5,11 +5,11 @@ services:
 addons:
   apt:
     sources:
-    - sourceline: ppa:tah83/secp256k1
+      - sourceline: 'ppa:tah83/secp256k1'
     packages:
-    - libusb-1.0-0-dev
-    - libudev-dev
-    - libsecp256k1-0
+      - libusb-1.0-0-dev
+      - libudev-dev
+      - libsecp256k1-0
 matrix:
   include:
   - if: tag =~ .+
@@ -17,40 +17,47 @@ matrix:
     language: ruby
     osx_image: xcode8
   - os: linux
-    python: '3.6'
+    python: "3.6"
     dist: xenial
   - os: linux
     env: ELECTRUM_MAINNET=true
-    python: '3.7'
+    python: "3.7"
     dist: xenial
   - if: tag =~ .+
     os: linux
     env: ELECTRUM_MAINNET=false
-    python: '3.7'
+    python: "3.7"
     dist: xenial
 before_install:
-- openssl aes-256-cbc -K $encrypted_92fcc747c334_key -iv $encrypted_92fcc747c334_iv
-  -in axe-runners.jks.enc -out axe-runners.jks -d
 - source contrib/axe/travis/electrum_axe_version_env.sh
 - echo electrum-axe version is $AXE_ELECTRUM_VERSION
 - mkdir -p build && cp contrib/axe/travis/* ./build/
-- if [[ -n $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'osx' ]]; then ./build/before_install-osx.sh;
+- if [[ -n $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'osx' ]]; then
+      ./build/before_install-osx.sh;
   fi
-- if [[ -n $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]] && [[ $TRAVIS_PYTHON_VERSION
-  == '3.6' ]]; then ./build/before_install-linux.sh; fi
-- if [[ -n $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]] && [[ $TRAVIS_PYTHON_VERSION
-  == '3.7' ]]; then ./build/before_install-linux-apk.sh; fi
+- if [[ -n $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]] && [[ $TRAVIS_PYTHON_VERSION == '3.6' ]]; then
+      ./build/before_install-linux.sh;
+  fi
+- if [[ -n $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]] && [[ $TRAVIS_PYTHON_VERSION == '3.7' ]]; then
+      ./build/before_install-linux-apk.sh;
+  fi
 install:
-- if [[ -z $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]]; then pip install tox;
-  pip install tox-travis; fi
+- if [[ -z $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]]; then
+      pip install tox; pip install tox-travis;
+  fi
 script:
-- if [[ -z $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]];then tox; fi
-- if [[ -n $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'osx' ]]; then ./build/travis-build-osx.sh
-  ; fi
-- if [[ -n $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]] && [[ $TRAVIS_PYTHON_VERSION
-  == '3.6' ]]; then ./build/travis-build-linux.sh; fi
-- if [[ -n $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]] && [[ $TRAVIS_PYTHON_VERSION
-  == '3.7' ]]; then travis_wait 30 ./build/travis-build-linux-apk.sh; fi
+- if [[ -z $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]];then
+      tox;
+  fi
+- if [[ -n $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'osx' ]]; then
+      ./build/travis-build-osx.sh ;
+  fi
+- if [[ -n $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]] && [[ $TRAVIS_PYTHON_VERSION == '3.6' ]]; then
+      ./build/travis-build-linux.sh;
+  fi
+- if [[ -n $TRAVIS_TAG ]] && [[ $TRAVIS_OS_NAME == 'linux' ]] && [[ $TRAVIS_PYTHON_VERSION == '3.7' ]]; then
+     travis_wait 30 ./build/travis-build-linux-apk.sh;
+  fi
 deploy:
 - provider: releases
   edge: true
