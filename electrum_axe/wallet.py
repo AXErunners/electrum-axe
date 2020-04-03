@@ -1090,7 +1090,7 @@ class Abstract_Wallet(AddressSynchronizer):
                 if websocket_port_announce:
                     out['websocket_port'] = websocket_port_announce
                 else:
-                    out['websocket_port'] = config.get('websocket_port', 9999)
+                    out['websocket_port'] = config.get('websocket_port', 9937)
         return out
 
     def get_request_status(self, key):
