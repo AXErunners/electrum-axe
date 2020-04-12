@@ -14,6 +14,7 @@ class TestAxeMsg(TestCaseForTestnet):
 
     def test_version_msg(self):
         msg = AxeVersionMsg.from_hex(VERSION_MSG)
+        print(msg)
         assert msg.version == 70215
         assert msg.services == 5
         assert msg.timestamp == 1567673683
@@ -24,7 +25,7 @@ class TestAxeMsg(TestCaseForTestnet):
         assert msg.trans_ip == IPv6Address('::')
         assert msg.trans_port == 0
         assert msg.nonce == 12615609395080869973
-        assert msg.user_agent == b'/Axe Core:0.14.0.3/'
+        assert msg.user_agent == b'/Axe Core:1.5.0.1/'
         assert msg.start_height == 169118
         assert msg.relay == 1
         assert msg.mnauth_challenge == bfh('9404092b784754ae2757c614d3e76ae1'
@@ -90,12 +91,12 @@ class TestAxeMsg(TestCaseForTestnet):
         assert bh2u(msg.serialize()) == DSC_MSG
 
 
-VERSION_MSG = ('47120100050000000000000053cd705d0000000000000000'
-               '000000000000000000000000000000000000000000000500'
+VERSION_MSG = ('4812010005000000000000006053935e0000000005000000'
+               '0000000000000000000000000000ffff95f83d954de10500'
                '000000000000000000000000000000000000000000000000'
-               '5538e08ae7a513af142f4461736820436f72653a302e3134'
-               '2e302e332f9e940200019404092b784754ae2757c614d3e7'
-               '6ae180dc66305055ee6e6c62b409c1d57b30')
+               '83c8f990264da78a122f41786520436f72653a312e352e30'
+               '2e312f3cb8000001c60f1b0590d4151a5cac6414ba4683df'
+               '2a5ba3b2cc6f7336a1b70907eaeff2ce')
 
 
 DSA_MSG = ('020000000200000001df2149d4b1805f1842aace662956f8'
