@@ -14,7 +14,7 @@ class TestAxeMsg(TestCaseForTestnet):
 
     def test_version_msg(self):
         msg = AxeVersionMsg.from_hex(VERSION_MSG)
-        print(msg.recv_ip)
+        
         assert msg.version == 70216
         assert msg.services == 5
         assert msg.timestamp == 1586713440

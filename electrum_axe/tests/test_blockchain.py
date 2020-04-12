@@ -74,6 +74,7 @@ class TestBlockchain(SequentialTestCase):
         blockchain.blockchains[constants.net.GENESIS] = chain_u = Blockchain(
             config=self.config, forkpoint=0, parent=None,
             forkpoint_hash=constants.net.GENESIS, prev_hash=None)
+        print(chain_u)
         open(chain_u.path(), 'w+').close()
         self._append_header(chain_u, self.HEADERS['A'])
         self._append_header(chain_u, self.HEADERS['B'])
