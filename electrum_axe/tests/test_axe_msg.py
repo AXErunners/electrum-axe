@@ -15,21 +15,21 @@ class TestAxeMsg(TestCaseForTestnet):
     def test_version_msg(self):
         msg = AxeVersionMsg.from_hex(VERSION_MSG)
         print(msg)
-        assert msg.version == 70215
+        assert msg.version == 70216
         assert msg.services == 5
-        assert msg.timestamp == 1567673683
-        assert msg.recv_services == 0
-        assert msg.recv_ip == IPv6Address('::')
-        assert msg.recv_port == 0
+        assert msg.timestamp == 1586713440
+        assert msg.recv_services == 5
+        assert msg.recv_ip == 149.248.61.149#IPv6Address('::')
+        assert msg.recv_port == 19937
         assert msg.trans_services == 5
         assert msg.trans_ip == IPv6Address('::')
         assert msg.trans_port == 0
-        assert msg.nonce == 12615609395080869973
+        assert msg.nonce == 9991039126381119619
         assert msg.user_agent == b'/Axe Core:1.5.0.1/'
-        assert msg.start_height == 169118
+        assert msg.start_height == 47164
         assert msg.relay == 1
-        assert msg.mnauth_challenge == bfh('9404092b784754ae2757c614d3e76ae1'
-                                           '80dc66305055ee6e6c62b409c1d57b30')
+        assert msg.mnauth_challenge == bfh('c60f1b0590d4151a5cac6414ba4683df'
+                                           '2a5ba3b2cc6f7336a1b70907eaeff2ce')
         assert bh2u(msg.serialize()) == VERSION_MSG
 
     def test_dsa_msg(self):
