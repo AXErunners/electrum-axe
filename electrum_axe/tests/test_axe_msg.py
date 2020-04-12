@@ -19,8 +19,8 @@ class TestAxeMsg(TestCaseForTestnet):
         assert msg.services == 5
         assert msg.timestamp == 1586713440
         assert msg.recv_services == 5
-        assert msg.recv_ip == '149.248.61.149'
-        assert msg.recv_port == 19937
+        assert msg.recv_ip == IPv6Address('::')
+        assert msg.recv_port == 0
         assert msg.trans_services == 5
         assert msg.trans_ip == IPv6Address('::')
         assert msg.trans_port == 0
