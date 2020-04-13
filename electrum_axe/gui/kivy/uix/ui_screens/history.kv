@@ -1,9 +1,9 @@
 #:import _ electrum_axe.gui.kivy.i18n._
+#:import HistBoxLayout electrum_axe.gui.kivy.uix.screens.HistBoxLayout
 #:import Factory kivy.factory.Factory
 #:set font_light 'electrum_axe/gui/kivy/data/fonts/Roboto-Condensed.ttf'
 #:set btc_symbol chr(171)
 #:set mbtc_symbol chr(187)
-
 
 
 <CardLabel@Label>
@@ -15,9 +15,18 @@
     halign: 'left'
     valign: 'top'
 
-
-<HistoryItem@CardItem>
+<HistoryItem>
+    size_hint: 1, None
+    height: '65dp'
+    padding: (dp(5), 0, 0, 0)
+    canvas.before:
+        Color:
+            rgba: (.192, .5, .745, 1) if self.selected else (.15, .15, .17, 1)
+        Rectangle:
+            size: self.size
+            pos: self.pos
     icon: 'atlas://electrum_axe/gui/kivy/theming/light/important'
+    group_icn: 'atlas://electrum_axe/gui/kivy/theming/light/kv_tx_group_empty'
     message: ''
     is_mine: True
     amount: '--'
@@ -25,42 +34,61 @@
     amount_color: '#FF6657' if self.is_mine else '#2EA442'
     confirmations: 0
     date: ''
+    tx_type: ''
     quote_text: ''
     Image:
         id: icon
-        source: root.icon
+        source: root.group_icn
         size_hint: None, 1
         allow_stretch: True
-        width: self.height*1.5
+        width: self.height*0.5
         mipmap: True
     BoxLayout:
-        orientation: 'vertical'
-        Widget
-        CardLabel:
-            text:
-                u'[color={color}]{s}[/color]'.format(s='<<' if root.is_mine else '>>', color=root.amount_color)\
-                + ' ' + root.action + ' ' + (root.quote_text if app.is_fiat else root.amount)
-            font_size: '15sp'
-        CardLabel:
-            color: .699, .699, .699, 1
-            font_size: '14sp'
-            shorten: True
-            text: root.date + '   ' + root.message
-        Widget
+        padding: (0, dp(12), dp(12), dp(12))
+        spacing: dp(5)
+        Image:
+            id: icon
+            source: root.icon
+            size_hint: None, 1
+            allow_stretch: True
+            width: self.height*1.5
+            mipmap: True
+        BoxLayout:
+            orientation: 'vertical'
+            Widget
+            CardLabel:
+                text:
+                    u'[color={color}]{s}[/color]'.\
+                    format(s='<<' if root.is_mine else '>>',
+                    color=root.amount_color)\
+                    + ' ' + root.action + ' ' + \
+                    (root.quote_text if app.is_fiat else root.amount)
+                font_size: '15sp'
+            CardLabel:
+                color: .699, .699, .699, 1
+                font_size: '14sp'
+                shorten: True
+                text: root.date + '   ' + root.tx_type + '   ' + root.message
+            Widget
 
-<HistoryRecycleView>:
+
+<HistoryRecycleView@RecycleView>:
     viewclass: 'HistoryItem'
-    RecycleBoxLayout:
+    HistBoxLayout:
         default_size: None, dp(56)
         default_size_hint: 1, None
         size_hint: 1, None
         height: self.minimum_height
         orientation: 'vertical'
+        multiselect: False
+        touch_multiselect: False
+        touch_deselect_last: True
 
 
 HistoryScreen:
     name: 'history'
     content: history_container
+    cmbox: cmbox
     BoxLayout:
         orientation: 'vertical'
         Button:
@@ -76,3 +104,9 @@ HistoryScreen:
             id: history_container
             scroll_type: ['bars', 'content']
             bar_width: '25dp'
+            hist_screen: root.parent
+        BoxLayout:
+            id: cmbox
+            height: '48dp'
+            size_hint: 1, None
+            orientation: 'vertical'

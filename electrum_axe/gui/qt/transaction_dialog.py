@@ -38,6 +38,7 @@ import qrcode
 from qrcode import exceptions
 
 from electrum_axe.bitcoin import base_encode
+from electrum_axe.axe_tx import SPEC_TX_NAMES
 from electrum_axe.i18n import _
 from electrum_axe.plugin import run_hook
 from electrum_axe import simple_config
@@ -105,7 +106,13 @@ class TxDialog(QDialog, MessageBoxMixin):
         vbox = QVBoxLayout()
         self.setLayout(vbox)
 
-        vbox.addWidget(QLabel(_("Transaction ID:")))
+        if tx.tx_type == 0:
+            txid = tx.txid()
+            tx_type, completed = self.wallet.db.get_ps_tx(txid)
+        else:
+            tx_type = tx.tx_type
+        tx_type_name = '%s: %s, ' % (_('Type'), SPEC_TX_NAMES[tx_type])
+        vbox.addWidget(QLabel(tx_type_name + _('Transaction ID:')))
         self.tx_hash_e  = ButtonsLineEdit()
         qr_show = lambda: parent.show_qrcode(str(self.tx_hash_e.text()), 'Transaction ID', parent=self)
         qr_icon = "qrcode.png"

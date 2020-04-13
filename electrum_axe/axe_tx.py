@@ -26,6 +26,7 @@
 
 import struct
 from collections import namedtuple
+from enum import IntEnum
 from ipaddress import ip_address, IPv6Address
 from bls_py import bls
 
@@ -119,13 +120,14 @@ class ProTxService (namedtuple('ProTxService', 'ip port')):
 
 # https://axe-docs.github.io/en/developer-reference#outpoint
 class TxOutPoint(namedtuple('TxOutPoint', 'hash index')):
-    '''Class representing tx output outpoint'''
+    '''Class representing tx input outpoint'''
     def __str__(self):
         return '%s:%s' % (bh2u(self.hash[::-1]) if self.hash else '',
                           self.index)
 
     def serialize(self):
-        assert len(self.hash) == 32
+        assert len(self.hash) == 32, \
+            f'{len(self.hash)} not 32'
         return (
             self.hash +                         # hash
             struct.pack('<I', self.index)       # index
@@ -145,23 +147,71 @@ class TxOutPoint(namedtuple('TxOutPoint', 'hash index')):
         }
 
 
+class CTxIn(namedtuple('CTxIn', 'hash index scriptSig sequence')):
+    '''Class representing tx input'''
+    def __str__(self):
+        return ('CTxIn: %s:%s, scriptSig=%s, sequeence=%s' %
+                (bh2u(self.hash[::-1]), self.index,
+                 self.scriptSig, self.sequence))
+
+    @classmethod
+    def read_vds(cls, vds):
+        h = vds.read_bytes(32)                  # hash
+        idx = vds.read_uint32()                 # index
+        slen = vds.read_compact_size()
+        scriptSig = vds.read_bytes(slen)        # scriptSig
+        sequence = vds.read_uint32()            # sequence
+        return CTxIn(h, idx, scriptSig, sequence)
+
+    def serialize(self):
+        assert len(self.hash) == 32, \
+            f'{len(self.hash)} not 32'
+        return (
+            self.hash +                         # hash
+            struct.pack('<I', self.index) +     # index
+            to_varbytes(self.scriptSig) +       # scriptSig
+            struct.pack('<I', self.sequence)    # sequence
+        )
+
+
+class CTxOut(namedtuple('CTxOut', 'value scriptPubKey')):
+    '''Class representing tx output'''
+    def __str__(self):
+        return ('CTxOut: %s:%s, scriptPubKey=%s, sequeence=%s' %
+                (bh2u(self.hash[::-1]), self.index,
+                 self.scriptPubKey, self.sequence))
+
+    @classmethod
+    def read_vds(cls, vds):
+        value = vds.read_int64()                # value
+        slen = vds.read_compact_size()
+        scriptPubKey = vds.read_bytes(slen)     # scriptPubKey
+        return CTxOut(value, scriptPubKey)
+
+    def serialize(self):
+        return (
+            struct.pack('<q', self.value) +     # value
+            to_varbytes(self.scriptPubKey)      # scriptPubKey
+        )
+
+
 # https://github.com/axerunners/dips/blob/master/dip-0002-special-transactions.md
 class ProTxBase:
     '''Base Class representing DIP2 Special Transactions'''
     def __init__(self, *args, **kwargs):
         if args and not kwargs:
             argsl = list(args)
-            for f in self.fields:
+            for f in self.__slots__:
                 setattr(self, f, argsl.pop(0))
         elif kwargs and not args:
-            for f in self.fields:
+            for f in self.__slots__:
                 setattr(self, f, kwargs[f])
         else:
             raise ValueError('__init__ works with all args or all kwargs')
 
     def _asdict(self):
         d = {}
-        for f in self.fields:
+        for f in self.__slots__:
             v = getattr(self, f)
             if isinstance(v, (bytes, bytearray)):
                 v = bh2u(v)
@@ -190,10 +240,10 @@ class ProTxBase:
 class AxeProRegTx(ProTxBase):
     '''Class representing DIP3 ProRegTx'''
 
-    fields = ('version type mode collateralOutpoint '
-              'ipAddress port KeyIdOwner PubKeyOperator '
-              'KeyIdVoting operatorReward scriptPayout '
-              'inputsHash payloadSig').split()
+    __slots__ = ('version type mode collateralOutpoint '
+                 'ipAddress port KeyIdOwner PubKeyOperator '
+                 'KeyIdVoting operatorReward scriptPayout '
+                 'inputsHash payloadSig').split()
 
     def __init__(self, *args, **kwargs):
         super(AxeProRegTx, self).__init__(*args, **kwargs)
@@ -219,10 +269,14 @@ class AxeProRegTx(ProTxBase):
                    bh2u(self.scriptPayout)))
 
     def serialize(self, full=True):
-        assert len(self.KeyIdOwner) == 20
-        assert len(self.PubKeyOperator) == 48
-        assert len(self.KeyIdVoting) == 20
-        assert len(self.inputsHash) == 32
+        assert len(self.KeyIdOwner) == 20, \
+            f'{len(self.KeyIdOwner)} not 20'
+        assert len(self.PubKeyOperator) == 48, \
+            f'{len(self.PubKeyOperator)} not 48'
+        assert len(self.KeyIdVoting) == 20, \
+            f'{len(self.KeyIdVoting)} not 20'
+        assert len(self.inputsHash) == 32, \
+            f'{len(self.inputsHash)} not 32'
         ipAddress = ip_address(self.ipAddress)
         ipAddress = serialize_ip(ipAddress)
         payloadSig = to_varbytes(self.payloadSig) if full else b''
@@ -317,9 +371,9 @@ class AxeProRegTx(ProTxBase):
 class AxeProUpServTx(ProTxBase):
     '''Class representing DIP3 ProUpServTx'''
 
-    fields = ('version proTxHash ipAddress port '
-              'scriptOperatorPayout inputsHash '
-              'payloadSig').split()
+    __slots__ = ('version proTxHash ipAddress port '
+                 'scriptOperatorPayout inputsHash '
+                 'payloadSig').split()
 
     def __str__(self):
         res = ('ProUpServTx Version: %s\n'
@@ -334,9 +388,12 @@ class AxeProUpServTx(ProTxBase):
         return res
 
     def serialize(self, full=True):
-        assert len(self.proTxHash) == 32
-        assert len(self.inputsHash) == 32
-        assert len(self.payloadSig) == 96
+        assert len(self.proTxHash) == 32, \
+            f'{len(self.proTxHash)} not 32'
+        assert len(self.inputsHash) == 32, \
+            f'{len(self.inputsHash)} not 32'
+        assert len(self.payloadSig) == 96, \
+            f'{len(self.payloadSig)} not 96'
         ipAddress = ip_address(self.ipAddress)
         ipAddress = serialize_ip(ipAddress)
         payloadSig = self.payloadSig if full else b''
@@ -407,9 +464,9 @@ class AxeProUpServTx(ProTxBase):
 class AxeProUpRegTx(ProTxBase):
     '''Class representing DIP3 ProUpRegTx'''
 
-    fields = ('version proTxHash mode PubKeyOperator '
-              'KeyIdVoting scriptPayout inputsHash '
-              'payloadSig').split()
+    __slots__ = ('version proTxHash mode PubKeyOperator '
+                 'KeyIdVoting scriptPayout inputsHash '
+                 'payloadSig').split()
 
     def __str__(self):
         return ('ProUpRegTx Version: %s\n'
@@ -426,10 +483,14 @@ class AxeProUpRegTx(ProTxBase):
                    bh2u(self.scriptPayout)))
 
     def serialize(self, full=True):
-        assert len(self.proTxHash) == 32
-        assert len(self.PubKeyOperator) == 48
-        assert len(self.KeyIdVoting) == 20
-        assert len(self.inputsHash) == 32
+        assert len(self.proTxHash) == 32, \
+            f'{len(self.proTxHash)} not 32'
+        assert len(self.PubKeyOperator) == 48, \
+            f'{len(self.PubKeyOperator)} not 48'
+        assert len(self.KeyIdVoting) == 20, \
+            f'{len(self.KeyIdVoting)} not 20'
+        assert len(self.inputsHash) == 32, \
+            f'{len(self.inputsHash)} not 32'
         payloadSig = to_varbytes(self.payloadSig) if full else b''
         return (
             struct.pack('<H', self.version) +           # version
@@ -488,8 +549,8 @@ class AxeProUpRegTx(ProTxBase):
 class AxeProUpRevTx(ProTxBase):
     '''Class representing DIP3 ProUpRevTx'''
 
-    fields = ('version proTxHash reason '
-              'inputsHash payloadSig').split()
+    __slots__ = ('version proTxHash reason '
+                 'inputsHash payloadSig').split()
 
     def __str__(self):
         return ('ProUpRevTx Version: %s\n'
@@ -500,9 +561,12 @@ class AxeProUpRevTx(ProTxBase):
                    self.reason))
 
     def serialize(self, full=True):
-        assert len(self.proTxHash) == 32
-        assert len(self.inputsHash) == 32
-        assert len(self.payloadSig) == 96
+        assert len(self.proTxHash) == 32, \
+            f'{len(self.proTxHash)} not 32'
+        assert len(self.inputsHash) == 32, \
+            f'{len(self.inputsHash)} not 32'
+        assert len(self.payloadSig) == 96, \
+            f'{len(self.payloadSig)} not 96'
         payloadSig = self.payloadSig if full else b''
         return (
             struct.pack('<H', self.version) +           # version
@@ -546,7 +610,7 @@ class AxeProUpRevTx(ProTxBase):
 class AxeCbTx(ProTxBase):
     '''Class representing DIP4 coinbase special tx'''
 
-    fields = ('version height merkleRootMNList merkleRootQuorums').split()
+    __slots__ = ('version height merkleRootMNList merkleRootQuorums').split()
 
     def __str__(self):
         res = ('CbTx Version: %s\n'
@@ -560,14 +624,16 @@ class AxeCbTx(ProTxBase):
         return res
 
     def serialize(self):
-        assert len(self.merkleRootMNList) == 32
+        assert len(self.merkleRootMNList) == 32, \
+            f'{len(self.merkleRootMNList)} not 32'
         res = (
             struct.pack('<H', self.version) +           # version
             struct.pack('<I', self.height) +            # height
             self.merkleRootMNList                       # merkleRootMNList
         )
         if self.version > 1:
-            assert len(self.merkleRootQuorums) == 32
+            assert len(self.merkleRootQuorums) == 32, \
+                f'{len(self.merkleRootQuorums)} not 32'
             res += self.merkleRootQuorums               # merkleRootQuorums
         return res
 
@@ -585,7 +651,7 @@ class AxeCbTx(ProTxBase):
 class AxeSubTxRegister(ProTxBase):
     '''Class representing DIP5 SubTxRegister'''
 
-    fields = ('version userName pubKey payloadSig').split()
+    __slots__ = ('version userName pubKey payloadSig').split()
 
     def __str__(self):
         return ('SubTxRegister Version: %s\n'
@@ -595,8 +661,10 @@ class AxeSubTxRegister(ProTxBase):
                    bh2u(self.pubKey)))
 
     def serialize(self):
-        assert len(self.pubKey) == 48
-        assert len(self.payloadSig) == 96
+        assert len(self.pubKey) == 48, \
+            f'{len(self.pubKey)} not 48'
+        assert len(self.payloadSig) == 96, \
+            f'{len(self.payloadSig)} not 96'
         return (
             struct.pack('<H', self.version) +           # version
             to_varbytes(self.userName) +                # userName
@@ -617,7 +685,7 @@ class AxeSubTxRegister(ProTxBase):
 class AxeSubTxTopup(ProTxBase):
     '''Class representing DIP5 SubTxTopup'''
 
-    fields = ('version regTxHash').split()
+    __slots__ = ('version regTxHash').split()
 
     def __str__(self):
         return ('SubTxTopup Version: %s\n'
@@ -626,7 +694,8 @@ class AxeSubTxTopup(ProTxBase):
                    bh2u(self.regTxHash[::-1])))
 
     def serialize(self):
-        assert len(self.regTxHash) == 32
+        assert len(self.regTxHash) == 32, \
+            f'{len(self.regTxHash)} not 32'
         return (
             struct.pack('<H', self.version) +           # version
             self.regTxHash                              # regTxHash
@@ -643,8 +712,8 @@ class AxeSubTxTopup(ProTxBase):
 class AxeSubTxResetKey(ProTxBase):
     '''Class representing DIP5 SubTxResetKey'''
 
-    fields = ('version regTxHash hashPrevSubTx '
-              'creditFee newPubKey payloadSig').split()
+    __slots__ = ('version regTxHash hashPrevSubTx '
+                 'creditFee newPubKey payloadSig').split()
 
     def __str__(self):
         return ('SubTxResetKey Version: %s\n'
@@ -659,10 +728,14 @@ class AxeSubTxResetKey(ProTxBase):
                    bh2u(self.newPubKey)))
 
     def serialize(self):
-        assert len(self.regTxHash) == 32
-        assert len(self.hashPrevSubTx) == 32
-        assert len(self.newPubKey) == 48
-        assert len(self.payloadSig) == 96
+        assert len(self.regTxHash) == 32, \
+            f'{len(self.regTxHash)} not 32'
+        assert len(self.hashPrevSubTx) == 32, \
+            f'{len(self.hashPrevSubTx)} not 32'
+        assert len(self.newPubKey) == 48, \
+            f'{len(self.newPubKey)} not 48'
+        assert len(self.payloadSig) == 96, \
+            f'{len(self.payloadSig)} not 96'
         return (
             struct.pack('<H', self.version) +           # version
             self.regTxHash +                            # regTxHash
@@ -687,8 +760,8 @@ class AxeSubTxResetKey(ProTxBase):
 class AxeSubTxCloseAccount(ProTxBase):
     '''Class representing DIP5 SubTxCloseAccount'''
 
-    fields = ('version regTxHash hashPrevSubTx '
-              'creditFee payloadSig').split()
+    __slots__ = ('version regTxHash hashPrevSubTx '
+                 'creditFee payloadSig').split()
 
     def __str__(self):
         return ('SubTxCloseAccount Version: %s\n'
@@ -701,9 +774,12 @@ class AxeSubTxCloseAccount(ProTxBase):
                    self.creditFee))
 
     def serialize(self):
-        assert len(self.regTxHash) == 32
-        assert len(self.hashPrevSubTx) == 32
-        assert len(self.payloadSig) == 96
+        assert len(self.regTxHash) == 32, \
+            f'{len(self.regTxHash)} not 32'
+        assert len(self.hashPrevSubTx) == 32, \
+            f'{len(self.hashPrevSubTx)} not 32'
+        assert len(self.payloadSig) == 96, \
+            f'{len(self.payloadSig)} not 96'
         return (
             struct.pack('<H', self.version) +           # version
             self.regTxHash +                            # regTxHash
@@ -724,7 +800,7 @@ class AxeSubTxCloseAccount(ProTxBase):
 
 
 # Supported Spec Tx types and corresponding handlers mapping
-CLASSICAL_TX = 0
+STANDARD_TX = 0
 SPEC_PRO_REG_TX = 1
 SPEC_PRO_UP_SERV_TX = 2
 SPEC_PRO_UP_REG_TX = 3
@@ -749,8 +825,21 @@ SPEC_TX_HANDLERS = {
 }
 
 
+# Use DIP2 tx_type to output PrivateSend type in wallet history
+class PSTxTypes(IntEnum):
+    '''PS Tx types'''
+    NEW_DENOMS = 65536
+    NEW_COLLATERAL = 65537
+    DENOMINATE = 65538
+    PAY_COLLATERAL = 65539
+    PRIVATESEND = 65540
+    PS_MIXING_TXS = 65541
+    SPEND_PS_COINS = 65542
+    OTHER_PS_COINS = 65543
+
+
 SPEC_TX_NAMES = {
-    CLASSICAL_TX: '',
+    STANDARD_TX: 'Standard',
     SPEC_PRO_REG_TX: 'ProRegTx',
     SPEC_PRO_UP_SERV_TX: 'ProUpServTx',
     SPEC_PRO_UP_REG_TX: 'ProUpRegTx',
@@ -760,7 +849,24 @@ SPEC_TX_NAMES = {
     SPEC_SUB_TX_TOPUP: 'SubTxTopup',
     SPEC_SUB_TX_RESET_KEY: 'SubTxResetKey',
     SPEC_SUB_TX_CLOSE_ACCOUNT: 'SubTxCloseAccount',
+
+    # as tx_type is uint16, can make PrivateSend types >= 65536
+    PSTxTypes.NEW_DENOMS: 'PS New Denoms',
+    PSTxTypes.NEW_COLLATERAL: 'PS New Collateral',
+    PSTxTypes.DENOMINATE: 'PS Denominate',
+    PSTxTypes.PAY_COLLATERAL: 'PS Pay Collateral',
+    PSTxTypes.PRIVATESEND: 'PrivateSend',
+    PSTxTypes.PS_MIXING_TXS: 'PS Mixing Txs ...',
+    PSTxTypes.SPEND_PS_COINS: 'Spend PS Coins',
+    PSTxTypes.OTHER_PS_COINS: 'Other PS Coins',
 }
+
+
+class PSCoinRounds(IntEnum):
+    '''PS Tx types'''
+    MINUSINF = -1e9
+    OTHER = -2
+    COLLATERAL = -1
 
 
 def read_extra_payload(vds, tx_type):
@@ -776,7 +882,7 @@ def read_extra_payload(vds, tx_type):
             extra_payload = read_method(vds)
             assert isinstance(extra_payload, spec_tx_class)
         else:
-            extra_payload = vds.read_bytes(extra_payload_size)
+            raise AxeTxError(f'Unkonwn tx type {tx_type}')
         assert vds.read_cursor == end
     else:
         extra_payload = b''

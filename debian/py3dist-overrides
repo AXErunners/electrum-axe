@@ -1,5 +1,5 @@
 pyaes python3-pyaes (>= 1.6.1)
-ecdsa python3-ecdsa (>= 0.10)
+ecdsa python3-ecdsa (>= 0.14)
 pbkdf2 python3-pbkdf2 (>= 1.3)
 requests python3-requests (>= 2.2.1)
 qrcode python3-qrcode (>= 5.3)

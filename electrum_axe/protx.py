@@ -83,7 +83,7 @@ class ProTxMN:
         self.type = 0
         self.mode = 0
         self.collateral = TxOutPoint('', -1)
-        self.service = ProTxService('', 9999)
+        self.service = ProTxService('', 9937)
         self.owner_addr = ''
         self.pubkey_operator = ''
         self.voting_addr = ''

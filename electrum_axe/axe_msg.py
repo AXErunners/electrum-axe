@@ -33,9 +33,11 @@ from .crypto import sha256d
 from .bitcoin import hash160_to_p2pkh, b58_address_to_hash160
 from .ecc import msg_magic
 from .axe_tx import (to_compact_size, to_varbytes, serialize_ip, str_ip,
-                      service_to_ip_port, TxOutPoint, read_uint16_nbo)
+                      service_to_ip_port, TxOutPoint, read_uint16_nbo,
+                      CTxIn, CTxOut)
 from .transaction import Transaction, BCDataStream, SerializationError
 from .util import bh2u, bfh
+from .i18n import _
 
 
 # https://axe-docs.github.io/en/developer-reference#version
@@ -49,6 +51,9 @@ FILTERLOAD_MAX_HASH_FUNCS = 50
 FILTERLOAD_MAX_FILTER_BYTES = 36000
 # https://axe-docs.github.io/en/developer-reference#filteradd
 FILTERADD_MAX_ELEMENT_BYTES = 520
+# https://github.com/axerunners/axe/blob/
+# e9f7142ed01c0d7b53ef8b5f6f3f6375a68ef422/src/privatesend.h#L29
+PRIVATESEND_ENTRY_MAX_SIZE = 9
 
 
 class AxeMsgError(Exception):
@@ -121,6 +126,100 @@ class LLMQType(IntEnumWithCheck):
     LLMQ_5_60 = 100  # For testing only
 
 
+class DSPoolState(IntEnumWithCheck):
+    '''Enum representing pool state in dssu messages'''
+    IDLE = 0
+    QUEUE = 1
+    ACCEPTING_ENTRIES = 2
+    SIGNING = 3
+    ERROR = 4
+    SUCCESS = 5
+
+
+DS_POOL_STATE_STR = {
+    int(DSPoolState.IDLE): _('IDLE'),
+    int(DSPoolState.QUEUE): _('QUEUE'),
+    int(DSPoolState.ACCEPTING_ENTRIES): _('ACCEPTING_ENTRIES'),
+    int(DSPoolState.SIGNING): _('SIGNING'),
+    int(DSPoolState.ERROR): _('ERROR'),
+    int(DSPoolState.SUCCESS): _('SUCCESS'),
+}
+
+
+def ds_pool_state_str(pool_state):
+    if pool_state not in DS_POOL_STATE_STR:
+        return _('UNKNOWN')
+    return DS_POOL_STATE_STR[int(pool_state)]
+
+
+class DSPoolStatusUpdate(IntEnumWithCheck):
+    '''Enum representing pool status update in dssu messages'''
+    REJECTED = 0
+    ACCEPTED = 1
+
+
+class DSMessageIDs(IntEnumWithCheck):
+    '''Enum representing message ids in dssu messages'''
+    ERR_ALREADY_HAVE = 0x00
+    ERR_DENOM = 0x01
+    ERR_ENTRIES_FULL = 0x02
+    ERR_EXISTING_TX = 0x03
+    ERR_FEES = 0x04
+    ERR_INVALID_COLLATERAL = 0x05
+    ERR_INVALID_INPUT = 0x06
+    ERR_INVALID_SCRIPT = 0x07
+    ERR_INVALID_TX = 0x08
+    ERR_MAXIMUM = 0x09
+    ERR_MN_LIST = 0x0a
+    ERR_MODE = 0x0b
+    ERR_NON_STANDARD_PUBKEY = 0x0c
+    ERR_NOT_A_MN = 0x0d  # not used
+    ERR_QUEUE_FULL = 0x0e
+    ERR_RECENT = 0x0f
+    ERR_SESSION = 0x10
+    ERR_MISSING_TX = 0x11
+    ERR_VERSION = 0x12
+    MSG_NOERR = 0x13
+    MSG_SUCCESS = 0x14
+    MSG_ENTRIES_ADDED = 0x15
+
+
+DS_MSG_STR = {
+    int(DSMessageIDs.ERR_ALREADY_HAVE): _('Already have that input.'),
+    int(DSMessageIDs.ERR_DENOM): _('No matching denominations found'
+                                   ' for mixing.'),
+    int(DSMessageIDs.ERR_ENTRIES_FULL): _('Entries are full.'),
+    int(DSMessageIDs.ERR_EXISTING_TX): _('Not compatible with existing'
+                                         ' transactions.'),
+    int(DSMessageIDs.ERR_FEES): _('Transaction fees are too high.'),
+    int(DSMessageIDs.ERR_INVALID_COLLATERAL): _('Collateral not valid.'),
+    int(DSMessageIDs.ERR_INVALID_INPUT): _('Input is not valid.'),
+    int(DSMessageIDs.ERR_INVALID_SCRIPT): _('Invalid script detected.'),
+    int(DSMessageIDs.ERR_INVALID_TX): _('Transaction not valid.'),
+    int(DSMessageIDs.ERR_MAXIMUM): _('Entry exceeds maximum size.'),
+    int(DSMessageIDs.ERR_MN_LIST): _('Not in the Masternode list.'),
+    int(DSMessageIDs.ERR_MODE): _('Incompatible mode.'),
+    int(DSMessageIDs.ERR_NON_STANDARD_PUBKEY): _('Non-standard public key'
+                                                 ' detected.'),
+    int(DSMessageIDs.ERR_NOT_A_MN): _('This is not a Masternode.'),  # not used
+    int(DSMessageIDs.ERR_QUEUE_FULL): _('Masternode queue is full.'),
+    int(DSMessageIDs.ERR_RECENT): _('Last PrivateSend was too recent.'),
+    int(DSMessageIDs.ERR_SESSION): _('Session not complete!'),
+    int(DSMessageIDs.ERR_MISSING_TX): _('Missing input transaction'
+                                        ' information.'),
+    int(DSMessageIDs.ERR_VERSION): _('Incompatible version.'),
+    int(DSMessageIDs.MSG_NOERR): _('No errors detected.'),
+    int(DSMessageIDs.MSG_SUCCESS): _('Transaction created successfully.'),
+    int(DSMessageIDs.MSG_ENTRIES_ADDED): _('Your entries added successfully.'),
+}
+
+
+def ds_msg_str(msg_id):
+    if msg_id not in DS_MSG_STR:
+        return _('Unknown response.')
+    return DS_MSG_STR[int(msg_id)]
+
+
 class AxeNetIPAddr(namedtuple('AxeNetIPAddr', 'time services ip port')):
     '''Class representing addr mesage payload'''
 
@@ -135,8 +234,8 @@ class DeletedQuorum(namedtuple('DeletedQuorum', 'llmqType quorumHash')):
 
     def __str__(self):
         llmqType = (LLMQType(self.llmqType)
-                        if LLMQType.has_value(self.llmqType)
-                        else self.llmqType)
+                    if LLMQType.has_value(self.llmqType)
+                    else self.llmqType)
         return ('DeletedQuorum: llmqType: %s(%s), quorumHash: %s' %
                 (llmqType, self.llmqType, bh2u(self.quorumHash[::-1])))
 
@@ -237,29 +336,46 @@ class AxeCmd:
     '''Class representing Axe network message packed with msg header cmd'''
 
     def __init__(self, cmd, payload=None):
+        lcmd = cmd.lower()
         vds = BCDataStream()
         vds.clear_and_set_bytes(payload)
-        if cmd == 'version':
+        if lcmd == 'version':
             self.payload = AxeVersionMsg.read_vds(vds, alone_data=True)
-        elif cmd == 'ping':
+        elif lcmd == 'ping':
             self.payload = AxePingMsg.read_vds(vds, alone_data=True)
-        elif cmd == 'pong':
+        elif lcmd == 'pong':
             self.payload = AxePongMsg.read_vds(vds, alone_data=True)
-        elif cmd == 'addr':
+        elif lcmd == 'addr':
             self.payload = AxeAddrMsg.read_vds(vds, alone_data=True)
-        elif cmd == 'inv':
+        elif lcmd == 'inv':
             self.payload = AxeInvMsg.read_vds(vds, alone_data=True)
-        elif cmd == 'spork':
+        elif lcmd == 'spork':
             self.payload = AxeSporkMsg.read_vds(vds, alone_data=True)
-        elif cmd == 'islock':
+        elif lcmd == 'islock':
             self.payload = AxeISLockMsg.read_vds(vds, alone_data=True)
-        elif cmd == 'mnlistdiff':
+        elif lcmd == 'mnlistdiff':
             self.payload = AxeMNListDiffMsg.read_vds(vds, alone_data=True)
-        elif cmd == 'qfcommit':
+        elif lcmd == 'qfcommit':
             self.payload = AxeQFCommitMsg.read_vds(vds, alone_data=True)
+        elif lcmd == 'senddsq':
+            self.payload = AxeSendDsqMsg.read_vds(vds, alone_data=True)
+        elif lcmd == 'dsa':
+            self.payload = AxeDsaMsg.read_vds(vds, alone_data=True)
+        elif lcmd == 'dsc':
+            self.payload = AxeDscMsg.read_vds(vds, alone_data=True)
+        elif lcmd == 'dsf':
+            self.payload = AxeDsfMsg.read_vds(vds, alone_data=True)
+        elif lcmd == 'dsi':
+            self.payload = AxeDsiMsg.read_vds(vds, alone_data=True)
+        elif lcmd == 'dsq':
+            self.payload = AxeDsqMsg.read_vds(vds, alone_data=True)
+        elif lcmd == 'dss':
+            self.payload = AxeDssMsg.read_vds(vds, alone_data=True)
+        elif lcmd == 'dssu':
+            self.payload = AxeDssuMsg.read_vds(vds, alone_data=True)
         else:
             self.payload = payload
-        self.cmd = cmd
+        self.cmd = lcmd
 
     def __str__(self):
         if not self.payload:
@@ -283,6 +399,12 @@ class AxeMsgBase:
         else:
             raise ValueError('__init__ works with all args or all kwargs')
 
+    @classmethod
+    def from_hex(cls, hex_str):
+        vds = BCDataStream()
+        vds.clear_and_set_bytes(bfh(hex_str))
+        return cls.read_vds(vds)
+
 
 class AxeVersionMsg(AxeMsgBase):
     '''Class representing version message'''
@@ -302,10 +424,10 @@ class AxeVersionMsg(AxeMsgBase):
                ' recv_services: 0x%.16X, recv_ip: %s, recv_port: %s,'
                ' trans_services: 0x%.16X, trans_ip: %s, trans_port: %s,'
                ' nonce: %s, user_agent: %s, start_height: %s'
-                % (self.version, self.services, self.timestamp,
-                   self.recv_services, str_ip(self.recv_ip), self.recv_port,
-                   self.trans_services, str_ip(self.trans_ip), self.trans_port,
-                   self.nonce, self.user_agent, self.start_height))
+               % (self.version, self.services, self.timestamp,
+                  self.recv_services, str_ip(self.recv_ip), self.recv_port,
+                  self.trans_services, str_ip(self.trans_ip), self.trans_port,
+                  self.nonce, self.user_agent, self.start_height))
         if self.relay is not None:
             res += (', relay: 0x%.2X' % self.relay)
         if self.mnauth_challenge is not None:
@@ -318,7 +440,11 @@ class AxeVersionMsg(AxeMsgBase):
         recv_ip = serialize_ip(self.recv_ip)
         trans_ip = serialize_ip(self.trans_ip)
         if self.user_agent:
-            user_agent_bytes = to_varbytes(self.user_agent.encode())
+            if isinstance(self.user_agent, str):
+                user_agent = self.user_agent.encode()
+                user_agent_bytes = to_varbytes(user_agent)
+            else:
+                user_agent_bytes = to_varbytes(self.user_agent)
         else:
             user_agent_bytes = bytes([0])
         res = (
@@ -376,6 +502,26 @@ class AxeVersionMsg(AxeMsgBase):
                               trans_services, trans_ip, trans_port,
                               nonce, user_agent, start_height,
                               relay, mnauth_challenge)
+
+
+class AxeSendDsqMsg(AxeMsgBase):
+    '''Class representing ping message'''
+
+    fields = 'fSendDSQueue'.split()
+
+    def __init__(self, *args, **kwargs):
+        super(AxeSendDsqMsg, self).__init__(*args, **kwargs)
+
+    def __str__(self):
+        return 'AxeSendDsqMsg: fSendDSQueue: %s' % self.fSendDSQueue
+
+    def serialize(self):
+        return pack('B', self.fSendDSQueue)             # fSendDSQueue
+
+    @classmethod
+    def read_vds(cls, vds, alone_data=False):
+        fSendDSQueue = vds.read_uchar()                 # fSendDSQueue
+        return AxeSendDsqMsg(fSendDSQueue)
 
 
 class AxePingMsg(AxeMsgBase):
@@ -576,7 +722,7 @@ class AxeISLockMsg(AxeMsgBase):
         inputs = []
         for in_i in range(in_cnt):                      # read outpoints
             in_hash = vds.read_bytes(32)                # hash
-            in_idx  = vds.read_uint32()                 # idx
+            in_idx = vds.read_uint32()                  # idx
             inputs.append(TxOutPoint(in_hash, in_idx))
         txid = vds.read_bytes(32)                       # txid
         sig = vds.read_bytes(96)                        # sig
@@ -690,7 +836,7 @@ class AxeMNListDiffMsg(AxeMsgBase):
                 ' deletedQuorums(%s): %s, newQuorums(%s): %s' %
                 (bh2u(self.baseBlockHash[::-1]), bh2u(self.blockHash[::-1]),
                  self.totalTransactions, mh_cnt, merkleHashes,
-                 merkleFlags, bh2u(self.cbTx),
+                 merkleFlags, self.cbTx,
                  dmns_cnt, deletedMNs, mnl_cnt, mnList,
                  dq_cnt, deletedQuorums, nq_cnt, newQuorums))
 
@@ -750,8 +896,8 @@ class AxeQFCommitMsg(AxeMsgBase):
 
     def __str__(self):
         llmqType = (LLMQType(self.llmqType)
-                        if LLMQType.has_value(self.llmqType)
-                        else self.llmqType)
+                    if LLMQType.has_value(self.llmqType)
+                    else self.llmqType)
         return ('AxeQFCommitMsg: version: %s, llmqType: %s(%s),'
                 ' quorumHash: %s, signers(%s): %s,'
                 ' validMembers(%s): %s, quorumPublicKey: %s,'
@@ -788,12 +934,6 @@ class AxeQFCommitMsg(AxeMsgBase):
             return bh2u(res)
         else:
             return res
-
-    @classmethod
-    def from_hex(cls, hex_str):
-        vds = BCDataStream()
-        vds.clear_and_set_bytes(bfh(hex_str))
-        return cls.read_vds(vds)
 
     @classmethod
     def read_vds(cls, vds, alone_data=False):
@@ -881,3 +1021,287 @@ class AxeFilterAddMsg(AxeMsgBase):
         if alone_data and vds.can_read_more():
             raise SerializationError(f'{cls}: extra junk at the end')
         return AxeFilterAddMsg(element_bytes)
+
+
+class AxeDsaMsg(AxeMsgBase):
+    '''Class representing dsa message'''
+
+    fields = 'nDenom txCollateral'.split()
+
+    def __init__(self, *args, **kwargs):
+        super(AxeDsaMsg, self).__init__(*args, **kwargs)
+
+    def __str__(self):
+        return ('AxeDsaMsg: nDenom: %s, txCollateral: %s' %
+                (self.nDenom, self.txCollateral))
+
+    @classmethod
+    def read_vds(cls, vds, alone_data=False):
+        nDenom = vds.read_int32()                       # nDenom
+        txCollateral = Transaction.read_vds(vds)        # txCollateral
+        if alone_data and vds.can_read_more():
+            raise SerializationError(f'{cls}: extra junk at the end')
+        return AxeDsaMsg(nDenom, str(txCollateral))
+
+    def serialize(self):
+        return (
+            pack('<i', self.nDenom) +                   # nDenom
+            bfh(self.txCollateral)                      # txCollateral
+        )
+
+
+class AxeDssuMsg(AxeMsgBase):
+    '''Class representing dssu message'''
+
+    fields = 'sessionID state entriesCount statusUpdate messageID'.split()
+
+    def __init__(self, *args, **kwargs):
+        super(AxeDssuMsg, self).__init__(*args, **kwargs)
+
+    def __str__(self):
+        state = (DSPoolState(self.state).name
+                 if DSPoolState.has_value(self.state)
+                 else self.state)
+        statusUpdate = (DSPoolStatusUpdate(self.statusUpdate).name
+                        if DSPoolStatusUpdate.has_value(self.statusUpdate)
+                        else self.statusUpdate)
+        messageID = (DSMessageIDs(self.messageID).name
+                     if DSMessageIDs.has_value(self.messageID)
+                     else self.messageID)
+        return ('AxeDssuMsg: sessionID: %s, state: %s,'
+                ' entriesCount: %s, statusUpdate: %s,'
+                ' messageID: %s' %
+                (self.sessionID, state,
+                 self.entriesCount, statusUpdate, messageID))
+
+    @classmethod
+    def read_vds(cls, vds, alone_data=False):
+        sessionID = vds.read_int32()                    # sessionID
+        state = vds.read_int32()                        # state
+        entriesCount = vds.read_int32()                 # entriesCount
+        statusUpdate = vds.read_int32()                 # statusUpdate
+        messageID = vds.read_int32()                    # messageID
+        if alone_data and vds.can_read_more():
+            raise SerializationError(f'{cls}: extra junk at the end')
+        return AxeDssuMsg(sessionID, state, entriesCount,
+                           statusUpdate, messageID)
+
+    def serialize(self):
+        return (
+            pack('<i', self.sessionID) +                # sessionID
+            pack('<i', self.state) +                    # state
+            pack('<i', self.entriesCount) +             # entriesCount
+            pack('<i', self.statusUpdate) +             # statusUpdate
+            pack('<i', self.messageID)                  # messageID
+        )
+
+
+class AxeDstxMsg(AxeMsgBase):
+    '''Class representing dstx message'''
+
+    fields = 'tx masternodeOutPoint vchSig sigTime'.split()
+
+    def __init__(self, *args, **kwargs):
+        super(AxeDstxMsg, self).__init__(*args, **kwargs)
+
+    def __str__(self):
+        return ('AxeDstxMsg: masternodeOutPoint: %s, sigTime: %s' %
+                (self.masternodeOutPoint, self.sigTime))
+
+    @classmethod
+    def read_vds(cls, vds, alone_data=False):
+        tx = Transaction.read_vds(vds)                  # tx
+        masternodeOutPoint = TxOutPoint.read_vds(vds)   # masternodeOutPoint
+        vchSig_len = vds.read_compact_size()
+        if vchSig_len != 96:
+            raise AxeMsgError(f'dsq msg: wrong vchSig length')
+        vchSig = vds.read_bytes(96)                     # vchSig
+        sigTime = vds.read_int64()                      # sigTime
+        if alone_data and vds.can_read_more():
+            raise SerializationError(f'{cls}: extra junk at the end')
+        return AxeDstxMsg(tx, masternodeOutPoint, vchSig, sigTime)
+
+    def msg_hash(self):
+        return sha256d(bfh(self.tx.serialize()) +
+                       self.masternodeOutPoint.serialize() +
+                       pack('<q', self.sigTime))
+
+
+class AxeDsqMsg(AxeMsgBase):
+    '''Class representing dsq message'''
+
+    fields = 'nDenom masternodeOutPoint nTime fReady vchSig'.split()
+
+    def __init__(self, *args, **kwargs):
+        super(AxeDsqMsg, self).__init__(*args, **kwargs)
+
+    def __str__(self):
+        return ('AxeDsqMsg: nDenom: %s, masternodeOutPoint: %s,'
+                ' nTime: %s, fReady: %s' %
+                (self.nDenom, self.masternodeOutPoint,
+                 self.nTime, self.fReady))
+
+    @classmethod
+    def read_vds(cls, vds, alone_data=False):
+        nDenom = vds.read_int32()                       # nDenom
+        masternodeOutPoint = TxOutPoint.read_vds(vds)   # masternodeOutPoint
+        nTime = vds.read_int64()                        # nTime
+        fReady = vds.read_uchar()                       # fReady
+        vchSig_len = vds.read_compact_size()
+        if vchSig_len != 96:
+            raise AxeMsgError(f'dsq msg: wrong vchSig length')
+        vchSig = vds.read_bytes(96)                     # vchSig
+        if alone_data and vds.can_read_more():
+            raise SerializationError(f'{cls}: extra junk at the end')
+        return AxeDsqMsg(nDenom, masternodeOutPoint, nTime,
+                          fReady, vchSig)
+
+    def serialize(self):
+        return (
+            pack('<i', self.nDenom) +                   # nDenom
+            self.masternodeOutPoint.serialize() +       # masternodeOutPoint
+            pack('<q', self.nTime) +                    # nTime
+            pack('B', self.fReady) +                    # fReady
+            to_compact_size(len(self.vchSig)) +         # vchSig
+            self.vchSig
+        )
+
+    def msg_hash(self):
+        return sha256d(pack('<i', self.nDenom) +
+                       self.masternodeOutPoint.serialize() +
+                       pack('<q', self.nTime) +
+                       pack('B', self.fReady))
+
+
+class AxeDsiMsg(AxeMsgBase):
+    '''Class representing dsi message'''
+
+    fields = 'vecTxDSIn txCollateral vecTxDSOut'.split()
+
+    def __init__(self, *args, **kwargs):
+        super(AxeDsiMsg, self).__init__(*args, **kwargs)
+
+    def __str__(self):
+        vecTxDSInCnt = len(self.vecTxDSIn)
+        vecTxDSOutCnt = len(self.vecTxDSIn)
+        return ('AxeDsiMsg: vecTxDSIn (%s): %s, txCollateral: %s,'
+                ' vecTxDSOut (%s): %s' %
+                (vecTxDSInCnt, self.vecTxDSIn, self.txCollateral,
+                 vecTxDSOutCnt, self.vecTxDSOut))
+
+    @classmethod
+    def read_vds(cls, vds, alone_data=False):
+        txin_cnt = vds.read_compact_size()
+        if txin_cnt > PRIVATESEND_ENTRY_MAX_SIZE:
+            raise AxeMsgError('dsi msg: too many inputs')
+        vecTxDSIn = []                                  # vecTxDSIn
+        for txin_i in range(txin_cnt):
+            vecTxDSIn.append(CTxIn.read_vds(vds))
+        txCollateral = Transaction.read_vds(vds)        # txCollateral
+        txout_cnt = vds.read_compact_size()
+        if txout_cnt > PRIVATESEND_ENTRY_MAX_SIZE:
+            raise AxeMsgError('dsi msg: too many outputs')
+        vecTxDSOut = []                                 # vecTxDSOut
+        for txout_i in range(txout_cnt):
+            vecTxDSOut.append(CTxOut.read_vds(vds))
+        if alone_data and vds.can_read_more():
+            raise SerializationError(f'{cls}: extra junk at the end')
+        return AxeDsiMsg(vecTxDSIn, str(txCollateral), vecTxDSOut)
+
+    def serialize(self):
+        res = to_compact_size(len(self.vecTxDSIn))      # vecTxDSIn
+        for txin in self.vecTxDSIn:
+            res += txin.serialize()
+        res += bfh(self.txCollateral)                   # txCollateral
+        res += to_compact_size(len(self.vecTxDSOut))    # vecTxDSOut
+        for txout in self.vecTxDSOut:
+            res += txout.serialize()
+        return res
+
+
+class AxeDsfMsg(AxeMsgBase):
+    '''Class representing dsf message'''
+
+    fields = 'sessionID txFinal'.split()
+
+    def __init__(self, *args, **kwargs):
+        super(AxeDsfMsg, self).__init__(*args, **kwargs)
+
+    def __str__(self):
+        return ('AxeDsfMsg: sessionID: %s, txFinal: %s,' %
+                (self.sessionID, self.txFinal))
+
+    @classmethod
+    def read_vds(cls, vds, alone_data=False):
+        sessionID = vds.read_int32()                    # sessionID
+        txFinal = Transaction.read_vds(vds)             # txFinal
+        if alone_data and vds.can_read_more():
+            raise SerializationError(f'{cls}: extra junk at the end')
+        return AxeDsfMsg(sessionID, txFinal)
+
+    def serialize(self):
+        return (
+            pack('<i', self.sessionID) +                # sessionID
+            bfh(self.txFinal.serialize())               # txFinal
+        )
+
+
+class AxeDssMsg(AxeMsgBase):
+    '''Class representing dss message'''
+
+    fields = 'inputs'.split()
+
+    def __init__(self, *args, **kwargs):
+        super(AxeDssMsg, self).__init__(*args, **kwargs)
+
+    def __str__(self):
+        inputsCnt = len(self.inputs)
+        return ('AxeDssMsg: inputs (%s): %s' % (inputsCnt, self.inputs))
+
+    @classmethod
+    def read_vds(cls, vds, alone_data=False):
+        txin_cnt = vds.read_compact_size()
+        if txin_cnt > PRIVATESEND_ENTRY_MAX_SIZE:
+            raise AxeMsgError('dss msg: too many inputs')
+        inputs = []                                     # inputs
+        for txin_i in range(txin_cnt):
+            inputs.append(CTxIn.read_vds(vds))
+        if alone_data and vds.can_read_more():
+            raise SerializationError(f'{cls}: extra junk at the end')
+        return AxeDssMsg(inputs)
+
+    def serialize(self):
+        res = to_compact_size(len(self.inputs))         # inputs
+        for txin in self.inputs:
+            res += txin.serialize()
+        return res
+
+
+class AxeDscMsg(AxeMsgBase):
+    '''Class representing dsc message'''
+
+    fields = 'sessionID messageID'.split()
+
+    def __init__(self, *args, **kwargs):
+        super(AxeDscMsg, self).__init__(*args, **kwargs)
+
+    def __str__(self):
+        messageID = (DSMessageIDs(self.messageID).name
+                     if DSMessageIDs.has_value(self.messageID)
+                     else self.messageID)
+        return ('AxeDscMsg: sessionID: %s, messageID: %s' %
+                (self.sessionID, messageID))
+
+    @classmethod
+    def read_vds(cls, vds, alone_data=False):
+        sessionID = vds.read_int32()                    # sessionID
+        messageID = vds.read_int32()                    # messageID
+        if alone_data and vds.can_read_more():
+            raise SerializationError(f'{cls}: extra junk at the end')
+        return AxeDscMsg(sessionID, messageID)
+
+    def serialize(self):
+        return (
+            pack('<i', self.sessionID) +                # sessionID
+            pack('<i', self.messageID)                  # messageID
+        )

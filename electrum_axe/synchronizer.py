@@ -96,6 +96,17 @@ class SynchronizerBase(NetworkJobOnDefaultServer):
         self.requested_addrs.add(addr)
         await self.add_queue.put(addr)
 
+    def remove_addr(self, addr):
+        asyncio.run_coroutine_threadsafe(self._remove_address(addr),
+                                         self.asyncio_loop)
+
+    async def _remove_address(self, addr: str):
+        if not is_address(addr):
+            raise ValueError(f"invalid bitcoin address {addr}")
+        h = address_to_scripthash(addr)
+        await self.session.send_request('blockchain.scripthash.unsubscribe',
+                                        [h])
+
     async def _on_address_status(self, addr, status):
         """Handle the change of the status of an address."""
         raise NotImplementedError()  # implemented by subclasses
@@ -234,8 +245,6 @@ class Synchronizer(SynchronizerBase):
         tx_height = self.requested_tx.pop(tx_hash)
         self.wallet.receive_tx_callback(tx_hash, tx, tx_height)
         self.logger.info(f"received tx {tx_hash} height: {tx_height} bytes: {len(tx.raw)}")
-        # callbacks
-        self.wallet.network.trigger_callback('new_transaction', self.wallet, tx)
 
     async def main(self):
         self.wallet.set_up_to_date(False)
@@ -247,7 +256,13 @@ class Synchronizer(SynchronizerBase):
             if history == ['*']: continue
             await self._request_missing_txs(history, allow_server_not_finding_tx=True)
         # add addresses to bootstrap
+        if not self.wallet.psman.subscribe_spent:
+            unsubscribed_addrs = self.wallet.psman.unsubscribed_addrs
+        else:
+            unsubscribed_addrs = set()
         for addr in self.wallet.get_addresses():
+            if addr in unsubscribed_addrs:
+                continue
             await self._add_address(addr)
         # main loop
         while True:

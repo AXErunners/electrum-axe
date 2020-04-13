@@ -29,7 +29,8 @@ from typing import TYPE_CHECKING, Dict, Optional, Set, Tuple
 
 from . import bitcoin
 from .bitcoin import COINBASE_MATURITY, TYPE_ADDRESS, TYPE_PUBKEY
-from .axe_tx import tx_header_to_tx_type
+from .axe_ps import PSManager, PS_MIXING_TX_TYPES
+from .axe_tx import PSCoinRounds, tx_header_to_tx_type
 from .util import profiler, bfh, TxMinedInfo
 from .protx import ProTxManager
 from .transaction import Transaction, TxOutput
@@ -78,6 +79,7 @@ class AddressSynchronizer(Logger):
         self.up_to_date = False
         # thread local storage for caching stuff
         self.threadlocal_cache = threading.local()
+        self.psman = PSManager(self)
         self.protx_manager = ProTxManager(self)
 
         self._get_addr_balance_cache = {}
@@ -95,6 +97,7 @@ class AddressSynchronizer(Logger):
         self.check_history()
         self.load_unverified_transactions()
         self.remove_local_transactions_we_dont_have()
+        self.psman.load_and_cleanup()
         self.protx_manager.load()
 
     def is_mine(self, address):
@@ -156,11 +159,13 @@ class AddressSynchronizer(Logger):
             self.verifier = SPV(self.network, self)
             self.network.register_callback(self.on_blockchain_updated, ['blockchain_updated'])
             self.protx_manager.on_network_start(self.network)
+            self.psman.on_network_start(self.network)
             axe_net = self.network.axe_net
             axe_net.register_callback(self.on_axe_islock, ['axe-islock'])
 
     def on_blockchain_updated(self, event, *args):
         self._get_addr_balance_cache = {}  # invalidate cache
+        self.db.process_and_clear_islocks(self.get_local_height())
 
     def on_axe_islock(self, event, txid):
         if txid in self.db.islocks:
@@ -169,7 +174,7 @@ class AddressSynchronizer(Logger):
             self.logger.info(f'found tx for islock: {txid}')
             axe_net = self.network.axe_net
             if axe_net.verify_on_recent_islocks(txid):
-                self.db.add_islock(txid, self.get_local_height())
+                self.db.add_islock(txid)
                 self._get_addr_balance_cache = {}  # invalidate cache
                 self.storage.write()
                 self.network.trigger_callback('verified-islock', self, txid)
@@ -180,7 +185,7 @@ class AddressSynchronizer(Logger):
         else:
             axe_net = self.network.axe_net
             if axe_net.verify_on_recent_islocks(txid):
-                self.db.add_islock(txid, self.get_local_height())
+                self.db.add_islock(txid)
                 self._get_addr_balance_cache = {}  # invalidate cache
                 self.storage.write()
                 self.network.trigger_callback('verified-islock', self, txid)
@@ -194,6 +199,7 @@ class AddressSynchronizer(Logger):
                 asyncio.run_coroutine_threadsafe(self.verifier.stop(), self.network.asyncio_loop)
                 self.verifier = None
             self.network.unregister_callback(self.on_blockchain_updated)
+            self.psman.on_stop_threads()
             axe_net = self.network.axe_net
             axe_net.unregister_callback(self.on_axe_islock)
             self.db.put('stored_height', self.get_local_height())
@@ -318,7 +324,12 @@ class AddressSynchronizer(Logger):
             # add to local history
             self._add_tx_to_local_history(tx_hash)
             # save
+            is_new_tx = (tx_hash not in self.db.transactions)
             self.db.add_transaction(tx_hash, tx)
+            if is_new_tx and self.psman.enabled:
+                self.psman._add_tx_ps_data(tx_hash, tx)
+            if is_new_tx and not self.is_local_tx(tx_hash) and self.network:
+                self.network.trigger_callback('new_transaction', self, tx)
             return True
 
     def remove_transaction(self, tx_hash):
@@ -341,6 +352,8 @@ class AddressSynchronizer(Logger):
 
         with self.transaction_lock:
             self.logger.info(f"removing tx from history {tx_hash}")
+            if self.psman.enabled:
+                self.psman._rm_tx_ps_data(tx_hash)
             tx = self.db.remove_transaction(tx_hash)
             remove_from_spent_outpoints()
             self._remove_tx_from_local_history(tx_hash)
@@ -365,9 +378,12 @@ class AddressSynchronizer(Logger):
         self.find_islock_pair(tx_hash)
 
     def receive_history_callback(self, addr, hist, tx_fees):
+        old_hist_hashes = set()
         with self.lock:
             old_hist = self.get_address_history(addr)
             for tx_hash, height, islock in old_hist:
+                if height > TX_HEIGHT_LOCAL:
+                    old_hist_hashes.add(tx_hash)
                 if (tx_hash, height) not in hist:
                     # make tx local
                     self.unverified_tx.pop(tx_hash, None)
@@ -376,7 +392,10 @@ class AddressSynchronizer(Logger):
                         self.verifier.remove_spv_proof_for_tx(tx_hash)
             self.db.set_addr_history(addr, hist)
 
+        local_tx_hist_hashes = list()
         for tx_hash, tx_height in hist:
+            if tx_hash not in old_hist_hashes and self.is_local_tx(tx_hash):
+                local_tx_hist_hashes.append(tx_hash)
             # add it in case it was previously unconfirmed
             self.add_unverified_tx(tx_hash, tx_height)
             # if addr is new, we have to recompute txi and txo
@@ -384,11 +403,19 @@ class AddressSynchronizer(Logger):
             if tx is None:
                 continue
             self.add_transaction(tx_hash, tx, allow_unrelated=True)
-            self.find_islock_pair(tx_hash)
 
         # Store fees
         self.db.update_tx_fees(tx_fees)
-
+        # unsubscribe from spent ps coins addresses
+        if self.psman.enabled:
+            self.psman.unsubscribe_spent_addr(addr, hist)
+        # trigger new_transaction cb when local tx hash appears in history
+        if self.network:
+            for tx_hash in local_tx_hist_hashes:
+                self.find_islock_pair(tx_hash)
+                tx = self.db.get_transaction(tx_hash)
+                if tx:
+                    self.network.trigger_callback('new_transaction', self, tx)
 
     @profiler
     def load_local_history(self):
@@ -453,7 +480,7 @@ class AddressSynchronizer(Logger):
         return f
 
     @with_local_height_cached
-    def get_history(self, domain=None, config=None):
+    def get_history(self, domain=None, config=None, group_ps=False):
         # get domain
         if domain is None:
             domain = self.get_addresses()
@@ -477,22 +504,82 @@ class AddressSynchronizer(Logger):
         for tx_hash in tx_deltas:
             delta = tx_deltas[tx_hash]
             tx_mined_status = self.get_tx_height(tx_hash)
+            islock = tx_islocks[tx_hash]
+            if islock:
+                islock_sort = tx_hash if not tx_mined_status.conf else ''
+            else:
+                islock_sort = ''
             history.append((tx_hash, tx_mined_status, delta,
-                            tx_islocks[tx_hash]))
-        history.sort(key = lambda x: self.get_txpos(x[0], x[3]), reverse=True)
+                            islock, islock_sort))
+        history.sort(key=lambda x: (self.get_txpos(x[0], x[3]), x[4]),
+                     reverse=True)
         # 3. add balance
         c, u, x = self.get_balance(domain)
         balance = c + u + x
         h2 = []
-        show_dip2 = config.get('show_dip2_tx_type', False) if config else False
-        for tx_hash, tx_mined_status, delta, islock in history:
+        if config:
+            def_dip2 = not self.psman.unsupported
+            show_dip2 = config.get('show_dip2_tx_type', def_dip2)
+        else:
+            show_dip2 = True  # for testing
+        group_size = 0
+        group_h2 = []
+        group_txid = None
+        group_txids = []
+        group_delta = None
+        group_balance = None
+        hist_len = len(history)
+        for i, (tx_hash, tx_mined_status, delta,
+                islock, islock_sort) in enumerate(history):
             tx_type = 0
             if show_dip2:
                 tx = self.db.get_transaction(tx_hash)
                 if tx:
                     tx_type = tx_header_to_tx_type(bfh(tx.raw[:8]))
-            h2.append((tx_hash, tx_type, tx_mined_status, delta, balance,
-                       islock))
+            if (group_ps or show_dip2) and not tx_type:  # prefer ProTx type
+                tx_type, completed = self.db.get_ps_tx(tx_hash)
+
+            if group_ps and tx_type in PS_MIXING_TX_TYPES:
+                group_size += 1
+                group_txids.append(tx_hash)
+                if group_size == 1:
+                    group_txid = tx_hash
+                    group_balance = balance
+                if delta is not None:
+                    if group_delta is None:
+                        group_delta = delta
+                    else:
+                        group_delta += delta
+                if group_size > 1:
+                    group_h2.append((tx_hash, tx_type, tx_mined_status,
+                                     delta, balance, islock, group_txid, []))
+                else:
+                    group_h2.append((tx_hash, tx_type, tx_mined_status,
+                                     delta, balance, islock, None, []))
+                if i == hist_len - 1:  # last entry in the history
+                    if group_size > 1:
+                        group_data = group_h2[0][-1]  # last tuple element
+                        group_data.append(group_delta)
+                        group_data.append(group_balance)
+                        group_data.append(group_txids)
+                    h2.extend(group_h2)
+            else:
+                if group_size > 0:
+                    if group_size > 1:
+                        group_data = group_h2[0][-1]  # last tuple element
+                        group_data.append(group_delta)
+                        group_data.append(group_balance)
+                        group_data.append(group_txids)
+                    h2.extend(group_h2)
+                    group_size = 0
+                    group_h2 = []
+                    group_txid = None
+                    group_txids = []
+                    group_delta = None
+                    group_balance = None
+                h2.append((tx_hash, tx_type, tx_mined_status,
+                           delta, balance, islock, None, []))
+
             if balance is None or delta is None:
                 balance = None
             else:
@@ -613,6 +700,13 @@ class AddressSynchronizer(Logger):
             else:
                 # local transaction
                 return TxMinedInfo(height=TX_HEIGHT_LOCAL, conf=0)
+
+    def is_local_tx(self, tx_hash: str):
+        tx_mined_info = self.get_tx_height(tx_hash)
+        if tx_mined_info.height == TX_HEIGHT_LOCAL:
+            return True
+        else:
+            return False
 
     def set_up_to_date(self, up_to_date):
         with self.lock:
@@ -745,16 +839,29 @@ class AddressSynchronizer(Logger):
             coins.pop(txi)
         out = {}
         for txo, v in coins.items():
+            ps_rounds = None
+            ps_denom = self.db.get_ps_denom(txo)
+            if ps_denom:
+                ps_rounds = ps_denom[2]
+            if ps_rounds is None:
+                ps_collateral = self.db.get_ps_collateral(txo)
+                if ps_collateral:
+                    ps_rounds = int(PSCoinRounds.COLLATERAL)
+            if ps_rounds is None:
+                ps_other = self.db.get_ps_other(txo)
+                if ps_other:
+                    ps_rounds = int(PSCoinRounds.OTHER)
             tx_height, value, is_cb, islock = v
             prevout_hash, prevout_n = txo.split(':')
             x = {
-                'address':address,
-                'value':value,
-                'prevout_n':int(prevout_n),
-                'prevout_hash':prevout_hash,
-                'height':tx_height,
-                'coinbase':is_cb,
-                'islock':islock,
+                'address': address,
+                'value': value,
+                'prevout_n': int(prevout_n),
+                'prevout_hash': prevout_hash,
+                'height': tx_height,
+                'coinbase': is_cb,
+                'islock': islock,
+                'ps_rounds': ps_rounds,
             }
             out[txo] = x
         return out
@@ -805,18 +912,31 @@ class AddressSynchronizer(Logger):
 
     @with_local_height_cached
     def get_utxos(self, domain=None, *, excluded_addresses=None,
-                  mature_only: bool = False, confirmed_only: bool = False, nonlocal_only: bool = False):
+                  mature_only: bool = False, confirmed_only: bool = False,
+                  nonlocal_only: bool = False,
+                  consider_islocks=False, include_ps=False, min_rounds=None):
         coins = []
         if domain is None:
-            domain = self.get_addresses()
+            if include_ps:
+                domain = self.get_addresses()
+            else:
+                ps_addrs = self.db.get_ps_addresses(min_rounds=min_rounds)
+                if min_rounds is not None:
+                    domain = ps_addrs
+                else:
+                    domain = set(self.get_addresses()) - ps_addrs
         domain = set(domain)
         if excluded_addresses:
             domain = set(domain) - set(excluded_addresses)
         for addr in domain:
             utxos = self.get_addr_utxo(addr)
             for x in utxos.values():
-                if confirmed_only and x['height'] <= 0:
-                    continue
+                if confirmed_only:
+                    if x['height'] <= 0:
+                        if not consider_islocks:
+                            continue
+                        elif not x['islock']:
+                            continue
                 if nonlocal_only and x['height'] == TX_HEIGHT_LOCAL:
                     continue
                 if mature_only and x['coinbase'] and x['height'] + COINBASE_MATURITY > self.get_local_height():
@@ -826,9 +946,17 @@ class AddressSynchronizer(Logger):
         return coins
 
     def get_balance(self, domain=None, *, excluded_addresses: Set[str] = None,
-                    excluded_coins: Set[str] = None) -> Tuple[int, int, int]:
+                    excluded_coins: Set[str] = None,
+                    include_ps=True, min_rounds=None) -> Tuple[int, int, int]:
         if domain is None:
-            domain = self.get_addresses()
+            if include_ps:
+                domain = self.get_addresses()
+            else:
+                ps_addrs = self.db.get_ps_addresses(min_rounds=min_rounds)
+                if min_rounds is not None:
+                    domain = ps_addrs
+                else:
+                    domain = set(self.get_addresses()) - ps_addrs
         if excluded_addresses is None:
             excluded_addresses = set()
         assert isinstance(excluded_addresses, set), f"excluded_addresses should be set, not {type(excluded_addresses)}"
@@ -842,8 +970,7 @@ class AddressSynchronizer(Logger):
         return cc, uu, xx
 
     def is_used(self, address):
-        h = self.db.get_addr_history(address)
-        return len(h) != 0
+        return self.get_address_history_len(address) != 0
 
     def is_empty(self, address):
         c, u, x = self.get_addr_balance(address)

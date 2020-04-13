@@ -51,8 +51,12 @@ class TestBCDataStream(SequentialTestCase):
         s.write(b'foobar')
         self.assertEqual(s.read_bytes(3), b'foo')
         self.assertEqual(s.read_bytes(2), b'ba')
-        self.assertEqual(s.read_bytes(4), b'r')
-        self.assertEqual(s.read_bytes(1), b'')
+        with self.assertRaises(transaction.SerializationError):
+            s.read_bytes(4)
+        self.assertEqual(s.read_bytes(0), b'')
+        self.assertEqual(s.read_bytes(1), b'r')
+        self.assertEqual(s.read_bytes(0), b'')
+
 
 class TestTransaction(SequentialTestCase):
 

@@ -101,7 +101,7 @@ class BitcoinTestnet(AbstractNet):
     WIF_PREFIX = 239
     ADDRTYPE_P2PKH = 140
     ADDRTYPE_P2SH = 19
-    GENESIS = "00000c33631ca6f2f61368991ce2dc03306b5bb50bf7cede5cfbba6db38e52e6"
+    GENESIS = "000005b709662e7bc5e89c71d3aba6c9d4623b4bbf44ac205caec55f4cefb483"
     DEFAULT_PORTS = {'t': '51001', 's': '51002'}
     DEFAULT_SERVERS = read_json('servers_testnet.json', {})
     CHECKPOINTS = read_json_gz('checkpoints_testnet.json.gz', [])
@@ -122,7 +122,7 @@ class BitcoinTestnet(AbstractNet):
 
 class BitcoinRegtest(BitcoinTestnet):
 
-    GENESIS = "00000c33631ca6f2f61368991ce2dc03306b5bb50bf7cede5cfbba6db38e52e6"
+    GENESIS = "2026b8850f3774a0536152ba868c4dcbde9aef5ffc28a5d23f76f80e9b46e565"
     DEFAULT_SERVERS = read_json('servers_regtest.json', {})
     CHECKPOINTS = []
 

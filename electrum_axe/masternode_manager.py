@@ -17,7 +17,7 @@ _logger = get_logger(__name__)
 
 
 BUDGET_FEE_CONFIRMATIONS = 6
-BUDGET_FEE_TX = 5 * bitcoin.COIN
+BUDGET_FEE_TX = 0.5 * bitcoin.COIN
 # From masternode.h
 MASTERNODE_MIN_CONFIRMATIONS = 15
 

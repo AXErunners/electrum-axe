@@ -92,6 +92,8 @@ android.sdk_path = /opt/android-sdk
 # (str) ANT directory (if empty, it will be automatically downloaded.)
 #android.ant_path =
 
+android.skip_update = True
+
 # (str) Android entry point, default is ok for Kivy-based app
 #android.entrypoint = org.renpy.android.PythonActivity
 

@@ -23,7 +23,7 @@ class UpdateCheck(QWidget, Logger):
 
 
     VERSION_ANNOUNCEMENT_SIGNING_KEYS = (
-        "XuKFPN7RDbrvNsPddPyUPzVqwdhvfB67cx",
+        "7XwiL79Ae8S9qyKbY58aGJRRf334UHwtCW",
     )
 
     def __init__(self, main_window, latest_version=None):
@@ -76,10 +76,6 @@ class UpdateCheck(QWidget, Logger):
     @staticmethod
     def is_newer(latest_version):
         v = version.ELECTRUM_VERSION
-        if 'rc' in v:
-            v = v[:v.index('rc')]
-        if 'rc' in latest_version:
-            latest_version = latest_version[:latest_version.index('rc')]
         return versiontuple(latest_version) > versiontuple(v)
 
     def update_view(self, latest_version=None):

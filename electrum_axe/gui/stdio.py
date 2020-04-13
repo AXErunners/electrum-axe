@@ -1,9 +1,13 @@
+import colorama
 import getpass
 import logging
+import time
+from colorama import Fore, Style
 from datetime import datetime
 from decimal import Decimal
 
 from electrum_axe import WalletStorage, Wallet
+from electrum_axe.axe_ps import filter_log_line, PSLogSubCat
 from electrum_axe.axe_tx import SPEC_TX_NAMES
 from electrum_axe.util import format_satoshis
 from electrum_axe.bitcoin import is_address, COIN, TYPE_ADDRESS
@@ -20,6 +24,7 @@ _ = lambda x:x  # i18n
 class ElectrumGui:
 
     def __init__(self, config, daemon, plugins):
+        colorama.init()
         self.config = config
         self.network = daemon.network
         storage = WalletStorage(config.get_wallet_path())
@@ -46,6 +51,7 @@ class ElectrumGui:
 
         self.wallet = Wallet(storage)
         self.wallet.start_network(self.network)
+        self.wallet.psman.config = config
         self.contacts = self.wallet.contacts
 
         self.network.register_callback(self.on_network, ['wallet_updated', 'network_updated', 'banner'])
@@ -57,6 +63,9 @@ class ElectrumGui:
                          _("[r] - show own receipt addresses"), \
                          _("[c] - display contacts"), \
                          _("[b] - print server banner"), \
+                         _("[M] - start PrivateSend mixing"),
+                         _("[S] - stop PrivateSend mixing"),
+                         _("[l][f][a] - print PrivateSend log (filtered/all)"),
                          _("[q] - quit") ]
         self.num_commands = len(self.commands)
 
@@ -79,6 +88,9 @@ class ElectrumGui:
         elif c == "b" : self.print_banner()
         elif c == "n" : self.network_dialog()
         elif c == "e" : self.settings_dialog()
+        elif c == "M" : self.start_mixing()
+        elif c == "S" : self.stop_mixing()
+        elif c.startswith('l'): self.privatesend_log(c)
         elif c == "q" : self.done = 1
         else: self.print_commands()
 
@@ -96,7 +108,8 @@ class ElectrumGui:
         messages = []
 
         hist_list = reversed(self.wallet.get_history(config=self.config))
-        show_dip2 = self.config.get('show_dip2_tx_type', False)
+        def_dip2 = not self.wallet.psman.unsupported
+        show_dip2 = self.config.get('show_dip2_tx_type', def_dip2)
         if show_dip2:
             width = [20, 18, 22, 14, 14]
             wdelta = (80 - sum(width) - 5) // 3
@@ -113,7 +126,7 @@ class ElectrumGui:
                           "%" + "%d" % (width[2] + wdelta) + "s" +
                           "%" + "%d" % (width[3] + wdelta) + "s")
         for (tx_hash, tx_type, tx_mined_status, delta, balance,
-             islock) in hist_list:
+             islock, group_txid, group_data) in hist_list:
             if tx_mined_status.conf:
                 timestamp = tx_mined_status.timestamp
                 try:
@@ -141,7 +154,7 @@ class ElectrumGui:
                 messages.append(msg)
         if show_dip2:
             self.print_list(messages[::-1],
-                            format_str % (_("Date"), 'DIP2',
+                            format_str % (_("Date"), 'Type',
                                           _("Description"), _("Amount"),
                                           _("Balance")))
         else:
@@ -247,7 +260,8 @@ class ElectrumGui:
 
         print(_("Please wait..."))
         try:
-            self.network.run_from_another_thread(self.network.broadcast_transaction(tx))
+            coro = self.wallet.psman.broadcast_transaction(tx)
+            self.network.run_from_another_thread(coro)
         except TxBroadcastError as e:
             msg = e.get_message_for_gui()
             print(msg)
@@ -267,6 +281,48 @@ class ElectrumGui:
     def settings_dialog(self):
         print("use 'electrum-axe setconfig' to change your settings")
         return True
+
+    def start_mixing(self):
+        if self.wallet.has_password():
+            password = self.password_dialog()
+            if not password:
+                return
+        else:
+            password = None
+        self.wallet.psman.start_mixing(password)
+        return True
+
+    def stop_mixing(self):
+        self.wallet.psman.stop_mixing()
+
+    def privatesend_log(self, cmd):
+        try:
+            cmd = cmd.lower()
+            subcmds = cmd[1:].split()
+            print_filtered = True if 'f' in subcmds else False
+            print_tail = True if 'a' not in subcmds else False
+            log_handler = self.wallet.psman.log_handler
+            p_from = log_handler.tail - 20 if print_tail else log_handler.head
+            p_from = max(p_from, log_handler.head)
+            for i in range(p_from, log_handler.tail):
+                log_line = ''
+                log_record = log_handler.log.get(i, None)
+                if log_record:
+                    created = time.localtime(log_record.created)
+                    created = time.strftime('%x %X', created)
+                    log_line = f'{created} {log_record.msg}'
+                    if print_filtered:
+                        log_line = filter_log_line(log_line)
+                    if log_record.subcat == PSLogSubCat.WflDone:
+                        log_line = f'{Fore.BLUE}{log_line}{Style.RESET_ALL}'
+                    elif log_record.subcat == PSLogSubCat.WflOk:
+                        log_line = f'{Fore.GREEN}{log_line}{Style.RESET_ALL}'
+                    elif log_record.subcat == PSLogSubCat.WflErr:
+                        log_line = f'{Fore.RED}{log_line}{Style.RESET_ALL}'
+                print(log_line)
+        except:
+            import traceback
+            traceback.print_exc()
 
     def password_dialog(self):
         return getpass.getpass()
