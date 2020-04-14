@@ -13,6 +13,7 @@ else:
     raise Exception('no name')
 
 PY36BINDIR = os.environ.get('PY36BINDIR')
+TRAVIS_TAG = os.environ.get('TRAVIS_TAG')
 AXE_ELECTRUM_VERSION = os.environ.get('AXE_ELECTRUM_VERSION')
 ICONS_FILE = 'electrum_axe/gui/icons/electrum-axe.icns'
 
@@ -73,7 +74,10 @@ datas += collect_data_files('btchip')
 datas += collect_data_files('keepkeylib')
 
 # Add the QR Scanner helper app
-datas += [('contrib/CalinsQRReader/build/Release/CalinsQRReader.app', './contrib/CalinsQRReader/build/Release/CalinsQRReader.app')]
+if TRAVIS_TAG:
+    QRREADER_ZPATH = 'contrib/CalinsQRReader/build/Release/CalinsQRReader.app'
+    QRREADER_PATH = './contrib/CalinsQRReader/build/Release/CalinsQRReader.app'
+    datas += [(QRREADER_ZPATH, QRREADER_PATH)]
 
 # Add libusb so Trezor and Safe-T mini will work
 binaries = [('../libusb-1.0.dylib', '.')]

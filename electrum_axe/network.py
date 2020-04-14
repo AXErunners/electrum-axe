@@ -1322,6 +1322,7 @@ class Network(Logger):
                 # will NOT raise, and the group will keep the other tasks running
                 async with main_taskgroup as group:
                     await group.spawn(self._maintain_sessions())
+                    await group.spawn(self._gather_protx_info())
                     [await group.spawn(job) for job in self._jobs]
             except Exception as e:
                 self.logger.exception('')
@@ -1415,6 +1416,28 @@ class Network(Logger):
                 group = self.main_taskgroup
                 if not group or group._closed:
                     raise
+            await asyncio.sleep(0.1)
+
+    async def _gather_protx_info(self):
+        mn_list = self.mn_list
+        while mn_list.protx_loading:  # start after protx diffs loaded
+            await asyncio.sleep(1)
+        loop = self.asyncio_loop
+        get_hashes = await loop.run_in_executor(None, mn_list.process_info)
+        last_process_time = time.time()
+        while True:
+            if not get_hashes:
+                await asyncio.sleep(60)
+            for h in get_hashes:
+                try:
+                    await self.request_protx_info(h)
+                except Exception as e:
+                    self.logger.info(f'_gather_protx_info error {str(e)}')
+                if time.time() - last_process_time > 60:
+                    break
+                await asyncio.sleep(0.1)
+            get_hashes = await loop.run_in_executor(None, mn_list.process_info)
+            last_process_time = time.time()
             await asyncio.sleep(0.1)
 
     @classmethod

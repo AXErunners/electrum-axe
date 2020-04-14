@@ -440,6 +440,10 @@ QAbstractSpinBox {
     color: #ccc;
 }
 
+QAbstractSpinBox:disabled {
+    border: 1px solid #676767;
+}
+
 QAbstractSpinBox::up-button {
     subcontrol-origin: border;
     subcontrol-position: top right;
@@ -454,6 +458,10 @@ QAbstractSpinBox::up-button {
     padding-top:2px;
 }
 
+QAbstractSpinBox::up-button:disabled {
+    border-right: 1px solid #676767;
+    border-top: 1px solid #676767;
+}
 
 QAbstractSpinBox::down-button {
     subcontrol-origin: border;
@@ -467,6 +475,11 @@ QAbstractSpinBox::down-button {
     padding-right:1px;
     padding-left:5px;
     padding-bottom:2px;
+}
+
+QAbstractSpinBox::down-button:disabled {
+    border-right: 1px solid #676767;
+    border-bottom: 1px solid #676767;
 }
 
 QAbstractSpinBox::up-arrow {
@@ -515,6 +528,22 @@ QSlider::handle:horizontal {
     margin-bottom: -2px;
     border-radius: 2px;
 }
+
+
+QProgressBar {
+    color: #ccc;
+}
+
+QProgressBar:horizontal {
+    border: 1px solid #1c75bc;
+    background-color: #232629;
+    text-align: center;
+}
+
+QProgressBar::chunk {
+    background-color: #53565b;
+}
+
 
 /**********************/
 /* 6. Table Headers */
@@ -649,7 +678,7 @@ QScrollBar:right-arrow {
 /**********************/
 /* 8. Tree Widget */
 
-QTreeView, QTreeWidget, QListWidget, QTableView, QTextEdit  {
+QTreeView, QTreeWidget, QListWidget, QTableView, QTextEdit, QPlainTextEdit  {
     border: 0px;
     color: #ccc;
     background-color: #232629;
@@ -660,7 +689,8 @@ QTreeView QLineEdit, QTreeWidget QLineEdit {
     padding: 0;
 }
 
-QListWidget, QTableView, QTextEdit, QDialog QTreeWidget, QDialog QTreeView {
+QListWidget, QTableView, QTextEdit, QPlainTextEdit,
+QDialog QTreeWidget, QDialog QTreeView {
     border: 1px solid #1c75bc;
 }
 
@@ -686,6 +716,14 @@ QTreeView::branch:selected {
 QTreeView::item:selected, QTreeView::item:selected:active {
     color: #fff;
     background-color:#808080;
+}
+
+MyTreeView::branch:has-siblings:adjoins-item {
+    border-image: url({pkg_dir}/gui/icons/tx_group_mid.png) 0;
+}
+
+MyTreeView::branch:!has-children:!has-siblings:adjoins-item {
+    border-image: url({pkg_dir}/gui/icons/tx_group_tail.png) 0;
 }
 
 /**********************/
@@ -763,7 +801,7 @@ Dip3TabWidget::pane {
     background-color: #232629;
 }
 
-Dip3TabWidget Dip3TabBar::tab {
+QTabWidget VTabBar::tab {
     background-color: #232629;
     color: #ccc;
     padding-left:10px;
@@ -773,15 +811,15 @@ Dip3TabWidget Dip3TabBar::tab {
     border-top: 1px solid #53565b;
 }
 
-Dip3TabWidget Dip3TabBar::tab:first {
+QTabWidget VTabBar::tab:first {
     border-left: 1px solid #53565b;
 }
 
-Dip3TabWidget Dip3TabBar::tab:last {
+QTabWidget VTabBar::tab:last {
     border-right: 1px solid #53565b;
 }
 
-Dip3TabWidget Dip3TabBar::tab:selected, Dip3TabWidget Dip3TabBar::tab:hover {
+QTabWidget VTabBar::tab:selected, QTabWidget VTabBar::tab:hover {
     background-color: #53565b;
     color: #ccc;
 }

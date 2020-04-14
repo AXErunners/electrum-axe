@@ -1,7 +1,6 @@
-import unittest
-
 from electrum_axe import transaction
-from electrum_axe.util import bh2u, bfh
+from electrum_axe.axe_tx import AxeTxError
+from electrum_axe.util import bfh
 from electrum_axe.commands import Commands
 
 from . import SequentialTestCase
@@ -186,17 +185,6 @@ UNKNOWN_SPEC_TX = (
     '67b3d0103f761caf3e98e9601210293360bf2a2e810673412bc6e8e0e358f3fb7bdbe9'
     'a667b3d0103f761caf3e98e9601210293360bf2a2e810673412bc6e8e0e358f3fb7bdb'
     'e9a667b3d0103f761cabcdefab')
-
-
-UNKNOWN_SPEC_TX_EP_FOR_JSON = (
-    '0100d384e42374e8abfeffffff01570b000000a40100b67'
-    'ffbbd095de31ea3844675af3e98e9601210293360bf2a2e'
-    '810673412bc6e8e0e358f3fb7bdbe9a12bc6e8e0e358f3f'
-    'b7bdbe9a62bc6e8e0e358f3fb7bdbe9a667b3d0103f761c'
-    'af3e98e9601210293360bf2a2e810673412bc6e8e0e358f'
-    '3fb7bdbe9a667b3d0103f761caf3e98e9601210293360bf'
-    '2a2e810673412bc6e8e0e358f3fb7bdbe9a667b3d0103f7'
-    '61cabcdefab')
 
 
 WRONG_SPEC_TX = (  # Tx version < 3
@@ -464,19 +452,8 @@ class TestAxeSpecTxSerialization(SequentialTestCase):
 
     def test_axe_tx_unknown_spec_tx(self):
         tx = transaction.Transaction(UNKNOWN_SPEC_TX)
-        deser = tx.deserialize()
-        assert deser['version'] == 3
-        assert deser['tx_type'] == 187
-        extra = deser['extra_payload']
-        assert extra == bfh(
-            '0100d384e42374e8abfeffffff01570b000000a40100b67ffbbd095de31e'
-            'a3844675af3e98e9601210293360bf2a2e810673412bc6e8e0e358f3fb7b'
-            'dbe9a12bc6e8e0e358f3fb7bdbe9a62bc6e8e0e358f3fb7bdbe9a667b3d0'
-            '103f761caf3e98e9601210293360bf2a2e810673412bc6e8e0e358f3fb7b'
-            'dbe9a667b3d0103f761caf3e98e9601210293360bf2a2e810673412bc6e8'
-            'e0e358f3fb7bdbe9a667b3d0103f761cabcdefab')
-        ser = tx.serialize()
-        assert ser == UNKNOWN_SPEC_TX
+        with self.assertRaises(AxeTxError):
+            tx.deserialize()
 
     def test_axe_tx_wrong_spec_tx(self):
         tx = transaction.Transaction(WRONG_SPEC_TX)
@@ -500,8 +477,8 @@ class TestAxeSpecTxSerialization(SequentialTestCase):
 
     def test_deserialize_transaction_unknown_spec_tx(self):
         cmds = Commands(config=None, wallet=None, network=None)
-        deser = cmds.deserialize(UNKNOWN_SPEC_TX)
-        assert deser['extra_payload'] == UNKNOWN_SPEC_TX_EP_FOR_JSON
+        with self.assertRaises(AxeTxError):
+            cmds.deserialize(UNKNOWN_SPEC_TX)
 
     def test_serialize_command_with_extra_payload(self):
         cmds = Commands(config=None, wallet=None, network=None)

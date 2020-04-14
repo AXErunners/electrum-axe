@@ -13,19 +13,19 @@ from . import SequentialTestCase
 class TestBlockchain(SequentialTestCase):
 
     HEADERS = {
-        'A': deserialize_header(bfh("010000000000000000000000000000000000000000000000000000000000000000000000aca7c2e70971cc949b615f61a6326e33a43cc7ffcdec1a7ff4047f1dc3087a9847fb7c5af0ff0f1ec6030e00"), 0),
-        'B': deserialize_header(bfh("00000020e6528eb36dbafb5cdecef70bb55b6b3003dce21c996813f6f2a61c63330c0000dd04fe6621d9c3b30ec6884b328ad502074f7422adf3c5b5534b6c78431216ba15fe7c5af0ff0f1e43030000"), 1),
-        'C': deserialize_header(bfh("00000020bade5bafc3b0cd494f435c9bf24601f3a0a486298f15f756c7e67efb02080000d6745393f9c14cda45d4a623f0767e084b93f6d90dc554e57a591708b3efe3062bfe7c5af0ff0f1e60c40100"), 2),
-        'D': deserialize_header(bfh("00000020b810c4826bd108e99182ff3bcf0e36b0c6aa854f43f06fc03cc99f58670600009a1cf3c44b28a865759a361e727ed33630f0d4e57bb2e266f27368c3a8c28aa531fe7c5af0ff0f1e32690000"), 3),
-        'E': deserialize_header(bfh("000000203a01a581b05c4476fd2cd1de97d7329e63c5277fc8489b152f5acbbc070f0000e11ae592758d5b3701c42d237f274be155d913043f3e072717c68c71de5c9c0a32fe7c5af0ff0f1e3d0d0000"), 4),
-        'F': deserialize_header(bfh("0000002084b1db9b22b9f4c134dbc2df585c8e2d59eacc076b3f39bf31b58ec9e70c00001a7817ec3c146b5575360486ecfe0cff762b274ff61909edfac485171bddb8123afe7c5af0ff0f1e718f0000"), 5),
-        'O': deserialize_header(bfh("00000020bf0094d0ab13d04f3c4759661afb5ca731126d1fab4a4e61747aeef9a30100007135156cafc33d88f05fd15b66b399c4263f77a9d3a143c07ff4b5e8e293daf957fe7c5af0ff0f1eaf350200"), 6),
-        'P': deserialize_header(bfh("00000020d6a1ee3c0639705efdcfd49696e8a396093eb0c9de2fb1f3a1c3cef8f908000039f38f790cd95299231f950ebe1e4e7c402de067e60420f4decf872b80894b805bfe7c5af0ff0f1ee2550000"), 7),
-        'Q': deserialize_header(bfh("00000020eb2c7944eab07feeee5356ae63606c687efafa0f1cb7b3e112c97d0b1b0900007e6a05d04e90f7a36f87e3ca15ed687d74bfcb4d99bf8f7be56d6492f07a963e5cfe7c5af0ff0f1e8c0d0000"), 8),
-        'R': deserialize_header(bfh("00000020fa7eea137e66d87dfb26ebf90f7d52e50a42fb195f0cce101a66bc4bd302000061e360026680e87929e787763cbfa83285d729406ece4fdc01f45bdbba88c5bf5cfe7c5af0ff0f1e65010000"), 9),
-        'S': deserialize_header(bfh("0000002043be3378fd4983a20037bc08002ec31070672d90d93544e3738d351237050000fe29397352209cf6d1bb4df788944d8bb8aba5137c71d130626bc2f2b39ebd5460fe7c5af0ff0f1e78490000"), 10),
-        'T': deserialize_header(bfh("00000020c85182d7cf307586d076a4f072b3c3b817c62637757904ef9e82ccca780f00006d649bf83424533e9b8888ee0be53063693f7ccb0993b0d351a09b8abe3219ef79fe7c5af0ff0f1e78c50100"), 11),
-        'U': deserialize_header(bfh("000000205f11be01aa733571a188d8fdbcfaeab88ca366099e8d57388df004de360900004485834f1f64725f23afa4d93888a9c1190b6e6f61e0e90633ffabdb394828bf83fe7c5af0ff0f1e4aca0000"), 12),
+        'A': deserialize_header(bfh("010000000000000000000000000000000000000000000000000000000000000000000000aca7c2e70971cc949b615f61a6326e33a43cc7ffcdec1a7ff4047f1dc3087a989051385ef0ff0f1ed44f7ae6"), 0),
+        'B': deserialize_header(bfh("0000002083b4ef4c5fc5ae5c20ac44bf4b3b62d4c9a6abd3719ce8c57b2e6609b70500006c7c0c195ebcd8b904453eb31537477e804b1014ce2366a3617860d6a31da892a352385ef0ff0f1e38770000"), 1),
+        'C': deserialize_header(bfh("000000209a097e26b999e21d3f7173836552a4f3b12c76def5c4674bfce07baead0e0000600c9b402e86e1a91bbb24eec0a62ff69afd4ef9ae8a7ecd5de132da3d4b5710e253385effff0f1e0d8e0000"), 2),
+        'D': deserialize_header(bfh("00000020bd8302f4c75d6207dbb1982826091e3c2ad1836360eb3fac8f16125d8a0f0000106a4406d626cdfb2d8807058287fbe49c6c21d5eb8761c56a79d29054eafc2f916d385effff0f1e000de7cb"), 3),
+        'E': deserialize_header(bfh("00000020ac98be90713adcce99c6b5484e66dce25420e834a53b925396c382e1cf040000e35b2b487795323e640aedff17024b592f94865c92c9d9c362ae618f56e3fccfac6d385ef0ff0f1eaabcca8f"), 4),
+        'F': deserialize_header(bfh("00000020825cfbd36e6dd40ae0c52df52cce47898f4bb9247621ad819aca4137d6070000e5e7b1d58761c60afd2beaa5c7b8de8b49f8233bd8d3edfb0930feeae606e62cc26d385ef0ff0f1eaab2908f"), 5),
+        'O': deserialize_header(bfh("00000020995ce2652c55567e4b7ceac408d57764b6e75948dfc12256dff2d9ad5a0f0000c66e1768b75ad73592fbb584f1726ab9203b82197c28ea55cc0e992b6d6a36f9cb6d385ef0ff0f1eaaaedb75"), 6),
+        'P': deserialize_header(bfh("00000020fd1f4ec30860b4c15e9213dd3979e00d3f19a34131d3bbc69fa515d3ac0000008e231ba3bc30e55f821c071e1700445f14d5c8ad4edac5fc91b1b0c437853d29d16d385ef0ff0f1eaab7fbf3"), 7),
+        'Q': deserialize_header(bfh("00000020e326011781b343c81e31e702efff52f1ef0db3c5fb0ecbe9f57331f4800f00006c7847ab068e83c931ad752a73da624e8cae92724247511beaf57e55d62fa18ae16d385ef0ff0f1eaaab5b47"), 8),
+        'R': deserialize_header(bfh("00000020e003eecfc512cd949136aebde407b12c1d99b73855dc0382c6b2115f530400006d2cd145e9acd64d5618f252ff261bad918051a2a3f55c3cba3a41cdb2cdfe87e26d385ef0ff0f1e55574140"), 9),
+        'S': deserialize_header(bfh("00000020c9bd5055b8d142c126466b5def3276c830632745b6e4bd0d0ca732bd3b0c0000a3618b7be95fbc853e406fbd100f4e45438d48f3f51c6b549cb28125ee35f7c4986e385ef0ff0f1eaab438e8"), 10),
+        'T': deserialize_header(bfh("000000205b69b32ba48d79201b24f6501200cd8a22440c4f4ece2314abfb738af40f000005691ed0046cfb6b602259891747557c39b8446026a7047ed4f0886eea7d811ea56e385ef0ff0f1e00016584"), 11),
+        'U': deserialize_header(bfh("00000020cdd0b0c1b57ca92182192e3f73c51e4a4a1a8c04f9b93f7a5bffffdb970a0000ef427a3e32bcca46f8a72338e5aed5e612230a3f0e92d7f33d5ff420c8717b25a76e385ef0ff0f1e555e4b02"), 12),
         'G': deserialize_header(bfh("00000020ed0bfee047765d7f4233106a13b4ff6d6c67f7ef9aec0e7466759f00ea74b2613a141ce635cbb1cd2b3a4fcdd0a3380517845ba41736c82a79cab535d31128066928f45bffff7f2001000000"), 6),
         'H': deserialize_header(bfh("00000020f8ca2216e002361e7cc1dd3e1197443e0b8068adaeec43d14be0e4f2159659e39690c2fe7c1a4450c74dc908fe94dd96c3b0637d51475e9e06a78e944a0c7fe26a28f45bffff7f2002000000"), 7),
         'I': deserialize_header(bfh("00000020996b8b880bfe34b81dda59ae28ee28625a4dff565f671540a4703ebabd0ab991148be228a4c3f2061bafe7efdfc4a8d5a94759464b9b5c619994d45dfcaf49e16a28f45bffff7f2000000000"), 8),
@@ -48,7 +48,7 @@ class TestBlockchain(SequentialTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        constants.set_regtest()
+        constants.set_testnet()
 
     @classmethod
     def tearDownClass(cls):
@@ -74,6 +74,8 @@ class TestBlockchain(SequentialTestCase):
         blockchain.blockchains[constants.net.GENESIS] = chain_u = Blockchain(
             config=self.config, forkpoint=0, parent=None,
             forkpoint_hash=constants.net.GENESIS, prev_hash=None)
+        #print(chain_u)
+        #print(self.HEADERS['A'])
         open(chain_u.path(), 'w+').close()
         self._append_header(chain_u, self.HEADERS['A'])
         self._append_header(chain_u, self.HEADERS['B'])

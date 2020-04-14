@@ -637,20 +637,316 @@ class JsonDB(Logger):
         self.history.pop(addr, None)
 
     @modifier
-    def add_islock(self, txid, height):
+    def add_islock(self, txid):
         '''Stores new islock as {txid: (height, timestamp)}'''
-        # Clear if height is older than 6 blocks
-        to_clear = list(filter(lambda x: height - x[1][0] > 6,
-                               self.islocks.items()))
-        for txid_to_clear, h in to_clear:
-            self.islocks.pop(txid_to_clear, None)
         timestamp = int(time.time())
-        self.islocks[txid] = (height, timestamp)
+        self.islocks[txid] = (0, timestamp)
 
+    @modifier
+    def process_and_clear_islocks(self, local_height):
+        '''Clear islocks confirmed by 24 blocks.
+        Set height on islocks with verified txs'''
+        clear_txids = []
+        for txid, (height, timestamp) in self.islocks.items():
+            mined_info = self.get_verified_tx(txid)
+            if not mined_info:
+                if height > 0:  # clear islock height if tx becomes unverified
+                    self.islocks[txid] = (0, timestamp)
+                continue
+
+            conf = max(local_height - mined_info.height + 1, 0)
+            if conf >= 24:
+                clear_txids.append(txid)
+            elif height <= 0:  # set islock height to verified tx height
+                self.islocks[txid] = (mined_info.height, timestamp)
+
+        for txid in clear_txids:
+            self.islocks.pop(txid, None)
+
+    @locked
     def get_islock(self, tx_hash):
         '''Return timestamp of islock createion or None if not found'''
         islock = self.islocks.get(tx_hash)
         return islock[1] if islock else None
+
+    @modifier
+    def add_ps_tx(self, txid, tx_type, completed):
+        self.ps_txs[txid] = (tx_type, completed)
+
+    @modifier
+    def pop_ps_tx(self, txid):
+        self.ps_txs.pop(txid, (0, False))
+
+    @locked
+    def get_ps_tx(self, txid):
+        return self.ps_txs.get(txid, (0, False))
+
+    @locked
+    def get_ps_txs(self):
+        return self.ps_txs
+
+    @modifier
+    def add_ps_tx_removed(self, txid, tx_type, completed):
+        self.ps_txs_removed[txid] = (tx_type, completed)
+
+    @modifier
+    def pop_ps_tx_removed(self, txid):
+        self.ps_txs_removed.pop(txid, (0, False))
+
+    @locked
+    def get_ps_tx_removed(self, txid):
+        return self.ps_txs_removed.get(txid, (0, False))
+
+    @locked
+    def get_ps_txs_removed(self):
+        return self.ps_txs_removed
+
+    @locked
+    def get_ps_data(self, key, default_val=None):
+        return self.ps_data.get(key, default_val)
+
+    @modifier
+    def set_ps_data(self, key, val):
+        self.ps_data[key] = val
+
+    @modifier
+    def update_ps_data(self, key, data_dict):
+        if self.ps_data.get(key) is None:
+            self.ps_data[key] = {}
+        assert type(self.ps_data[key]) == dict
+        self.ps_data[key].update(data_dict)
+
+    @modifier
+    def pop_ps_data(self, key, data_dict_key):
+        assert type(self.ps_data[key]) == dict
+        return self.ps_data[key].pop(data_dict_key, None)
+
+    @modifier
+    def add_ps_collateral(self, outpoint, ps_collateral):
+        self.ps_collaterals[outpoint] = ps_collateral
+
+    @modifier
+    def pop_ps_collateral(self, outpoint):
+        return self.ps_collaterals.pop(outpoint, None)
+
+    @locked
+    def get_ps_collateral(self, outpoint=None):
+        cnt = len(self.ps_collaterals)
+        if outpoint is not None:
+            return self.ps_collaterals.get(outpoint)
+        elif cnt == 0:
+            return None, None
+        elif cnt == 1:
+            outpoint = list(self.ps_collaterals.keys())[0]
+            ps_collateral = self.ps_collaterals.get(outpoint)
+            return outpoint, ps_collateral
+        else:
+            raise Exception('ps_collateral has multiple values')
+
+    @locked
+    def get_ps_collaterals(self, outpoint=None):
+        return self.ps_collaterals
+
+    @modifier  # do not use directly, use PSManager method of the same name
+    def _add_ps_spending_collateral(self, outpoint, uuid):
+        self.ps_spending_collaterals[outpoint] = uuid
+
+    @modifier  # do not use directly, use PSManager method of the same name
+    def _pop_ps_spending_collateral(self, outpoint):
+        return self.ps_spending_collaterals.pop(outpoint, None)
+
+    @locked
+    def get_ps_spending_collateral(self, outpoint):
+        return self.ps_spending_collaterals.get(outpoint)
+
+    @locked
+    def get_ps_spending_collaterals(self):
+        return self.ps_spending_collaterals
+
+    @modifier  # do not use directly, use PSManager method of the same name
+    def _add_ps_reserved(self, addr, data):
+        if addr in self.ps_reserved:
+            raise WalletFileException(f'Address {addr} already in ps_reserved')
+        self.ps_reserved[addr] = data
+
+    @modifier  # do not use directly, use PSManager method of the same name
+    def _pop_ps_reserved(self, addr):
+        return self.ps_reserved.pop(addr, None)
+
+    @locked
+    def get_ps_reserved(self, addr=None):
+        if addr is None:
+            return self.ps_reserved
+        else:
+            return self.ps_reserved.get(addr)
+
+    @locked
+    def select_ps_reserved(self, for_change=False, data=None):
+        if for_change:
+            sub_addrs = self.change_addresses
+        else:
+            sub_addrs = self.receiving_addresses
+        res = []
+        for addr, addr_data in self.ps_reserved.items():
+            if addr not in sub_addrs:
+                continue
+            if addr_data != data:
+                continue
+            res.append(addr)
+        return res
+
+    @modifier  # do not use directly, use PSManager method of the same name
+    def _add_ps_denom(self, outpoint, denom):
+        self.ps_denoms[outpoint] = denom
+
+    @modifier  # do not use directly, use PSManager method of the same name
+    def _pop_ps_denom(self, outpoint):
+        return self.ps_denoms.pop(outpoint, None)
+
+    @locked
+    def get_ps_denom(self, outpoint):
+        return self.ps_denoms.get(outpoint)
+
+    @locked
+    def get_ps_denoms(self, min_rounds=None, max_rounds=None):
+        if min_rounds is None and max_rounds is None:
+            return self.ps_denoms
+        if min_rounds is None:
+            min_rounds = 0
+        if max_rounds is None:
+            max_rounds = 1e9
+        return {k: v for k, v in self.ps_denoms.items()
+                if max_rounds >= v[2] >= min_rounds}
+
+    @modifier  # do not use directly, use PSManager method of the same name
+    def _add_ps_spending_denom(self, outpoint, uuid):
+        self.ps_spending_denoms[outpoint] = uuid
+
+    @modifier  # do not use directly, use PSManager method of the same name
+    def _pop_ps_spending_denom(self, outpoint):
+        return self.ps_spending_denoms.pop(outpoint, None)
+
+    @locked
+    def get_ps_spending_denom(self, outpoint):
+        return self.ps_spending_denoms.get(outpoint)
+
+    @locked
+    def get_ps_spending_denoms(self):
+        return self.ps_spending_denoms
+
+    @modifier
+    def add_ps_spent_denom(self, outpoint, spent):
+        self.ps_spent_denoms[outpoint] = spent
+
+    @modifier
+    def pop_ps_spent_denom(self, outpoint):
+        return self.ps_spent_denoms.pop(outpoint, None)
+
+    @locked
+    def get_ps_spent_denom(self, outpoint):
+        return self.ps_spent_denoms.get(outpoint)
+
+    @locked
+    def get_ps_spent_denoms(self):
+        return self.ps_spent_denoms
+
+    @modifier
+    def add_ps_other(self, outpoint, unknown):
+        self.ps_others[outpoint] = unknown
+
+    @modifier
+    def pop_ps_other(self, outpoint):
+        return self.ps_others.pop(outpoint, None)
+
+    @locked
+    def get_ps_other(self, outpoint):
+        return self.ps_others.get(outpoint)
+
+    @locked
+    def get_ps_others(self):
+        return self.ps_others
+
+    @modifier
+    def add_ps_spent_other(self, outpoint, spent):
+        self.ps_spent_others[outpoint] = spent
+
+    @modifier
+    def pop_ps_spent_other(self, outpoint):
+        return self.ps_spent_others.pop(outpoint, None)
+
+    @locked
+    def get_ps_spent_other(self, outpoint):
+        return self.ps_spent_others.get(outpoint)
+
+    @locked
+    def get_ps_spent_others(self):
+        return self.ps_spent_others
+
+    @modifier
+    def add_ps_spent_collateral(self, outpoint, spent_collateral):
+        self.ps_spent_collaterals[outpoint] = spent_collateral
+
+    @modifier
+    def pop_ps_spent_collateral(self, outpoint):
+        return self.ps_spent_collaterals.pop(outpoint, None)
+
+    @locked
+    def get_ps_spent_collateral(self, outpoint):
+        return self.ps_spent_collaterals.get(outpoint)
+
+    @locked
+    def get_ps_spent_collaterals(self):
+        return self.ps_spent_collaterals
+
+    @locked
+    def get_ps_addresses(self, min_rounds=None):
+        '''
+        Return addresses used for PS operations or saved to ps_reserved.
+
+        Limited by min_rounds (<0 for ps[_spent]_collaterals, ps_spent_denoms,
+        ps_reserved, 0 for created denominations, 1 for 1 mix, and so forth).
+        '''
+        ps_addr_list = []
+        denoms = self.get_ps_denoms(min_rounds=min_rounds).values()
+        if denoms:
+            ps_addr_list.extend(map(lambda x: x[0], denoms))
+
+        if min_rounds is not None and min_rounds >= 0:
+            return set(ps_addr_list)
+
+        collaterals = self.get_ps_collaterals().values()
+        if collaterals:
+            ps_addr_list.extend(map(lambda x: x[0], collaterals))
+
+        spent_collaterals = self.get_ps_spent_collaterals().values()
+        if spent_collaterals:
+            ps_addr_list.extend(map(lambda x: x[0], spent_collaterals))
+
+        spent_denoms = self.get_ps_spent_denoms().values()
+        if spent_denoms:
+            ps_addr_list.extend(map(lambda x: x[0], spent_denoms))
+
+        spent_others = self.get_ps_spent_others().values()
+        if spent_others:
+            ps_addr_list.extend(map(lambda x: x[0], spent_others))
+
+        ps_addr_list.extend(self.ps_reserved.keys())
+        return set(ps_addr_list)
+
+    @locked
+    def get_unspent_ps_addresses(self):
+        ps_addr_list = []
+        collaterals = self.get_ps_collaterals().values()
+        if collaterals:
+            ps_addr_list.extend(map(lambda x: x[0], collaterals))
+        denoms = self.get_ps_denoms().values()
+        if denoms:
+            ps_addr_list.extend(map(lambda x: x[0], denoms))
+        others = self.get_ps_others().values()
+        if others:
+            ps_addr_list.extend(map(lambda x: x[0], others))
+        ps_addr_list.extend(self.ps_reserved.keys())
+        return set(ps_addr_list)
 
     @locked
     def list_verified_tx(self):
@@ -777,6 +1073,18 @@ class JsonDB(Logger):
         self.history = self.get_data_ref('addr_history')  # address -> list of (txid, height)
         self.verified_tx = self.get_data_ref('verified_tx3')  # txid -> (height, timestamp, txpos, header_hash)
         self.islocks = self.get_data_ref('islocks')  # txid -> (height, timestamp)
+        self.ps_txs = self.get_data_ref('ps_txs')  # txid -> (tx_type, completed)
+        self.ps_txs_removed = self.get_data_ref('ps_txs_removed')  # txid -> (tx_type, completed)
+        self.ps_data = self.get_data_ref('ps_data')
+        self.ps_reserved = self.get_data_ref('ps_reserved')  # addr -> data
+        self.ps_collaterals = self.get_data_ref('ps_collaterals')  # outpoint -> (addr, val)
+        self.ps_spending_collaterals = self.get_data_ref('ps_spending_collaterals')  # outpoint -> uuid
+        self.ps_denoms = self.get_data_ref('ps_denoms')  # outpoint -> (addr, val, round_n)
+        self.ps_spending_denoms = self.get_data_ref('ps_spending_denoms')  # outpoint -> uuid
+        self.ps_spent_denoms = self.get_data_ref('ps_spent_denoms')  # outpoint -> (addr, val, round_n)
+        self.ps_others = self.get_data_ref('ps_others')  # outpoint -> (addr, val)
+        self.ps_spent_others = self.get_data_ref('ps_spent_others')  # outpoint -> (addr, val)
+        self.ps_spent_collaterals = self.get_data_ref('ps_spent_collaterals')  # outpoint -> (addr, val)
         self.tx_fees = self.get_data_ref('tx_fees')
         # convert raw hex transactions to Transaction objects
         for tx_hash, raw_tx in self.transactions.items():
@@ -808,3 +1116,22 @@ class JsonDB(Logger):
         self.history.clear()
         self.verified_tx.clear()
         self.tx_fees.clear()
+        self.clear_ps_data()
+
+    @modifier
+    def clear_ps_data(self):
+        self.ps_data['pay_collateral_wfl'] = {}
+        self.ps_data['new_collateral_wfl'] = {}
+        self.ps_data['new_denoms_wfl'] = {}
+        self.ps_data['denominate_workflows'] = {}
+        self.ps_txs.clear()
+        self.ps_txs_removed.clear()
+        self.ps_reserved.clear()
+        self.ps_collaterals.clear()
+        self.ps_spending_collaterals.clear()
+        self.ps_spent_collaterals.clear()
+        self.ps_denoms.clear()
+        self.ps_spending_denoms.clear()
+        self.ps_spent_denoms.clear()
+        self.ps_others.clear()
+        self.ps_spent_others.clear()

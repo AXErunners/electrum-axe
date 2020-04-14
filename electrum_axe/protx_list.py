@@ -23,14 +23,17 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import time
 import asyncio
 import gzip
 import json
 import os
+import random
 import threading
 from collections import namedtuple, defaultdict
 from struct import pack
 
+from . import constants
 from .constants import CHUNK_SIZE
 from .crypto import sha256d
 from .axe_msg import AxeSMLEntry, AxeQFCommitMsg
@@ -41,12 +44,12 @@ from .util import bfh, bh2u, hfu
 from .verifier import SPV
 
 
-IS_ANDROID = 'ANDROID_DATA' in os.environ
 MN_LIST_INSTANCE = None
 DEFAULT_MN_LIST = {'protx_height': 0, 'llmq_height': 0,
                    'protx_mns': {}, 'sml_hashes': {},  # SML entries and hashes
                    'quorums': {}, 'llmq_hashes': {}}   # qfcommits and hashes
 RECENT_LIST_FNAME = 'recent_protx_list.gz'
+PROTX_INFO_FNAME = 'protx_info.gz'
 
 
 class PartialMerkleTree(namedtuple('PartialMerkleTree', 'total hashes flags')):
@@ -101,12 +104,14 @@ class MNList(Logger):
         self.axe_net = network.axe_net
         self.axe_net_enabled = config.get('run_axe_net', True)
         self.load_mns = config.get('protx_load_mns', True)
-        self.load_mns = False if IS_ANDROID else self.load_mns
 
         self.callbacks = defaultdict(list)
         self.callback_lock = threading.Lock()
-        self.recent_list_lock = threading.RLock()       # <- re-entrant
+        self.recent_list_lock = threading.Lock()
         self.recent_list = recent_list = self._read_recent_list()
+        self.protx_info = self._read_protx_info()
+        self._last_protx_info_save_time = 0
+        self.mns_outpoints = self.do_back_info_mapping()
 
         self.protx_height = protx_height = recent_list.get('protx_height', 1)
         self.llmq_height = recent_list.get('llmq_height', 1)
@@ -122,7 +127,6 @@ class MNList(Logger):
         else:
             self.protx_state = MNList.DIP3_UNKNOWN
 
-        self.protx_info = {}  # Detailed info on registered ProTxHash
         self.diff_deleted_mns = []
         self.diff_hashes = []
         self.info_hash = ''
@@ -155,14 +159,49 @@ class MNList(Logger):
     def protx_loading(self):
         if not self.load_mns:
             return False
-        h = self.network.get_local_height()
-        return h > self.protx_height
+        return self.network.get_local_height() > self.protx_height
+
+    @property
+    def protx_ready(self):
+        if not self.load_mns or not self.network:
+            return False
+        server_height = self.network.get_server_height()
+        if server_height <= constants.net.DIP3_ACTIVATION_HEIGHT:
+            return False
+        if server_height - self.protx_height > 24:
+            return False  # if more than 24 blocks difference report not ready
+        if len(self.protx_mns) == 0:
+            return False
+        else:
+            return True
+
+    @property
+    def protx_info_completeness(self):
+        if not self.protx_ready:
+            return 0.0
+        protx_mns_cnt = len(self.protx_mns)
+        protx_info_cnt = len(self.protx_info)
+        return min(1.0, protx_info_cnt/protx_mns_cnt)
 
     @property
     def llmq_loading(self):
         if not self.axe_net_enabled:
             return False
         return self.llmq_tip > self.llmq_height
+
+    @property
+    def llmq_ready(self):
+        if not self.axe_net_enabled or not self.network:
+            return False
+        server_height = self.network.get_server_height()
+        if server_height <= constants.net.DIP3_ACTIVATION_HEIGHT:
+            return False
+        if server_height - self.llmq_height > 24 + self.LLMQ_OFFSET:
+            return False  # if more than 24 blocks difference report not ready
+        if len(self.quorums) == 0:
+            return False
+        else:
+            return True
 
     @property
     def llmq_human_height(self):
@@ -227,6 +266,35 @@ class MNList(Logger):
         except Exception as e:
             self.logger.info(f'_save_recent_list: {str(e)}')
 
+    def _read_protx_info(self):
+        if not self.config.path:
+            return {}
+        path = os.path.join(self.config.path, PROTX_INFO_FNAME)
+        try:
+            with gzip.open(path, 'rb') as f:
+                data = f.read()
+                return json.loads(data.decode('utf-8'))
+        except Exception as e:
+            self.logger.info(f'_read_protx_info: {str(e)}')
+            return {}
+
+    def _save_protx_info(self, force=False):
+        if not self.config.path:
+            return
+        path = os.path.join(self.config.path, PROTX_INFO_FNAME)
+        now = time.time()
+        recently_saved = (now - self._last_protx_info_save_time < 10)
+        completed = self.protx_info_completeness >= 1
+        if recently_saved and not (force or completed):
+            return
+        try:
+            s = json.dumps(self.protx_info, indent=4)
+            with gzip.open(path, 'wb') as f:
+                f.write(s.encode('utf-8'))
+            self._last_protx_info_save_time = now
+        except Exception as e:
+            self.logger.info(f'_save_protx_info: {str(e)}')
+
     def reset(self):
         self.recent_list['protx_height'] = self.protx_height = 1
         self.recent_list['llmq_height'] = self.llmq_height = 1
@@ -235,6 +303,7 @@ class MNList(Logger):
         self.recent_list['quorums'] = self.quorums = {}
         self.recent_list['llmq_hashes'] = self.llmq_hashes = {}
         self._save_recent_list()
+        self._save_protx_info(force=True)
         self.protx_state = MNList.DIP3_UNKNOWN
         self.diff_deleted_mns = []
         self.diff_hashes = []
@@ -330,7 +399,6 @@ class MNList(Logger):
         self.axe_net.register_callback(self.on_mnlistdiff, ['mnlistdiff'])
 
     def stop(self):
-        self._save_recent_list()
         # network
         self.network.unregister_callback(self.on_protx_diff)
         self.network.unregister_callback(self.on_protx_info)
@@ -340,6 +408,17 @@ class MNList(Logger):
         # axe_net
         self.axe_net.unregister_callback(self.on_axe_net_updated)
         self.axe_net.unregister_callback(self.on_mnlistdiff)
+
+    def get_random_mn(self):
+        valid = [sml_entry for sml_entry in self.protx_mns.values()
+                 if sml_entry.isValid]
+        if valid:
+            return random.choice(valid)
+
+    def get_mn_by_outpoint(self, outpoint):
+        protx_hash = self.mns_outpoints.get(outpoint)
+        if protx_hash:
+            return self.protx_mns.get(protx_hash)
 
     def calc_responsible_quorum(self, llmqType, request_id):
         res = []
@@ -536,7 +615,7 @@ class MNList(Logger):
 
                 self.diff_deleted_mns = deleted_mns
                 dh = list(map(lambda x: bh2u(x.proRegTxHash[::-1]),
-                                             diff.mnList))
+                          diff.mnList))
                 self.diff_hashes = dh
             else:
                 self.diff_deleted_mns = []
@@ -558,14 +637,15 @@ class MNList(Logger):
                     self.protx_info.pop(h, None)
 
             if self.diff_hashes:
-                for h in self.protx_info.keys():
+                for h in list(self.protx_info.keys()):
                     if h in self.diff_hashes:
-                        await self.network.request_protx_info(h)
+                        self.protx_info.pop(h, None)
 
             if self.llmq_loading:
                 await self.axe_net.getmnlistd()
             elif self.protx_loading:
                 await self.axe_net.getmnlistd(get_mns=True)
+            self._save_recent_list()
             self.notify('mn-list-diff-updated')
 
     async def on_protx_diff(self, key, value):
@@ -658,12 +738,13 @@ class MNList(Logger):
                     self.protx_info.pop(h, None)
 
             if self.diff_hashes:
-                for h in self.protx_info.keys():
+                for h in list(self.protx_info.keys()):
                     if h in self.diff_hashes:
-                        await self.network.request_protx_info(h)
+                        self.protx_info.pop(h, None)
 
             if self.protx_loading:
                 await self.network.request_protx_diff()
+            self._save_recent_list()
             self.notify('mn-list-diff-updated')
 
     async def on_protx_info(self, key, value):
@@ -682,5 +763,27 @@ class MNList(Logger):
             return
 
         self.protx_info[protx_hash] = protx_info
+
+        collateralHash = protx_info.get('collateralHash')
+        collateralIndex = protx_info.get('collateralIndex')
+        outpoint = f'{collateralHash}:{collateralIndex}'
+        self.mns_outpoints[outpoint] = protx_hash
+
         self.info_hash = protx_hash
+        self._save_protx_info()
         self.notify('mn-list-info-updated')
+
+    def do_back_info_mapping(self):
+        mns_outpoints = {}
+        for protx_hash, info in self.protx_info.items():
+            collateralHash = info.get('collateralHash')
+            collateralIndex = info.get('collateralIndex')
+            outpoint = f'{collateralHash}:{collateralIndex}'
+            mns_outpoints[outpoint] = protx_hash
+        return mns_outpoints
+
+    def process_info(self):
+        self.do_back_info_mapping()
+        diff_hashes = set(self.protx_mns.keys())
+        info_hashes = set(self.protx_info.keys())
+        return diff_hashes - info_hashes

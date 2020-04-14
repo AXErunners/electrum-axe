@@ -437,6 +437,10 @@ BoxLayout:
                 #minimum_width: '1dp'
                 on_release: app.popup_dialog('status')
 
+            PSActionButton:
+                id: ps_button
+                on_release: app.popup_dialog('privatesend')
+
             ActionOverflow:
                 id: ao
                 ActionOvrButton:
@@ -451,6 +455,9 @@ BoxLayout:
                 ActionOvrButton:
                     name: 'axe_net'
                     text: _('Axe Network')
+                ActionOvrButton:
+                    name: 'privatesend'
+                    text: _('PrivateSend')
                 ActionOvrButton:
                     name: 'settings'
                     text: _('Settings')

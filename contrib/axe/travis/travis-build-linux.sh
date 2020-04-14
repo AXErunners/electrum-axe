@@ -1,26 +1,21 @@
 #!/bin/bash
 set -ev
 
-if [[ -z $TRAVIS_TAG ]]; then
-  echo TRAVIS_TAG unset, exiting
-  exit 1
+cd build
+if [[ -n $TRAVIS_TAG ]]; then
+    BUILD_REPO_URL=https://github.com/axerunners/electrum-axe.git
+    git clone --branch $TRAVIS_TAG $BUILD_REPO_URL electrum-axe
+else
+    git clone .. electrum-axe
 fi
 
-BUILD_REPO_URL=https://github.com/axerunners/electrum-axe.git
-
-cd build
-
-git clone --branch $TRAVIS_TAG $BUILD_REPO_URL electrum-axe
 
 mkdir -p electrum-axe/dist
-wget -O electrum-axe/dist/tor-proxy-setup.exe \
-    https://github.com/zebra-lucky/tor-proxy/releases/download/0.3.5.8/tor-proxy-0.3.5.8-setup.exe
-
-
 docker run --rm \
     -v $(pwd):/opt \
     -w /opt/electrum-axe \
     -t zebralucky/electrum-dash-winebuild:LinuxPy36 /opt/build_linux.sh
+
 
 sudo find . -name '*.po' -delete
 sudo find . -name '*.pot' -delete
@@ -32,18 +27,33 @@ docker run --rm \
     -t zebralucky/electrum-dash-winebuild:LinuxAppImage ./build_appimage.sh
 
 
+TOR_PROXY_VERSION=0.3.5.8
+TOR_PROXY_PATH=https://github.com/zebra-lucky/tor-proxy/releases/download
+TOR_PROXY_FILE=${TOR_PROXY_VERSION}/tor-proxy-${TOR_PROXY_VERSION}-setup.exe
+wget -O electrum-axe/dist/tor-proxy-setup.exe \
+    ${TOR_PROXY_PATH}/${TOR_PROXY_FILE}
+
+
 export WINEARCH=win32
 export WINEPREFIX=/root/.wine-32
 export PYHOME=$WINEPREFIX/drive_c/Python36
 
-wget https://github.com/zebra-lucky/zbarw/releases/download/20180620/zbarw-zbarcam-0.10-win32.zip
-unzip zbarw-zbarcam-0.10-win32.zip && rm zbarw-zbarcam-0.10-win32.zip
 
-wget https://github.com/zebra-lucky/x11_hash/releases/download/1.4.1/x11_hash-1.4.1-win32.zip
-unzip x11_hash-1.4.1-win32.zip && rm x11_hash-1.4.1-win32.zip
+ZBARW_PATH=https://github.com/zebra-lucky/zbarw/releases/download/20180620
+ZBARW_FILE=zbarw-zbarcam-0.10-win32.zip
+wget ${ZBARW_PATH}/${ZBARW_FILE}
+unzip ${ZBARW_FILE} && rm ${ZBARW_FILE}
 
-wget https://github.com/zebra-lucky/secp256k1/releases/download/0.1/libsecp256k1-0.1-win32.zip
-unzip libsecp256k1-0.1-win32.zip && rm libsecp256k1-0.1-win32.zip
+X11_HASH_PATH=https://github.com/zebra-lucky/x11_hash/releases/download/1.4.1
+X11_HASH_FILE=x11_hash-1.4.1-win32.zip
+wget ${X11_HASH_PATH}/${X11_HASH_FILE}
+unzip ${X11_HASH_FILE} && rm ${X11_HASH_FILE}
+
+LSECP256K1_PATH=https://github.com/zebra-lucky/secp256k1/releases/download/0.1
+LSECP256K1_FILE=libsecp256k1-0.1-win32.zip
+wget ${LSECP256K1_PATH}/${LSECP256K1_FILE}
+unzip ${LSECP256K1_FILE} && rm ${LSECP256K1_FILE}
+
 
 docker run --rm \
     -e WINEARCH=$WINEARCH \
@@ -54,18 +64,24 @@ docker run --rm \
     -w /opt/electrum-axe \
     -t zebralucky/electrum-dash-winebuild:WinePy36 /opt/build_wine.sh
 
+
 export WINEARCH=win64
 export WINEPREFIX=/root/.wine-64
 export PYHOME=$WINEPREFIX/drive_c/Python36
 
-wget https://github.com/zebra-lucky/zbarw/releases/download/20180620/zbarw-zbarcam-0.10-win64.zip
-unzip zbarw-zbarcam-0.10-win64.zip && rm zbarw-zbarcam-0.10-win64.zip
 
-wget https://github.com/zebra-lucky/x11_hash/releases/download/1.4.1/x11_hash-1.4.1-win64.zip
-unzip x11_hash-1.4.1-win64.zip && rm x11_hash-1.4.1-win64.zip
+ZBARW_FILE=zbarw-zbarcam-0.10-win64.zip
+wget ${ZBARW_PATH}/${ZBARW_FILE}
+unzip ${ZBARW_FILE} && rm ${ZBARW_FILE}
 
-wget https://github.com/zebra-lucky/secp256k1/releases/download/0.1/libsecp256k1-0.1-win64.zip
-unzip libsecp256k1-0.1-win64.zip && rm libsecp256k1-0.1-win64.zip
+X11_HASH_FILE=x11_hash-1.4.1-win64.zip
+wget ${X11_HASH_PATH}/${X11_HASH_FILE}
+unzip ${X11_HASH_FILE} && rm ${X11_HASH_FILE}
+
+LSECP256K1_FILE=libsecp256k1-0.1-win64.zip
+wget ${LSECP256K1_PATH}/${LSECP256K1_FILE}
+unzip ${LSECP256K1_FILE} && rm ${LSECP256K1_FILE}
+
 
 docker run --rm \
     -e WINEARCH=$WINEARCH \

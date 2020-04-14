@@ -2,8 +2,8 @@ Axe Electrum - Lightweight AXE client
 ============
 .. image:: electrum_axe/gui/icons/electrum-axe.png
     :alt: Electrum-AXE logo
-.. image:: https://travis-ci.org/AXErunners/electrum-axe.svg?branch=master
-    :target: https://travis-ci.org/AXErunners/electrum-axe
+.. image:: https://travis-ci.com/AXErunners/electrum-axe.svg?branch=master
+    :target: https://travis-ci.com/AXErunners/electrum-axe
     :alt: Build Status
 
 Getting started

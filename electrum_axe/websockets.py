@@ -125,7 +125,7 @@ class WebSocketServer(threading.Thread):
     def run(self):
         asyncio.set_event_loop(self.network.asyncio_loop)
         host = self.config.get('websocket_server')
-        port = self.config.get('websocket_port', 9999)
+        port = self.config.get('websocket_port', 9937)
         certfile = self.config.get('ssl_chain')
         keyfile = self.config.get('ssl_privkey')
         self.server = SimpleSSLWebSocketServer(host, port, ElectrumWebSocket, certfile, keyfile)

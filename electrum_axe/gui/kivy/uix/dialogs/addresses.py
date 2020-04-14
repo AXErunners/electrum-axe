@@ -38,11 +38,12 @@ Builder.load_string('''
     pr_status: 'Pending'
     show_change: 0
     show_used: 0
+    show_ps: 0
     on_message:
         self.update()
     BoxLayout:
         id:box
-        padding: '12dp', '70dp', '12dp', '12dp'
+        padding: '12dp', '12dp', '12dp', '12dp'
         spacing: '12dp'
         orientation: 'vertical'
         size_hint: 1, 1.1
@@ -84,6 +85,17 @@ Builder.load_string('''
                     id: change
                     text: root.message if root.message else _('Search')
                     on_release: Clock.schedule_once(lambda dt: app.description_dialog(popup))
+        AddressFilter:
+            opacity: 1
+            size_hint: 1, None
+            height: self.minimum_height
+            spacing: '5dp'
+            AddressButton:
+                id: ps_filter
+                text: {0:_('Regular'), 1:_('PrivateSend'), 2:_('All')}[root.show_ps]
+                on_release:
+                    root.show_ps = (root.show_ps + 1) % 3
+                    Clock.schedule_once(lambda dt: root.update())
         RecycleView:
             scroll_type: ['bars', 'content']
             bar_width: '15dp'
@@ -133,7 +145,14 @@ class AddressesDialog(Factory.Popup):
         container = self.ids.search_container
         n = 0
         cards = []
+        ps_addrs = wallet.db.get_ps_addresses()
         for address in _list:
+            if self.show_ps == 0:  # Regular
+                if address in ps_addrs:
+                    continue
+            elif self.show_ps == 1:  # PrivateSend
+                if address not in ps_addrs:
+                    continue
             label = wallet.labels.get(address, '')
             balance = sum(wallet.get_addr_balance(address))
             is_used_and_empty = wallet.is_used(address) and balance == 0

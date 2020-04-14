@@ -13,7 +13,8 @@ from kivy.uix.button import Button
 from .question import Question
 from electrum_axe.gui.kivy.i18n import _
 
-from electrum_axe.util import InvalidPassword
+from electrum_axe.axe_tx import SPEC_TX_NAMES, tx_header_to_tx_type
+from electrum_axe.util import InvalidPassword, bfh
 from electrum_axe.address_synchronizer import TX_HEIGHT_LOCAL
 
 
@@ -21,7 +22,7 @@ Builder.load_string('''
 
 <TxDialog>
     id: popup
-    title: _('Transaction')
+    title: ''
     is_mine: True
     can_sign: False
     can_broadcast: False
@@ -118,11 +119,18 @@ class TxDialog(Factory.Popup):
         self.wallet = self.app.wallet
         self.tx = tx
         self._action_button_fn = lambda btn: None
+        self.dropdown = None
 
     def on_open(self):
         self.update()
 
     def update(self):
+        raw_tx = str(self.tx)
+        tx_type = tx_header_to_tx_type(bfh(raw_tx[:8]))
+        if tx_type == 0:
+            txid = self.tx.txid()
+            tx_type, completed = self.wallet.db.get_ps_tx(txid)
+        self.title = '%s %s' % (SPEC_TX_NAMES[tx_type], _('Transaction'))
         format_amount = self.app.format_amount_and_units
         tx_details = self.wallet.get_tx_info(self.tx)
         tx_mined_status = tx_details.tx_mined_status
@@ -191,20 +199,22 @@ class TxDialog(Factory.Popup):
                     self._action_button_fn = option.func
         else:
             # multiple options. button opens dropdown which has one sub-button for each
-            dropdown = DropDown()
+            self.dropdown = DropDown()
             action_button.text = _('Options')
-            self._action_button_fn = dropdown.open
+            self._action_button_fn = self.dropdown.open
             for option in options:
                 if option.enabled:
                     btn = Button(text=option.text, size_hint_y=None, height='48dp')
                     btn.bind(on_release=option.func)
-                    dropdown.add_widget(btn)
+                    self.dropdown.add_widget(btn)
 
     def on_action_button_clicked(self):
         action_button = self.ids.action_button
         self._action_button_fn(action_button)
 
     def do_sign(self):
+        if self.dropdown:
+            self.dropdown.dismiss()
         self.app.protected(_("Enter your PIN code in order to sign this transaction"), self._do_sign, ())
 
     def _do_sign(self, password):
@@ -219,6 +229,8 @@ class TxDialog(Factory.Popup):
         self.update()
 
     def do_broadcast(self):
+        if self.dropdown:
+            self.dropdown.dismiss()
         self.app.broadcast(self.tx)
 
     def show_qr(self):
@@ -229,6 +241,8 @@ class TxDialog(Factory.Popup):
         self.app.qr_dialog(_("Raw Transaction"), text, text_for_clipboard=raw_tx)
 
     def remove_local_tx(self):
+        if self.dropdown:
+            self.dropdown.dismiss()
         txid = self.tx.txid()
         to_delete = {txid}
         to_delete |= self.wallet.get_depending_transactions(txid)

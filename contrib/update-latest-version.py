@@ -186,7 +186,7 @@ class SignApp(object):
         content_json = json.dumps(content, indent=4)
         print(content_json)
         with open('./%s' % LATEST_VER_FNAME, 'w') as fd:
-            fd.write(content_json)
+            fd.write('%s\n' % content_json)
         if self.make_commit:
             self.commit_latest_version()
 
