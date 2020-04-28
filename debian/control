@@ -21,6 +21,7 @@ Build-Depends:
  python3-certifi,
  python3-x11-hash (>= 1.4),
  python3-bls (>= 0.1.8),
+ python3-pygments (>= 2.1),
  python3-pyqt5,
 Standards-Version: 4.1.3
 Homepage: http://axerunners.com/
@@ -45,6 +46,7 @@ Depends:
  python3-aiohttp-socks,
  python3-aiorpcx (<< 0.19),
  python3-bls (>= 0.1.8),
+ python3-pygments (>= 2.1),
  python3-certifi,
  python3-dnspython (>= 1.11.1),
  python3-ecdsa (>= 0.14),
