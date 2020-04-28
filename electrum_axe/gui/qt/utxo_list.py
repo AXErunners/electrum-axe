@@ -23,10 +23,9 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import threading
 from enum import IntEnum
 
-from PyQt5.QtCore import (QThread, pyqtSignal, Qt, QModelIndex, QVariant,
+from PyQt5.QtCore import (pyqtSignal, Qt, QModelIndex, QVariant,
                           QAbstractItemModel, QItemSelectionModel)
 from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import (QAbstractItemView, QHeaderView, QComboBox,
@@ -38,7 +37,7 @@ from electrum_axe.axe_tx import PSCoinRounds, SPEC_TX_NAMES
 from electrum_axe.logging import Logger
 from electrum_axe.util import profiler
 
-from .util import MyTreeView, ColorScheme, MONOSPACE_FONT
+from .util import MyTreeView, ColorScheme, MONOSPACE_FONT, GetDataThread
 
 
 class UTXOColumns(IntEnum):
@@ -48,29 +47,6 @@ class UTXOColumns(IntEnum):
     AMOUNT = 3
     HEIGHT = 4
     PS_ROUNDS = 5
-
-
-class GetDataThread(QThread):
-
-    def __init__(self, model, data_ready_sig, parent=None):
-        super(GetDataThread, self).__init__(parent)
-        self.model = model
-        self.data_ready_sig = data_ready_sig
-        self.need_update = threading.Event()
-        self.coin_items = []
-
-    def run(self):
-        while True:
-            try:
-                self.need_update.wait()
-                self.need_update.clear()
-                self.coin_items = self.model.get_coins()
-                try:
-                    self.data_ready_sig.emit()
-                except AttributeError:
-                    pass  # data_ready signal is already unbound on gui close
-            except Exception as e:
-                self.model.logger.error(f'GetDataThread error: {str(e)}')
 
 
 class UTXOModel(QAbstractItemModel, Logger):
@@ -96,7 +72,8 @@ class UTXOModel(QAbstractItemModel, Logger):
         self.coin_items = list()
         # setup bg thread to get updated data
         self.data_ready.connect(self.on_get_data, Qt.BlockingQueuedConnection)
-        self.get_data_thread = GetDataThread(self, self.data_ready, self)
+        self.get_data_thread = GetDataThread(self, self.get_coins,
+                                             self.data_ready, self)
         self.get_data_thread.start()
 
     def set_view(self, utxo_list):
@@ -274,7 +251,7 @@ class UTXOModel(QAbstractItemModel, Logger):
                 self.view.selectionModel().select(idx, self.SELECT_ROWS)
 
     def on_get_data(self):
-        self.refresh(self.get_data_thread.coin_items)
+        self.refresh(self.get_data_thread.res)
 
     @profiler
     def refresh(self, coin_items):

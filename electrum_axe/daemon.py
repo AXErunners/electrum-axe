@@ -132,6 +132,12 @@ class Daemon(DaemonThread):
             fd, server = get_fd_or_server(config)
             if fd is None: raise Exception('failed to lock daemon; already running?')
         self.asyncio_loop, self._stop_loop, self._loop_thread = create_and_start_event_loop()
+        asyncio_wait_time = 0
+        while not self.asyncio_loop.is_running():
+            if asyncio_wait_time > 30:
+                raise Exception('event loop not running for 30 seconds')
+            time.sleep(0.1)
+            asyncio_wait_time += 0.1
         if config.get('offline'):
             self.network = None
         else:

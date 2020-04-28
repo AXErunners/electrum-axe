@@ -23,10 +23,9 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import threading
 from enum import IntEnum
 
-from PyQt5.QtCore import (QThread, pyqtSignal, Qt, QPersistentModelIndex,
+from PyQt5.QtCore import (pyqtSignal, Qt, QPersistentModelIndex,
                           QModelIndex, QAbstractItemModel, QVariant,
                           QItemSelectionModel)
 from PyQt5.QtGui import QFont
@@ -40,7 +39,8 @@ from electrum_axe.plugin import run_hook
 from electrum_axe.bitcoin import is_address
 from electrum_axe.wallet import InternalAddressCorruption
 
-from .util import MyTreeView, MONOSPACE_FONT, ColorScheme, webopen
+from .util import (MyTreeView, MONOSPACE_FONT, ColorScheme, webopen,
+                   GetDataThread)
 
 
 class AddrColumns(IntEnum):
@@ -51,29 +51,6 @@ class AddrColumns(IntEnum):
     FIAT_BALANCE = 4
     NUM_TXS = 5
     PS_TYPE = 6
-
-
-class GetDataThread(QThread):
-
-    def __init__(self, model, data_ready_sig, parent=None):
-        super(GetDataThread, self).__init__(parent)
-        self.model = model
-        self.data_ready_sig = data_ready_sig
-        self.need_update = threading.Event()
-        self.addr_items = []
-
-    def run(self):
-        while True:
-            try:
-                self.need_update.wait()
-                self.need_update.clear()
-                self.addr_items = self.model.get_addresses()
-                try:
-                    self.data_ready_sig.emit()
-                except AttributeError:
-                    pass  # data_ready signal is already unbound on gui close
-            except Exception as e:
-                self.model.logger.error(f'GetDataThread error: {str(e)}')
 
 
 class AddressModel(QAbstractItemModel, Logger):
@@ -100,7 +77,8 @@ class AddressModel(QAbstractItemModel, Logger):
         self.addr_items = list()
         # setup bg thread to get updated data
         self.data_ready.connect(self.on_get_data, Qt.BlockingQueuedConnection)
-        self.get_data_thread = GetDataThread(self, self.data_ready, self)
+        self.get_data_thread = GetDataThread(self, self.get_addresses,
+                                             self.data_ready, self)
         self.get_data_thread.start()
 
     def set_view(self, address_list):
@@ -293,7 +271,7 @@ class AddressModel(QAbstractItemModel, Logger):
                 self.view.selectionModel().select(idx, self.SELECT_ROWS)
 
     def on_get_data(self):
-        self.refresh(self.get_data_thread.addr_items)
+        self.refresh(self.get_data_thread.res)
 
     @profiler
     def refresh(self, addr_items):

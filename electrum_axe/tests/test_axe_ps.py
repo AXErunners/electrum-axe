@@ -16,8 +16,10 @@ from electrum_axe.axe_ps import (COLLATERAL_VAL, PSPossibleDoubleSpendError,
                                    CREATE_COLLATERAL_VAL, to_haks, PSTxData,
                                    PSTxWorkflow, PSDenominateWorkflow,
                                    PSMinRoundsCheckFailed, PS_DENOMS_VALS,
-                                   FILTERED_TXID, filter_log_line,
-                                   KP_ALL_TYPES, PSStates, FILTERED_ADDR)
+                                   filter_log_line, KPStates, KP_ALL_TYPES,
+                                   KP_SPENDABLE, KP_PS_COINS,
+                                   KP_PS_CHANGE, PSStates, calc_tx_size,
+                                   calc_tx_fee, FILTERED_TXID, FILTERED_ADDR)
 from electrum_axe.axe_tx import PSTxTypes, PSCoinRounds, SPEC_TX_NAMES
 from electrum_axe.keystore import xpubkey_to_address
 from electrum_axe.simple_config import SimpleConfig
@@ -438,6 +440,46 @@ class PSWalletTestCase(TestCaseForTestnet):
         asyncio.get_event_loop().run_until_complete(coro)
         assert wallet.get_balance() == (1484831773, 0, 0)
         assert wallet.get_balance(include_ps=False) == (984806773, 0, 0)
+        assert wallet.get_balance(include_ps=False, min_rounds=5) == (0, 0, 0)
+        assert wallet.get_balance(include_ps=False, min_rounds=4) == (0, 0, 0)
+        assert wallet.get_balance(include_ps=False, min_rounds=3) == (0, 0, 0)
+        assert wallet.get_balance(include_ps=False, min_rounds=2) == \
+            (384803848, 0, 0)
+        assert wallet.get_balance(include_ps=False, min_rounds=1) == \
+            (384903849, 0, 0)
+        assert wallet.get_balance(include_ps=False, min_rounds=0) == \
+            (500005000, 0, 0)
+
+        # check balance with ps_other
+        w = wallet
+        coins = w.get_spendable_coins(domain=None, config=self.config)
+        denom_addr = list(w.db.get_ps_denoms().values())[0][0]
+        outputs = [TxOutput(TYPE_ADDRESS, denom_addr, 300000)]
+        tx = w.make_unsigned_transaction(coins, outputs, config=self.config)
+        w.sign_transaction(tx, None)
+        txid = tx.txid()
+        w.add_transaction(txid, tx)
+        w.db.add_islock(txid)
+
+        # check when transaction is standard
+        assert wallet.get_balance() == (1484831547, 0, 0)
+        assert wallet.get_balance(include_ps=False) == (984506547, 0, 0)
+        assert wallet.get_balance(include_ps=False, min_rounds=5) == (0, 0, 0)
+        assert wallet.get_balance(include_ps=False, min_rounds=4) == (0, 0, 0)
+        assert wallet.get_balance(include_ps=False, min_rounds=3) == (0, 0, 0)
+        assert wallet.get_balance(include_ps=False, min_rounds=2) == \
+            (384803848, 0, 0)
+        assert wallet.get_balance(include_ps=False, min_rounds=1) == \
+            (384903849, 0, 0)
+        assert wallet.get_balance(include_ps=False, min_rounds=0) == \
+            (500005000, 0, 0)
+
+        coro = psman.find_untracked_ps_txs(log=True)
+        asyncio.get_event_loop().run_until_complete(coro)
+
+        # check when transaction is other ps coins
+        assert wallet.get_balance() == (1484831547, 0, 0)
+        assert wallet.get_balance(include_ps=False) == (984506547, 0, 0)
         assert wallet.get_balance(include_ps=False, min_rounds=5) == (0, 0, 0)
         assert wallet.get_balance(include_ps=False, min_rounds=4) == (0, 0, 0)
         assert wallet.get_balance(include_ps=False, min_rounds=3) == (0, 0, 0)
@@ -1426,6 +1468,58 @@ class PSWalletTestCase(TestCaseForTestnet):
         assert txouts[0].value == CREATE_COLLATERAL_VAL
         assert txouts[0].address in w.db.select_ps_reserved(data=wfl.uuid)
 
+    def test_create_new_collateral_wfl_from_ps_denoms(self):
+        w = self.wallet
+        psman = w.psman
+        psman.config = self.config
+
+        coro = psman.find_untracked_ps_txs(log=False)
+        asyncio.get_event_loop().run_until_complete(coro)
+        coins = w.get_spendable_coins(domain=None, config=self.config)
+
+        c_outpoint, ps_collateral = w.db.get_ps_collateral()
+        w.db.pop_ps_collateral(c_outpoint)
+        w.db.add_ps_other(c_outpoint, ps_collateral)
+
+        coro = psman.create_new_collateral_wfl()
+        asyncio.get_event_loop().run_until_complete(coro)
+        assert psman.new_collateral_wfl
+
+        wfl = psman.new_collateral_wfl
+        txid = wfl.tx_order[0]
+        raw_tx = wfl.tx_data[txid].raw_tx
+        tx = Transaction(raw_tx)
+        for txin in  tx.inputs():
+            ch_tx = w.db.get_transaction(txin['prevout_hash'])
+            prev_n = txin['prevout_n']
+            ch_txout = ch_tx.outputs()[prev_n]
+            assert ch_txout.value not in PS_DENOMS_VALS
+        psman.clear_new_collateral_wfl()
+
+        for c in coins:
+            prev_h = c['prevout_hash']
+            prev_n = c['prevout_n']
+            c_outpoint = f'{prev_h}:{prev_n}'
+            c_other = (c['address'], c['value'])
+            w.db.add_ps_other(c_outpoint, c_other)
+
+        coins = w.get_spendable_coins(domain=None, include_ps=False,
+                                      config=self.config)
+        assert coins == []
+
+        coro = psman.create_new_collateral_wfl()
+        asyncio.get_event_loop().run_until_complete(coro)
+        assert psman.new_collateral_wfl
+        wfl = psman.new_collateral_wfl
+        txid = wfl.tx_order[0]
+        raw_tx = wfl.tx_data[txid].raw_tx
+        tx = Transaction(raw_tx)
+        for txin in  tx.inputs():
+            ch_tx = w.db.get_transaction(txin['prevout_hash'])
+            prev_n = txin['prevout_n']
+            ch_txout = ch_tx.outputs()[prev_n]
+            assert ch_txout.value == PS_DENOMS_VALS[0]
+
     def test_cleanup_new_collateral_wfl(self):
         w = self.wallet
         psman = w.psman
@@ -1578,13 +1672,14 @@ class PSWalletTestCase(TestCaseForTestnet):
 
     def test_calc_need_denoms_amounts(self):
         all_test_amounts = [
-            [100001]*11 + [1000010]*11 + [10000100]*11,
+            [40000] + [100001]*11 + [1000010]*11 + [10000100]*11,
             [100001]*11 + [1000010]*11 + [10000100]*6,
             [100001]*11 + [1000010]*4,
             [100001]*8,
         ]
         w = self.wallet
         psman = w.psman
+        psman.config = self.config
         res = psman.calc_need_denoms_amounts()
         assert res == all_test_amounts
         res = psman.calc_need_denoms_amounts(use_cache=True)
@@ -1599,6 +1694,7 @@ class PSWalletTestCase(TestCaseForTestnet):
     def test_calc_need_denoms_amounts_from_coins(self):
         w = self.wallet
         psman = w.psman
+        psman.config = self.config
 
         dv0001 = PS_DENOMS_VALS[0]
         dv001 = PS_DENOMS_VALS[1]
@@ -1610,76 +1706,151 @@ class PSWalletTestCase(TestCaseForTestnet):
         c01 = list(filter(lambda x: x['value'] == dv01, coins))
         c1 = list(filter(lambda x: x['value'] == dv1, coins))
         other = list(filter(lambda x: x['value'] not in PS_DENOMS_VALS, coins))
+        ccv = CREATE_COLLATERAL_VAL
         assert len(c1) == 2
         assert len(c01) == 26
         assert len(c001) == 33
         assert len(c0001) == 70
 
         assert psman.calc_need_denoms_amounts(coins=c0001[0:1]) == []
-        assert psman.calc_need_denoms_amounts(coins=c0001[0:2]) == [[dv0001]]
-        assert psman.calc_need_denoms_amounts(coins=c0001[0:3]) == [[dv0001]*2]
-        assert psman.calc_need_denoms_amounts(coins=c0001[0:4]) == [[dv0001]*3]
-        assert psman.calc_need_denoms_amounts(coins=c0001[0:5]) == [[dv0001]*4]
-        assert psman.calc_need_denoms_amounts(coins=c0001[0:6]) == [[dv0001]*5]
-        assert psman.calc_need_denoms_amounts(coins=c0001[0:7]) == [[dv0001]*6]
-        assert psman.calc_need_denoms_amounts(coins=c0001[0:8]) == [[dv0001]*7]
 
-        assert psman.calc_need_denoms_amounts(coins=c001[0:1]) == \
-            [[dv0001]*9]
-        assert psman.calc_need_denoms_amounts(coins=c001[0:2]) == \
-            [[dv0001]*11, [dv0001]*8]
-        assert psman.calc_need_denoms_amounts(coins=c001[0:3]) == \
-            [[dv0001]*11 + [dv001], [dv0001]*8]
-        assert psman.calc_need_denoms_amounts(coins=c001[0:4]) == \
-            [[dv0001]*11 + [dv001]*2, [dv0001]*8]
-        assert psman.calc_need_denoms_amounts(coins=c001[0:5]) == \
-            [[dv0001]*11 + [dv001]*3, [dv0001]*8]
-        assert psman.calc_need_denoms_amounts(coins=c001[0:6]) == \
-            [[dv0001]*11 + [dv001]*4, [dv0001]*8]
-        assert psman.calc_need_denoms_amounts(coins=c001[0:7]) == \
-            [[dv0001]*11 + [dv001]*5, [dv0001]*8]
-        assert psman.calc_need_denoms_amounts(coins=c001[0:8]) == \
-            [[dv0001]*11 + [dv001]*6, [dv0001]*8]
+        expected = [[ccv] + [dv0001]]
+        assert psman.calc_need_denoms_amounts(coins=c0001[0:2]) == expected
 
-        assert psman.calc_need_denoms_amounts(coins=c01[0:1]) == \
-            [[dv0001]*11 + [dv001]*8, [dv0001]*8]
-        assert psman.calc_need_denoms_amounts(coins=c01[0:2]) == \
-            [[dv0001]*11 + [dv001]*11, [dv0001]*11 + [dv001]*6, [dv0001]*7]
-        assert psman.calc_need_denoms_amounts(coins=c01[0:3]) == \
-            [[dv0001]*11 + [dv001]*11 + [dv01],
-             [dv0001]*11 + [dv001]*6, [dv0001]*7]
-        assert psman.calc_need_denoms_amounts(coins=c01[0:4]) == \
-            [[dv0001]*11 + [dv001]*11 + [dv01]*2,
-             [dv0001]*11 + [dv001]*6, [dv0001]*7]
-        assert psman.calc_need_denoms_amounts(coins=c01[0:5]) == \
-            [[dv0001]*11 + [dv001]*11 + [dv01]*3,
-             [dv0001]*11 + [dv001]*6, [dv0001]*7]
-        assert psman.calc_need_denoms_amounts(coins=c01[0:6]) == \
-            [[dv0001]*11 + [dv001]*11 + [dv01]*4,
-             [dv0001]*11 + [dv001]*6, [dv0001]*7]
-        assert psman.calc_need_denoms_amounts(coins=c01[0:7]) == \
-            [[dv0001]*11 + [dv001]*11 + [dv01]*5,
-             [dv0001]*11 + [dv001]*6, [dv0001]*7]
-        assert psman.calc_need_denoms_amounts(coins=c01[0:8]) == \
-            [[dv0001]*11 + [dv001]*11 + [dv01]*6,
-             [dv0001]*11 + [dv001]*6, [dv0001]*7]
-        assert psman.calc_need_denoms_amounts(coins=c01[0:9]) == \
-            [[dv0001]*11 + [dv001]*11 + [dv01]*7,
-             [dv0001]*11 + [dv001]*6, [dv0001]*7]
+        expected = [[ccv] + [dv0001]*2]
+        assert psman.calc_need_denoms_amounts(coins=c0001[0:3]) == expected
 
-        assert psman.calc_need_denoms_amounts(coins=c1[0:1]) == \
-            [[dv0001]*11 + [dv001]*11 + [dv01]*8,
-             [dv0001]*11 + [dv001]*6, [dv0001]*7]
-        assert psman.calc_need_denoms_amounts(coins=c1[0:2]) == \
-            [[dv0001]*11 + [dv001]*11 + [dv01]*11,
-             [dv0001]*11 + [dv001]*11 + [dv01]*6,
-             [dv0001]*11 + [dv001]*4,
-             [dv0001]*6]
+        expected = [[ccv] + [dv0001]*3]
+        assert psman.calc_need_denoms_amounts(coins=c0001[0:4]) == expected
 
-        assert psman.calc_need_denoms_amounts(coins=other) == \
-            [[dv0001]*11 + [dv001]*11 + [dv01]*11 + [dv1]*8,
-             [dv0001]*11 + [dv001]*11 + [dv01]*5,
-             [dv0001]*6]
+        expected = [[ccv] + [dv0001]*4]
+        assert psman.calc_need_denoms_amounts(coins=c0001[0:5]) == expected
+
+        expected = [[ccv] + [dv0001]*5]
+        assert psman.calc_need_denoms_amounts(coins=c0001[0:6]) == expected
+
+        expected = [[ccv] + [dv0001]*6]
+        assert psman.calc_need_denoms_amounts(coins=c0001[0:7]) == expected
+
+        expected = [[ccv] + [dv0001]*7]
+        assert psman.calc_need_denoms_amounts(coins=c0001[0:8]) == expected
+
+
+        expected = [[ccv] + [dv0001]*9]
+        assert psman.calc_need_denoms_amounts(coins=c001[0:1]) == expected
+
+        expected = [[ccv] + [dv0001]*11, [dv0001]*8]
+        assert psman.calc_need_denoms_amounts(coins=c001[0:2]) == expected
+
+        expected = [[ccv] + [dv0001]*11 + [dv001], [dv0001]*8]
+        assert psman.calc_need_denoms_amounts(coins=c001[0:3]) == expected
+
+        expected = [[ccv] + [dv0001]*11 + [dv001]*2, [dv0001]*8]
+        assert psman.calc_need_denoms_amounts(coins=c001[0:4]) == expected
+
+        expected = [[ccv] + [dv0001]*11 + [dv001]*3, [dv0001]*8]
+        assert psman.calc_need_denoms_amounts(coins=c001[0:5]) == expected
+
+        expected = [[ccv] + [dv0001]*11 + [dv001]*4, [dv0001]*8]
+        assert psman.calc_need_denoms_amounts(coins=c001[0:6]) == expected
+
+        expected = [[ccv] + [dv0001]*11 + [dv001]*5, [dv0001]*8]
+        assert psman.calc_need_denoms_amounts(coins=c001[0:7]) == expected
+
+        expected = [[ccv] + [dv0001]*11 + [dv001]*6, [dv0001]*8]
+        assert psman.calc_need_denoms_amounts(coins=c001[0:8]) == expected
+
+
+        expected = [[ccv] + [dv0001]*11 + [dv001]*8, [dv0001]*8]
+        assert psman.calc_need_denoms_amounts(coins=c01[0:1]) == expected
+
+        expected = [[ccv] + [dv0001]*11 + [dv001]*11,
+                    [dv0001]*11 + [dv001]*6, [dv0001]*7]
+        assert psman.calc_need_denoms_amounts(coins=c01[0:2]) == expected
+
+        expected = [[ccv] + [dv0001]*11 + [dv001]*11 + [dv01],
+                    [dv0001]*11 + [dv001]*6, [dv0001]*7]
+        assert psman.calc_need_denoms_amounts(coins=c01[0:3]) == expected
+
+        expected = [[ccv] + [dv0001]*11 + [dv001]*11 + [dv01]*2,
+                    [dv0001]*11 + [dv001]*6, [dv0001]*7]
+        assert psman.calc_need_denoms_amounts(coins=c01[0:4]) == expected
+
+        expected = [[ccv] + [dv0001]*11 + [dv001]*11 + [dv01]*3,
+                    [dv0001]*11 + [dv001]*6, [dv0001]*7]
+        assert psman.calc_need_denoms_amounts(coins=c01[0:5]) == expected
+
+        expected = [[ccv] + [dv0001]*11 + [dv001]*11 + [dv01]*4,
+                    [dv0001]*11 + [dv001]*6, [dv0001]*7]
+        assert psman.calc_need_denoms_amounts(coins=c01[0:6]) == expected
+
+        expected = [[ccv] + [dv0001]*11 + [dv001]*11 + [dv01]*5,
+                    [dv0001]*11 + [dv001]*6, [dv0001]*7]
+        assert psman.calc_need_denoms_amounts(coins=c01[0:7]) == expected
+
+        expected = [[ccv] + [dv0001]*11 + [dv001]*11 + [dv01]*6,
+                    [dv0001]*11 + [dv001]*6, [dv0001]*7]
+        assert psman.calc_need_denoms_amounts(coins=c01[0:8]) == expected
+
+        expected = [[ccv] + [dv0001]*11 + [dv001]*11 + [dv01]*7,
+                    [dv0001]*11 + [dv001]*6, [dv0001]*7]
+        assert psman.calc_need_denoms_amounts(coins=c01[0:9]) == expected
+
+
+        expected = [[ccv] + [dv0001]*11 + [dv001]*11 + [dv01]*8,
+                    [dv0001]*11 + [dv001]*6, [dv0001]*7]
+        assert psman.calc_need_denoms_amounts(coins=c1[0:1]) == expected
+
+        expected = [[ccv] + [dv0001]*11 + [dv001]*11 + [dv01]*11,
+                    [dv0001]*11 + [dv001]*11 + [dv01]*6,
+                    [dv0001]*11 + [dv001]*4, [dv0001]*6]
+        assert psman.calc_need_denoms_amounts(coins=c1[0:2]) == expected
+
+        expected = [[ccv] + [dv0001]*11 + [dv001]*11 + [dv01]*11 + [dv1]*8,
+                    [dv0001]*11 + [dv001]*11 + [dv01]*5, [dv0001]*5]
+        assert psman.calc_need_denoms_amounts(coins=other) == expected
+
+    def test_calc_tx_size(self):
+        # average sizes
+        assert 192 == calc_tx_size(1, 1)
+        assert 226 == calc_tx_size(1, 2)
+        assert 37786 == calc_tx_size(255, 1)
+        assert 8830 == calc_tx_size(1, 255)
+        assert 46424 == calc_tx_size(255, 255)
+        assert 148046 == calc_tx_size(1000, 1)
+        assert 34160 == calc_tx_size(1, 1000)
+        assert 182014 == calc_tx_size(1000, 1000)
+
+        # max sizes
+        assert 193 == calc_tx_size(1, 1, max_size=True)
+        assert 227 == calc_tx_size(1, 2, max_size=True)
+        assert 38041 == calc_tx_size(255, 1, max_size=True)
+        assert 8831 == calc_tx_size(1, 255, max_size=True)
+        assert 46679 == calc_tx_size(255, 255, max_size=True)
+        assert 149046 == calc_tx_size(1000, 1, max_size=True)
+        assert 34161 == calc_tx_size(1, 1000, max_size=True)
+        assert 183014 == calc_tx_size(1000, 1000, max_size=True)
+
+    def test_calc_tx_fee(self):
+        # average sizes
+        assert 192 == calc_tx_fee(1, 1, 1000)
+        assert 226 == calc_tx_fee(1, 2, 1000)
+        assert 37786 == calc_tx_fee(255, 1, 1000)
+        assert 8830 == calc_tx_fee(1, 255, 1000)
+        assert 46424 == calc_tx_fee(255, 255, 1000)
+        assert 148046 == calc_tx_fee(1000, 1, 1000)
+        assert 34160 == calc_tx_fee(1, 1000, 1000)
+        assert 182014 == calc_tx_fee(1000, 1000, 1000)
+
+        # max sizes
+        assert 193 == calc_tx_fee(1, 1, 1000, max_size=True)
+        assert 227 == calc_tx_fee(1, 2, 1000, max_size=True)
+        assert 38041 == calc_tx_fee(255, 1, 1000, max_size=True)
+        assert 8831 == calc_tx_fee(1, 255, 1000, max_size=True)
+        assert 46679 == calc_tx_fee(255, 255, 1000, max_size=True)
+        assert 149046 == calc_tx_fee(1000, 1, 1000, max_size=True)
+        assert 34161 == calc_tx_fee(1, 1000, 1000, max_size=True)
+        assert 183014 == calc_tx_fee(1000, 1000, 1000, max_size=True)
 
     def test_create_new_denoms_wfl(self):
         w = self.wallet
@@ -1696,23 +1867,11 @@ class PSWalletTestCase(TestCaseForTestnet):
         psman.clear_new_denoms_wfl()
 
         # check not created if psman.config is not set
-        psman.config = None
-        coro = psman.create_new_denoms_wfl()
-        asyncio.get_event_loop().run_until_complete(coro)
-        assert not psman.new_denoms_wfl
+        with self.assertRaises(AttributeError):
+            psman.config = None
+            coro = psman.create_new_denoms_wfl()
+            asyncio.get_event_loop().run_until_complete(coro)
         psman.config = self.config
-
-        # check not created as not enough funds
-        prev_keep_amount = psman.keep_amount
-        psman.state = PSStates.Ready
-        psman.keep_amount = 200
-        psman.state = PSStates.Mixing
-        coro = psman.create_new_denoms_wfl()
-        asyncio.get_event_loop().run_until_complete(coro)
-        assert not psman.new_denoms_wfl
-        psman.keep_amount = prev_keep_amount
-        psman.clear_ps_data()  # found after mixing stopped
-        psman.state = PSStates.Mixing
 
         # check created successfully
         coro = psman.create_new_denoms_wfl()
@@ -1799,6 +1958,31 @@ class PSWalletTestCase(TestCaseForTestnet):
         coro = psman.create_new_denoms_wfl()
         asyncio.get_event_loop().run_until_complete(coro)
         assert not psman.new_denoms_wfl
+
+    def test_create_new_denoms_wfl_low_balance(self):
+        w = self.wallet
+        psman = w.psman
+        psman.config = self.config
+        psman.keep_amount = 1000
+        fee_per_kb = self.config.fee_per_kb()
+
+        coro = psman.find_untracked_ps_txs(log=False)
+        asyncio.get_event_loop().run_until_complete(coro)
+        psman.state = PSStates.Mixing
+
+        coro = psman.create_new_denoms_wfl()
+        asyncio.get_event_loop().run_until_complete(coro)
+        wfl = psman.new_denoms_wfl
+        assert wfl.completed
+
+        # assert coins left less of half_minimal_denom
+        c, u, x = w.get_balance(include_ps=False)
+        new_collateral_cnt = 19
+        new_collateral_fee = calc_tx_fee(1, 2, fee_per_kb, max_size=True)
+        half_minimal_denom = PS_DENOMS_VALS[0] // 2
+        assert (c + u -
+                CREATE_COLLATERAL_VAL * new_collateral_cnt -
+                new_collateral_fee * new_collateral_cnt) < half_minimal_denom
 
     def test_cleanup_new_denoms_wfl(self):
         w = self.wallet
@@ -2302,40 +2486,99 @@ class PSWalletTestCase(TestCaseForTestnet):
     def test_calc_need_new_keypairs_cnt(self):
         w = self.wallet
         psman = w.psman
+        psman.config = self.config
         psman.keep_amount = 15
 
         psman.mix_rounds = 2
-        assert psman.calc_need_new_keypairs_cnt() == (375, 18)
+        assert psman.calc_need_new_keypairs_cnt() == (372, 18)
 
         psman.mix_rounds = 3
-        assert psman.calc_need_new_keypairs_cnt() == (501, 26)
+        assert psman.calc_need_new_keypairs_cnt() == (529, 27)
 
         psman.mix_rounds = 4
-        assert psman.calc_need_new_keypairs_cnt() == (627, 34)
+        assert psman.calc_need_new_keypairs_cnt() == (657, 36)
 
         psman.mix_rounds = 5
-        assert psman.calc_need_new_keypairs_cnt() == (752, 42)
+        assert psman.calc_need_new_keypairs_cnt() == (783, 45)
 
         psman.mix_rounds = 16
-        assert psman.calc_need_new_keypairs_cnt() == (2136, 135)
+        assert psman.calc_need_new_keypairs_cnt() == (2154, 136)
 
         coro = psman.find_untracked_ps_txs(log=False)  # find already mixed
         asyncio.get_event_loop().run_until_complete(coro)
 
         psman.mix_rounds = 2
-        assert psman.calc_need_new_keypairs_cnt() == (388, 21)
+        assert psman.calc_need_new_keypairs_cnt() == (327, 18)
 
         psman.mix_rounds = 3
-        assert psman.calc_need_new_keypairs_cnt() == (694, 41)
+        assert psman.calc_need_new_keypairs_cnt() == (604, 36)
 
         psman.mix_rounds = 4
-        assert psman.calc_need_new_keypairs_cnt() == (921, 56)
+        assert psman.calc_need_new_keypairs_cnt() == (931, 57)
 
         psman.mix_rounds = 5
         assert psman.calc_need_new_keypairs_cnt() == (1148, 71)
 
         psman.mix_rounds = 16
-        assert psman.calc_need_new_keypairs_cnt() == (3645, 237)
+        assert psman.calc_need_new_keypairs_cnt() == (3576, 234)
+
+    def test_check_need_new_keypairs(self):
+        w = self.wallet
+        psman = w.psman
+        psman.config = self.config
+        psman.state = PSStates.Mixing
+        psman.mix_rounds = 2
+        psman.keep_amount = 2
+        coro = psman.find_untracked_ps_txs(log=False)
+        asyncio.get_event_loop().run_until_complete(coro)
+
+        # check when wallet has no password
+        assert psman.check_need_new_keypairs() == (False, None)
+
+        # mock wallet.has_password
+        prev_has_password = w.has_password
+        w.has_password = lambda: True
+        assert psman.check_need_new_keypairs() == (True, KPStates.Empty)
+        assert psman.keypairs_state == KPStates.NeedCache
+
+        assert psman.check_need_new_keypairs() == (False, None)
+        assert psman.keypairs_state == KPStates.NeedCache
+
+        psman._keypairs_state = KPStates.Caching
+        assert psman.check_need_new_keypairs() == (False, None)
+        assert psman.keypairs_state == KPStates.Caching
+
+        psman.keypairs_state = KPStates.Empty
+        psman._cache_keypairs(password=None)
+        assert psman.keypairs_state == KPStates.Ready
+
+        assert psman.check_need_new_keypairs() == (False, None)
+        assert psman.keypairs_state == KPStates.Ready
+
+        psman.keypairs_state = KPStates.Unused
+        assert psman.check_need_new_keypairs() == (False, None)
+        assert psman.keypairs_state == KPStates.Ready
+
+        # clean some keypairs and check again
+        psman.keypairs_state = KPStates.Unused
+        psman._keypairs_cache[KP_SPENDABLE] = {}
+        assert psman.check_need_new_keypairs() == (True, KPStates.Unused)
+        assert psman.keypairs_state == KPStates.NeedCache
+        psman._cache_keypairs(password=None)
+
+        psman.keypairs_state = KPStates.Unused
+        psman._keypairs_cache[KP_PS_COINS] = {}
+        assert psman.check_need_new_keypairs() == (True, KPStates.Unused)
+        assert psman.keypairs_state == KPStates.NeedCache
+        psman._cache_keypairs(password=None)
+
+        psman.keypairs_state = KPStates.Unused
+        psman._keypairs_cache[KP_PS_CHANGE] = {}
+        assert psman.check_need_new_keypairs() == (True, KPStates.Unused)
+        assert psman.keypairs_state == KPStates.NeedCache
+        psman._cache_keypairs(password=None)
+
+        w.has_password = prev_has_password
 
     def test_cache_keypairs(self):
         w = self.wallet
@@ -2347,7 +2590,7 @@ class PSWalletTestCase(TestCaseForTestnet):
         psman.state = PSStates.Mixing
         psman._cache_keypairs(password=None)
         # cache_results by types: spendable, ps spendable, ps coins, ps change
-        cache_results = [137, 0, 256, 12]
+        cache_results = [137, 0, 259, 12]
         for i, cache_type in enumerate(KP_ALL_TYPES):
             assert len(psman._keypairs_cache[cache_type]) == cache_results[i]
         psman._cleanup_all_keypairs_cache()
@@ -2358,7 +2601,7 @@ class PSWalletTestCase(TestCaseForTestnet):
         psman.keep_amount = 2
         psman.state = PSStates.Mixing
         psman._cache_keypairs(password=None)
-        cache_results = [137, 0, 428, 24]
+        cache_results = [137, 0, 433, 24]
         for i, cache_type in enumerate(KP_ALL_TYPES):
             assert len(psman._keypairs_cache[cache_type]) == cache_results[i]
         psman._cleanup_all_keypairs_cache()
@@ -2369,7 +2612,7 @@ class PSWalletTestCase(TestCaseForTestnet):
         psman.keep_amount = 10
         psman.state = PSStates.Mixing
         psman._cache_keypairs(password=None)
-        cache_results = [137, 0, 469, 26]
+        cache_results = [137, 0, 474, 26]
         for i, cache_type in enumerate(KP_ALL_TYPES):
             assert len(psman._keypairs_cache[cache_type]) == cache_results[i]
         psman._cleanup_all_keypairs_cache()
