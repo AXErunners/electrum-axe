@@ -7,6 +7,7 @@ addons:
     sources:
       - sourceline: 'ppa:tah83/secp256k1'
     packages:
+      - perl
       - libusb-1.0-0-dev
       - libudev-dev
       - libsecp256k1-0
@@ -20,12 +21,30 @@ matrix:
     python: "3.6"
     dist: xenial
   - os: linux
-    env: ELECTRUM_MAINNET=true
+    env:
+    - ELECTRUM_MAINNET=true
+    - APP_ANDROID_ARCH=armeabi-v7a
     python: "3.7"
     dist: xenial
   - if: tag =~ .+
     os: linux
-    env: ELECTRUM_MAINNET=false
+    env:
+    - ELECTRUM_MAINNET=false
+    - APP_ANDROID_ARCH=armeabi-v7a
+    python: "3.7"
+    dist: xenial
+  - if: tag =~ .+
+    os: linux
+    env:
+    - ELECTRUM_MAINNET=true
+    - APP_ANDROID_ARCH=arm64-v8a
+    python: "3.7"
+    dist: xenial
+  - if: tag =~ .+
+    os: linux
+    env:
+    - ELECTRUM_MAINNET=false
+    - APP_ANDROID_ARCH=arm64-v8a
     python: "3.7"
     dist: xenial
 before_install:
@@ -79,8 +98,8 @@ deploy:
   - build/electrum-axe/dist/Axe-Electrum-$AXE_ELECTRUM_VERSION-x86_64.AppImage
   - build/electrum-axe/dist/Axe-Electrum-$AXE_ELECTRUM_VERSION-setup-win32.exe
   - build/electrum-axe/dist/Axe-Electrum-$AXE_ELECTRUM_VERSION-setup-win64.exe
-  - build/electrum-axe/bin/Electrum_AXE-$AXE_ELECTRUM_APK_VERSION-release-unsigned.apk
-  - build/electrum-axe/bin/Electrum_AXE_Testnet-$AXE_ELECTRUM_APK_VERSION-release-unsigned.apk
+  - build/electrum-axe/bin/Electrum_AXE-$AXE_ELECTRUM_APK_VERSION-$APP_ANDROID_ARCH-release-unsigned.apk
+  - build/electrum-axe/bin/Electrum_AXE_Testnet-$AXE_ELECTRUM_APK_VERSION-$APP_ANDROID_ARCH-release-unsigned.apk
   on:
     repo: AXErunners/electrum-axe
     tags: true
