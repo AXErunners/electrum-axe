@@ -623,10 +623,11 @@ class ReceiveScreen(CScreen):
     @profiler
     def update_qr(self):
         qr = self.screen.ids.qr
-        if self.screen.amount == '':
+        uri = self.get_URI()
+        if self.screen.amount == '' and uri:
             qr.set_data(self.screen.address)
         else:
-            qr.set_data(self.get_URI())
+            qr.set_data(uri)
 
     def do_share(self):
         uri = self.get_URI()
@@ -634,14 +635,15 @@ class ReceiveScreen(CScreen):
             self.app.do_share(uri, _("Share Axe Request"))
 
     def do_copy(self):
+        uri = self.get_URI()
+        if not uri:
+            return
         if self.screen.amount == '':
             self.app._clipboard.copy(self.screen.address)
             self.app.show_info(_('Address copied to clipboard'))
         else:
-            uri = self.get_URI()
-            if uri:
-                self.app._clipboard.copy(uri)
-                self.app.show_info(_('Request copied to clipboard'))
+            self.app._clipboard.copy(uri)
+            self.app.show_info(_('Request copied to clipboard'))
 
     def save_request(self):
         addr = self.screen.address

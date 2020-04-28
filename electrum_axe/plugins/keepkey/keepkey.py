@@ -6,6 +6,7 @@ from electrum_axe.util import bfh, bh2u, UserCancelled, UserFacingException
 from electrum_axe.bitcoin import TYPE_ADDRESS, TYPE_SCRIPT
 from electrum_axe.bip32 import BIP32Node
 from electrum_axe import constants
+from electrum_axe.axe_tx import to_varbytes, serialize_extra_payload
 from electrum_axe.i18n import _
 from electrum_axe.transaction import deserialize, Transaction
 from electrum_axe.keystore import Hardware_KeyStore, is_xpubkey, parse_xpubkey
@@ -475,6 +476,11 @@ class KeepKeyPlugin(HW_PluginBase):
             o = t.bin_outputs.add()
             o.amount = vout['value']
             o.script_pubkey = bfh(vout['scriptPubKey'])
+        if t.version > 2:
+            tx_type = d['tx_type']
+            if tx_type:
+                t.extra_data = to_varbytes(serialize_extra_payload(tx))
+                t.version |= tx_type << 16
         return t
 
     # This function is called from the TREZOR libraries (via tx_api)
