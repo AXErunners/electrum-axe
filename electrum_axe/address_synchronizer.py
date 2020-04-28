@@ -872,11 +872,19 @@ class AddressSynchronizer(Logger):
         return sum([v for height, v, is_cb, islock in received.values()])
 
     @with_local_height_cached
-    def get_addr_balance(self, address, *, excluded_coins: Set[str] = None):
+    def get_addr_balance(self, address, *, excluded_coins: Set[str] = None,
+                         min_rounds=None, ps_denoms=None):
         """Return the balance of a bitcoin address:
         confirmed and matured, unconfirmed, unmatured
+
+        min_rounds parameter consider values < 0 same as None
         """
-        if not excluded_coins:  # cache is only used if there are no excluded_coins
+        if min_rounds is not None and min_rounds < 0:
+            min_rounds = None
+        if ps_denoms is None:
+            ps_denoms = {}
+        # cache is only used if there are no excluded_coins or min_rounds
+        if not excluded_coins and min_rounds is None:
             cached_value = self._get_addr_balance_cache.get(address)
             if cached_value:
                 return cached_value
@@ -887,6 +895,8 @@ class AddressSynchronizer(Logger):
         c = u = x = 0
         local_height = self.get_local_height()
         for txo, (tx_height, v, is_cb, islock) in received.items():
+            if min_rounds is not None and txo not in ps_denoms:
+                continue
             if txo in excluded_coins:
                 continue
             if is_cb and tx_height + COINBASE_MATURITY > local_height:
@@ -903,7 +913,7 @@ class AddressSynchronizer(Logger):
                     u -= v
         result = c, u, x
         # cache result.
-        if not excluded_coins:
+        if not excluded_coins and min_rounds is None:
             # Cache needs to be invalidated if a transaction is added to/
             # removed from history; or on new blocks (maturity...);
             # or new islock
@@ -948,14 +958,21 @@ class AddressSynchronizer(Logger):
     def get_balance(self, domain=None, *, excluded_addresses: Set[str] = None,
                     excluded_coins: Set[str] = None,
                     include_ps=True, min_rounds=None) -> Tuple[int, int, int]:
+        '''min_rounds parameter consider values < 0 same as None'''
+        ps_denoms = {}
+        if min_rounds is not None:
+            if min_rounds < 0:
+                min_rounds = None
+            else:
+                ps_denoms = self.db.get_ps_denoms(min_rounds=min_rounds)
         if domain is None:
             if include_ps:
                 domain = self.get_addresses()
             else:
-                ps_addrs = self.db.get_ps_addresses(min_rounds=min_rounds)
                 if min_rounds is not None:
-                    domain = ps_addrs
+                    domain = [ps_denom[0] for ps_denom in ps_denoms.values()]
                 else:
+                    ps_addrs = self.db.get_ps_addresses()
                     domain = set(self.get_addresses()) - ps_addrs
         if excluded_addresses is None:
             excluded_addresses = set()
@@ -963,7 +980,10 @@ class AddressSynchronizer(Logger):
         domain = set(domain) - excluded_addresses
         cc = uu = xx = 0
         for addr in domain:
-            c, u, x = self.get_addr_balance(addr, excluded_coins=excluded_coins)
+            c, u, x = self.get_addr_balance(addr,
+                                            excluded_coins=excluded_coins,
+                                            min_rounds=min_rounds,
+                                            ps_denoms=ps_denoms)
             cc += c
             uu += u
             xx += x

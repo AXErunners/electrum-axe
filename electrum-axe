@@ -358,7 +358,7 @@ if __name__ == '__main__':
         if config.get('testnet'):
             constants.set_testnet()
             try:
-                from stacktraces import StackTraces
+                from electrum_axe.stacktraces import StackTraces
                 stacktraces_path = os.path.join(config.electrum_path(),
                                                 'stacktraces{ext}')
                 tracer = StackTraces(stacktraces_path,

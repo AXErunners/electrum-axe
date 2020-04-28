@@ -11,3 +11,4 @@ certifi
 pycryptodomex
 x11_hash
 python-bls>=0.1.8
+Pygments>=2.1

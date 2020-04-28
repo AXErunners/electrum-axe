@@ -6,6 +6,7 @@ import platform
 import queue
 import traceback
 import os
+import threading
 import webbrowser
 
 from functools import partial, lru_cache
@@ -862,6 +863,42 @@ def read_QIcon(icon_basename):
 def get_default_language():
     name = QLocale.system().name()
     return name if name in languages else 'en_UK'
+
+
+class GetDataThread(QThread):
+
+    def __init__(self, model, data_call, data_ready_sig, parent=None):
+        super(GetDataThread, self).__init__(parent)
+        self.model = model
+        self.data_call = data_call
+        self.data_call_args = ()
+        self.data_ready_sig = data_ready_sig
+        self.need_update = threading.Event()
+        self.res = []
+        self.stopping = False
+
+    def run(self):
+        while not self.stopping:
+            try:
+                self.need_update.wait()
+                if self.stopping:
+                    return
+                self.need_update.clear()
+                self.res = self.data_call(*self.data_call_args)
+                try:
+                    self.data_ready_sig.emit()
+                except AttributeError:
+                    pass  # data_ready signal is already unbound on gui close
+            except BaseException as e:
+                self.model.logger.error(f'GetDataThread error: {str(e)}')
+                time.sleep(0.25)
+                self.need_update.set()
+
+    def stop(self):
+        self.stopping = True
+        self.need_update.set()
+        self.wait(0)
+
 
 class FromList(QTreeWidget):
     def __init__(self, parent, create_menu):

@@ -914,6 +914,10 @@ class JsonDB(Logger):
         if min_rounds is not None and min_rounds >= 0:
             return set(ps_addr_list)
 
+        spent_denoms = self.get_ps_spent_denoms().values()
+        if spent_denoms:
+            ps_addr_list.extend(map(lambda x: x[0], spent_denoms))
+
         collaterals = self.get_ps_collaterals().values()
         if collaterals:
             ps_addr_list.extend(map(lambda x: x[0], collaterals))
@@ -922,9 +926,9 @@ class JsonDB(Logger):
         if spent_collaterals:
             ps_addr_list.extend(map(lambda x: x[0], spent_collaterals))
 
-        spent_denoms = self.get_ps_spent_denoms().values()
-        if spent_denoms:
-            ps_addr_list.extend(map(lambda x: x[0], spent_denoms))
+        others = self.get_ps_others().values()
+        if others:
+            ps_addr_list.extend(map(lambda x: x[0], others))
 
         spent_others = self.get_ps_spent_others().values()
         if spent_others:

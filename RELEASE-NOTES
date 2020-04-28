@@ -1,3 +1,38 @@
+# Release 3.3.8.4
+
+ * Trezor/KeepKey plugins: fix signing of CbTx outputs
+ * Disable PrivateSend and PrivateSend UI for HW wallets (unsupported),
+   allow mixing amounts below keep amount, other PS fixses
+ * android receive screen: copy address instead Payment Request if
+   amount is not set
+ * add PPA for Focal Fossa (Ubuntu 20.04), android arm64-v8a apk build
+ * update Tor Proxy in win builds to 0.4.2.6
+
+
+# Release 3.3.8.3
+
+ * add Axe PrivateSend support (qt/kivy gui supported)
+ * update ecdsa version to 0.14.1
+ * some Axe P2P network related code/gui fixes
+ * fix islocks handling
+ * some ProTx masternodes related code/gui fixes, gather protx
+   info masternodes data and save to local file (protx_info.gz)
+ * some kivy gui fixes
+ * add new servers to servers.json, servers_testnet.json
+
+
+# Release 3.3.8.2
+
+ * fix wallet locking during verification of DIP3 transactions
+ * add qt console password locking for SW wallets
+
+
+# Release 3.3.8.1
+
+ * fix extra_payload output in Commands.deserialize
+ * other small fixes
+
+
 # Release 3.3.8
 
  * appimage: URLs could not be opened on some desktop environments (#5425)

@@ -36,7 +36,7 @@ from decimal import Decimal
 from PyQt5.QtGui import QMouseEvent, QFont, QBrush, QColor
 from PyQt5.QtCore import (Qt, QPersistentModelIndex, QModelIndex,
                           QAbstractItemModel, QVariant, QItemSelectionModel,
-                          QDate, QPoint, QItemSelection, QThread, pyqtSignal)
+                          QDate, QPoint, QItemSelection, pyqtSignal)
 from PyQt5.QtWidgets import (QMenu, QHeaderView, QLabel, QMessageBox,
                              QPushButton, QComboBox, QVBoxLayout, QCalendarWidget,
                              QGridLayout)
@@ -50,7 +50,7 @@ from electrum_axe.logging import get_logger, Logger
 
 from .util import (read_QIcon, MONOSPACE_FONT, Buttons, CancelButton, OkButton,
                    filename_field, MyTreeView, AcceptFileDragDrop, WindowModalDialog,
-                   CloseButton, webopen)
+                   CloseButton, webopen, GetDataThread)
 
 if TYPE_CHECKING:
     from electrum_axe.wallet import Abstract_Wallet
@@ -95,30 +95,6 @@ class HistoryColumns(IntEnum):
     TXID = 10
 
 
-class GetDataThread(QThread):
-
-    def __init__(self, model, data_ready_sig, parent=None):
-        super(GetDataThread, self).__init__(parent)
-        self.model = model
-        self.group_ps = model.group_ps
-        self.data_ready_sig = data_ready_sig
-        self.need_update = threading.Event()
-        self.res = []
-
-    def run(self):
-        while True:
-            try:
-                self.need_update.wait()
-                self.need_update.clear()
-                self.res = self.model.get_full_history_for_model(self.group_ps)
-                try:
-                    self.data_ready_sig.emit()
-                except AttributeError:
-                    pass  # data_ready signal is already unbound on gui close
-            except Exception as e:
-                self.model.logger.error(f'GetDataThread error: {str(e)}')
-
-
 class HistoryModel(QAbstractItemModel, Logger):
 
     data_ready = pyqtSignal()
@@ -139,7 +115,9 @@ class HistoryModel(QAbstractItemModel, Logger):
         self.tx_group_collapse_icn = read_QIcon('tx_group_collapse.png')
         # setup bg thread to get updated data
         self.data_ready.connect(self.on_get_data, Qt.BlockingQueuedConnection)
-        self.get_data_thread = GetDataThread(self, self.data_ready, self)
+        self.get_data_thread = GetDataThread(self, self.get_history_data,
+                                             self.data_ready, self)
+        self.get_data_thread.data_call_args = (self.group_ps, )
         self.get_data_thread.start()
 
         # sort keys methods for columns
@@ -578,13 +556,14 @@ class HistoryModel(QAbstractItemModel, Logger):
         assert self.view, 'view not set'
         group_ps = self.parent.wallet.psman.group_history
         self.set_visibility_of_columns(group_ps)
-        self.get_data_thread.group_ps = group_ps
+        self.get_data_thread.data_call_args = (group_ps, )
         self.get_data_thread.need_update.set()
 
     def on_get_data(self):
-        self._refresh(self.get_data_thread.res, self.get_data_thread.group_ps)
+        self._refresh(self.get_data_thread.res,
+                      self.get_data_thread.data_call_args[0])
 
-    def get_full_history_for_model(self, group_ps):
+    def get_history_data(self, group_ps):
         fx = self.parent.fx
         if fx:
             fx.history_used_spot = False
