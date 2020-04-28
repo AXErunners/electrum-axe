@@ -33,6 +33,17 @@ fi
 
 sudo chown -R 1000 electrum-axe
 docker run --rm \
+    --env APP_ANDROID_ARCH=$APP_ANDROID_ARCH \
     -v $(pwd)/electrum-axe:/home/buildozer/build \
     -t zebralucky/electrum-dash-winebuild:Kivy33x bash -c \
     "$DOCKER_CMD"
+
+FNAME_TAIL=release-unsigned.apk
+if [[ $ELECTRUM_MAINNET == "false" ]]; then
+  PATHNAME_START=electrum-axe/bin/Electrum_AXE_Testnet
+else
+  PATHNAME_START=electrum-axe/bin/Electrum_AXE
+fi
+
+sudo mv $PATHNAME_START-$AXE_ELECTRUM_APK_VERSION-$FNAME_TAIL \
+  $PATHNAME_START-$AXE_ELECTRUM_APK_VERSION-$APP_ANDROID_ARCH-$FNAME_TAIL
