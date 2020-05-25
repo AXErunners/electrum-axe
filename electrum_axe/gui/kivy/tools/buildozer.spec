@@ -36,6 +36,8 @@ version.filename = %(source.dir)s/electrum_axe/version.py
 
 # (list) Application requirements
 requirements =
+    six,
+    setuptools,
     python3,
     android,
     openssl,

@@ -21,7 +21,13 @@ find . -name '*.po' -delete
 find . -name '*.pot' -delete
 popd
 
-DOCKER_CMD="rm -rf packages"
+# patch buildozer to support APK_VERSION_CODE env
+VERCODE_PATCH_PATH=/home/buildozer/build/contrib/axe/travis
+VERCODE_PATCH="$VERCODE_PATCH_PATH/read_apk_version_code.patch"
+
+DOCKER_CMD="pushd /opt/buildozer"
+DOCKER_CMD="$DOCKER_CMD && patch -p0 < $VERCODE_PATCH && popd"
+DOCKER_CMD="$DOCKER_CMD && rm -rf packages"
 DOCKER_CMD="$DOCKER_CMD && ./contrib/make_packages"
 DOCKER_CMD="$DOCKER_CMD && rm -rf packages/bls_py"
 DOCKER_CMD="$DOCKER_CMD && rm -rf packages/python_bls*"
@@ -34,6 +40,7 @@ fi
 sudo chown -R 1000 electrum-axe
 docker run --rm \
     --env APP_ANDROID_ARCH=$APP_ANDROID_ARCH \
+    --env APK_VERSION_CODE=$ELECTRUM_AXE_VERSION_CODE \
     -v $(pwd)/electrum-axe:/home/buildozer/build \
     -t zebralucky/electrum-dash-winebuild:Kivy33x bash -c \
     "$DOCKER_CMD"

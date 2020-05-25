@@ -111,8 +111,8 @@ Builder.load_string('''
                 default_size_hint: 1, None
                 size_hint_y: None
                 height: self.minimum_height
-                multiselect: True
-                touch_multiselect: True
+                multiselect: False
+                touch_multiselect: False
         BoxLayout:
             id: cmbox
             height: '48dp'
@@ -222,6 +222,8 @@ class CoinsDialog(Factory.Popup):
         container.layout_manager.clear_selection()
 
     def selection_changed(self, nodes):
+        w = self.app.wallet
+        psman = w.psman
         self.hide_menu()
         self.coins_selected = [self.utxos[i] for i in nodes]
         if not self.coins_selected:
@@ -232,17 +234,19 @@ class CoinsDialog(Factory.Popup):
             self.selected_str = f' ({len(self.coins_selected)})'
             self.ids.clear_btn.disabled = False
 
-        cmenu = []
-        rounds_selected = set([c['ps_rounds'] for c in self.coins_selected])
-        if rounds_selected == {int(PSCoinRounds.OTHER)}:
-            cmenu.append((_('Create New Denoms'),
-                          self.create_new_denoms))
-        elif len(self.coins_selected) == 1:
-            rounds_selected = list(rounds_selected)[0]
-            if rounds_selected is not None and rounds_selected >= 0:
-                cmenu.append((_('Create New Collateral'),
-                              self.create_new_collateral))
-        if cmenu:
+        coins = self.coins_selected
+        if len(coins) != 1:
+            return
+        r = coins[0]['ps_rounds']
+        if r is None:
+            return
+        if r == PSCoinRounds.OTHER or r >= 0:
+            coin_value = coins[0]['value']
+            if coin_value >= psman.min_new_denoms_from_coins_val:
+                cmenu = [(_('Create New Denoms'), self.create_new_denoms)]
+            elif coin_value >= psman.min_new_collateral_from_coins_val:
+                cmenu = [(_('Create New Collateral'),
+                         self.create_new_collateral)]
             self.context_menu = ContextMenu(None, cmenu)
             self.cmbox.add_widget(self.context_menu)
 
@@ -250,60 +254,10 @@ class CoinsDialog(Factory.Popup):
         coins = self.coins_selected[:]
         self.hide_menu()
         self.clear_selection()
-        self.app.protected(_('Enter your PIN code to sign'
-                             ' new denoms transactions'),
-                           self._create_new_denoms, (coins,))
-
-    def _create_new_denoms(self, coins, password):
-        psman = self.app.wallet.psman
-        wfl, err = psman.create_new_denoms_wfl_from_gui(coins, password)
-        if err:
-            self.app.show_error(err)
-        else:
-            def on_cancel():
-                psman._cleanup_new_denoms_wfl(wfl, force=True)
-            self.confirm_wfl_transactions(wfl, on_cancel)
+        self.app.create_new_denoms(coins)
 
     def create_new_collateral(self, obj):
         coins = self.coins_selected[:]
         self.hide_menu()
         self.clear_selection()
-        self.app.protected(_('Enter your PIN code to sign'
-                             ' new collateral transactions'),
-                           self._create_new_collateral, (coins,))
-
-    def _create_new_collateral(self, coins, password):
-        psman = self.app.wallet.psman
-        wfl, err = psman.create_new_collateral_wfl_from_gui(coins, password)
-        if err:
-            self.app.show_error(err)
-        else:
-            def on_cancel():
-                psman._cleanup_new_collateral_wfl(wfl, force=True)
-            self.confirm_wfl_transactions(wfl, on_cancel)
-
-    def confirm_wfl_transactions(self, wfl, on_cancel):
-        psman = self.app.wallet.psman
-        tx_type, tx_cnt, total, total_fee = psman.get_workflow_tx_info(wfl)
-        tx_type_name = SPEC_TX_NAMES[tx_type]
-        total = self.app.format_amount_and_units(total)
-        total_fee = self.app.format_amount_and_units(total_fee)
-        q = _('Do you want to send "{}" transactions?').format(tx_type_name)
-        q += '\n\n'
-        q += _('Count of transactions: {}').format(tx_cnt)
-        q += '\n'
-        q += _('Total sent amount: {}').format(total)
-        q += '\n'
-        q += _('Total fee: {}').format(total_fee)
-
-        def on_q_answered(confirmed):
-            if confirmed:
-                w = self.app.wallet
-                for txid in wfl.tx_order:
-                    tx = w.db.get_transaction(txid)
-                    if tx:
-                        self.app.broadcast(tx, None)
-            else:
-                on_cancel()
-        d = Question(q, on_q_answered)
-        d.open()
+        self.app.create_new_collateral(coins)
