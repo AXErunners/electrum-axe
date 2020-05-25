@@ -23,7 +23,7 @@ from .logging import Logger
 
 DEFAULT_ENABLED = False
 DEFAULT_CURRENCY = "USD"
-DEFAULT_EXCHANGE = "CoinMarketCap"  # default exchange should ideally provide historical rates
+DEFAULT_EXCHANGE = "CoinGecko"  # default exchange should ideally provide historical rates
 
 
 # See https://en.wikipedia.org/wiki/ISO_4217
