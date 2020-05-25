@@ -671,7 +671,7 @@ class JsonDB(Logger):
 
     @modifier
     def add_ps_tx(self, txid, tx_type, completed):
-        self.ps_txs[txid] = (tx_type, completed)
+        self.ps_txs[txid] = (int(tx_type), completed)
 
     @modifier
     def pop_ps_tx(self, txid):

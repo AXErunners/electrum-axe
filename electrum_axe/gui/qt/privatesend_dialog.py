@@ -20,6 +20,28 @@ from .util import (HelpLabel, MessageBoxMixin, read_QIcon, custom_message_box,
 ps_dialogs = []  # Otherwise python randomly garbage collects the dialogs
 
 
+def protected_with_parent(func):
+    def request_password(self, *args, **kwargs):
+        mwin = kwargs.pop('mwin')
+        parent = kwargs.pop('parent')
+        password = None
+        while mwin.wallet.has_keystore_encryption():
+            password = mwin.password_dialog(parent=parent)
+            if password is None:
+                # User cancelled password input
+                return
+            try:
+                mwin.wallet.check_password(password)
+                break
+            except Exception as e:
+                mwin.show_error(str(e), parent=parent)
+                continue
+
+        kwargs['password'] = password
+        return func(self, *args, **kwargs)
+    return request_password
+
+
 class FilteredPlainTextEdit(QPlainTextEdit):
 
     def contextMenuEvent(self, event):
@@ -368,6 +390,27 @@ class PSDialog(QDialog, MessageBoxMixin):
         grid.addWidget(dn_balance_label, i, 0)
         grid.addWidget(self.dn_balance_amount, i, 2)
 
+        # create_sm_denoms
+        self.create_sm_denoms_bnt = QPushButton(psman.create_sm_denoms_data())
+
+        def on_create_sm_denoms(x):
+            denoms_by_vals = psman.calc_denoms_by_values()
+            if (not denoms_by_vals
+                    or not psman.check_big_denoms_presented(denoms_by_vals)):
+                msg = psman.create_sm_denoms_data(no_denoms_txt=True)
+                self.show_error(msg)
+            else:
+                if psman.check_enough_sm_denoms(denoms_by_vals):
+                    q = psman.create_sm_denoms_data(enough_txt=True)
+                else:
+                    q = psman.create_sm_denoms_data(confirm_txt=True)
+                if self.question(q):
+                    self.mwin.create_small_denoms(denoms_by_vals, self)
+        self.create_sm_denoms_bnt.clicked.connect(on_create_sm_denoms)
+
+        i = grid.rowCount()
+        grid.addWidget(self.create_sm_denoms_bnt, i, 0, 1, -1)
+
         # max_sessions
         max_sessions_text = psman.max_sessions_data()
         max_sessions_help = psman.max_sessions_data(full_txt=True)
@@ -436,6 +479,24 @@ class PSDialog(QDialog, MessageBoxMixin):
 
         i = grid.rowCount()
         grid.addWidget(sub_spent_cb, i, 0, 1, -1)
+
+        # allow_others
+        allow_others_cb = QCheckBox(psman.allow_others_data(full_txt=True))
+        allow_others_cb.setChecked(psman.allow_others)
+
+        def on_allow_others_changed(x):
+            if x == Qt.Checked:
+                q = psman.allow_others_data(qt_question=True)
+                if self.question(q):
+                    psman.allow_others = True
+                else:
+                    allow_others_cb.setCheckState(Qt.Unchecked)
+            else:
+                psman.allow_others = False
+        allow_others_cb.stateChanged.connect(on_allow_others_changed)
+
+        i = grid.rowCount()
+        grid.addWidget(allow_others_cb, i, 0, 1, -1)
 
         # final tab setup
         i = grid.rowCount()
@@ -518,9 +579,11 @@ class PSDialog(QDialog, MessageBoxMixin):
         if psman.state in psman.mixing_running_states:
             self.keep_amount_sb.setEnabled(False)
             self.mix_rounds_sb.setEnabled(False)
+            self.create_sm_denoms_bnt.setEnabled(False)
         else:
             self.keep_amount_sb.setEnabled(True)
             self.mix_rounds_sb.setEnabled(True)
+            self.create_sm_denoms_bnt.setEnabled(True)
         self.mixing_ctl_btn.setText(psman.mixing_control_data())
 
     def update_balances(self):

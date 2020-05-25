@@ -531,9 +531,19 @@ class SendScreen(CScreen):
 
     def ps_dialog(self):
         from .dialogs.checkbox_dialog import CheckBoxDialog
+
         def ps_dialog_cb(key):
             self.is_ps = key
+            if self.is_ps:
+                w = self.app.wallet
+                psman = w.psman
+                denoms_by_vals = psman.calc_denoms_by_values()
+                if denoms_by_vals:
+                    if not psman.check_enough_sm_denoms(denoms_by_vals):
+                        psman.postpone_notification('ps-not-enough-sm-denoms',
+                                                     w, denoms_by_vals)
             self.screen.ps_txt = self.privatesend_txt()
+
         d = CheckBoxDialog(_('PrivateSend'),
                            _('Send coins as a PrivateSend transaction'),
                            self.is_ps, ps_dialog_cb)
@@ -543,6 +553,12 @@ class SendScreen(CScreen):
 class ReceiveScreen(CScreen):
 
     kvname = 'receive'
+
+    def load_screen(self):
+        super(ReceiveScreen, self).load_screen()
+        psman = self.app.wallet.psman
+        is_mixing = (psman.state in psman.mixing_running_states)
+        self.block_on_mixing(is_mixing)
 
     def update(self):
         if not self.screen.address:
@@ -563,6 +579,18 @@ class ReceiveScreen(CScreen):
         self.screen.address = ''
         self.screen.amount = ''
         self.screen.message = ''
+
+    def block_on_mixing(self, is_mixing):
+        rcv_main = self.screen.ids.rcv_main
+        rcv_overlap = self.screen.ids.rcv_overlap
+        if is_mixing:
+            rcv_main.opacity = 0
+            rcv_main.disabled = True
+            rcv_overlap.opacity = 1
+        else:
+            rcv_main.opacity = 1
+            rcv_main.disabled = False
+            rcv_overlap.opacity = 0
 
     def get_new_address(self) -> bool:
         """Sets the address field, and returns whether the set address

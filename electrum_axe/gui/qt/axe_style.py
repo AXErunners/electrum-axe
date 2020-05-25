@@ -254,6 +254,16 @@ QLabel {
     margin-top: 0;
 }
 
+#receive_container > #roverlap_widget {
+    background:qradialgradient(cx:0.5, cy:0.5, radius: 0.5, fx:0.5, fy:0.5, stop:0 rgba(255, 255, 255, 255), stop: 1 rgba(246, 246, 246, 255));
+}
+
+#receive_container #roverlap_widget QLabel {
+    color: rgb(0, 0, 0);
+    background-color: rgb(248, 240, 200);
+    padding: 20px;
+}
+
 #receive_container > QLabel {
     margin-left:10px;
     min-width:150px;

@@ -50,7 +50,7 @@ from .bitcoin import (COIN, TYPE_ADDRESS, is_address, address_to_script,
                       is_minikey, relayfee, dust_threshold, public_key_to_p2pkh)
 from .crypto import sha256d
 from . import keystore
-from .axe_tx import SPEC_TX_NAMES
+from .axe_tx import SPEC_TX_NAMES, PSCoinRounds
 from .keystore import load_keystore, Hardware_KeyStore
 from .util import multisig_type
 from .storage import STO_EV_PLAINTEXT, STO_EV_USER_PW, STO_EV_XPUB_PW, WalletStorage
@@ -462,6 +462,9 @@ class Abstract_Wallet(AddressSynchronizer):
                                include_ps=include_ps,
                                min_rounds=min_rounds)
         utxos = [utxo for utxo in utxos if not self.is_frozen_coin(utxo)]
+        if self.psman.enabled and include_ps and not self.psman.allow_others:
+            utxos = [utxo for utxo in utxos
+                     if utxo['ps_rounds'] != PSCoinRounds.OTHER]
         return utxos
 
     def get_receiving_addresses(self, *, slice_start=None, slice_stop=None) -> Sequence:
