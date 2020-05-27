@@ -1,3 +1,15 @@
+# Release 3.3.8.5
+
+ * PrivateSend: Check on small amount of minimal denoms and propose
+   to make new small denoms tx from single larger denom (no change)
+ * PrivateSend: fixes related to keypairs cleanup, fix PS balance when
+   other ps coins is presented
+ * PrivateSEnd: block receiving GUI when mixing to prevent
+   interfering with addresses reserved for PS use
+ * Android: add button to start Orbot on wallet startup if Tor is not
+   detected, fix versionCode for arm64-v8a apk
+
+
 # Release 3.3.8.4
 
  * Trezor/KeepKey plugins: fix signing of CbTx outputs

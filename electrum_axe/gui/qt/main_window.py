@@ -93,7 +93,8 @@ from .history_list import HistoryList, HistoryModel
 from .update_checker import UpdateCheck, UpdateCheckThread
 from .masternode_dialog import MasternodeDialog
 from .axe_qt import ExtraPayloadWidget
-from .privatesend_dialog import find_ps_dialog, show_ps_dialog, hide_ps_dialog
+from .privatesend_dialog import (find_ps_dialog, show_ps_dialog,
+                                 hide_ps_dialog, protected_with_parent)
 from .protx_qt import create_dip3_tab
 
 
@@ -275,6 +276,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         self.wallet.psman.register_callback(self.on_ps_callback,
                                             ['ps-log-changes',
                                              'ps-wfl-changes',
+                                             'ps-not-enough-sm-denoms',
                                              'ps-keypairs-changes',
                                              'ps-reserved-changes',
                                              'ps-data-changes',
@@ -430,6 +432,8 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         self.ps_signal.emit(event, args)
 
     def on_ps_signal(self, event, args):
+        psman = self.wallet.psman
+        is_mixing = (psman.state in psman.mixing_running_states)
         if event == 'ps-data-changes':
             wallet = args[0]
             if wallet == self.wallet:
@@ -441,7 +445,11 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         elif event == 'ps-state-changes':
             wallet, msg, msg_type = args
             if wallet == self.wallet:
-                self.update_ps_status_btn()
+                self.update_ps_status_btn(is_mixing)
+                if is_mixing:  # block/unblock receving tab GUI
+                    self.roverlap_w.show()
+                else:
+                    self.roverlap_w.hide()
                 if msg:
                     parent = self
                     d = find_ps_dialog(self)
@@ -456,15 +464,19 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
                         parent.show_warning(msg, title=_('PrivateSend'))
                     if d:
                         d.incoming_msg = False
+        elif event == 'ps-not-enough-sm-denoms':
+            wallet, denoms_by_vals = args
+            if wallet == self.wallet:
+                q = psman.create_sm_denoms_data(confirm_txt=True)
+                if self.question(q):
+                    self.create_small_denoms(denoms_by_vals, self)
 
     def update_axe_net_status_btn(self):
         net = self.network
         icon = (net.axe_net.status_icon() if net else 'axe_net_off.png')
         self.axe_net_button.setIcon(read_QIcon(icon))
 
-    def update_ps_status_btn(self):
-        psman = self.wallet.psman
-        is_mixing = (psman.state in psman.mixing_running_states)
+    def update_ps_status_btn(self, is_mixing):
         icon = 'privatesend_active.png' if is_mixing else 'privatesend.png'
         self.ps_button.setIcon(read_QIcon(icon))
         ps = _('PrivateSend')
@@ -750,7 +762,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         help_menu = menubar.addMenu(_("&Help"))
         help_menu.addAction(_("&About"), self.show_about)
         help_menu.addAction(_("&Check for updates"), self.show_update_check)
-        help_menu.addAction(_("&Official website"), lambda: webopen("https://axerunners.com"))
+        help_menu.addAction(_("&Official website"), lambda: webopen("https://electrum.axe.org"))
         help_menu.addSeparator()
         help_menu.addAction(_("&Documentation"), lambda: webopen("https://docs.axe.org/en/stable/wallets/index.html#axe-electrum-wallet")).setShortcut(QKeySequence.HelpContents)
         self._auto_crash_reports = QAction(_("&Automated Crash Reports"), self, checkable=True)
@@ -1117,6 +1129,20 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         vbox.addWidget(self.request_list)
         vbox.setStretchFactor(self.request_list, 1000)
 
+        self.roverlap_w = QWidget(w)
+        self.roverlap_w.hide()
+        self.roverlap_w.setObjectName('roverlap_widget')
+        recv_blocked_msg = self.wallet.psman.RECV_BLOCKED_MSG
+        recv_blocked_msg_l = QLabel(recv_blocked_msg)
+        recv_blocked_msg_l.setWordWrap(True)
+        og = QGridLayout(self.roverlap_w)
+        og.addWidget(QWidget(), 0, 0)
+        og.addWidget(recv_blocked_msg_l, 1, 1)
+        og.addWidget(QWidget(), 2, 2)
+        og.setColumnStretch(0, 1)
+        og.setColumnStretch(2, 1)
+        og.setRowStretch(0, 1)
+        og.setRowStretch(2, 1)
         return w
 
 
@@ -1944,15 +1970,58 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
     def sign_tx(self, tx, callback, password):
         self.sign_tx_with_password(tx, callback, password)
 
-    @protected
-    def create_new_collateral_wfl_from_gui(self, coins, password):
-        psman = self.wallet.psman
-        return psman.create_new_collateral_wfl_from_gui(coins, password)
+    def create_small_denoms(self, denoms_by_vals, parent):
+        w = self.wallet
+        psman = w.psman
+        coins = psman.get_biggest_denoms_by_min_round()
+        if not coins:
+            msg = psman.create_sm_denoms_data(no_denoms_txt=True)
+            parent.show_error(msg)
+        self.create_new_denoms(coins[0:1], parent)
 
-    @protected
+    def confirm_wfl_transactions(self, info, parent):
+        q = _('Do you want to create transactions?\n\n{}').format(info)
+        return parent.question(q)
+
+    def create_new_denoms(self, coins, parent):
+        w = self.wallet
+        psman = w.psman
+        info = psman.new_denoms_from_coins_info(coins)
+        if self.confirm_wfl_transactions(info, parent):
+            res = self.create_new_denoms_wfl_from_gui(coins, mwin=self,
+                                                      parent=parent)
+            if res:
+                wfl, err = res
+                if err:
+                    parent.show_error(err)
+                else:
+                    parent.show_message(f'Created New Denoms workflow with'
+                                        f' txids: {", ".join(wfl.tx_order)}')
+
+    @protected_with_parent
     def create_new_denoms_wfl_from_gui(self, coins, password):
         psman = self.wallet.psman
         return psman.create_new_denoms_wfl_from_gui(coins, password)
+
+    def create_new_collateral(self, coins, parent):
+        w = self.wallet
+        psman = w.psman
+        info = psman.new_collateral_from_coins_info(coins)
+        if self.confirm_wfl_transactions(info, parent):
+            res = self.create_new_collateral_wfl_from_gui(coins, mwin=self,
+                                                          parent=parent)
+            if res:
+                wfl, err = res
+                if err:
+                    parent.show_error(err)
+                else:
+                    parent.show_message(f'Created New Collateral workflow with'
+                                        f' txids: {", ".join(wfl.tx_order)}')
+
+    @protected_with_parent
+    def create_new_collateral_wfl_from_gui(self, coins, password):
+        psman = self.wallet.psman
+        return psman.create_new_collateral_wfl_from_gui(coins, password)
 
     def sign_tx_with_password(self, tx, callback, password):
         '''Sign the transaction in a separate thread.  When done, calls
@@ -2229,6 +2298,14 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
     def on_ps_cb(self, is_ps):
         self.set_pay_from([])
         self.update_avalaible_amount()
+        if is_ps:
+            w = self.wallet
+            psman = w.psman
+            denoms_by_vals = psman.calc_denoms_by_values()
+            if denoms_by_vals:
+                if not psman.check_enough_sm_denoms(denoms_by_vals):
+                    psman.postpone_notification('ps-not-enough-sm-denoms',
+                                                 w, denoms_by_vals)
 
     def reset_privatesend(self):
         self.ps_cb.setChecked(False)
@@ -2444,7 +2521,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
 
         self.ps_button = StatusBarButton(read_QIcon('privatesend.png'),
                                          '', lambda: show_ps_dialog(self))
-        self.update_ps_status_btn()
+        self.update_ps_status_btn(False)
         sb.addPermanentWidget(self.ps_button)
 
         run_hook('create_status_bar', sb)
@@ -3564,6 +3641,9 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         if self.need_restart:
             self.show_warning(_('Please restart Axe Electrum to activate the new GUI settings'), title=_('Success'))
 
+    def resizeEvent(self, e):
+        super().resizeEvent(e)
+        self.roverlap_w.setGeometry(0, 0, self.width(), self.height())
 
     def closeEvent(self, event):
         # It seems in some rare cases this closeEvent() is called twice

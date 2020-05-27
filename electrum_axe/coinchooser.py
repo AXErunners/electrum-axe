@@ -581,10 +581,16 @@ class CoinChooserPrivateSend:
             else:
                 break
             selected.append(c)
-        if tx and fee >= estimated_fee:
+
+        fee_overhead = fee - estimated_fee
+        if tx and fee >= estimated_fee and fee_overhead <= PS_DENOMS_VALS[0]:
             return tx
         elif use_repeated_txids and backup_tx:
-            return backup_tx
+            fee = backup_tx.input_value() - spent_amount
+            estimated_fee = fee_estimator_vb(backup_tx.estimated_size())
+            fee_overhead = fee - estimated_fee
+            if fee_overhead <= PS_DENOMS_VALS[0]:
+                return backup_tx
 
 
 COIN_CHOOSERS = {

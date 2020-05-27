@@ -22,7 +22,22 @@ ReceiveScreen:
     on_message:
         self.parent.on_amount_or_message()
 
+    AnchorLayout
+        id: rcv_overlap
+        opacity : 0
+        size_hint: 1, 1
+        anchor_x: 'center'
+        anchor_y: 'center'
+        padding: '24dp', '24dp'
+        Label:
+            text: app.wallet.psman.RECV_BLOCKED_MSG
+            size_hint: 1, None
+            text_size: self.width, None
+            height: self.texture_size[1]
     BoxLayout
+        id: rcv_main
+        disabled: False
+        opacity: 1
         padding: '12dp', '12dp', '12dp', '12dp'
         spacing: '12dp'
         orientation: 'vertical'

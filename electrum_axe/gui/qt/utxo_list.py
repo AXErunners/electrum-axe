@@ -317,6 +317,7 @@ class UTXOList(MyTreeView):
 
     def create_menu(self, position):
         w = self.wallet
+        psman = w.psman
         selected = self.selectionModel().selectedRows()
         if not selected:
             return
@@ -334,13 +335,22 @@ class UTXOList(MyTreeView):
             address = coin_item['address']
             txid = coin_item['prevout_hash']
             outpoint = coin_item['outpoint']
-            if ps_rounds is not None:
-                if ps_rounds == PSCoinRounds.OTHER:
-                    menu.addAction(_('Create New Denoms'),
-                                   lambda: self.create_new_denoms(coins))
-                elif ps_rounds >= 0:
+            if (ps_rounds is not None
+                    and (ps_rounds == PSCoinRounds.OTHER or ps_rounds >= 0)):
+                coin_val = coin_item['value']
+                mwin = self.parent
+                if coin_val >= psman.min_new_denoms_from_coins_val:
+
+                    def create_new_denoms():
+                        mwin.create_new_denoms(coins, self.parent)
+                    menu.addAction(_('Create New Denoms'), create_new_denoms)
+
+                elif coin_val >= psman.min_new_collateral_from_coins_val:
+
+                    def create_new_collateral():
+                        mwin.create_new_collateral(coins, self.parent)
                     menu.addAction(_('Create New Collateral'),
-                                   lambda: self.create_new_collateral(coins))
+                                   create_new_collateral)
             # "Details"
             tx = w.db.get_transaction(txid)
             if tx:
@@ -397,14 +407,7 @@ class UTXOList(MyTreeView):
         else:
             # multiple items selected
             ps_rounds = set([coin_item['ps_rounds'] for coin_item in coins])
-            if None not in ps_rounds:
-                if ps_rounds == {int(PSCoinRounds.OTHER)}:
-                    menu.addAction(_('Create New Denoms'),
-                                   lambda: self.create_new_denoms(coins))
-                menu.exec_(self.viewport().mapToGlobal(position))
-                return
-
-            elif len(ps_rounds) > 1:  # ps_rounds has None and other values
+            if ps_rounds != {None}:
                 menu.exec_(self.viewport().mapToGlobal(position))
                 return
 
@@ -431,50 +434,6 @@ class UTXOList(MyTreeView):
                 menu.addAction(_("Unfreeze Addresses"),
                                lambda: set_frozen_state_a(addrs, False))
         menu.exec_(self.viewport().mapToGlobal(position))
-
-    def confirm_wfl_transactions(self, wfl):
-        mwin = self.parent
-        psman = mwin.wallet.psman
-        tx_type, tx_cnt, total, total_fee = psman.get_workflow_tx_info(wfl)
-        tx_type_name = SPEC_TX_NAMES[tx_type]
-        total = mwin.format_amount_and_units(total)
-        total_fee = mwin.format_amount_and_units(total_fee)
-        q = _('Do you want to send "{}" transactions?').format(tx_type_name)
-        q += '\n\n'
-        q += _('Count of transactions: {}').format(tx_cnt)
-        q += '\n'
-        q += _('Total sent amount: {}').format(total)
-        q += '\n'
-        q += _('Total fee: {}').format(total_fee)
-        return mwin.question(q)
-
-    def create_new_denoms(self, coins):
-        w = self.parent.wallet
-        psman = w.psman
-        wfl, err = self.parent.create_new_denoms_wfl_from_gui(coins)
-        if err:
-            self.parent.show_error(err)
-        elif not self.confirm_wfl_transactions(wfl):
-            psman._cleanup_new_denoms_wfl(wfl, force=True)
-        else:
-            for txid in wfl.tx_order:
-                tx = w.db.get_transaction(txid)
-                if tx:
-                    self.parent.broadcast_transaction(tx, None)
-
-    def create_new_collateral(self, coins):
-        w = self.parent.wallet
-        psman = w.psman
-        wfl, err = self.parent.create_new_collateral_wfl_from_gui(coins)
-        if err:
-            self.parent.show_error(err)
-        elif not self.confirm_wfl_transactions(wfl):
-            psman._cleanup_new_collateral_wfl(wfl, force=True)
-        else:
-            for txid in wfl.tx_order:
-                tx = w.db.get_transaction(txid)
-                if tx:
-                    self.parent.broadcast_transaction(tx, None)
 
     def hide_rows(self):
         for row in range(len(self.cm.coin_items)):
