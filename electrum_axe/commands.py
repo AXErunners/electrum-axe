@@ -296,7 +296,7 @@ class Commands:
     def broadcast(self, tx):
         """Broadcast a transaction to the network. """
         tx = Transaction(tx)
-        coro = self.wallet.psman.broadcast_transaction(tx)
+        coro = self.network.broadcast_transaction(tx)
         self.network.run_from_another_thread(coro)
         return tx.txid()
 
