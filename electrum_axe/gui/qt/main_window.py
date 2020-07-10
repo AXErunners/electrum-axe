@@ -62,7 +62,7 @@ from electrum_axe.util import (format_time, format_satoshis, format_fee_satoshis
                                 decimal_point_to_base_unit_name, quantize_feerate,
                                 UnknownBaseUnit, DECIMAL_POINT_DEFAULT, UserFacingException,
                                 get_new_wallet_name, send_exception_to_crash_reporter,
-                                InvalidBitcoinURI)
+                                InvalidBitcoinURI, FILE_OWNER_MODE)
 from electrum_axe.transaction import Transaction, TxOutput
 from electrum_axe.address_synchronizer import AddTransactionException
 from electrum_axe.wallet import (Multisig_Wallet, Abstract_Wallet,
@@ -3072,6 +3072,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
                     transaction.writerow(["%34s"%addr,pk])
             else:
                 f.write(json.dumps(pklist, indent = 4))
+        os.chmod(fileName, FILE_OWNER_MODE)
 
     def do_import_labels(self):
         def import_labels(path):
