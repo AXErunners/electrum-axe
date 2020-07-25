@@ -1,10 +1,23 @@
+# Release 3.3.8.6 (not released yet)
+
+ * PrivateSend: allow start mixing before llmq/protx ready,
+   stop mixing only if keep amount is available on ps balance
+ * Enhance "Detect Tor proxy on wallet startup" option behaviour/UI
+ * DIP3 masternodes: support collateral in ProRegTx output (p2sh addresses
+   support), other fixes
+ * Remove legacy masternodes commands from commands.py
+ * Add UI to handle Other PS coins
+ * Add separate ps_keystore for PrivateSend operation
+ * Other fixes
+
+
 # Release 3.3.8.5
 
  * PrivateSend: Check on small amount of minimal denoms and propose
    to make new small denoms tx from single larger denom (no change)
  * PrivateSend: fixes related to keypairs cleanup, fix PS balance when
    other ps coins is presented
- * PrivateSEnd: block receiving GUI when mixing to prevent
+ * PrivateSend: block receiving GUI during mixing to prevent
    interfering with addresses reserved for PS use
  * Android: add button to start Orbot on wallet startup if Tor is not
    detected, fix versionCode for arm64-v8a apk
