@@ -392,6 +392,13 @@ if __name__ == '__main__':
             fd, server = daemon.get_fd_or_server(config)
             if fd is not None:
                 if subcommand == 'start':
+                    # Warn if tor_auto_on and no Tor detected
+                    if config.get('tor_auto_on', True):
+                        from electrum_axe.network import Network
+                        proxy_modifiable = config.is_modifiable('proxy')
+                        if (not proxy_modifiable
+                                or not Network.detect_tor_proxy()):
+                            print(Network.TOR_WARN_MSG_TXT)
                     pid = os.fork()
                     if pid:
                         print_stderr("starting daemon (PID %d)" % pid)

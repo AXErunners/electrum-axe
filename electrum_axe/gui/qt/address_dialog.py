@@ -63,7 +63,10 @@ class AddressDialog(WindowModalDialog):
         vbox.addWidget(self.addr_e)
 
         try:
-            pubkeys = self.wallet.get_public_keys(address)
+            if self.wallet.psman.is_ps_ks(address):
+                pubkeys = self.wallet.psman.get_public_keys(address)
+            else:
+                pubkeys = self.wallet.get_public_keys(address)
         except BaseException as e:
             pubkeys = None
         if pubkeys:

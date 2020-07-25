@@ -54,6 +54,7 @@ from .installwizard import InstallWizard, WalletAlreadyOpenInMemory
 
 
 from .axe_net_dialog import AxeNetDialog
+from .axe_qt import TorWarnDialog
 from .util import get_default_language, read_QIcon, ColorScheme, custom_message_box
 from .main_window import ElectrumWindow
 from .network_dialog import NetworkDialog
@@ -246,6 +247,15 @@ class ElectrumGui(Logger):
         '''Raises the window for the wallet if it is open.  Otherwise
         opens the wallet and creates a new window for it'''
         wallet = None
+        if self.config.get('tor_auto_on', True):
+            network = self.daemon.network
+            if network:
+                proxy_modifiable = self.config.is_modifiable('proxy')
+                if not proxy_modifiable or not network.detect_tor_proxy():
+                    warn_d = TorWarnDialog(self, path)
+                    warn_d.exec_()
+                    if warn_d.result() < 0:
+                        return
         try:
             wallet = self.daemon.load_wallet(path, None)
         except BaseException as e:
