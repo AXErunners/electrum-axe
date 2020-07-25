@@ -271,11 +271,11 @@ class Xpub:
         return self.xpub
 
     def derive_pubkey(self, for_change, n):
-        xpub = self.xpub_change if for_change else self.xpub_receive
+        xpub = self.xpub_change if for_change % 2 else self.xpub_receive
         if xpub is None:
             rootnode = BIP32Node.from_xkey(self.xpub)
             xpub = rootnode.subkey_at_public_derivation((for_change,)).to_xpub()
-            if for_change:
+            if for_change % 2:
                 self.xpub_change = xpub
             else:
                 self.xpub_receive = xpub
@@ -388,6 +388,36 @@ class BIP32_KeyStore(Deterministic_KeyStore, Xpub):
         pk = node.eckey.get_secret_bytes()
         return pk, True
 
+
+class PS_BIP32_KeyStore(BIP32_KeyStore):
+    """PrivateSend keystore with additional derivations for addresses/change"""
+    type = 'ps_bip32'
+
+    def __init__(self, d):
+        Xpub.__init__(self)
+        Deterministic_KeyStore.__init__(self, d)
+        BIP32_KeyStore.__init__(self, d)
+        # on addr_deriv_offset 0 receving addrs derivation will be 0, change 1
+        # on addr_deriv_offset 1 receving derivation will be 2, change 3, etc
+        self.addr_deriv_offset = d.get('addr_deriv_offset', 1)
+
+    def dump(self):
+        d = BIP32_KeyStore.dump(self)
+        d['addr_deriv_offset'] = self.addr_deriv_offset
+        return d
+
+    def derive_pubkey(self, for_change, n):
+        derivation = self.addr_deriv_offset*2 + int(for_change)
+        return super().derive_pubkey(derivation, n)
+
+    def get_xpubkey(self, c, i):
+        derivation = self.addr_deriv_offset*2 + int(c)
+        return super().get_xpubkey(derivation, i)
+
+    def get_private_key(self, sequence, password):
+        derivation = self.addr_deriv_offset*2 + int(sequence[0])
+        _sequence = (derivation, *sequence[1:])
+        return super().get_private_key(_sequence, password)
 
 
 class Old_KeyStore(Deterministic_KeyStore):
@@ -720,7 +750,10 @@ def load_keystore(storage, name):
         raise WalletFileException(
             'Wallet format requires update.\n'
             'Cannot find keystore for name {}'.format(name))
-    keystore_constructors = {ks.type: ks for ks in [Old_KeyStore, Imported_KeyStore, BIP32_KeyStore]}
+    keystore_constructors = {ks.type: ks for ks in [Old_KeyStore,
+                                                    Imported_KeyStore,
+                                                    BIP32_KeyStore,
+                                                    PS_BIP32_KeyStore]}
     keystore_constructors['hardware'] = hardware_keystore
     try:
         ks_constructor = keystore_constructors[t]

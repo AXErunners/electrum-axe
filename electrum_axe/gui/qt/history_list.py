@@ -424,7 +424,8 @@ class HistoryModel(QAbstractItemModel, Logger):
 
     def get_domain(self):
         '''Overridden in address_dialog.py'''
-        return self.parent.wallet.get_addresses()
+        return (self.parent.wallet.get_addresses() +
+                self.parent.wallet.psman.get_addresses())
 
     @profiler
     def process_history(self, r, group_ps):
@@ -646,7 +647,7 @@ class HistoryModel(QAbstractItemModel, Logger):
             'txpos_in_block': tx_mined_info.txpos,
             'date':           timestamp_to_datetime(tx_mined_info.timestamp),
         })
-        idx_last = idx.siblingAtColumn(HistoryColumns.TXID)
+        idx_last = idx.sibling(idx.row(), HistoryColumns.TXID)
         self.dataChanged.emit(idx, idx_last)
 
     def on_fee_histogram(self):
@@ -988,7 +989,7 @@ class HistoryList(MyTreeView, AcceptFileDragDrop):
         if txid not in self.hm.expanded_groups:
             idx = self.hm.index_from_txid(txid)
             if idx.isValid():
-                idx_last = idx.siblingAtColumn(HistoryColumns.TXID)
+                idx_last = idx.sibling(idx.row(), HistoryColumns.TXID)
                 self.hm.expanded_groups.add(txid)
                 self.expand(idx)
                 self.hm.dataChanged.emit(idx, idx_last)
@@ -997,7 +998,7 @@ class HistoryList(MyTreeView, AcceptFileDragDrop):
         if txid in self.hm.expanded_groups:
             idx = self.hm.index_from_txid(txid)
             if idx.isValid():
-                idx_last = idx.siblingAtColumn(HistoryColumns.TXID)
+                idx_last = idx.sibling(idx.row(), HistoryColumns.TXID)
                 self.hm.expanded_groups.remove(txid)
                 self.collapse(idx)
                 self.hm.dataChanged.emit(idx, idx_last)
@@ -1115,7 +1116,7 @@ class HistoryList(MyTreeView, AcceptFileDragDrop):
             self.setRowHidden(idx.row(), parent_idx, False)
             return False
         for column in self.filter_columns:
-            txt_idx = idx.siblingAtColumn(column)
+            txt_idx = idx.sibling(idx.row(), column)
             txt = self.hm.data(txt_idx, Qt.DisplayRole).value().lower()
             if self.current_filter in txt:
                 # the filter matched, but the date filter might apply

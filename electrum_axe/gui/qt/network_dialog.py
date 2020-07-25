@@ -258,6 +258,7 @@ class NetworkChoiceLayout(object):
         self.proxy_cb = QCheckBox(_('Use proxy'))
         self.proxy_cb.clicked.connect(self.check_disable_proxy)
         self.proxy_cb.clicked.connect(self.set_proxy)
+        self.proxy_cb.setEnabled(self.config.is_modifiable('proxy'))
 
         self.proxy_mode = QComboBox()
         self.proxy_mode.addItems(['SOCKS4', 'SOCKS5'])
@@ -289,10 +290,10 @@ class NetworkChoiceLayout(object):
         self.tor_cb.hide()
         self.tor_cb.clicked.connect(self.use_tor_proxy)
 
-        self.tor_auto_on = QCheckBox(_("Use Tor Proxy on startup"))
-        self.tor_auto_on.setIcon(read_QIcon("tor_logo.png"))
-        self.tor_auto_on.setChecked(self.config.get('tor_auto_on', True))
-        self.tor_auto_on.clicked.connect(self.use_tor_auto_on)
+        self.tor_auto_on_cb = QCheckBox(self.network.TOR_AUTO_ON_MSG)
+        self.tor_auto_on_cb.setIcon(read_QIcon("tor_logo.png"))
+        self.tor_auto_on_cb.setChecked(self.config.get('tor_auto_on', True))
+        self.tor_auto_on_cb.clicked.connect(self.use_tor_auto_on)
 
         grid.addWidget(self.tor_cb, 1, 0, 1, 3)
         grid.addWidget(self.proxy_cb, 2, 0, 1, 3)
@@ -302,7 +303,7 @@ class NetworkChoiceLayout(object):
         grid.addWidget(self.proxy_port, 4, 3)
         grid.addWidget(self.proxy_user, 5, 2)
         grid.addWidget(self.proxy_password, 5, 3)
-        grid.addWidget(self.tor_auto_on, 6, 0, 1, 3)
+        grid.addWidget(self.tor_auto_on_cb, 6, 0, 1, 3)
         grid.addWidget(HelpButton(_('During wallet startup try to detect and use Tor Proxy.')), 6, 4)
         grid.setRowStretch(7, 1)
 

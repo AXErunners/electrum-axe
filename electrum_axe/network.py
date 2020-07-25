@@ -220,6 +220,15 @@ class UntrustedServerReturnedError(Exception):
 
 INSTANCE = None
 
+TOR_WARN_MSG = _('Warning: Tor proxy is not detected, to enable'
+                 ' it read the docs:')
+TOR_DOCS_TITLE = _('Tor Setup Docs')
+TOR_DOCS_URI = ('https://github.com/axerunners/electrum-axe/'
+                'blob/master/docs/tor.md')
+TOR_DOCS_URI_QT = f'<br><a href="{TOR_DOCS_URI}">{TOR_DOCS_TITLE}</a>'
+TOR_DOCS_URI_KIVY = (f'\n\n[color=#00f][ref={TOR_DOCS_URI}]'
+                     f'{TOR_DOCS_TITLE}[/ref][/color]')
+
 
 class Network(Logger):
     """The Network class manages a set of connections to remote electrum
@@ -227,6 +236,11 @@ class Network(Logger):
     """
 
     LOGGING_SHORTCUT = 'n'
+
+    TOR_WARN_MSG_QT = f'{TOR_WARN_MSG} {TOR_DOCS_URI_QT}'
+    TOR_WARN_MSG_KIVY = f'{TOR_WARN_MSG} {TOR_DOCS_URI_KIVY}'
+    TOR_WARN_MSG_TXT = f'{TOR_WARN_MSG}\n{TOR_DOCS_URI}'
+    TOR_AUTO_ON_MSG = _('Detect Tor proxy on wallet startup')
 
     def __init__(self, config: SimpleConfig=None):
         global INSTANCE
@@ -243,21 +257,10 @@ class Network(Logger):
         self.config = SimpleConfig(config) if isinstance(config, dict) else config  # type: SimpleConfig
 
         # Autodetect and enable Tor proxy on Network init
-        self.tor_docs_uri = ('https://github.com/axerunners/electrum-axe/'
-                             'blob/%s/docs/tor.md' % ELECTRUM_VERSION)
-        self.tor_docs_title = 'Tor Setup Docs'
-        self.tor_docs_uri_qt = ('<br><br><a href="%s">%s</a>' %
-                                (self.tor_docs_uri, self.tor_docs_title))
-        self.tor_warn_msg = ('Tor proxy is disabled, to enable it read'
-                             ' the docs.')
-        self.tor_auto_on = self.config.get('tor_auto_on', True)
-        self.tor_detected = self.detect_tor_proxy(self.config.get('proxy'))
-        if self.tor_auto_on and self.tor_detected:
-            self.config.set_key('proxy', self.tor_detected, False)
-        if self.config.get('proxy') and self.tor_detected:
-            self.tor_on = True
-        else:
-            self.tor_on = False
+        if self.config.get('tor_auto_on', True):
+            tor_detected = self.detect_tor_proxy()
+            if tor_detected:
+                self.config.set_key('proxy', tor_detected, False)
 
         blockchain.read_blockchains(self.config)
         self.logger.info(f"blockchains {list(map(lambda b: b.forkpoint, blockchain.blockchains.values()))}")
@@ -1061,9 +1064,15 @@ class Network(Logger):
             r"bad-qc-version",
             r"bad-qc-quorum-hash",
             r"bad-qc-type",
+            r"bad-qc-payload",
+            r"commitment-not-found",
+            r"excess-quorums",
+
 
             r"bad-protx-addr",
+            r"bad-protx-ipaddr",
             r"bad-protx-addr-port",
+            r"bad-protx-ipaddr-port",
             r"bad-protx-sig",
             r"bad-protx-inputs-hash",
             r"bad-protx-type",
@@ -1090,6 +1099,7 @@ class Network(Logger):
             r"bad-tx-type",
             r"bad-tx-type-check",
             r"bad-tx-type-proc",
+            r"failed-check-special-tx",
 
             r"bad-cbtx-type",
             r"bad-cbtx-invalid",
@@ -1097,6 +1107,8 @@ class Network(Logger):
             r"bad-cbtx-version",
             r"bad-cbtx-height",
             r"bad-cbtx-mnmerkleroot",
+            r"failed-calc-cb-mnmerkleroot",
+            r"failed-dmn-block",
 
             r"bad-txns-payload-oversize",
             r"bad-txns-type",

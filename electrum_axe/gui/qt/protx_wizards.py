@@ -13,14 +13,15 @@ from PyQt5.QtWidgets import (QLineEdit, QComboBox, QListWidget, QDoubleSpinBox,
                              QGroupBox, QCheckBox, QPushButton, QGridLayout,
                              QFileDialog, QWizard)
 
+from electrum_axe import constants
 from electrum_axe import axe_tx
-from electrum_axe.bitcoin import COIN, is_b58_address
+from electrum_axe.bitcoin import COIN, is_b58_address, b58_address_to_hash160
 from electrum_axe.axe_tx import TxOutPoint, service_to_ip_port
 from electrum_axe.protx import ProTxMN, ProTxService, ProRegTxExc
 from electrum_axe.util import bfh, bh2u
 from electrum_axe.i18n import _
 
-from .util import MONOSPACE_FONT, icon_path, read_QIcon
+from .util import MONOSPACE_FONT, icon_path, read_QIcon, ButtonsLineEdit
 
 
 class ValidationError(Exception): pass
@@ -89,16 +90,16 @@ class OperationTypeWizardPage(QWizardPage):
         self.rb_create = QRadioButton(_('Create and register DIP3 Masternode'))
         self.rb_connect = QRadioButton(_('Connect to registered DIP3 '
                                          'Masternode'))
-        self.rb_import.setChecked(True)
+        self.rb_create.setChecked(True)
         self.rb_connect.setEnabled(False)
         self.button_group = QButtonGroup()
         self.button_group.addButton(self.rb_import)
         self.button_group.addButton(self.rb_create)
         self.button_group.addButton(self.rb_connect)
         gb_vbox = QVBoxLayout()
-        gb_vbox.addWidget(self.rb_import)
         gb_vbox.addWidget(self.rb_create)
         gb_vbox.addWidget(self.rb_connect)
+        gb_vbox.addWidget(self.rb_import)
         self.gb_create = QGroupBox(_('Select operation type'))
         self.gb_create.setLayout(gb_vbox)
 
@@ -523,7 +524,8 @@ class BlsKeysWizardPage(QWizardPage):
         self.bls_info_label.setWordWrap(True)
         self.bls_info_label.setObjectName('info-label')
         self.bls_info_label.hide()
-        self.bls_info_edit = SLineEdit()
+        self.bls_info_edit = ButtonsLineEdit()
+        self.bls_info_edit.addCopyButton(self.parent.gui.app)
         self.bls_info_edit.setReadOnly(True)
         self.bls_info_edit.hide()
 
@@ -903,8 +905,16 @@ class SaveDip3WizardPage(QWizardPage):
             except ProRegTxExc as e:
                 gui.show_error(e)
                 return True
-            gui.payto_e.setText(manager.wallet.get_unused_address())
-            gui.extra_payload.set_extra_data(tx_type, pro_tx)
+            gui.do_clear()
+            mn = self.new_mn
+            if mn.collateral.is_null:
+                gui.amount_e.setText('1000')
+            mn_addrs = [mn.owner_addr, mn.voting_addr, mn.payout_address]
+            for addr in manager.wallet.get_unused_addresses():
+                if addr not in mn_addrs:
+                    gui.payto_e.setText(addr)
+                    break
+            gui.extra_payload.set_extra_data(tx_type, pro_tx, alias)
             gui.show_extra_payload()
             gui.tabs.setCurrentIndex(gui.tabs.indexOf(gui.send_tab))
             parent.pro_tx_prepared = tx_descr
@@ -956,8 +966,12 @@ class CollateralWizardPage(QWizardPage):
         self.setTitle('Select Collateral')
         self.setSubTitle('Select collateral output for Masternode.')
 
-        self.frozen_cb = QCheckBox('Include frozen addresses')
+        self.no_collat_cb = QCheckBox('Create collateral as ProRegTx output')
+        self.no_collat_cb.setChecked(True)
+        self.no_collat_cb.stateChanged.connect(self.no_collat_state_changed)
+        self.frozen_cb = QCheckBox('Include frozen coins/addresses')
         self.frozen_cb.setChecked(False)
+        self.frozen_cb.setEnabled(False)
         self.frozen_cb.stateChanged.connect(self.frozen_state_changed)
         self.not_found = QLabel('No 1000 AXE outputs were found.')
         self.not_found.setObjectName('err-label')
@@ -965,6 +979,7 @@ class CollateralWizardPage(QWizardPage):
 
         self.outputs_list = OutputsList()
         self.outputs_list.outputSelected.connect(self.on_set_output)
+        self.outputs_list.setEnabled(False)
 
         self.hash_label = QLabel('Transaction hash:')
         self.hash = SLineEdit()
@@ -986,18 +1001,19 @@ class CollateralWizardPage(QWizardPage):
         self.err.hide()
 
         self.layout = QGridLayout()
-        self.layout.addWidget(self.frozen_cb, 0, 0)
-        self.layout.addWidget(self.not_found, 0, 1, Qt.AlignRight)
-        self.layout.addWidget(self.outputs_list, 1, 0, 1, -1)
-        self.layout.addWidget(self.hash_label, 2, 0)
-        self.layout.addWidget(self.hash, 2, 1)
-        self.layout.addWidget(self.index_label, 3, 0)
-        self.layout.addWidget(self.index, 3, 1)
-        self.layout.addWidget(self.addr_label, 4, 0)
-        self.layout.addWidget(self.addr, 4, 1)
-        self.layout.addWidget(self.err_label, 5, 0)
-        self.layout.addWidget(self.err, 5, 1)
-        self.layout.addWidget(self.value, 6, 1)
+        self.layout.addWidget(self.no_collat_cb, 0, 0)
+        self.layout.addWidget(self.frozen_cb, 1, 0)
+        self.layout.addWidget(self.not_found, 1, 1, Qt.AlignRight)
+        self.layout.addWidget(self.outputs_list, 2, 0, 1, -1)
+        self.layout.addWidget(self.hash_label, 3, 0)
+        self.layout.addWidget(self.hash, 3, 1)
+        self.layout.addWidget(self.index_label, 4, 0)
+        self.layout.addWidget(self.index, 4, 1)
+        self.layout.addWidget(self.addr_label, 5, 0)
+        self.layout.addWidget(self.addr, 5, 1)
+        self.layout.addWidget(self.err_label, 6, 0)
+        self.layout.addWidget(self.err, 6, 1)
+        self.layout.addWidget(self.value, 7, 1)
 
         self.layout.setColumnStretch(1, 1)
         self.layout.setRowStretch(6, 1)
@@ -1013,6 +1029,29 @@ class CollateralWizardPage(QWizardPage):
         self.err.show()
 
     @pyqtSlot()
+    def no_collat_state_changed(self):
+        if self.no_collat_cb.isChecked():
+            self.hide_error()
+            self.not_found.hide()
+            self.frozen_cb.setEnabled(False)
+            self.outputs_list.setEnabled(False)
+            self.hash.setText('0'*64)
+            self.index.setText('-1')
+            self.addr.setText('')
+        else:
+            self.hash.setText('')
+            self.index.setText('')
+            self.frozen_cb.setEnabled(True)
+            self.outputs_list.setEnabled(True)
+            new_mn = self.parent.new_mn
+            self.scan_for_outputs()
+            if new_mn.collateral.hash and new_mn.collateral.index >= 0:
+                if not self.select_collateral(new_mn.collateral):
+                    self.hash.setText(bh2u(new_mn.collateral.hash[::-1]))
+                    self.index.setText(str(new_mn.collateral.index))
+                    self.addr.setText('')
+
+    @pyqtSlot()
     def frozen_state_changed(self):
         self.hide_error()
         self.not_found.hide()
@@ -1022,6 +1061,7 @@ class CollateralWizardPage(QWizardPage):
             if not self.select_collateral(new_mn.collateral):
                 self.hash.setText(bh2u(new_mn.collateral.hash[::-1]))
                 self.index.setText(str(new_mn.collateral.index))
+                self.addr.setText('')
 
     def scan_for_outputs(self):
         self.outputs_list.clear()
@@ -1032,6 +1072,8 @@ class CollateralWizardPage(QWizardPage):
             excluded = wallet.frozen_addresses
         coins = wallet.get_utxos(domain=None, excluded_addresses=excluded,
                                  mature_only=True, confirmed_only=True)
+        if not self.frozen_cb.isChecked():
+            coins = [c for c in coins if not wallet.is_frozen_coin(c)]
         coins = list(filter(lambda x: (x['value'] == (1000 * COIN)), coins))
 
         if len(coins) > 0:
@@ -1046,6 +1088,12 @@ class CollateralWizardPage(QWizardPage):
         if len(match):
             self.outputs_list.setCurrentItem(match[0])
             return True
+        self.frozen_cb.setChecked(True)
+        match = self.outputs_list.findItems(str(c), Qt.MatchExactly)
+        if len(match):
+            self.outputs_list.setCurrentItem(match[0])
+            return True
+        self.frozen_cb.setChecked(False)
         return False
 
     def on_set_output(self, vin):
@@ -1058,11 +1106,13 @@ class CollateralWizardPage(QWizardPage):
 
     def initializePage(self):
         new_mn = self.parent.new_mn
-        self.scan_for_outputs()
-        if new_mn.collateral.hash and new_mn.collateral.index >= 0:
-            if not self.select_collateral(new_mn.collateral):
-                self.hash.setText(bh2u(new_mn.collateral.hash[::-1]))
-                self.index.setText(str(new_mn.collateral.index))
+        c_idx = new_mn.collateral.index
+        c_hash = new_mn.collateral.hash
+        if c_hash and c_idx >= 0:
+            self.no_collat_cb.setChecked(False)
+        else:
+            self.hash.setText('0'*64)
+            self.index.setText('-1')
 
     def isComplete(self):
         return len(self.hash.text()) == 64
@@ -1488,6 +1538,9 @@ class Dip3MasternodeWizard(QWizard):
         prevout_hash, prevout_n = outpoint
         prevout_n = int(prevout_n)
 
+        if prevout_hash == '0'*64 and prevout_n == -1:
+            return prevout_hash, prevout_n, addr
+
         coins = self.wallet.get_utxos(domain=None, excluded_addresses=None,
                                       mature_only=True, confirmed_only=True)
 
@@ -1539,8 +1592,6 @@ class Dip3MasternodeWizard(QWizard):
             raise ValidationError('Payout address must differ from owner'
                                   'and voting addresses')
 
-        if not self.wallet.is_mine(o_addr):
-            raise ValidationError('Owner address not found in the wallet')
         keystore = self.wallet.keystore
         if not hasattr(keystore, 'sign_digest') and not ignore_hw_warn:
             raise HwWarnError('Warning: sign_digest not implemented in '
@@ -1554,6 +1605,12 @@ class Dip3MasternodeWizard(QWizard):
             raise ValidationError('Wrong voting address format')
         if not is_b58_address(p_addr):
             raise ValidationError('Wrong payout address format')
+
+        if b58_address_to_hash160(o_addr)[0] != constants.net.ADDRTYPE_P2PKH:
+            raise ValidationError('Owner address must be of P2PKH type')
+        if b58_address_to_hash160(v_addr)[0] != constants.net.ADDRTYPE_P2PKH:
+            raise ValidationError('Voting address must be of P2PKH type')
+
         return o_addr, v_addr, p_addr
 
 
@@ -1644,9 +1701,11 @@ class ExportToFileWizardPage(QWizardPage):
         layout.addWidget(self.lb_aliases)
         layout.addWidget(self.lw_aliases)
         self.setLayout(layout)
+        self.aliases = []
 
     def initializePage(self):
         self.parent.setButtonText(QWizard.CommitButton, 'Save')
+        self.aliases = [i.text() for i in self.lw_aliases.selectedItems()]
 
     @pyqtSlot()
     def on_selection_changed(self):
