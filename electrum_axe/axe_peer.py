@@ -46,7 +46,7 @@ from .version import ELECTRUM_VERSION
 
 
 EMPTY_PAYLOAD_CHECKSUM = b'\x5D\xF6\xE0\xE2'
-AXE_PROTO_VERSION = 70214
+AXE_PROTO_VERSION = 70216
 LOCAL_IP_ADDR = ipaddress.ip_address('127.0.0.1')
 PAYLOAD_LIMIT = 32*2**20  # 32MiB
 READ_LIMIT = 64*2**10     # 64KiB
@@ -378,7 +378,8 @@ class AxePeer(Logger):
         msg = AxeVersionMsg(version, services, timestamp,
                              recv_services, recv_ip, recv_port,
                              trans_services, trans_ip, trans_port,
-                             nonce, user_agent, start_height, relay, None)
+                             nonce, user_agent, start_height, relay,
+                             None, None)
         await self.send_msg('version', msg.serialize())
 
     async def read_next_msg(self):
