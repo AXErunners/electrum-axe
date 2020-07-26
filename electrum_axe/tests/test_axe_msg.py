@@ -14,7 +14,6 @@ class TestAxeMsg(TestCaseForTestnet):
 
     def test_version_msg(self):
         msg = AxeVersionMsg.from_hex(VERSION_MSG)
-        print(msg)
         assert msg.version == 70216
         assert msg.services == 5
         assert msg.timestamp == 1586713440
@@ -30,7 +29,7 @@ class TestAxeMsg(TestCaseForTestnet):
         assert msg.relay == 1
         assert msg.mnauth_challenge == bfh('c60f1b0590d4151a5cac6414ba4683df'
                                            '2a5ba3b2cc6f7336a1b70907eaeff2ce')
-        assert msg.fMasternode == 0
+        assert msg.fMasternode == None
         assert bh2u(msg.serialize()) == VERSION_MSG
 
     def test_dsa_msg(self):
