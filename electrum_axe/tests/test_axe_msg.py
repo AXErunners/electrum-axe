@@ -14,6 +14,7 @@ class TestAxeMsg(TestCaseForTestnet):
 
     def test_version_msg(self):
         msg = AxeVersionMsg.from_hex(VERSION_MSG)
+        print(msg)
         assert msg.version == 70216
         assert msg.services == 5
         assert msg.timestamp == 1586713440
@@ -29,7 +30,7 @@ class TestAxeMsg(TestCaseForTestnet):
         assert msg.relay == 1
         assert msg.mnauth_challenge == bfh('c60f1b0590d4151a5cac6414ba4683df'
                                            '2a5ba3b2cc6f7336a1b70907eaeff2ce')
-        assert msg.fMasternode == None
+        assert msg.fMasternode == 0
         assert bh2u(msg.serialize()) == VERSION_MSG
 
     def test_dsa_msg(self):
@@ -96,7 +97,7 @@ VERSION_MSG = ('4812010005000000000000006053935e0000000005000000'
                '000000000000000000000000000000000000000000000000'
                '83c8f990264da78a122f41786520436f72653a312e352e30'
                '2e312f3cb8000001c60f1b0590d4151a5cac6414ba4683df'
-               '2a5ba3b2cc6f7336a1b70907eaeff2ce')
+               '2a5ba3b2cc6f7336a1b70907eaeff2ce7b3000')
 
 
 DSA_MSG = ('020000000200000001df2149d4b1805f1842aace662956f8'
