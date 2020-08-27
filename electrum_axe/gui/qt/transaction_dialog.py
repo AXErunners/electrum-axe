@@ -98,7 +98,7 @@ class TxDialog(QDialog, MessageBoxMixin):
         # if the wallet can populate the inputs with more info, do it now.
         # as a result, e.g. we might learn an imported address tx is segwit,
         # in which case it's ok to display txid
-        tx.add_inputs_info(self.wallet)
+        self.wallet.psman.add_tx_inputs_info(tx)
 
         self.setMinimumWidth(950)
         self.setWindowTitle(_("Transaction"))

@@ -131,7 +131,7 @@ class PayToEdit(CompletionTextEdit, ScanQRTextEdit, Logger):
         self.payto_address = None
         if len(lines) == 1:
             data = lines[0]
-            if data.startswith("axe:"):
+            if data.startswith("axe:") or data.startswith("pay:"):
                 self.scan_f(data)
                 return
             try:
@@ -206,7 +206,7 @@ class PayToEdit(CompletionTextEdit, ScanQRTextEdit, Logger):
 
     def qr_input(self):
         data = super(PayToEdit,self).qr_input()
-        if data.startswith("axe:"):
+        if data.startswith("axe:") or data.startswith("pay:"):
             self.scan_f(data)
             # TODO: update fee
 

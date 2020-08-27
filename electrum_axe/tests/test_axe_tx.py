@@ -1,6 +1,7 @@
 from electrum_axe import transaction
-from electrum_axe.axe_tx import AxeTxError
-from electrum_axe.util import bfh
+from electrum_axe.axe_tx import AxeTxError, TxOutPoint
+from electrum_axe.transaction import BCDataStream
+from electrum_axe.util import bfh, bh2u
 from electrum_axe.commands import Commands
 
 from . import SequentialTestCase
@@ -194,6 +195,49 @@ WRONG_SPEC_TX = (  # Tx version < 3
     '74150412caf3e98e9601210293360bf2a2e810673412bc6e8e0e358f3fb7bdbe9a667b'
     '3d0103f761cc69a211feffffff0189fa433e000000001976a914551ab8ca96a9142217'
     '4d22769c3a4f90b2dcd0de88ac00000000')
+
+
+TEST_HASH = 'a7b64e6eab08bf2b87e64f6a248eb7eeef8a3c7fe07cadb0c631090100bb0002'
+
+
+class TestAxeTx(SequentialTestCase):
+
+    def test_tx_outpoint(self):
+        # test normal outpoint
+        o = TxOutPoint(bfh(TEST_HASH)[::-1], 1)
+        assert o.is_null == False
+        assert o.hash_is_null == False
+        assert str(o) == TEST_HASH + ':1'
+        ser = o.serialize()
+        assert bh2u(ser) == bh2u(bfh(TEST_HASH)[::-1]) + '01000000'
+        s = BCDataStream()
+        s.write(ser)
+        o2 = TxOutPoint.read_vds(s)
+        assert str(o2) == str(o)
+
+        # test null outpoint
+        o = TxOutPoint(b'\x00'*32, -1)
+        assert o.is_null == True
+        assert o.hash_is_null == True
+        assert str(o) == '0'*64 + ':-1'
+        ser = o.serialize()
+        assert bh2u(ser) == '0'*64 + 'f'*8
+        s = BCDataStream()
+        s.write(ser)
+        o2 = TxOutPoint.read_vds(s)
+        assert str(o2) == str(o)
+
+        # test null hash
+        o = TxOutPoint(b'\x00'*32, 0)
+        assert o.is_null == False
+        assert o.hash_is_null == True
+        assert str(o) == '0'*64 + ':0'
+        ser = o.serialize()
+        assert bh2u(ser) == '0'*64 + '00000000'
+        s = BCDataStream()
+        s.write(ser)
+        o2 = TxOutPoint.read_vds(s)
+        assert str(o2) == str(o)
 
 
 class TestAxeSpecTxSerialization(SequentialTestCase):

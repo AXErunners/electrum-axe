@@ -413,7 +413,7 @@ class AxeVersionMsg(AxeMsgBase):
               'recv_services recv_ip recv_port '
               'trans_services trans_ip trans_port '
               'nonce user_agent start_height '
-              'relay mnauth_challenge').split()
+              'relay mnauth_challenge fMasternode').split()
 
     def __init__(self, *args, **kwargs):
         super(AxeVersionMsg, self).__init__(*args, **kwargs)
@@ -432,6 +432,8 @@ class AxeVersionMsg(AxeMsgBase):
             res += (', relay: 0x%.2X' % self.relay)
         if self.mnauth_challenge is not None:
             res += (', mnauth_challenge: %s' % bh2u(self.mnauth_challenge))
+        if self.fMasternode is not None:
+            res += (', fMasternode: %s' % self.fMasternode)
         return res
 
     def serialize(self):
@@ -465,6 +467,8 @@ class AxeVersionMsg(AxeMsgBase):
             res += pack('B', self.relay)                # relay
         if self.mnauth_challenge is not None:
             res += self.mnauth_challenge                # mnauth_challenge
+        if self.fMasternode is not None:
+            res += pack('B', self.fMasternode)          # fMasternode
         return res
 
     @classmethod
@@ -487,21 +491,23 @@ class AxeVersionMsg(AxeMsgBase):
 
         relay = None
         mnauth_challenge = None
+        fMasternode = None
         bleft = vds.bytes_left()
-        if bleft == 1:
-            relay = vds.read_uchar()
-        elif bleft == 32:
-            mnauth_challenge = vds.read_bytes(32)
-        elif bleft == 33:
-            relay = vds.read_uchar()
-            mnauth_challenge = vds.read_bytes(32)
+        if bleft > 0:
+            relay = vds.read_uchar()                    # relay
+        bleft = vds.bytes_left()
+        if bleft > 0:
+            mnauth_challenge = vds.read_bytes(32)       # mnauth_challenge
+        bleft = vds.bytes_left()
+        if bleft > 0:
+            fMasternode = vds.read_uchar()              # fMasternode
         if alone_data and vds.can_read_more():
             raise SerializationError(f'{cls}: extra junk at the end')
         return AxeVersionMsg(version, services, timestamp,
                               recv_services, recv_ip, recv_port,
                               trans_services, trans_ip, trans_port,
                               nonce, user_agent, start_height,
-                              relay, mnauth_challenge)
+                              relay, mnauth_challenge, fMasternode)
 
 
 class AxeSendDsqMsg(AxeMsgBase):

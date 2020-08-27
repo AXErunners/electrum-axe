@@ -33,7 +33,7 @@ from PyQt5.QtWidgets import (QAbstractItemView, QHeaderView, QComboBox,
 
 from electrum_axe.i18n import _
 from electrum_axe.axe_ps import sort_utxos_by_ps_rounds
-from electrum_axe.axe_tx import PSCoinRounds, SPEC_TX_NAMES
+from electrum_axe.axe_tx import PSCoinRounds
 from electrum_axe.logging import Logger
 from electrum_axe.util import profiler
 
@@ -47,6 +47,7 @@ class UTXOColumns(IntEnum):
     AMOUNT = 3
     HEIGHT = 4
     PS_ROUNDS = 5
+    KEYSTORE_TYPE = 6
 
 
 class UTXOModel(QAbstractItemModel, Logger):
@@ -59,6 +60,7 @@ class UTXOModel(QAbstractItemModel, Logger):
         UTXOColumns.ADDRESS: lambda x: x['address'],
         UTXOColumns.LABEL: lambda x: x['label'],
         UTXOColumns.PS_ROUNDS: lambda x: x['ix'],
+        UTXOColumns.KEYSTORE_TYPE: lambda x: x['is_ps_ks'],
         UTXOColumns.AMOUNT: lambda x: x['balance'],
         UTXOColumns.HEIGHT: lambda x: x['height'],
         UTXOColumns.OUTPOINT: lambda x: x['outpoint'],
@@ -86,6 +88,7 @@ class UTXOModel(QAbstractItemModel, Logger):
             UTXOColumns.ADDRESS: _('Address'),
             UTXOColumns.LABEL: _('Label'),
             UTXOColumns.PS_ROUNDS: _('PS Rounds'),
+            UTXOColumns.KEYSTORE_TYPE : _('Keystore'),
             UTXOColumns.AMOUNT: _('Amount'),
             UTXOColumns.HEIGHT: _('Height'),
             UTXOColumns.OUTPOINT: _('Output point'),
@@ -135,6 +138,7 @@ class UTXOModel(QAbstractItemModel, Logger):
         label = coin_item['label']
         balance = coin_item['balance']
         ps_rounds = coin_item['ps_rounds']
+        is_ps_ks = coin_item['is_ps_ks']
         if ps_rounds is None:
             ps_rounds = 'N/A'
         elif ps_rounds == PSCoinRounds.COLLATERAL:
@@ -154,7 +158,7 @@ class UTXOModel(QAbstractItemModel, Logger):
         elif role not in (Qt.DisplayRole, Qt.EditRole):
             if role == Qt.TextAlignmentRole:
                 if col in [UTXOColumns.AMOUNT, UTXOColumns.HEIGHT,
-                           UTXOColumns.PS_ROUNDS]:
+                           UTXOColumns.PS_ROUNDS, UTXOColumns.KEYSTORE_TYPE]:
                     return QVariant(Qt.AlignRight|Qt.AlignVCenter)
                 else:
                     return QVariant(Qt.AlignVCenter)
@@ -177,6 +181,8 @@ class UTXOModel(QAbstractItemModel, Logger):
             return QVariant(height)
         elif col == UTXOColumns.PS_ROUNDS:
             return QVariant(ps_rounds)
+        elif col == UTXOColumns.KEYSTORE_TYPE:
+            return QVariant(_('PS Keystore') if is_ps_ks else _('Main'))
         else:
             return QVariant()
 
@@ -185,13 +191,21 @@ class UTXOModel(QAbstractItemModel, Logger):
         coin_items = []
 
         show_ps = self.view.show_ps
+        show_ps_ks = self.view.show_ps_ks
         w = self.wallet
         if show_ps == 0:  # All
             utxos = w.get_utxos(include_ps=True)
         elif show_ps == 1:  # PrivateSend
+            utxos = w.get_utxos(min_rounds=PSCoinRounds.COLLATERAL)
+        elif show_ps == 2:  # PS Other coins
             utxos = w.get_utxos(min_rounds=PSCoinRounds.MINUSINF)
+            utxos = [c for c in utxos if c['ps_rounds'] <= PSCoinRounds.OTHER]
         else:  # Regular
             utxos = w.get_utxos()
+        if show_ps_ks == 1:     # PS Keystore
+            utxos = [c for c in utxos if c['is_ps_ks']]
+        elif show_ps_ks == 2:   # Main Keystore
+            utxos = [c for c in utxos if not c['is_ps_ks']]
         utxos.sort(key=sort_utxos_by_ps_rounds)
         for i, utxo in enumerate(utxos):
             address = utxo['address']
@@ -208,6 +222,7 @@ class UTXOModel(QAbstractItemModel, Logger):
                 'coinbase': utxo['coinbase'],
                 'islock': utxo['islock'],
                 'ps_rounds': utxo['ps_rounds'],
+                'is_ps_ks': utxo['is_ps_ks'],
                 # append model fields
                 'ix': i,
                 'outpoint': outpoint,
@@ -266,7 +281,8 @@ class UTXOModel(QAbstractItemModel, Logger):
 class UTXOList(MyTreeView):
 
     filter_columns = [UTXOColumns.ADDRESS, UTXOColumns.PS_ROUNDS,
-                      UTXOColumns.LABEL, UTXOColumns.OUTPOINT]
+                      UTXOColumns.KEYSTORE_TYPE, UTXOColumns.LABEL,
+                      UTXOColumns.OUTPOINT]
 
     def __init__(self, parent, model):
         stretch_column = UTXOColumns.LABEL
@@ -291,16 +307,26 @@ class UTXOList(MyTreeView):
                 header.setSectionResizeMode(col, QHeaderView.ResizeToContents)
 
         self.show_ps = 0
+        self.show_ps_ks = 0
         self.ps_button = QComboBox(self)
         self.ps_button.currentIndexChanged.connect(self.toggle_ps)
-        for t in [_('All'), _('PrivateSend'), _('Regular')]:
+        for t in [_('All'), _('PrivateSend'),
+                  _('PS Other coins'), _('Regular')]:
             self.ps_button.addItem(t)
+        self.ps_ks_button = QComboBox(self)
+        self.ps_ks_button.currentIndexChanged.connect(self.toggle_ps_ks)
+        for t in [_('All'), _('PS Keystore'), _('Main')]:
+            self.ps_ks_button.addItem(t)
 
     def get_toolbar_buttons(self):
-        return QLabel(_("Filter:")), self.ps_button
+        return (QLabel('    %s ' % _("Filter PS Type:")),
+                self.ps_button,
+                QLabel('    %s ' % _("Keystore:")),
+                self.ps_ks_button)
 
     def on_hide_toolbar(self):
         self.show_ps = 0
+        self.show_ps_ks = 0
         self.update()
 
     def save_toolbar_state(self, state, config):
@@ -309,7 +335,14 @@ class UTXOList(MyTreeView):
     def toggle_ps(self, state):
         if state == self.show_ps:
             return
+        self.ps_button.setCurrentIndex(state)
         self.show_ps = state
+        self.update()
+
+    def toggle_ps_ks(self, state):
+        if state == self.show_ps_ks:
+            return
+        self.show_ps_ks = state
         self.update()
 
     def update(self):

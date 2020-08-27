@@ -73,6 +73,9 @@ base_units_list = ['AXE', 'mAXE', 'uAXE', 'haks']  # list(dict) does not guarant
 DECIMAL_POINT_DEFAULT = 8  # AXE
 
 
+FILE_OWNER_MODE = stat.S_IREAD | stat.S_IWRITE
+
+
 class UnknownBaseUnit(Exception): pass
 
 
@@ -721,7 +724,7 @@ def parse_URI(uri: str, on_pr: Callable = None, *, loop=None) -> dict:
         return {'address': uri}
 
     u = urllib.parse.urlparse(uri)
-    if u.scheme != 'axe':
+    if u.scheme not in ['axe', 'pay']:
         raise InvalidBitcoinURI("Not a Axe URI")
     address = u.path
 
@@ -737,6 +740,11 @@ def parse_URI(uri: str, on_pr: Callable = None, *, loop=None) -> dict:
             raise InvalidBitcoinURI(f'Duplicate Key: {repr(k)}')
 
     out = {k: v[0] for k, v in pq.items()}
+    if u.scheme == 'pay':
+        out_keys = list(out.keys())
+        len_out_keys = len(out_keys)
+        if address or len_out_keys != 1 or out_keys[0] != 'r':
+            raise InvalidBitcoinURI(f'pay: scheme allowed only with "r" query')
     if address:
         if not bitcoin.is_address(address):
             raise InvalidBitcoinURI(f"Invalid Axe address: {address}")
@@ -904,6 +912,7 @@ def export_meta(meta, fileName):
     try:
         with open(fileName, 'w+', encoding='utf-8') as f:
             json.dump(meta, f, indent=4, sort_keys=True)
+        os.chmod(fileName, FILE_OWNER_MODE)
     except (IOError, os.error) as e:
         _logger.exception('')
         raise FileExportFailed(e)

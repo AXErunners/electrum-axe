@@ -23,6 +23,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+import copy
 import threading
 from collections import defaultdict
 
@@ -100,7 +101,7 @@ class ProTxMN:
     def as_dict(self):
         res = {}
         for f in self.fields:
-            v = getattr(self, f)
+            v = copy.deepcopy(getattr(self, f))
             if isinstance(v, tuple):
                 res[f] = dict(v._asdict())
             else:
@@ -113,7 +114,7 @@ class ProTxMN:
         for f in cls.fields:
             if f not in d:
                 raise ProTxMNExc('Key %s is missing in supplied dict')
-            v = d[f]
+            v = copy.deepcopy(d[f])
             if f == 'collateral':
                 v['hash'] = bfh(v['hash'])[::-1]
                 setattr(mn, f, TxOutPoint(**v))
@@ -269,6 +270,8 @@ class ProTxManager(Logger):
         if not mn:
             raise ProRegTxExc('Masternode alias %s not found' % alias)
 
+        coll_hash_is_null = mn.collateral.hash_is_null
+
         if mn.protx_hash:
             raise ProRegTxExc('Masternode already registered')
 
@@ -279,7 +282,8 @@ class ProTxManager(Logger):
             raise ProRegTxExc('Collateral hash is not set')
 
         if not mn.collateral.index >= 0:
-            raise ProRegTxExc('Collateral index is not set')
+            if not coll_hash_is_null:
+                raise ProRegTxExc('Collateral index is not set')
 
         if mn.is_operated and not mn.service.ip:
             raise ProRegTxExc('Service IP address is not set')
@@ -307,17 +311,19 @@ class ProTxManager(Logger):
         KeyIdOwner = b58_address_to_hash160(mn.owner_addr)[1]
         PubKeyOperator = bfh(mn.pubkey_operator)
         KeyIdVoting = b58_address_to_hash160(mn.voting_addr)[1]
+        payloadSig = b'' if coll_hash_is_null else b'\x00'*65
 
         tx = AxeProRegTx(1, mn.type, mn.mode, mn.collateral, mn.service.ip,
                           mn.service.port, KeyIdOwner, PubKeyOperator,
                           KeyIdVoting, mn.op_reward, scriptPayout,
-                          b'\x00'*32, b'\x00'*65)
+                          b'\x00'*32, payloadSig)
 
-        tx.payload_sig_msg_part = ('%s|%s|%s|%s|' %
-                                   (mn.payout_address,
-                                    mn.op_reward,
-                                    mn.owner_addr,
-                                    mn.voting_addr))
+        if not coll_hash_is_null:
+            tx.payload_sig_msg_part = ('%s|%s|%s|%s|' %
+                                       (mn.payout_address,
+                                        mn.op_reward,
+                                        mn.owner_addr,
+                                        mn.voting_addr))
         return tx
 
     def prepare_pro_up_srv_tx(self, mn):
@@ -373,6 +379,38 @@ class ProTxManager(Logger):
                             PubKeyOperator, KeyIdVoting, scriptPayout,
                             b'\x00'*32, b'\x00'*65)
         return tx
+
+    def find_mn_by_proregtx(self, tx):
+        txid = tx.txid()
+        ep = tx.extra_payload
+        ep_collateral = ep.collateralOutpoint
+        if ep_collateral.hash_is_null:
+            ep_service = ProTxService(ep.ipAddress, ep.port)
+            for alias, mn in self.mns.items():
+                if mn.protx_hash:
+                    continue
+                keyid_owner = b58_address_to_hash160(mn.owner_addr)[1]
+                pubkey_operator = bfh(mn.pubkey_operator)
+                keyid_voting = b58_address_to_hash160(mn.voting_addr)[1]
+                script_payout = bfh(Transaction.pay_script(TYPE_ADDRESS,
+                                                           mn.payout_address))
+                if (mn.type == ep.type and mn.mode == ep.mode
+                        and mn.collateral.hash_is_null
+                        and str(mn.service) == str(ep_service)
+                        and keyid_owner == ep.KeyIdOwner
+                        and pubkey_operator == ep.PubKeyOperator
+                        and keyid_voting == ep.KeyIdVoting
+                        and mn.op_reward == ep.operatorReward
+                        and script_payout == ep.scriptPayout):
+                    index = ep_collateral.index
+                    collateral = TxOutPoint(bfh(txid)[::-1], index)
+                    return mn, txid, collateral
+        else:
+            for alias, mn in self.mns.items():
+                if mn.protx_hash:
+                    continue
+                if str(mn.collateral) == str(ep_collateral):
+                    return mn, txid, None
 
     def prepare_pro_up_rev_tx(self, alias, reason):
         '''Prepare and return ProUpRevTx from ProTxMN alias'''
