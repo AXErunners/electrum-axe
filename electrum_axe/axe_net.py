@@ -739,12 +739,16 @@ class AxeNet(Logger):
             self.logger.info('ignore excess getmnlistd request')
             return
         try:
+            res = None
             err = None
             p = await self.get_random_peer()
             res = await p.getmnlistd(*params)
+        except asyncio.TimeoutError:
+            err = f'getmnlistd(get_mns={get_mns} params={params}): timeout'
+        except asyncio.CancelledError:
+            err = f'getmnlistd(get_mns={get_mns} params={params}): cancelled'
         except Exception as e:
             err = f'getmnlistd(get_mns={get_mns} params={params}): {repr(e)}'
-            res = None
         self.trigger_callback('mnlistdiff', {'error': err,
                                              'result': res,
                                              'params': params})
