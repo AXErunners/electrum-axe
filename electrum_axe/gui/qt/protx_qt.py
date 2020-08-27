@@ -759,15 +759,25 @@ class Dip3TabWidget(QTabWidget):
 
     @pyqtSlot()
     def on_make_pro_reg_tx(self):
+        alias = self.w_cur_alias
         try:
-            pro_reg_tx = self.manager.prepare_pro_reg_tx(self.w_cur_alias)
+            pro_reg_tx = self.manager.prepare_pro_reg_tx(alias)
         except ProRegTxExc as e:
             self.gui.show_error(e)
             return
-        self.gui.payto_e.setText(self.wallet.get_unused_address())
-        self.gui.extra_payload.set_extra_data(SPEC_PRO_REG_TX, pro_reg_tx)
-        self.gui.show_extra_payload()
-        self.gui.tabs.setCurrentIndex(self.gui.tabs.indexOf(self.gui.send_tab))
+        mn = self.manager.mns.get(alias)
+        gui = self.gui
+        gui.do_clear()
+        if mn.collateral.is_null:
+            gui.amount_e.setText('1000')
+        mn_addrs = [mn.owner_addr, mn.voting_addr, mn.payout_address]
+        for addr in self.wallet.get_unused_addresses():
+            if addr not in mn_addrs:
+                gui.payto_e.setText(addr)
+                break
+        gui.extra_payload.set_extra_data(SPEC_PRO_REG_TX, pro_reg_tx, alias)
+        gui.show_extra_payload()
+        gui.tabs.setCurrentIndex(self.gui.tabs.indexOf(self.gui.send_tab))
 
     @pyqtSlot()
     def on_file(self):

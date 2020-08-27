@@ -204,9 +204,12 @@ class AddressSynchronizer(Logger):
             axe_net.unregister_callback(self.on_axe_islock)
             self.db.put('stored_height', self.get_local_height())
 
-    def add_address(self, address):
+    def add_address(self, address, ps_ks=False):
         if not self.db.get_addr_history(address):
-            self.db.history[address] = []
+            if ps_ks:
+                self.db.ps_ks_hist[address] = []
+            else:
+                self.db.history[address] = []
             self.set_up_to_date(False)
         if self.synchronizer:
             self.synchronizer.add(address)
@@ -484,6 +487,7 @@ class AddressSynchronizer(Logger):
         # get domain
         if domain is None:
             domain = self.get_addresses()
+            domain += self.psman.get_addresses()
         domain = set(domain)
         # 1. Get the history of each address in the domain, maintain the
         #    delta of a tx as the sum of its deltas on domain addresses
@@ -926,21 +930,31 @@ class AddressSynchronizer(Logger):
                   nonlocal_only: bool = False,
                   consider_islocks=False, include_ps=False, min_rounds=None):
         coins = []
+        ps_ks_domain = self.psman.get_addresses()
         if domain is None:
             if include_ps:
-                domain = self.get_addresses()
+                domain = self.get_addresses() + ps_ks_domain
             else:
                 ps_addrs = self.db.get_ps_addresses(min_rounds=min_rounds)
                 if min_rounds is not None:
                     domain = ps_addrs
                 else:
-                    domain = set(self.get_addresses()) - ps_addrs
+                    domain = self.get_addresses() + ps_ks_domain
+                    domain = set(domain) - ps_addrs
         domain = set(domain)
         if excluded_addresses:
             domain = set(domain) - set(excluded_addresses)
         for addr in domain:
             utxos = self.get_addr_utxo(addr)
             for x in utxos.values():
+                if x['address'] in ps_ks_domain:
+                    x.update({'is_ps_ks': True})
+                else:
+                    x.update({'is_ps_ks': False})
+                if min_rounds is not None:
+                    ps_rounds = x['ps_rounds']
+                    if ps_rounds is None or ps_rounds < min_rounds:
+                        continue
                 if confirmed_only:
                     if x['height'] <= 0:
                         if not consider_islocks:
@@ -967,13 +981,14 @@ class AddressSynchronizer(Logger):
                 ps_denoms = self.db.get_ps_denoms(min_rounds=min_rounds)
         if domain is None:
             if include_ps:
-                domain = self.get_addresses()
+                domain = self.get_addresses() + self.psman.get_addresses()
             else:
                 if min_rounds is not None:
                     domain = [ps_denom[0] for ps_denom in ps_denoms.values()]
                 else:
                     ps_addrs = self.db.get_ps_addresses()
-                    domain = set(self.get_addresses()) - ps_addrs
+                    domain = set(self.get_addresses() +
+                                 self.psman.get_addresses()) - ps_addrs
         if excluded_addresses is None:
             excluded_addresses = set()
         assert isinstance(excluded_addresses, set), f"excluded_addresses should be set, not {type(excluded_addresses)}"

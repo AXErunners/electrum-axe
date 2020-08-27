@@ -31,7 +31,7 @@ from ipaddress import ip_address, IPv6Address
 from bls_py import bls
 
 from .util import bh2u, bfh
-from .bitcoin import script_to_address, hash160_to_p2pkh
+from .bitcoin import script_to_address, hash160_to_p2pkh, COIN
 from .crypto import sha256d
 
 
@@ -122,23 +122,33 @@ class ProTxService (namedtuple('ProTxService', 'ip port')):
 class TxOutPoint(namedtuple('TxOutPoint', 'hash index')):
     '''Class representing tx input outpoint'''
     def __str__(self):
-        return '%s:%s' % (bh2u(self.hash[::-1]) if self.hash else '',
-                          self.index)
+        d = self._asdict()
+        return '%s:%s' % (d['hash'], d['index'])
+
+    @property
+    def is_null(self):
+        return self.hash == b'\x00'*32 and self.index == -1
+
+    @property
+    def hash_is_null(self):
+        return self.hash == b'\x00'*32
 
     def serialize(self):
         assert len(self.hash) == 32, \
             f'{len(self.hash)} not 32'
+        index = 0xffffffff if self.index == -1 else self.index
         return (
             self.hash +                         # hash
-            struct.pack('<I', self.index)       # index
+            struct.pack('<I', index)            # index
         )
 
     @classmethod
     def read_vds(cls, vds):
-        return TxOutPoint(
-            vds.read_bytes(32),                 # hash
-            vds.read_uint32()                   # index
-        )
+        o_hash = vds.read_bytes(32)             # hash
+        o_index = vds.read_uint32()             # index
+        if o_index == 0xffffffff:
+            o_index = -1
+        return TxOutPoint(o_hash, o_index)
 
     def _asdict(self):
         return {
@@ -221,20 +231,16 @@ class ProTxBase:
         return d
 
     def update_with_tx_data(self, *args, **kwargs):
-        '''Update spec tx data based on main tx data befor sign'''
-        return
+        '''Update spec tx data based on main tx data inputs/outputs changes'''
 
     def check_after_tx_prepared(self, *args, **kwargs):
-        '''Check spec tx after inputs/outputs is set'''
-        return
+        '''Check spec tx after inputs/outputs is set (can rise error msg)'''
 
-    def update_with_keystore_password(self, *args, **kwargs):
-        '''Update spec tx signature when keystore password is accessible'''
-        return
+    def update_before_sign(self, *args, **kwargs):
+        '''Update spec tx signature when password is accessible'''
 
     def after_confirmation(self, *args, **kwargs):
-        '''Run after successful broadcast of spec tx'''
-        return
+        '''Run after confirmation of spec tx'''
 
 
 class AxeProRegTx(ProTxBase):
@@ -323,6 +329,14 @@ class AxeProRegTx(ProTxBase):
                             inputsHash, payloadSig)
 
     def update_with_tx_data(self, tx):
+        if self.collateralOutpoint.hash_is_null:
+            found_idx = -1
+            for i, o in enumerate(tx.outputs()):
+                if o.value == 1000 * COIN:
+                    found_idx = i
+                    break
+            self.collateralOutpoint = TxOutPoint(b'\x00'*32, found_idx)
+
         outpoints = [TxOutPoint(bfh(i['prevout_hash'])[::-1], i['prevout_n'])
                      for i in tx.inputs()]
         outpoints_ser = [o.serialize() for o in outpoints]
@@ -338,7 +352,9 @@ class AxeProRegTx(ProTxBase):
                               'Please select coins to spend at Coins tab '
                               'of freeze collateral at Addresses tab.')
 
-    def update_with_keystore_password(self, tx, wallet, keystore, password):
+    def update_before_sign(self, tx, wallet, password):
+        if self.payloadSig == b'':
+            return
         coins = wallet.get_utxos(domain=None, excluded_addresses=False,
                                  mature_only=True, confirmed_only=True)
 
@@ -356,16 +372,16 @@ class AxeProRegTx(ProTxBase):
                                                   password)
 
     def after_confirmation(self, tx, manager):
-        ctx = self.collateralOutpoint
-        for alias, mn in manager.mns.items():
-            c_hash = mn.collateral.hash
-            c_index = mn.collateral.index
-            if c_hash == ctx.hash and c_index == ctx.index:
-                with manager.manager_lock:
-                    mn.protx_hash = tx.txid()
-                    manager.save(with_lock=False)
-                    manager.alias_updated = mn.alias
-                manager.notify('manager-alias-updated')
+        found = manager.find_mn_by_proregtx(tx)
+        if found:
+            mn, protx_hash, collateral = found
+            with manager.manager_lock:
+                mn.protx_hash = protx_hash
+                if collateral:
+                    mn.collateral = collateral
+                manager.save(with_lock=False)
+                manager.alias_updated = mn.alias
+            manager.notify('manager-alias-updated')
 
 
 class AxeProUpServTx(ProTxBase):
@@ -431,7 +447,7 @@ class AxeProUpServTx(ProTxBase):
         outpoints_ser = [o.serialize() for o in outpoints]
         self.inputsHash = sha256d(b''.join(outpoints_ser))
 
-    def update_with_keystore_password(self, tx, wallet, keystore, password):
+    def update_before_sign(self, tx, wallet, password):
         protx_hash = bh2u(self.proTxHash[::-1])
         manager = wallet.protx_manager
         bls_privk_bytes = None
@@ -522,11 +538,14 @@ class AxeProUpRegTx(ProTxBase):
         outpoints_ser = [o.serialize() for o in outpoints]
         self.inputsHash = sha256d(b''.join(outpoints_ser))
 
-    def update_with_keystore_password(self, tx, wallet, keystore, password):
+    def update_before_sign(self, tx, wallet, password):
         protx_hash = bh2u(self.proTxHash[::-1])
+        owner_addr = None
         for alias, mn in wallet.protx_manager.mns.items():
             if mn.protx_hash == protx_hash:
                 owner_addr = mn.owner_addr
+        if not owner_addr:
+            return
         payload_hash = sha256d(self.serialize(full=False))
         self.payloadSig = wallet.sign_digest(owner_addr, payload_hash,
                                              password)
@@ -592,7 +611,7 @@ class AxeProUpRevTx(ProTxBase):
         outpoints_ser = [o.serialize() for o in outpoints]
         self.inputsHash = sha256d(b''.join(outpoints_ser))
 
-    def update_with_keystore_password(self, tx, wallet, keystore, password):
+    def update_before_sign(self, tx, wallet, password):
         protx_hash = bh2u(self.proTxHash[::-1])
         manager = wallet.protx_manager
         bls_privk_bytes = None

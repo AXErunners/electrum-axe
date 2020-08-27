@@ -46,9 +46,6 @@ from .paymentrequest import PR_PAID, PR_UNPAID, PR_UNKNOWN, PR_EXPIRED
 from .synchronizer import Notifier
 from .wallet import Abstract_Wallet, create_new_wallet, restore_wallet_from_text
 from .address_synchronizer import TX_HEIGHT_LOCAL
-from .masternode import MasternodeAnnounce
-from .masternode_budget import BudgetProposal
-from .masternode_manager import MasternodeManager, parse_masternode_conf, BUDGET_FEE_CONFIRMATIONS
 from .version import is_release
 
 if TYPE_CHECKING:
@@ -110,10 +107,6 @@ class Commands:
         self.config = config
         self.wallet = wallet
         self.network = network
-        self.masternode_manager = None
-        if self.wallet:
-            self.masternode_manager = MasternodeManager(self.wallet,
-                                                        self.config)
         self._callback = callback
 
     def _run(self, method, args, password_getter):
@@ -303,7 +296,7 @@ class Commands:
     def broadcast(self, tx):
         """Broadcast a transaction to the network. """
         tx = Transaction(tx)
-        coro = self.wallet.psman.broadcast_transaction(tx)
+        coro = self.network.broadcast_transaction(tx)
         self.network.run_from_another_thread(coro)
         return tx.txid()
 
@@ -353,7 +346,10 @@ class Commands:
     @command('w')
     def getpubkeys(self, address):
         """Return the public keys for a wallet address. """
-        return self.wallet.get_public_keys(address)
+        if self.wallet.psman.is_ps_ks(address):
+            return self.wallet.psman.get_public_keys(address)
+        else:
+            return self.wallet.get_public_keys(address)
 
     @command('w')
     def getbalance(self):
@@ -552,7 +548,9 @@ class Commands:
     def listaddresses(self, receiving=False, change=False, labels=False, frozen=False, unused=False, funded=False, balance=False):
         """List wallet addresses. Returns the list of all addresses in your wallet. Use optional arguments to filter the results."""
         out = []
-        for addr in self.wallet.get_addresses():
+        w = self.wallet
+        addrs = w.get_addresses() + w.psman.get_addresses()
+        for addr in addrs:
             if frozen and not self.wallet.is_frozen_address(addr):
                 continue
             if receiving and self.wallet.is_change(addr):
@@ -708,184 +706,6 @@ class Commands:
         for k in list(self.wallet.receive_requests.keys()):
             self.wallet.remove_payment_request(k, self.config)
 
-    # Masternode commands.
-    @command('wnp')
-    def importmasternodeconf(self, conf_file):
-        """Import a masternode.conf file."""
-        if not os.path.exists(conf_file):
-            return 'File does not exist.'
-        with open(conf_file, 'r') as f:
-            lines = f.readlines()
-
-        try:
-            conf_lines = parse_masternode_conf(lines)
-        except Exception as e:
-            return 'Error parsing: ' + str(e)
-
-        mn_man = self.masternode_manager
-        num = mn_man.import_masternode_conf_lines(conf_lines, self.password)
-        if not num:
-            return 'Could not import any configurations. Please ensure that they are not already imported.'
-        return '%d configuration%s imported.' % (num, 's' if num == 1 else '')
-
-    @command('w')
-    def newmasternode(self, alias):
-        """Create a new masternode."""
-        try:
-            self.masternode_manager.add_masternode(MasternodeAnnounce(alias=alias))
-            return 'Added new masternode "%s".' % alias
-        except Exception as e:
-            return 'Error: %s' % str(e)
-
-    @command('w')
-    def rmmasternode(self, alias):
-        """Remove an existing masternode."""
-        try:
-            self.masternode_manager.remove_masternode(alias)
-            return 'Removed masternode "%s".' % alias
-        except Exception as e:
-            return 'Error: %s' % str(e)
-
-    @command('w')
-    def listmasternodes(self):
-        """List wallet masternodes."""
-        return sorted([i.alias for i in self.masternode_manager.masternodes])
-
-    @command('w')
-    def showmasternode(self, alias):
-        """Show details about a masternode."""
-        mn = self.masternode_manager.get_masternode(alias)
-        if not mn:
-            return 'No masternode exists for alias "%s".' % alias
-        return mn.dump()
-
-    @command('w')
-    def listmasternodepayments(self):
-        """List unused masternode-compatible payments."""
-        return self.masternode_manager.get_masternode_outputs(exclude_frozen=False)
-
-    @command('wnp')
-    def activatemasternode(self, alias):
-        """Activate a masternode."""
-        self.masternode_manager.populate_masternode_output(alias)
-        try:
-            self.masternode_manager.sign_announce(alias, self.password)
-        except Exception as e:
-            return 'Error signing: ' + str(e)
-
-        try:
-            self.masternode_manager.send_announce(alias)
-        except Exception as e:
-            return 'Error sending: ' + str(e)
-
-        return 'Masternode "%s" activated successfully.' % alias
-
-    # Budget-related commands.
-    @command('wp')
-    def prepareproposal(self, proposal_name, proposal_url, payments_count, block_start, address, amount, broadcast=False):
-        """Create a budget proposal transaction."""
-        proposal = self.masternode_manager.get_proposal(proposal_name)
-        amount = int(amount*COIN)
-        if not proposal:
-            proposal = BudgetProposal(proposal_name=proposal_name, proposal_url=proposal_url, start_block=block_start,
-                        payment_amount=amount, address=address)
-            proposal.set_payments_count(payments_count)
-            self.masternode_manager.add_proposal(proposal)
-
-        tx = self.masternode_manager.create_proposal_tx(proposal_name, self.password)
-
-        if broadcast:
-            r, h = self.wallet.sendtx(tx)
-            return h
-        return str(tx)
-
-    @command('wn')
-    def sendproposal(self, proposal_name):
-        """Send a budget proposal."""
-        try:
-            errmsg, submitted = self.masternode_manager.submit_proposal(proposal_name)
-        except Exception as e:
-            return 'Error: %s' % str(e)
-
-        if errmsg:
-            return 'Error: %s' % errmsg
-        return submitted
-
-    @command('wn')
-    def sendreadyproposals(self):
-        """Send all budget proposals that are ready to be sent."""
-        results = {}
-        proposals = filter(lambda p: p.fee_txid and not p.submitted and not p.rejected, self.masternode_manager.proposals)
-        for p in proposals:
-            tx_height = self.wallet.get_tx_height(p.fee_txid)
-            if tx_height.conf < BUDGET_FEE_CONFIRMATIONS:
-                continue
-
-            errmsg, success = self.masternode_manager.submit_proposal(p.proposal_name)
-            if not success:
-                results[p.proposal_name] = errmsg
-            else:
-                results[p.proposal_name] = 'Successfully submitted'
-
-        return results
-
-    @command('w')
-    def listproposals(self):
-        """List proposals created with this wallet."""
-        return {p.proposal_name: p.dump() for p in self.masternode_manager.proposals}
-
-    @command('w')
-    def listreadyproposals(self):
-        """List the proposals created with this wallet that are ready to be submitted."""
-        results = {}
-        proposals = filter(lambda p: p.fee_txid and not p.submitted and not p.rejected, self.masternode_manager.proposals)
-        for p in proposals:
-            tx_height = self.wallet.get_tx_height(p.fee_txid)
-            if tx_height.conf < BUDGET_FEE_CONFIRMATIONS:
-                continue
-            results[p.proposal_name] = p.dump()
-
-        return results
-
-    @command('n')
-    def mnbudget(self, budget_command):
-        """Get information on masternode budget proposals."""
-        valid_commands = ('list', 'nextblock', 'nextsuperblocksize', 'projection')
-        if budget_command not in valid_commands:
-            return 'Budget command must be one of %s' % valid_commands
-        method = 'masternode.budget.%s' % budget_command
-        return self.network.synchronous_get([(method, [])])[0]
-
-    @command('n')
-    def getvotes(self, proposal_hash):
-        """Get the votes for a budget proposal."""
-        req = ('masternode.budget.getvotes', [proposal_hash])
-        return self.network.synchronous_get([req])[0]
-
-    @command('n')
-    def getproposalhash(self, proposal_name):
-        """Get the hash of a budget proposal by its name."""
-        req = ('masternode.budget.getproposalhash', [proposal_name])
-        return self.network.synchronous_get([req])[0]
-
-    @command('n')
-    def getproposal(self, proposal_hash):
-        """Get information on a budget proposal."""
-        req = ('masternode.budget.getproposal', [proposal_hash])
-        return self.network.synchronous_get([req])[0]
-
-    @command('wn')
-    def vote(self, alias, proposal_name, vote_choice):
-        """Vote on a proposal."""
-        valid_choices = ('yes', 'no')
-        if vote_choice.lower() not in valid_choices:
-            return 'Invalid vote choice: "%s"' % vote_choice
-
-        errmsg, success = self.masternode_manager.vote(alias, proposal_name, vote_choice)
-        if errmsg:
-            return 'Error: %s' % errmsg
-        return success
-
     @command('n')
     def notify(self, address: str, URL: str):
         """Watch an address. Every time the address changes, a http POST is sent to the URL."""
@@ -990,13 +810,10 @@ param_descriptions = {
     'requested_amount': 'Requested amount (in AXE).',
     'outputs': 'list of ["address", amount]',
     'redeem_script': 'redeem script (hexadecimal)',
-    'conf_file': 'Masternode.conf file from Axe.',
-    'alias': 'Masternode alias.',
     'cpfile': 'Checkpoints file',
 }
 
 command_options = {
-    'broadcast':   (None, "Broadcast the transaction to the Axe network"),
     'password':    ("-W", "Password"),
     'new_password':(None, "New Password"),
     'encrypt_file':(None, "Whether the file on disk should be encrypted with the provided password"),
@@ -1041,10 +858,8 @@ command_options = {
 from .transaction import tx_from_str
 json_loads = lambda x: json.loads(x, parse_float=lambda x: str(Decimal(x)))
 arg_types = {
-    'block_start': int,
     'num': int,
     'nbits': int,
-    'payments_count': int,
     'imax': int,
     'year': int,
     'from_height': int,
@@ -1131,6 +946,7 @@ def add_network_options(parser):
     parser.add_argument("-1", "--oneserver", action="store_true", dest="oneserver", default=None, help="connect to one server only")
     parser.add_argument("-s", "--server", dest="server", default=None, help="set server host:port:protocol, where protocol is either t (tcp) or s (ssl)")
     parser.add_argument("-p", "--proxy", dest="proxy", default=None, help="set proxy [type:]host[:port], where type is socks4,socks5 or http")
+    parser.add_argument("--no-proxy", dest="proxy", action="store_false", help="do not use proxy")
     parser.add_argument("--noonion", action="store_true", dest="noonion", default=None, help="do not try to connect to onion servers")
     parser.add_argument("--skipmerklecheck", action="store_true", dest="skipmerklecheck", default=False, help="Tolerate invalid merkle proofs from server")
     parser.add_argument("--axe-peer", action="append", dest="axe_peers", default=None, help="add axe network peer host[:port]")

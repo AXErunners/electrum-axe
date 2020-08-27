@@ -67,6 +67,8 @@ class JsonDB(Logger):
         else:  # creating new db
             self.put('seed_version', FINAL_SEED_VERSION)
             self._after_upgrade_tasks()
+        self._addr_to_addr_index = {}  # address -> (is_change, index)
+        self._ps_ks_addr_to_addr_index = {}  # address -> (is_change, index)
 
     def set_modified(self, b):
         with self.lock:
@@ -618,23 +620,34 @@ class JsonDB(Logger):
 
     @locked
     def get_history(self):
-        return list(self.history.keys())
+        return list(self.history.keys()) + list(self.ps_ks_hist.keys())
 
     def is_addr_in_history(self, addr):
         # does not mean history is non-empty!
-        return addr in self.history
+        return addr in self.history or addr in self.ps_ks_hist
 
     @locked
     def get_addr_history(self, addr):
-        return self.history.get(addr, [])
+        if self.get_address_index(addr, ps_ks=True):
+            return self.ps_ks_hist.get(addr, [])
+        elif self.get_address_index(addr):
+            return self.history.get(addr, [])
+        else:
+            return []
 
     @modifier
     def set_addr_history(self, addr, hist):
-        self.history[addr] = hist
+        if self.get_address_index(addr, ps_ks=True):
+            self.ps_ks_hist[addr] = hist
+        else:
+            self.history[addr] = hist
 
     @modifier
     def remove_addr_history(self, addr):
-        self.history.pop(addr, None)
+        if self.get_address_index(addr, ps_ks=True):
+            self.ps_ks_hist.pop(addr, None)
+        else:
+            self.history.pop(addr, None)
 
     @modifier
     def add_islock(self, txid):
@@ -782,10 +795,14 @@ class JsonDB(Logger):
 
     @locked
     def select_ps_reserved(self, for_change=False, data=None):
+        imp_addrs = getattr(self, 'imported_addresses', None)
+        imp_addrs = list(imp_addrs.keys()) if imp_addrs else []
         if for_change:
-            sub_addrs = self.change_addresses
+            w_addrs = imp_addrs if imp_addrs else self.change_addresses
+            sub_addrs = w_addrs + self.ps_ks_change_addrs
         else:
-            sub_addrs = self.receiving_addresses
+            w_addrs = imp_addrs if imp_addrs else self.receiving_addresses
+            sub_addrs = w_addrs + self.ps_ks_receiving_addrs
         res = []
         for addr, addr_data in self.ps_reserved.items():
             if addr not in sub_addrs:
@@ -999,36 +1016,65 @@ class JsonDB(Logger):
         return self.data[name]
 
     @locked
-    def num_change_addresses(self):
-        return len(self.change_addresses)
+    def num_change_addresses(self, ps_ks=False):
+        if ps_ks:
+            return len(self.ps_ks_change_addrs)
+        else:
+            return len(self.change_addresses)
 
     @locked
-    def num_receiving_addresses(self):
-        return len(self.receiving_addresses)
+    def num_receiving_addresses(self, ps_ks=False):
+        if ps_ks:
+            return len(self.ps_ks_receiving_addrs)
+        else:
+            return len(self.receiving_addresses)
 
     @locked
-    def get_change_addresses(self, *, slice_start=None, slice_stop=None):
+    def get_change_addresses(self, *, slice_start=None, slice_stop=None,
+                             ps_ks=False):
         # note: slicing makes a shallow copy
-        return self.change_addresses[slice_start:slice_stop]
+        if ps_ks:
+            return self.ps_ks_change_addrs[slice_start:slice_stop]
+        else:
+            return self.change_addresses[slice_start:slice_stop]
 
     @locked
-    def get_receiving_addresses(self, *, slice_start=None, slice_stop=None):
+    def get_receiving_addresses(self, *, slice_start=None, slice_stop=None,
+                                ps_ks=False):
         # note: slicing makes a shallow copy
-        return self.receiving_addresses[slice_start:slice_stop]
+        if ps_ks:
+            return self.ps_ks_receiving_addrs[slice_start:slice_stop]
+        else:
+            return self.receiving_addresses[slice_start:slice_stop]
 
     @modifier
-    def add_change_address(self, addr):
-        self._addr_to_addr_index[addr] = (True, len(self.change_addresses))
-        self.change_addresses.append(addr)
+    def add_change_address(self, addr, ps_ks=False):
+        if ps_ks:
+            self._ps_ks_addr_to_addr_index[addr] = \
+                (True, len(self.ps_ks_change_addrs))
+            self.ps_ks_change_addrs.append(addr)
+        else:
+            self._addr_to_addr_index[addr] = \
+                (True, len(self.change_addresses))
+            self.change_addresses.append(addr)
 
     @modifier
-    def add_receiving_address(self, addr):
-        self._addr_to_addr_index[addr] = (False, len(self.receiving_addresses))
-        self.receiving_addresses.append(addr)
+    def add_receiving_address(self, addr, ps_ks=False):
+        if ps_ks:
+            self._ps_ks_addr_to_addr_index[addr] = \
+                (False, len(self.ps_ks_receiving_addrs))
+            self.ps_ks_receiving_addrs.append(addr)
+        else:
+            self._addr_to_addr_index[addr] = \
+                (False, len(self.receiving_addresses))
+            self.receiving_addresses.append(addr)
 
     @locked
-    def get_address_index(self, address):
-        return self._addr_to_addr_index.get(address)
+    def get_address_index(self, address, ps_ks=False):
+        if ps_ks:
+            return self._ps_ks_addr_to_addr_index.get(address)
+        else:
+            return self._addr_to_addr_index.get(address)
 
     @modifier
     def add_imported_address(self, addr, d):
@@ -1067,6 +1113,19 @@ class JsonDB(Logger):
             for i, addr in enumerate(self.change_addresses):
                 self._addr_to_addr_index[addr] = (True, i)
 
+        # load ps_keystore addresses
+        self.get_data_ref('ps_ks_addrs')
+        for name in ['receiving', 'change']:
+            if name not in self.data['ps_ks_addrs']:
+                self.data['ps_ks_addrs'][name] = []
+        self.ps_ks_change_addrs = self.data['ps_ks_addrs']['change']
+        self.ps_ks_receiving_addrs = self.data['ps_ks_addrs']['receiving']
+        self._ps_ks_addr_to_addr_index = {}  # address -> (is_change, index)
+        for i, addr in enumerate(self.ps_ks_receiving_addrs):
+            self._ps_ks_addr_to_addr_index[addr] = (False, i)
+        for i, addr in enumerate(self.ps_ks_change_addrs):
+            self._ps_ks_addr_to_addr_index[addr] = (True, i)
+
     @profiler
     def _load_transactions(self):
         # references in self.data
@@ -1075,6 +1134,7 @@ class JsonDB(Logger):
         self.transactions = self.get_data_ref('transactions')   # type: Dict[str, Transaction]
         self.spent_outpoints = self.get_data_ref('spent_outpoints')
         self.history = self.get_data_ref('addr_history')  # address -> list of (txid, height)
+        self.ps_ks_hist = self.get_data_ref('ps_ks_addr_hist')  # address -> list of (txid, height)
         self.verified_tx = self.get_data_ref('verified_tx3')  # txid -> (height, timestamp, txpos, header_hash)
         self.islocks = self.get_data_ref('islocks')  # txid -> (height, timestamp)
         self.ps_txs = self.get_data_ref('ps_txs')  # txid -> (tx_type, completed)
@@ -1118,6 +1178,7 @@ class JsonDB(Logger):
         self.spent_outpoints.clear()
         self.transactions.clear()
         self.history.clear()
+        self.ps_ks_hist.clear()
         self.verified_tx.clear()
         self.tx_fees.clear()
         self.clear_ps_data()

@@ -38,6 +38,7 @@ Builder.load_string('''
     pr_status: 'Pending'
     show_change: 0
     show_used: 0
+    show_ps_ks: 0
     show_ps: 0
     on_message:
         self.update()
@@ -46,10 +47,11 @@ Builder.load_string('''
         padding: '12dp', '12dp', '12dp', '12dp'
         spacing: '12dp'
         orientation: 'vertical'
-        size_hint: 1, 1.1
+        size_hint: 1, 1
         BoxLayout:
             spacing: '6dp'
             size_hint: 1, None
+            height: self.minimum_height
             orientation: 'horizontal'
             AddressFilter:
                 opacity: 1
@@ -78,6 +80,33 @@ Builder.load_string('''
                 size_hint: 1, None
                 height: self.minimum_height
                 spacing: '5dp'
+                AddressButton:
+                    id: ps_ks_filter
+                    text: {0:_('Main'), 1:_('PS Keystore'), 2:_('All')}[root.show_ps_ks]
+                    on_release:
+                        root.show_ps_ks = (root.show_ps_ks + 1) % 3
+                        Clock.schedule_once(lambda dt: root.update())
+        BoxLayout:
+            spacing: '6dp'
+            size_hint: 1, None
+            height: self.minimum_height
+            orientation: 'horizontal'
+            AddressFilter:
+                opacity: 1
+                size_hint: 1, None
+                height: self.minimum_height
+                spacing: '5dp'
+                AddressButton:
+                    id: ps_filter
+                    text: {0:_('Regular'), 1:_('PrivateSend'), 2:_('All')}[root.show_ps]
+                    on_release:
+                        root.show_ps = (root.show_ps + 1) % 3
+                        Clock.schedule_once(lambda dt: root.update())
+            AddressFilter:
+                opacity: 1
+                size_hint: 1, None
+                height: self.minimum_height
+                spacing: '5dp'
                 canvas.before:
                     Color:
                         rgba: 0.9, 0.9, 0.9, 1
@@ -85,17 +114,6 @@ Builder.load_string('''
                     id: change
                     text: root.message if root.message else _('Search')
                     on_release: Clock.schedule_once(lambda dt: app.description_dialog(popup))
-        AddressFilter:
-            opacity: 1
-            size_hint: 1, None
-            height: self.minimum_height
-            spacing: '5dp'
-            AddressButton:
-                id: ps_filter
-                text: {0:_('Regular'), 1:_('PrivateSend'), 2:_('All')}[root.show_ps]
-                on_release:
-                    root.show_ps = (root.show_ps + 1) % 3
-                    Clock.schedule_once(lambda dt: root.update())
         RecycleView:
             scroll_type: ['bars', 'content']
             bar_width: '15dp'
@@ -135,12 +153,31 @@ class AddressesDialog(Factory.Popup):
     def update(self):
         self.menu_actions = [(_('Use'), self.do_use), (_('Details'), self.do_view)]
         wallet = self.app.wallet
+        psman = wallet.psman
         if self.show_change == 0:
-            _list = wallet.get_receiving_addresses()
+            if self.show_ps_ks == 0:  # Main
+                _list = wallet.get_receiving_addresses()
+            elif self.show_ps_ks == 1:  # PS Keystore
+                _list = psman.get_receiving_addresses()
+            else:  # All
+                _list = (wallet.get_receiving_addresses() +
+                         psman.get_receiving_addresses())
         elif self.show_change == 1:
-            _list = wallet.get_change_addresses()
+            if self.show_ps_ks == 0:  # Main
+                _list = wallet.get_change_addresses()
+            elif self.show_ps_ks == 1:  # PS Keystore
+                _list = psman.get_change_addresses()
+            else:  # All
+                _list = (wallet.get_change_addresses() +
+                         psman.get_change_addresses())
         else:
-            _list = wallet.get_addresses()
+            if self.show_ps_ks == 0:  # Main
+                _list = wallet.get_addresses()
+            elif self.show_ps_ks == 1:  # PS Keystore
+                _list = psman.get_addresses()
+            else:  # All
+                _list = (wallet.get_addresses() +
+                         psman.get_addresses())
         search = self.message
         container = self.ids.search_container
         n = 0

@@ -350,12 +350,18 @@ class Abstract_Wallet(AddressSynchronizer):
             return
 
     def is_mine(self, address):
-        return bool(self.get_address_index(address))
+        return any([self.get_address_index(address),
+                    self.psman.get_address_index(address)])
 
     def is_change(self, address):
-        if not self.is_mine(address):
+        idx = self.get_address_index(address)
+        if idx:
+            return idx[0]
+        ps_ks_idx = self.psman.get_address_index(address)
+        if ps_ks_idx:
+            return ps_ks_idx[0]
+        else:
             return False
-        return self.get_address_index(address)[0]
 
     def get_address_index(self, address):
         raise NotImplementedError()
@@ -370,9 +376,15 @@ class Abstract_Wallet(AddressSynchronizer):
             raise Exception(f"Invalid Axe address: {address}")
         if not self.is_mine(address):
             raise Exception(_('Address not in wallet.') + f' {address}')
-        index = self.get_address_index(address)
-        pk, compressed = self.keystore.get_private_key(index, password)
-        txin_type = self.get_txin_type(address)
+        if self.psman.is_ps_ks(address):
+            index = self.psman.get_address_index(address)
+            pk, compressed = self.psman.ps_keystore.get_private_key(index,
+                                                                    password)
+            txin_type = self.psman.ps_ks_txin_type
+        else:
+            index = self.get_address_index(address)
+            pk, compressed = self.keystore.get_private_key(index, password)
+            txin_type = self.get_txin_type(address)
         redeem_script = self.get_redeem_script(address)
         serialized_privkey = bitcoin.serialize_privkey(pk, compressed, txin_type)
         return serialized_privkey, redeem_script
@@ -452,16 +464,28 @@ class Abstract_Wallet(AddressSynchronizer):
         )
 
     def get_spendable_coins(self, domain, config, *, nonlocal_only=False,
-                            include_ps=False, min_rounds=None):
+                            include_ps=False, min_rounds=None,
+                            no_ps_data=False, main_ks=False):
         confirmed_only = config.get('confirmed_only', False)
+        get_min_rounds = None if no_ps_data else min_rounds
         utxos = self.get_utxos(domain,
                                excluded_addresses=self.frozen_addresses,
                                mature_only=True,
                                confirmed_only=confirmed_only,
                                nonlocal_only=nonlocal_only,
                                include_ps=include_ps,
-                               min_rounds=min_rounds)
+                               min_rounds=get_min_rounds)
         utxos = [utxo for utxo in utxos if not self.is_frozen_coin(utxo)]
+        if main_ks:
+            utxos = [utxo for utxo in utxos if not utxo['is_ps_ks']]
+        if no_ps_data:
+            for utxo in utxos:
+                if self.psman.prob_denominate_tx_coin(utxo):
+                    utxo['ps_rounds'] = 0
+            if not include_ps and min_rounds is None:
+                utxos = [utxo for utxo in utxos if utxo['ps_rounds'] is None]
+            elif min_rounds is not None:
+                utxos = [utxo for utxo in utxos if utxo['ps_rounds'] == 0]
         if self.psman.enabled and include_ps and not self.psman.allow_others:
             utxos = [utxo for utxo in utxos
                      if utxo['ps_rounds'] != PSCoinRounds.OTHER]
@@ -741,16 +765,22 @@ class Abstract_Wallet(AddressSynchronizer):
             assert is_address(addr), f"not valid Axe address: {addr}"
             # note that change addresses are not necessarily ismine
             # in which case this is a no-op
-            self.check_address(addr)
+            if self.psman.is_ps_ks(addr):
+                self.psman.check_address(addr)
+            else:
+                self.check_address(addr)
         max_change = self.max_change_outputs if self.multiple_change else 1
         return change_addrs[:max_change]
 
     def make_unsigned_transaction(self, coins, outputs, config, fixed_fee=None,
                                   change_addr=None, is_sweep=False,
-                                  min_rounds=None,
+                                  min_rounds=None, no_ps_data=False,
                                   tx_type=0, extra_payload=b''):
         if min_rounds is not None:
-            self.psman.check_min_rounds(coins, min_rounds)
+            if no_ps_data:
+                self.psman.check_min_rounds(coins, 0)
+            else:
+                self.psman.check_min_rounds(coins, min_rounds)
 
         # check outputs
         i_max = None
@@ -767,7 +797,7 @@ class Abstract_Wallet(AddressSynchronizer):
             raise NoDynamicFeeEstimates()
 
         for item in coins:
-            self.add_input_info(item)
+            self.psman.add_input_info(item)
 
         # Fee estimator
         if fixed_fee is None:
@@ -790,6 +820,12 @@ class Abstract_Wallet(AddressSynchronizer):
                 tx = coin_chooser.make_tx(coins, [], outputs[:],
                                           change_addrs, fee_estimator,
                                           self.dust_threshold(),
+                                          tx_type=tx_type,
+                                          extra_payload=extra_payload)
+            elif no_ps_data:
+                coin_chooser = coinchooser.get_coin_chooser_privatesend()
+                tx = coin_chooser.make_tx(coins, outputs[:], fee_estimator,
+                                          min_rounds=0,
                                           tx_type=tx_type,
                                           extra_payload=extra_payload)
             else:
@@ -932,8 +968,11 @@ class Abstract_Wallet(AddressSynchronizer):
         if tx.is_complete():
             return False
         # add info to inputs if we can; otherwise we might return a false negative:
-        tx.add_inputs_info(self)
-        for k in self.get_keystores():
+        self.psman.add_tx_inputs_info(tx)
+        keystores = self.get_keystores()
+        if self.psman.ps_keystore:
+            keystores.append(self.psman.ps_keystore)
+        for k in keystores:
             if k.can_sign(tx):
                 return True
         return False
@@ -965,7 +1004,7 @@ class Abstract_Wallet(AddressSynchronizer):
         xpubs = self.get_master_public_keys()
         for txout in tx.outputs():
             _type, addr, amount = txout
-            if self.is_mine(addr):
+            if self.is_mine(addr) and not self.psman.is_ps_ks(addr):
                 index = self.get_address_index(addr)
                 pubkeys = self.get_public_keys(addr)
                 # sort xpubs using the order of pubkeys
@@ -977,17 +1016,27 @@ class Abstract_Wallet(AddressSynchronizer):
     def sign_transaction(self, tx, password):
         if self.is_watching_only():
             return
-        tx.add_inputs_info(self)
+        self.psman.add_tx_inputs_info(tx)
         # hardware wallets require extra info
         if any([(isinstance(k, Hardware_KeyStore) and k.can_sign(tx)) for k in self.get_keystores()]):
             self.add_hw_info(tx)
+        # update ProTxBase transactions when password is available
+        extra_payload = None
+        if tx.tx_type:
+            extra_payload = tx.extra_payload
+            extra_payload.update_before_sign(tx, self, password)
         # sign. start with ready keystores.
-        for k in sorted(self.get_keystores(), key=lambda ks: ks.ready_to_sign(), reverse=True):
+        keystores = self.get_keystores()
+        if self.psman.ps_keystore is not None:
+            keystores.append(self.psman.ps_keystore)
+
+        def sort_keystores_key(ks):
+            ps_ks = self.psman.ps_keystore
+            return (ks.ready_to_sign(), ks is not ps_ks)
+
+        for k in sorted(keystores, key=sort_keystores_key, reverse=True):
             try:
                 if k.can_sign(tx):
-                    if tx.tx_type:
-                        ex_p = tx.extra_payload
-                        ex_p.update_with_keystore_password(tx, self, k, password)
                     k.sign_transaction(tx, password)
             except UserCancelled:
                 continue
@@ -1010,9 +1059,12 @@ class Abstract_Wallet(AddressSynchronizer):
         # fixme: use slots from expired requests
         domain = self.get_receiving_addresses()
         ps_reserved = self.db.get_ps_reserved()
+        tmp_reserved_addr = self.psman.get_tmp_reserved_address()
+        tmp_reserved_addrs = [tmp_reserved_addr] if tmp_reserved_addr else []
         return [addr for addr in domain if not self.is_used(addr)
                 and addr not in self.receive_requests.keys()
-                and addr not in ps_reserved]
+                and addr not in ps_reserved
+                and addr not in tmp_reserved_addrs]
 
     @check_returned_address
     def get_unused_address(self):
@@ -1263,26 +1315,42 @@ class Abstract_Wallet(AddressSynchronizer):
         #       If these were not the case,
         #       extra care would need to be taken when encrypting keystores.
         self._update_password_for_keystore(old_pw, new_pw)
+        if self.psman.enabled and self.psman.ps_keystore:
+            self.psman.after_wallet_password_set(old_pw, new_pw)
         encrypt_keystore = self.can_have_keystore_encryption()
         self.storage.set_keystore_encryption(bool(new_pw) and encrypt_keystore)
         self.storage.write()
 
     def sign_digest(self, address, data, password):
-        keystore = self.keystore
+        if self.psman.is_ps_ks(address):
+            keystore = self.psman.ps_keystore
+            index = self.psman.get_address_index(address)
+        else:
+            keystore = self.keystore
+            index = self.get_address_index(address)
         if not hasattr(keystore, 'sign_digest'):
             raise NotImplementedError('sign_digest not implemented '
                                       'in keystore type %s' % type(keystore))
-        index = self.get_address_index(address)
         return keystore.sign_digest(index, data, password)
 
     def sign_message(self, address, message, password):
-        index = self.get_address_index(address)
-        return self.keystore.sign_message(index, message, password)
+        if self.psman.is_ps_ks(address):
+            index = self.psman.get_address_index(address)
+            return self.psman.ps_keystore.sign_message(index, message,
+                                                       password)
+        else:
+            index = self.get_address_index(address)
+            return self.keystore.sign_message(index, message, password)
 
     def decrypt_message(self, pubkey, message, password) -> bytes:
         addr = self.pubkeys_to_address(pubkey)
-        index = self.get_address_index(addr)
-        return self.keystore.decrypt_message(index, message, password)
+        if self.psman.is_ps_ks(addr):
+            index = self.psman.get_address_index(addr)
+            return self.psman.ps_keystore.decrypt_message(index, message,
+                                                          password)
+        else:
+            index = self.get_address_index(addr)
+            return self.keystore.decrypt_message(index, message, password)
 
     def txin_value(self, txin):
         txid = txin['prevout_hash']
@@ -1542,7 +1610,8 @@ class Imported_Wallet(Simple_Wallet):
         self.storage.write()
 
     def is_mine(self, address):
-        return self.db.has_imported_address(address)
+        return any([self.db.has_imported_address(address),
+                    self.psman.get_address_index(address)])
 
     def get_address_index(self, address):
         # returns None if address is not mine

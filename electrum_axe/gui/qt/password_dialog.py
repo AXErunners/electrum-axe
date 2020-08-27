@@ -60,7 +60,9 @@ class PasswordLayout(object):
 
     titles = [_("Enter Password"), _("Change Password"), _("Enter Passphrase")]
 
-    def __init__(self, msg, kind, OK_button, wallet=None, force_disable_encrypt_cb=False):
+    def __init__(self, msg, kind, OK_button, wallet=None,
+                 force_disable_encrypt_cb=False,
+                 on_edit_cb=None, has_password=False):
         self.wallet = wallet
 
         self.pw = QLineEdit()
@@ -71,6 +73,8 @@ class PasswordLayout(object):
         self.conf_pw.setEchoMode(2)
         self.kind = kind
         self.OK_button = OK_button
+        self.on_edit_cb = on_edit_cb
+        self.has_password = has_password
 
         vbox = QVBoxLayout()
         label = QLabel(msg + "\n")
@@ -100,7 +104,7 @@ class PasswordLayout(object):
 
             m1 = _('New Password:') if kind == PW_CHANGE else _('Password:')
             msgs = [m1, _('Confirm Password:')]
-            if wallet and wallet.has_password():
+            if wallet and wallet.has_password() or self.has_password:
                 grid.addWidget(QLabel(_('Current Password:')), 0, 0)
                 grid.addWidget(self.pw, 0, 1)
                 lockfile = "lock.png"
@@ -129,7 +133,10 @@ class PasswordLayout(object):
 
         def enable_OK():
             ok = self.new_pw.text() == self.conf_pw.text()
-            OK_button.setEnabled(ok)
+            if self.on_edit_cb:
+                self.on_edit_cb(ok)
+            else:
+                OK_button.setEnabled(ok)
             self.encrypt_cb.setEnabled(ok and bool(self.new_pw.text())
                                        and not force_disable_encrypt_cb)
         self.new_pw.textChanged.connect(enable_OK)

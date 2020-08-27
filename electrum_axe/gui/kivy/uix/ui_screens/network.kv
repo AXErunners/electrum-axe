@@ -30,9 +30,15 @@ Popup:
 
                 CardSeparator
                 SettingsItem:
-                    title: _("Use Tor Proxy on startup: ") + ('ON' if app.tor_auto_on else 'OFF')
+                    title: f'{app.network.TOR_AUTO_ON_MSG}: ' + ('ON' if app.tor_auto_on_bp else 'OFF')
                     description: _('During wallet startup try to detect and use Tor Proxy.')
                     action: app.toggle_tor_auto_on
+
+                CardSeparator
+                SettingsItem:
+                    title: f'{app.network.FIAT_BYPASS_TOR_MSG}: ' + ('ON' if app.fiat_bypass_tor_bp else 'OFF')
+                    description: _('Do not use Tor proxy for Fiat rates network calls')
+                    action: app.toggle_fiat_bypass_tor
 
                 CardSeparator
                 SettingsItem:

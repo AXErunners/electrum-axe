@@ -6,7 +6,7 @@ if [[ -n $TRAVIS_TAG ]]; then
     brew update
     brew tap zebra-lucky/qt5
     brew install zebra-lucky/qt5/qt
-    brew install gettext
+    brew pin gnupg  # pin to not update dependency on libusb install
     brew install libusb
 
     PYTHON_VERSION=3.6.8

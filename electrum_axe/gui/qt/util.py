@@ -826,7 +826,7 @@ def import_meta_gui(electrum_window, title, importer, on_success):
 def export_meta_gui(electrum_window, title, exporter):
     filter_ = "JSON (*.json);;All files (*)"
     filename = electrum_window.getSaveFileName(_("Select file to save your {}").format(title),
-                                               'electrum_{}.json'.format(title), filter_)
+                                               'electrum_axe_{}.json'.format(title), filter_)
     if not filename:
         return
     try:

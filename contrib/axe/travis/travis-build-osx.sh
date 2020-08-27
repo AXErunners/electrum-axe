@@ -43,10 +43,13 @@ $PIP_CMD install --no-warn-script-location \
 $PIP_CMD install --no-warn-script-location x11_hash>=1.4
 $PIP_CMD install --no-warn-script-location PyInstaller==3.6 --no-use-pep517
 
-export PATH="/usr/local/opt/gettext/bin:$PATH"
-./contrib/make_locale
-find . -name '*.po' -delete
-find . -name '*.pot' -delete
+pushd electrum_axe
+git clone https://github.com/axerunners/electrum-axe-locale/ locale-repo
+mv locale-repo/locale .
+rm -rf locale-repo
+find locale -name '*.po' -delete
+find locale -name '*.pot' -delete
+popd
 
 cp contrib/axe/osx.spec .
 cp contrib/axe/pyi_runtimehook.py .

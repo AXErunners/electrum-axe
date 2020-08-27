@@ -177,6 +177,8 @@ class QtPlugin(QtPluginBase):
     def receive_menu(self, menu, addrs, wallet):
         if len(addrs) != 1:
             return
+        if wallet.psman.is_ps_ks(addrs[0]):
+            return
         for keystore in wallet.get_keystores():
             if type(keystore) == self.keystore_class:
                 def show_address(keystore=keystore):

@@ -82,7 +82,7 @@ class OverlayLabel(QtWidgets.QLabel):
 
 
 class Console(QtWidgets.QPlainTextEdit):
-    def __init__(self, prompt='>> ', startup_message='', parent=None):
+    def __init__(self, prompt='>>> ', parent=None):
         QtWidgets.QPlainTextEdit.__init__(self)
 
         self.prompt = prompt
@@ -95,7 +95,6 @@ class Console(QtWidgets.QPlainTextEdit):
         self.setWordWrapMode(QtGui.QTextOption.WrapAnywhere)
         self.setUndoRedoEnabled(False)
         self.document().setDefaultFont(QtGui.QFont(MONOSPACE_FONT))
-        self.showMessage(startup_message)
 
         self.updateNamespace({'run':self.run_script})
         self.set_json(False)
@@ -235,7 +234,7 @@ class Console(QtWidgets.QPlainTextEdit):
     def getHistory(self):
         return self.history
 
-    def setHisory(self, history):
+    def setHistory(self, history):
         self.history = history
 
     def addToHistory(self, command):
@@ -456,17 +455,3 @@ class Console(QtWidgets.QPlainTextEdit):
                 continue
 
         return True if password else False
-
-
-welcome_message = '''
-   ---------------------------------------------------------------
-     Welcome to a primitive Python interpreter.
-   ---------------------------------------------------------------
-'''
-
-if __name__ == '__main__':
-    app = QtWidgets.QApplication(sys.argv)
-    console = Console(startup_message=welcome_message)
-    console.updateNamespace({'myVar1' : app, 'myVar2' : 1234})
-    console.show()
-    sys.exit(app.exec_())

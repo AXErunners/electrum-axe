@@ -45,7 +45,7 @@ from electrum_axe.address_synchronizer import TX_HEIGHT_LOCAL
 from electrum_axe.axe_tx import PSTxTypes, SPEC_TX_NAMES
 from electrum_axe.i18n import _
 from electrum_axe.util import (block_explorer_URL, profiler, TxMinedInfo,
-                                timestamp_to_datetime)
+                                timestamp_to_datetime, FILE_OWNER_MODE)
 from electrum_axe.logging import get_logger, Logger
 
 from .util import (read_QIcon, MONOSPACE_FONT, Buttons, CancelButton, OkButton,
@@ -424,7 +424,8 @@ class HistoryModel(QAbstractItemModel, Logger):
 
     def get_domain(self):
         '''Overridden in address_dialog.py'''
-        return self.parent.wallet.get_addresses()
+        return (self.parent.wallet.get_addresses() +
+                self.parent.wallet.psman.get_addresses())
 
     @profiler
     def process_history(self, r, group_ps):
@@ -646,7 +647,7 @@ class HistoryModel(QAbstractItemModel, Logger):
             'txpos_in_block': tx_mined_info.txpos,
             'date':           timestamp_to_datetime(tx_mined_info.timestamp),
         })
-        idx_last = idx.siblingAtColumn(HistoryColumns.TXID)
+        idx_last = idx.sibling(idx.row(), HistoryColumns.TXID)
         self.dataChanged.emit(idx, idx_last)
 
     def on_fee_histogram(self):
@@ -935,7 +936,7 @@ class HistoryList(MyTreeView, AcceptFileDragDrop):
             column_data = tx_item['txid']
         else:
             column_title = self.hm.headerData(column, Qt.Horizontal, Qt.DisplayRole)
-            column_data = self.hm.data(idx, Qt.DisplayRole).value()
+            column_data = self.hm.data(idx, Qt.DisplayRole).value() or ''
         tx_hash = tx_item['txid']
         group_txid = tx_item.get('group_txid')
         is_parent = ('group_label' in tx_item)
@@ -988,7 +989,7 @@ class HistoryList(MyTreeView, AcceptFileDragDrop):
         if txid not in self.hm.expanded_groups:
             idx = self.hm.index_from_txid(txid)
             if idx.isValid():
-                idx_last = idx.siblingAtColumn(HistoryColumns.TXID)
+                idx_last = idx.sibling(idx.row(), HistoryColumns.TXID)
                 self.hm.expanded_groups.add(txid)
                 self.expand(idx)
                 self.hm.dataChanged.emit(idx, idx_last)
@@ -997,7 +998,7 @@ class HistoryList(MyTreeView, AcceptFileDragDrop):
         if txid in self.hm.expanded_groups:
             idx = self.hm.index_from_txid(txid)
             if idx.isValid():
-                idx_last = idx.siblingAtColumn(HistoryColumns.TXID)
+                idx_last = idx.sibling(idx.row(), HistoryColumns.TXID)
                 self.hm.expanded_groups.remove(txid)
                 self.collapse(idx)
                 self.hm.dataChanged.emit(idx, idx_last)
@@ -1088,6 +1089,7 @@ class HistoryList(MyTreeView, AcceptFileDragDrop):
             else:
                 from electrum_axe.util import json_encode
                 f.write(json_encode(txns))
+        os.chmod(file_name, FILE_OWNER_MODE)
 
     def hide_rows(self):
         for i, (tx_item, children) in enumerate(self.hm.tx_tree):
@@ -1115,7 +1117,7 @@ class HistoryList(MyTreeView, AcceptFileDragDrop):
             self.setRowHidden(idx.row(), parent_idx, False)
             return False
         for column in self.filter_columns:
-            txt_idx = idx.siblingAtColumn(column)
+            txt_idx = idx.sibling(idx.row(), column)
             txt = self.hm.data(txt_idx, Qt.DisplayRole).value().lower()
             if self.current_filter in txt:
                 # the filter matched, but the date filter might apply

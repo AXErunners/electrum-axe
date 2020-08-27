@@ -2,19 +2,28 @@
 
 import time
 
-from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtGui import QColor, QPainter, QTextCursor, QIcon
+from PyQt5.QtCore import Qt, QTimer, pyqtSlot
+from PyQt5.QtGui import QColor, QPainter, QTextCursor, QIcon, QPixmap
 from PyQt5.QtWidgets import (QPlainTextEdit, QCheckBox, QSpinBox, QVBoxLayout,
                              QPushButton, QLabel, QDialog, QGridLayout,
                              QTabWidget, QWidget, QProgressBar, QHBoxLayout,
                              QMessageBox, QStyle, QStyleOptionSpinBox, QAction,
-                             QApplication)
+                             QApplication, QWizardPage, QWizard, QRadioButton,
+                             QButtonGroup, QGroupBox, QLineEdit)
 
+from electrum_axe import mnemonic
 from electrum_axe.axe_ps import filter_log_line, PSLogSubCat, PSStates
 from electrum_axe.i18n import _
+from electrum_axe.util import InvalidPassword
 
+from .installwizard import MSG_ENTER_PASSWORD
 from .util import (HelpLabel, MessageBoxMixin, read_QIcon, custom_message_box,
-                   ColorScheme)
+                   ColorScheme, icon_path, WindowModalDialog, CloseButton,
+                   Buttons, CancelButton, OkButton)
+from .password_dialog import PasswordLayout, PW_NEW, PW_CHANGE
+from .transaction_dialog import show_transaction
+from .qrtextedit import ShowQRTextEdit
+from .seed_dialog import SeedLayout
 
 
 ps_dialogs = []  # Otherwise python randomly garbage collects the dialogs
@@ -23,7 +32,7 @@ ps_dialogs = []  # Otherwise python randomly garbage collects the dialogs
 def protected_with_parent(func):
     def request_password(self, *args, **kwargs):
         mwin = kwargs.pop('mwin')
-        parent = kwargs.pop('parent')
+        parent = kwargs.get('parent')
         password = None
         while mwin.wallet.has_keystore_encryption():
             password = mwin.password_dialog(parent=parent)
@@ -36,7 +45,21 @@ def protected_with_parent(func):
             except Exception as e:
                 mwin.show_error(str(e), parent=parent)
                 continue
-
+        if password is None:
+            psman = mwin.wallet.psman
+            if not psman.is_hw_ks:
+                return func(self, *args, **kwargs)
+            while psman.is_ps_ks_encrypted():
+                password = mwin.password_dialog(parent=parent)
+                if password is None:
+                    # User cancelled password input
+                    return
+                try:
+                    psman.ps_keystore.check_password(password)
+                    break
+                except Exception as e:
+                    mwin.show_error(str(e), parent=parent)
+                    continue
         kwargs['password'] = password
         return func(self, *args, **kwargs)
     return request_password
@@ -120,6 +143,17 @@ def show_ps_dialog(mwin, d=None):
         ps_dialogs.append(d)
 
 
+def show_ps_dialog_or_wizard(mwin):
+    w = mwin.wallet
+    psman = w.psman
+    if (psman.w_type == 'standard' and psman.is_hw_ks
+            and 'ps_keystore' not in w.db.data):
+        wiz = PSKeystoreWizard(mwin)
+        wiz.open()
+    else:
+        show_ps_dialog(mwin)
+
+
 def hide_ps_dialog(mwin):
     for d in ps_dialogs:
         if d.wallet == mwin.wallet:
@@ -144,6 +178,50 @@ class WarnLabel(HelpLabel):
         text = f'{self.help_text}\n\n'
         custom_message_box(icon=QMessageBox.Warning, parent=self,
                            title=_('Warning'), text=text, checkbox=cb)
+
+
+class ShowPSKsSeedDlg(WindowModalDialog):
+
+    def __init__(self, parent, seed, passphrase):
+        WindowModalDialog.__init__(self, parent, ('Axe Electrum - %s %s' %
+                                                  (_('PS Keystore'),
+                                                   _('Seed'))))
+        self.setMinimumWidth(600)
+        vbox = QVBoxLayout(self)
+        title =  _('Your wallet generation seed is:')
+        slayout = SeedLayout(title=title, seed=seed, msg=True,
+                             passphrase=passphrase)
+        vbox.addLayout(slayout)
+        vbox.addLayout(Buttons(CloseButton(self)))
+
+
+class PSKsPasswordDlg(WindowModalDialog):
+
+    def __init__(self, parent, wallet):
+        WindowModalDialog.__init__(self, parent)
+        OK_button = OkButton(self)
+        if not wallet.psman.is_ps_ks_encrypted():
+            msg = _('Your PrivateSend Keystore is not protected.')
+            msg += ' ' + _('Use this dialog to add a password to it.')
+            has_password = False
+        else:
+            msg = _('Your PrivateSend Keystore is password protected.')
+            msg += ' ' + _('Use this dialog to change password on it.')
+            has_password = True
+        self.playout = PasswordLayout(msg=msg, kind=PW_CHANGE,
+                                      OK_button=OK_button,
+                                      has_password=has_password)
+        self.setWindowTitle(self.playout.title())
+        vbox = QVBoxLayout(self)
+        vbox.addLayout(self.playout.layout())
+        vbox.addStretch(1)
+        vbox.addLayout(Buttons(CancelButton(self), OK_button))
+        self.playout.encrypt_cb.hide()
+
+    def run(self):
+        if not self.exec_():
+            return False, None, None
+        return True, self.playout.old_password(), self.playout.new_password()
 
 
 class PSDialogUnsupportedPS(QDialog, MessageBoxMixin):
@@ -208,6 +286,7 @@ class PSDialog(QDialog, MessageBoxMixin):
         self.add_info_tab()
         self.info_update()
         self.info_data_buttons_update()
+        self.add_ps_ks_tab()
         self.add_log_tab()
         self.mwin.ps_signal.connect(self.on_ps_signal)
         self.ps_signal_connected = True
@@ -493,6 +572,7 @@ class PSDialog(QDialog, MessageBoxMixin):
                     allow_others_cb.setCheckState(Qt.Unchecked)
             else:
                 psman.allow_others = False
+            self.mwin.update_avalaible_amount()
         allow_others_cb.stateChanged.connect(on_allow_others_changed)
 
         i = grid.rowCount()
@@ -507,11 +587,12 @@ class PSDialog(QDialog, MessageBoxMixin):
 
     def start_mixing(self, prev_kp_state):
         password = None
-        while self.wallet.has_password():
+        psman = self.psman
+        while self.wallet.has_keystore_encryption():
             password = self.mwin.password_dialog(parent=self)
             if password is None:
                 # User cancelled password input
-                self.psman.keypairs_state = prev_kp_state
+                psman.keypairs_state = prev_kp_state
                 return
             try:
                 self.wallet.check_password(password)
@@ -519,6 +600,19 @@ class PSDialog(QDialog, MessageBoxMixin):
             except Exception as e:
                 self.show_error(str(e))
                 continue
+        if password is None and psman.is_hw_ks:
+            while psman.is_ps_ks_encrypted():
+                password = self.mwin.password_dialog(parent=self)
+                if password is None:
+                    # User cancelled password input
+                    psman.keypairs_state = prev_kp_state
+                    return
+                try:
+                    psman.ps_keystore.check_password(password)
+                    break
+                except Exception as e:
+                    self.show_error(str(e))
+                    continue
         self.wallet.psman.start_mixing(password)
 
     def add_info_tab(self):
@@ -569,6 +663,103 @@ class PSDialog(QDialog, MessageBoxMixin):
         log_vbox.addWidget(clear_log_btn)
         self.log_tab.setLayout(log_vbox)
         self.tabs.addTab(self.log_tab, _('Log'))
+
+    def add_ps_ks_tab(self):
+        psman = self.psman
+        if not psman.is_hw_ks:
+            return
+        self.ps_ks_tab = QWidget()
+        grid = QGridLayout()
+        self.ps_ks_tab.setLayout(grid)
+
+        grid.addWidget(QLabel(_('Master Public Key')), 0, 0)
+        mpk = psman.ps_keystore.get_master_public_key()
+        mpk_text = ShowQRTextEdit()
+        mpk_text.setMaximumHeight(150)
+        mpk_text.addCopyButton(self.mwin.app)
+        mpk_text.setText(mpk)
+        grid.addWidget(mpk_text, 1, 0)
+        grid.setRowStretch(2, 1)
+
+        self.seed_btn = QPushButton(_('Show Seed'))
+
+        def show_ps_ks_seed_dlg():
+            self.show_ps_ks_seed_dialog(mwin=self.mwin, parent=self)
+
+        self.seed_btn.clicked.connect(show_ps_ks_seed_dlg)
+        grid.addWidget(self.seed_btn, 3, 0)
+
+        if psman.is_ps_ks_encrypted():
+            pwd_btn_text = _('Change Password')
+        else:
+            pwd_btn_text = _('Set Password')
+        self.password_btn = QPushButton(pwd_btn_text)
+        self.password_btn.clicked.connect(self.change_ps_ks_password_dialog)
+        grid.addWidget(self.password_btn, 4, 0)
+
+        self.export_privk_btn = QPushButton(_('Export Private Keys'))
+
+        def export_ps_ks_privkeys_dlg():
+            self.mwin.export_privkeys_dialog(ps_ks_only=True, mwin=self.mwin,
+                                             parent=self)
+
+        self.export_privk_btn.clicked.connect(export_ps_ks_privkeys_dlg)
+        grid.addWidget(self.export_privk_btn, 5, 0)
+
+        if psman.is_hw_ks:
+            send_funds_to_main_txt = _('Send all coins to hardware wallet')
+        else:
+            send_funds_to_main_txt = _('Send all coins to main keystore')
+        self.send_funds_to_main_btn = QPushButton(send_funds_to_main_txt)
+
+        def send_funds_to_main_ks():
+            self.mwin.send_funds_to_main_ks(mwin=self.mwin, parent=self)
+
+        self.send_funds_to_main_btn.clicked.connect(send_funds_to_main_ks)
+        grid.addWidget(self.send_funds_to_main_btn, 6, 0)
+
+
+        warn_ps_ks_cb = QCheckBox(psman.warn_ps_ks_data())
+        warn_ps_ks_cb.setChecked(psman.show_warn_ps_ks)
+
+        def on_warn_ps_ks_changed(x):
+            psman.show_warn_ps_ks = (x == Qt.Checked)
+        warn_ps_ks_cb.stateChanged.connect(on_warn_ps_ks_changed)
+        grid.addWidget(warn_ps_ks_cb, 7, 0)
+
+        self.tabs.addTab(self.ps_ks_tab, _('PS Keystore'))
+
+    @protected_with_parent
+    def show_ps_ks_seed_dialog(self, parent, password):
+        psman = self.psman
+        seed = psman.ps_keystore.get_seed(password)
+        passphrase = psman.ps_keystore.get_passphrase(password)
+        d = ShowPSKsSeedDlg(parent, seed, passphrase)
+        d.exec_()
+
+    def change_ps_ks_password_dialog(self):
+        psman = self.psman
+        d = PSKsPasswordDlg(self, self.wallet)
+        ok, old_password, new_password = d.run()
+        if not ok:
+            return
+        try:
+            psman.update_ps_ks_password(old_password, new_password)
+        except InvalidPassword as e:
+            self.show_error(str(e))
+            return
+        except BaseException:
+            self.logger.exception('Failed to update PS Keystore password')
+            self.show_error(_('Failed to update PS Keystore password'))
+            return
+        if psman.is_ps_ks_encrypted():
+            msg = _('Password was updated successfully')
+            pwd_btn_text = _('Change Password')
+        else:
+            msg = _('Password is disabled, this wallet is not protected')
+            pwd_btn_text = _('Set Password')
+        self.show_message(msg, title=_("Success"))
+        self.password_btn.setText(pwd_btn_text)
 
     def update_mixing_status(self):
         psman = self.psman
@@ -650,3 +841,347 @@ class PSDialog(QDialog, MessageBoxMixin):
     def clear_log(self):
         self.log_view.clear()
         self.log_handler.clear_log()
+
+
+class SeedOperationWizardPage(QWizardPage):
+
+    def __init__(self, parent=None):
+        super(SeedOperationWizardPage, self).__init__(parent)
+        self.parent = parent
+        self.setTitle(_('PrivateSend Kestore'))
+        self.setSubTitle(_('Do you want to create a new seed, or to'
+                           ' restore a wallet using an existing seed?'))
+
+        self.rb_create = QRadioButton(_('Create a new seed'))
+        self.rb_restore = QRadioButton(_('I already have a seed'))
+        self.rb_create.setChecked(True)
+        self.button_group = QButtonGroup()
+        self.button_group.addButton(self.rb_create)
+        self.button_group.addButton(self.rb_restore)
+        gb_vbox = QVBoxLayout()
+        gb_vbox.addWidget(self.rb_create)
+        gb_vbox.addWidget(self.rb_restore)
+        self.gb_create = QGroupBox(_('Select operation type'))
+        self.gb_create.setLayout(gb_vbox)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.gb_create)
+        self.setLayout(layout)
+
+    def nextId(self):
+        if self.rb_create.isChecked():
+            return self.parent.CREATE_SEED_PAGE
+        else:
+            return self.parent.ENTER_SEED_PAGE
+
+
+class CreateSeedWizardPage(QWizardPage):
+
+    def __init__(self, parent=None):
+        super(CreateSeedWizardPage, self).__init__(parent)
+        self.parent = parent
+        self.setTitle(_('PrivateSend Kestore Seed'))
+        self.setSubTitle(_('Your wallet generation seed is:'))
+        self.layout = QVBoxLayout()
+        self.setLayout(self.layout)
+        self.main_widget = QWidget()
+        self.layout.addWidget(self.main_widget)
+
+    def initializePage(self):
+        self.layout.removeWidget(self.main_widget)
+        self.main_widget.setParent(None)
+        self.main_widget = QWidget()
+        self.layout.addWidget(self.main_widget)
+
+        self.parent.seed_text = mnemonic.Mnemonic('en').make_seed('standard')
+        self.slayout = SeedLayout(seed=self.parent.seed_text, msg=True,
+                                  options=['ext'])
+        self.main_widget.setLayout(self.slayout)
+
+    def nextId(self):
+        if self.slayout.is_ext:
+            return self.parent.REQUEST_PASS_PAGE
+        else:
+            return self.parent.CONFIRM_SEED_PAGE
+
+    def validatePage(self):
+        self.parent.is_ext = self.slayout.is_ext
+        self.parent.is_restore = False
+        return True
+
+
+class RequestPassphraseWizardPage(QWizardPage):
+
+    def __init__(self, parent=None):
+        super(RequestPassphraseWizardPage, self).__init__(parent)
+        self.parent = parent
+        self.setTitle(_('Seed extension'))
+        subtitle = '\n'.join([
+            _('You may extend your seed with custom words.'),
+            _('Your seed extension must be saved together with your seed.'),
+        ])
+        self.setSubTitle(subtitle)
+
+        self.pass_edit = QLineEdit()
+        warning = '\n'.join([
+            _('Note that this is NOT your encryption password.'),
+            _('If you do not know what this is, leave this field empty.'),
+        ])
+        warn_label = QLabel(warning)
+        layout = QVBoxLayout()
+        layout.addWidget(self.pass_edit)
+        layout.addWidget(warn_label)
+        self.setLayout(layout)
+
+    def nextId(self):
+        if self.parent.is_restore:
+            return self.parent.KEYSTORE_PWD_PAGE
+        else:
+            return self.parent.CONFIRM_SEED_PAGE
+
+    def validatePage(self):
+        self.parent.seed_ext_text = self.pass_edit.text()
+        return True
+
+
+class ConfirmSeedWizardPage(QWizardPage):
+
+    def __init__(self, parent=None):
+        super(ConfirmSeedWizardPage, self).__init__(parent)
+        self.parent = parent
+        self.setTitle(_('Confirm Seed'))
+        subtitle = ' '.join([
+            _('Your seed is important!'),
+            _('If you lose your seed, your money will be permanently lost.'),
+            _('To make sure that you have properly saved your seed,'
+              ' please retype it here.')
+        ])
+        self.setSubTitle(subtitle)
+        self.layout = QVBoxLayout()
+        self.setLayout(self.layout)
+        self.main_widget = QWidget()
+        self.layout.addWidget(self.main_widget)
+        self.seed_ok = False
+
+    def initializePage(self):
+        self.layout.removeWidget(self.main_widget)
+        self.main_widget.setParent(None)
+        self.main_widget = QWidget()
+        self.layout.addWidget(self.main_widget)
+
+        self.slayout = SeedLayout(is_seed=lambda x: x == self.parent.seed_text,
+                                  options=[], on_edit_cb=self.set_seed_ok)
+        self.main_widget.setLayout(self.slayout)
+        self.seed_ok = self.slayout.is_seed(self.slayout.get_seed())
+
+    def set_seed_ok(self, seed_ok):
+        self.seed_ok = seed_ok
+        self.completeChanged.emit()
+
+    def nextId(self):
+        if self.parent.is_ext:
+            return self.parent.CONFIRM_PASS_PAGE
+        else:
+            return self.parent.KEYSTORE_PWD_PAGE
+
+    def isComplete(self):
+        return self.seed_ok
+
+
+class ConfirmPassphraseWizardPage(QWizardPage):
+
+    def __init__(self, parent=None):
+        super(ConfirmPassphraseWizardPage, self).__init__(parent)
+        self.parent = parent
+        self.setTitle(_('Confirm Seed Extension'))
+        message = '\n'.join([
+            _('Your seed extension must be saved together with your seed.'),
+            _('Please type it here.'),
+        ])
+        self.setSubTitle(message)
+        layout = QVBoxLayout()
+        self.pass_edit = QLineEdit()
+        self.pass_edit.textChanged.connect(self.on_pass_edit_changed)
+        layout.addWidget(self.pass_edit)
+        self.setLayout(layout)
+
+    @pyqtSlot()
+    def on_pass_edit_changed(self):
+        self.completeChanged.emit()
+
+    def nextId(self):
+        return self.parent.KEYSTORE_PWD_PAGE
+
+    def isComplete(self):
+        return self.pass_edit.text() == self.parent.seed_ext_text
+
+
+class EnterSeedWizardPage(QWizardPage):
+
+    def __init__(self, parent=None):
+        super(EnterSeedWizardPage, self).__init__(parent)
+        self.parent = parent
+        self.setTitle(_('Enter Seed'))
+        subtitle = _('Please enter your seed phrase in order'
+                     ' to restore your wallet.')
+        self.setSubTitle(subtitle)
+        self.layout = QVBoxLayout()
+        self.setLayout(self.layout)
+        self.main_widget = QWidget()
+        self.layout.addWidget(self.main_widget)
+        self.seed_ok = False
+
+    def initializePage(self):
+        self.layout.removeWidget(self.main_widget)
+        self.main_widget.setParent(None)
+        self.main_widget = QWidget()
+        self.layout.addWidget(self.main_widget)
+
+        self.slayout = SeedLayout(is_seed=mnemonic.is_seed,
+                                  options=['ext'], on_edit_cb=self.set_seed_ok)
+        self.main_widget.setLayout(self.slayout)
+        self.seed_ok = self.slayout.is_seed(self.slayout.get_seed())
+
+    def set_seed_ok(self, seed_ok):
+        self.seed_ok = seed_ok
+        self.completeChanged.emit()
+
+    def nextId(self):
+        if self.slayout.is_ext:
+            return self.parent.REQUEST_PASS_PAGE
+        else:
+            return self.parent.KEYSTORE_PWD_PAGE
+
+    def isComplete(self):
+        return self.seed_ok
+
+    def validatePage(self):
+        self.parent.seed_text = self.slayout.get_seed()
+        self.parent.is_ext = self.slayout.is_ext
+        self.parent.is_restore = True
+        return True
+
+
+class PSKeysotrePasswdWizardPage(QWizardPage):
+
+    def __init__(self, parent=None):
+        super(PSKeysotrePasswdWizardPage, self).__init__(parent)
+        self.parent = parent
+        self.setTitle(_('Encrypt PrivateSend Keystore'))
+        self.setSubTitle('Set password for PrivateSend keystore encryption')
+        self.layout = QVBoxLayout()
+        self.setLayout(self.layout)
+        self.main_widget = QWidget()
+        self.layout.addWidget(self.main_widget)
+        self.passwd_ok = False
+
+    def initializePage(self):
+        self.layout.removeWidget(self.main_widget)
+        self.main_widget.setParent(None)
+        self.main_widget = QWidget()
+        self.layout.addWidget(self.main_widget)
+
+        self.playout = PasswordLayout(msg=MSG_ENTER_PASSWORD, kind=PW_NEW,
+                                      OK_button=None,
+                                      on_edit_cb=self.set_passwd_ok)
+        self.playout.encrypt_cb.hide()
+        self.main_widget.setLayout(self.playout.layout())
+        self.passwd_ok = \
+            self.playout.new_pw.text() == self.playout.conf_pw.text()
+
+    def set_passwd_ok(self, passwd_ok):
+        self.passwd_ok = passwd_ok
+        self.completeChanged.emit()
+
+    def nextId(self):
+        return self.parent.DONE_KEYSTORE_PAGE
+
+    def isComplete(self):
+        return self.passwd_ok
+
+    def validatePage(self):
+        self.parent.keystore_password = self.playout.new_password()
+        return True
+
+
+class DonePSKeysotreWizardPage(QWizardPage):
+
+    def __init__(self, parent=None):
+        super(DonePSKeysotreWizardPage, self).__init__(parent)
+        self.parent = parent
+        self.setTitle(_('Done'))
+        self.setSubTitle(_('PrivateSend Kestore Created'))
+
+
+        layout = QVBoxLayout()
+        self.err_lbl = QLabel()
+        self.err_lbl.setObjectName('err-label')
+        self.err_lbl.hide()
+        layout.addWidget(self.err_lbl)
+        self.seed_lbl = QLabel()
+        layout.addWidget(self.seed_lbl)
+        self.seed_ext_lbl = QLabel()
+        layout.addWidget(self.seed_ext_lbl)
+        self.setLayout(layout)
+
+    def initializePage(self):
+        seed_text = self.parent.seed_text
+        is_ext = self.parent.is_ext
+        seed_ext_text = self.parent.seed_ext_text
+        keystore_password = self.parent.keystore_password
+
+        try:
+            psman = self.parent.wallet.psman
+            psman.create_ps_ks_from_seed_ext_password(seed_text, seed_ext_text,
+                                                      keystore_password)
+            seed_lbl_text = '%s: %s' % (_('Seed'), seed_text)
+            self.seed_lbl.setText(seed_lbl_text)
+            if is_ext:
+                seed_ext_lbl_text = '%s: %s' % (_('Seed Extension'),
+                                                seed_ext_text)
+                self.seed_ext_lbl.setText(seed_ext_lbl_text)
+            else:
+                self.seed_ext_lbl.setText('')
+        except Exception as e:
+            self.err_lbl.setText(f'Error: {str(e)}')
+            self.err_lbl.show()
+
+
+class PSKeystoreWizard(QWizard):
+
+    SEED_OPERATION_PAGE = 1
+    CREATE_SEED_PAGE = 2
+    REQUEST_PASS_PAGE = 3
+    CONFIRM_SEED_PAGE = 4
+    CONFIRM_PASS_PAGE = 5
+    ENTER_SEED_PAGE = 6
+    KEYSTORE_PWD_PAGE = 7
+    DONE_KEYSTORE_PAGE = 8
+
+    def __init__(self, parent):
+        super(PSKeystoreWizard, self).__init__(parent)
+        self.gui = parent
+        self.wallet = parent.wallet
+        self.seed_text = ''
+        self.is_ext = False
+        self.seed_ext_text = ''
+        self.keystore_password = None
+
+        self.setPage(self.SEED_OPERATION_PAGE, SeedOperationWizardPage(self))
+        self.setPage(self.CREATE_SEED_PAGE, CreateSeedWizardPage(self))
+        self.setPage(self.REQUEST_PASS_PAGE, RequestPassphraseWizardPage(self))
+        self.setPage(self.CONFIRM_SEED_PAGE, ConfirmSeedWizardPage(self))
+        self.setPage(self.CONFIRM_PASS_PAGE, ConfirmPassphraseWizardPage(self))
+        self.setPage(self.ENTER_SEED_PAGE, EnterSeedWizardPage(self))
+        self.setPage(self.KEYSTORE_PWD_PAGE, PSKeysotrePasswdWizardPage(self))
+        self.setPage(self.DONE_KEYSTORE_PAGE, DonePSKeysotreWizardPage(self))
+
+        logo = QPixmap(icon_path('privatesend.png'))
+        logo = logo.scaledToWidth(32, mode=Qt.SmoothTransformation)
+        self.setWizardStyle(QWizard.ClassicStyle)
+        self.setOption(QWizard.NoBackButtonOnLastPage, True)
+        self.setOption(QWizard.NoCancelButtonOnLastPage, True)
+        self.setPixmap(QWizard.LogoPixmap, logo)
+        self.setWindowTitle(_('PrivateSend Keystore Wizard'))
+        self.setWindowIcon(read_QIcon('electrum-axe.png'))
+        self.setMinimumSize(800, 450)

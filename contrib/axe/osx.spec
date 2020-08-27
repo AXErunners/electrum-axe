@@ -80,7 +80,8 @@ if TRAVIS_TAG:
     datas += [(QRREADER_ZPATH, QRREADER_PATH)]
 
 # Add libusb so Trezor and Safe-T mini will work
-binaries = [('../libusb-1.0.dylib', '.')]
+binaries = []
+binaries += [('../libusb-1.0.dylib', '.')]
 binaries += [('../libsecp256k1.0.dylib', '.')]
 binaries += [('/usr/local/lib/libgmp.10.dylib', '.')]
 

@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from electrum_axe.util import (format_satoshis, format_fee_satoshis, parse_URI,
-                                is_hash256_str, chunks)
+                                is_hash256_str, chunks, InvalidBitcoinURI)
 
 from . import SequentialTestCase
 
@@ -50,41 +50,101 @@ class TestUtil(SequentialTestCase):
         self.assertEqual(expected, result)
 
     def test_parse_URI_address(self):
-        self._do_test_parse_URI('axe:PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ',
-                                {'address': 'PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ'})
+        part_URI = 'PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ'
+        URI = f'axe:{part_URI}'
+        self._do_test_parse_URI(
+            URI, {'address': 'PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ'})
+
+        URI = f'pay:{part_URI}'
+        with self.assertRaises(InvalidBitcoinURI):
+            self._do_test_parse_URI(URI, None)
 
     def test_parse_URI_only_address(self):
-        self._do_test_parse_URI('PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ',
-                                {'address': 'PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ'})
-
+        URI = 'PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ'
+        self._do_test_parse_URI(
+            URI, {'address': 'PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ'})
 
     def test_parse_URI_address_label(self):
-        self._do_test_parse_URI('axe:PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ?label=electrum%20test',
-                                {'address': 'PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ', 'label': 'electrum test'})
+        part_URI = 'PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ?label=electrum%20test'
+        URI = f'axe:{part_URI}'
+        self._do_test_parse_URI(
+            URI, {'address': 'PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ',
+                  'label': 'electrum test'})
+
+        URI = f'pay:{part_URI}'
+        with self.assertRaises(InvalidBitcoinURI):
+            self._do_test_parse_URI(URI, None)
 
     def test_parse_URI_address_message(self):
-        self._do_test_parse_URI('axe:PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ?message=electrum%20test',
-                                {'address': 'PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ', 'message': 'electrum test', 'memo': 'electrum test'})
+        part_URI = 'PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ?message=electrum%20test'
+        URI = f'axe:{part_URI}'
+        self._do_test_parse_URI(
+            URI, {'address': 'PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ',
+                  'message': 'electrum test', 'memo': 'electrum test'})
+
+        URI = f'pay:{part_URI}'
+        with self.assertRaises(InvalidBitcoinURI):
+            self._do_test_parse_URI(URI, None)
 
     def test_parse_URI_address_amount(self):
-        self._do_test_parse_URI('axe:PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ?amount=0.0003',
-                                {'address': 'PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ', 'amount': 30000})
+        part_URI = 'PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ?amount=0.0003'
+        URI = f'axe:{part_URI}'
+        self._do_test_parse_URI(
+            URI, {'address': 'PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ',
+                  'amount': 30000})
+
+        URI = f'pay:{part_URI}'
+        with self.assertRaises(InvalidBitcoinURI):
+            self._do_test_parse_URI(URI, None)
 
     def test_parse_URI_address_request_url(self):
-        self._do_test_parse_URI('axe:PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ?r=http://domain.tld/page?h%3D2a8628fc2fbe',
-                                {'address': 'PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ', 'r': 'http://domain.tld/page?h=2a8628fc2fbe'})
+        part_URI = ('PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ'
+                    '?r=http://domain.tld/page?h%3D2a8628fc2fbe')
+        URI = f'axe:{part_URI}'
+        self._do_test_parse_URI(
+            URI, {'address': 'PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ',
+                  'r': 'http://domain.tld/page?h=2a8628fc2fbe'})
+
+        URI = f'pay:{part_URI}'
+        with self.assertRaises(InvalidBitcoinURI):
+            self._do_test_parse_URI(URI, None)
 
     def test_parse_URI_ignore_args(self):
-        self._do_test_parse_URI('axe:PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ?test=test',
-                                {'address': 'PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ', 'test': 'test'})
+        part_URI ='PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ?test=test'
+        URI = f'axe:{part_URI}'
+        self._do_test_parse_URI(
+            URI, {'address': 'PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ',
+                  'test': 'test'})
+
+        URI = f'pay:{part_URI}'
+        with self.assertRaises(InvalidBitcoinURI):
+            self._do_test_parse_URI(URI, None)
 
     def test_parse_URI_multiple_args(self):
-        self._do_test_parse_URI('axe:PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ?amount=0.00004&label=electrum-test&message=electrum%20test&test=none&r=http://domain.tld/page',
-                                {'address': 'PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ', 'amount': 4000, 'label': 'electrum-test', 'message': u'electrum test', 'memo': u'electrum test', 'r': 'http://domain.tld/page', 'test': 'none'})
+        part_URI = ('PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ'
+                    '?amount=0.00004&label=electrum-test'
+                    '&message=electrum%20test&test=none'
+                    '&r=http://domain.tld/page')
+        URI = f'axe:{part_URI}'
+        self._do_test_parse_URI(
+            URI, {'address': 'PUFpXCipFhCM1n3CvY1pdJnsuBYGXopNoZ',
+                  'amount': 4000, 'label': 'electrum-test',
+                  'message': u'electrum test', 'memo': u'electrum test',
+                  'r': 'http://domain.tld/page', 'test': 'none'})
+
+        URI = f'pay:{part_URI}'
+        with self.assertRaises(InvalidBitcoinURI):
+            self._do_test_parse_URI(URI, None)
 
     def test_parse_URI_no_address_request_url(self):
-        self._do_test_parse_URI('axe:?r=http://domain.tld/page?h%3D2a8628fc2fbe',
-                                {'r': 'http://domain.tld/page?h=2a8628fc2fbe'})
+        part_URI = '?r=http://domain.tld/page?h%3D2a8628fc2fbe'
+        URI = f'axe:{part_URI}'
+        self._do_test_parse_URI(
+            URI, {'r': 'http://domain.tld/page?h=2a8628fc2fbe'})
+
+        URI = f'pay:{part_URI}'
+        self._do_test_parse_URI(
+            URI, {'r': 'http://domain.tld/page?h=2a8628fc2fbe'})
 
     def test_parse_URI_invalid_address(self):
         self.assertRaises(BaseException, parse_URI, 'axe:invalidaddress')
