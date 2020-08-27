@@ -1,4 +1,16 @@
-# Release 3.3.8.6 (not released yet)
+# Release 3.3.8.7
+
+ * PrivateSend: support mixing on hardware wallets (using ps_keystore)
+ * PrivateSend: indicate waiting state (all mixed, wait for more funds)
+ * qt: fix exported files file mode
+ * qt: allow hide warning for watch-only wallet
+ * add "pay:" scheme to support anypayinc.com
+ * allow bypass Tor proxy for Fiat rates loading (option in Proxy settings)
+ * protx_list: enhance network data processing
+ * other qt gui fixes
+
+
+# Release 3.3.8.6
 
  * PrivateSend: allow start mixing before llmq/protx ready,
    stop mixing only if keep amount is available on ps balance
