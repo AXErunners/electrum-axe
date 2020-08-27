@@ -164,9 +164,6 @@ class StackTraces(threading.Thread):
                 self._sample(frame)
             if traceback:
                 self._traceback_fn(code, ident, frame)
-        #from pprint import pprint
-        #print('>'*80)
-        #pprint(code)
 
         if traceback:
             self._code = code

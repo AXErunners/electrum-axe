@@ -464,7 +464,7 @@ class AddressList(MyTreeView):
             if not is_ps and not is_ps_ks:
                 menu.addAction(_("Request payment"),
                                lambda: self.parent.receive_at(addr))
-            if self.wallet.can_export():
+            if self.wallet.can_export() or self.wallet.psman.is_ps_ks(addr):
                 menu.addAction(_("Private key"),
                                lambda: self.parent.show_private_key(addr))
             if not is_multisig and not self.wallet.is_watching_only():

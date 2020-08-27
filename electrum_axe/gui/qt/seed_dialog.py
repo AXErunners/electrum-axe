@@ -90,10 +90,12 @@ class SeedLayout(QVBoxLayout):
         self.is_bip39 = cb_bip39.isChecked() if 'bip39' in self.options else False
 
     def __init__(self, seed=None, title=None, icon=True, msg=None, options=None,
-                 is_seed=None, passphrase=None, parent=None, for_seed_words=True):
+                 is_seed=None, passphrase=None, parent=None,
+                 for_seed_words=True, on_edit_cb=None):
         QVBoxLayout.__init__(self)
         self.parent = parent
         self.options = options
+        self.on_edit_cb = on_edit_cb
         if title:
             self.addWidget(WWLabel(title))
         if seed:  # "read only", we already have the text
@@ -187,7 +189,10 @@ class SeedLayout(QVBoxLayout):
             status = ('checksum: ' + ('ok' if is_checksum else 'failed')) if is_wordlist else 'unknown wordlist'
             label = 'BIP39' + ' (%s)'%status
         self.seed_type_label.setText(label)
-        self.parent.next_button.setEnabled(b)
+        if self.on_edit_cb:
+            self.on_edit_cb(b)
+        else:
+            self.parent.next_button.setEnabled(b)
 
         # disable suggestions if user already typed an unknown word
         for word in self.get_seed().split(" ")[:-1]:

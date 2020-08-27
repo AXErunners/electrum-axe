@@ -36,6 +36,12 @@ Popup:
 
                 CardSeparator
                 SettingsItem:
+                    title: f'{app.network.FIAT_BYPASS_TOR_MSG}: ' + ('ON' if app.fiat_bypass_tor_bp else 'OFF')
+                    description: _('Do not use Tor proxy for Fiat rates network calls')
+                    action: app.toggle_fiat_bypass_tor
+
+                CardSeparator
+                SettingsItem:
                     title: _("Auto-connect") + ': ' + ('ON' if app.auto_connect else 'OFF')
                     description: _("Select your server automatically")
                     action: app.toggle_auto_connect

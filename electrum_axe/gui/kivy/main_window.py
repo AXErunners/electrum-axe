@@ -124,6 +124,15 @@ class ElectrumWindow(App):
         self.tor_auto_on_bp = not self.electrum_config.get('tor_auto_on', True)
         self.electrum_config.set_key('tor_auto_on', self.tor_auto_on_bp, True)
 
+    fiat_bypass_tor_bp = BooleanProperty()
+    def toggle_fiat_bypass_tor(self, x):
+        self.fiat_bypass_tor_bp = \
+            not self.electrum_config.get('fiat_bypass_tor', False)
+        self.electrum_config.set_key('fiat_bypass_tor',
+                                     self.fiat_bypass_tor_bp, True)
+        coro = self.network.restart()
+        self.network.run_from_another_thread(coro)
+
     proxy_str = StringProperty('')
     def update_proxy_str(self, proxy: dict):
         mode = proxy.get('mode')
@@ -362,7 +371,7 @@ class ElectrumWindow(App):
         if is_address(data):
             self.set_URI(data)
             return
-        if data.startswith('axe:'):
+        if data.startswith('axe:') or data.startswith('pay:'):
             self.set_URI(data)
             return
         # try to decode transaction
@@ -690,7 +699,9 @@ class ElectrumWindow(App):
         if key == 27 and self.is_exit:
             if self.wallet:
                 psman = self.wallet.psman
-                if psman and psman.state in psman.mixing_running_states:
+                is_mixing = (psman.state in psman.mixing_running_states)
+                is_waiting = psman.is_waiting if is_mixing else False
+                if is_mixing and not is_waiting:
 
                     def on_want_exit(b):
                         if b:
@@ -826,6 +837,8 @@ class ElectrumWindow(App):
 
     def on_ps_event(self, event, *args):
         psman = self.wallet.psman
+        is_mixing = (psman.state in psman.mixing_running_states)
+        is_waiting = psman.is_waiting if is_mixing else False
         if event == 'ps-data-changes':
             wallet = args[0]
             if wallet == self.wallet:
@@ -834,11 +847,11 @@ class ElectrumWindow(App):
             wallet = args[0]
             if wallet == self.wallet:
                 self._trigger_update_wallet()
-        elif event == 'ps-state-changes':
-            wallet, msg, msg_type = args
+        elif event in ['ps-state-changes', 'ps-wfl-changes',
+                       'ps-keypairs-changes']:
+            wallet, msg, msg_type = (*args, None, None)[:3]
             if wallet == self.wallet:
-                is_mixing = (psman.state in psman.mixing_running_states)
-                self.update_ps_btn(is_mixing)
+                self.update_ps_btn(is_mixing, is_waiting)
                 if msg:
                     if msg_type and msg_type.startswith('inf'):
                         self.show_info(msg)
@@ -928,12 +941,9 @@ class ElectrumWindow(App):
             self.show_info(f'Created New Collateral workflow with'
                            f' txids: {", ".join(wfl.tx_order)}')
 
-    def update_ps_btn(self, is_mixing):
+    def update_ps_btn(self, is_mixing, is_waiting):
         ps_button = self.root.ids.ps_button
-        if is_mixing:
-            ps_button.icon = self.ps_icon(active=True)
-        else:
-            ps_button.icon = self.ps_icon()
+        ps_button.icon = self.ps_icon(active=is_mixing, is_waiting=is_waiting)
 
     @profiler
     def load_wallet(self, wallet):
@@ -946,6 +956,8 @@ class ElectrumWindow(App):
                                              'ps-reserved-changes',
                                              'ps-not-enough-sm-denoms',
                                              'ps-other-coins-arrived',
+                                             'ps-wfl-changes',
+                                             'ps-keypairs-changes',
                                              'ps-state-changes'])
         self.wallet_name = wallet.basename()
         self.update_wallet()
@@ -1062,8 +1074,14 @@ class ElectrumWindow(App):
     def app_icon(self):
         return ATLAS_ICON % ('logo-testnet' if self.testnet else 'logo')
 
-    def ps_icon(self, active=False):
-        return ATLAS_ICON % ('privatesend_active' if active else 'privatesend')
+    def ps_icon(self, active=False, is_waiting=False):
+        if not active:
+            icon = 'privatesend'
+        elif not is_waiting:
+            icon = 'privatesend_active'
+        else:
+            icon = 'privatesend_waiting'
+        return ATLAS_ICON % icon
 
     def on_pause(self):
         self.pause_time = time.time()

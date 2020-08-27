@@ -177,11 +177,9 @@ class MNList(Logger):
 
     @property
     def protx_info_completeness(self):
-        if not self.protx_ready:
-            return 0.0
         protx_mns_cnt = len(self.protx_mns)
         protx_info_cnt = len(self.protx_info)
-        return min(1.0, protx_info_cnt/protx_mns_cnt)
+        return min(1.0, protx_info_cnt/protx_mns_cnt if protx_mns_cnt else 0.0)
 
     @property
     def llmq_loading(self):
@@ -327,7 +325,14 @@ class MNList(Logger):
     def trigger_callback(self, event, *args):
         with self.callback_lock:
             callbacks = self.callbacks[event][:]
-        [callback(event, *args) for callback in callbacks]
+        for callback in callbacks:
+            # FIXME: if callback throws, we will lose the traceback
+            if asyncio.iscoroutinefunction(callback):
+                asyncio.run_coroutine_threadsafe(callback(event, *args),
+                                                 self.network.asyncio_loop)
+            else:
+                self.network.asyncio_loop.call_soon_threadsafe(callback,
+                                                               event, *args)
 
     def notify(self, key):
         if key == 'mn-list-diff-updated':
@@ -368,6 +373,16 @@ class MNList(Logger):
         elif self.protx_loading:
             await self.network.request_protx_diff()
 
+    async def on_network_error(self, key, val):
+        await asyncio.sleep(2)
+        if self.axe_net_enabled:
+            if self.llmq_loading:
+                await self.axe_net.getmnlistd()
+            elif self.protx_loading:
+                await self.axe_net.getmnlistd(get_mns=True)
+        elif self.protx_loading:
+            await self.network.request_protx_diff()
+
     async def on_axe_net_updated(self, key, *args):
         status = args[0]
         if status == 'enabled':
@@ -397,6 +412,8 @@ class MNList(Logger):
         self.axe_net.register_callback(self.on_axe_net_updated,
                                         ['axe-net-updated'])
         self.axe_net.register_callback(self.on_mnlistdiff, ['mnlistdiff'])
+        # MNList
+        self.register_callback(self.on_network_error, ['network-error'])
 
     def stop(self):
         # network
@@ -408,6 +425,8 @@ class MNList(Logger):
         # axe_net
         self.axe_net.unregister_callback(self.on_axe_net_updated)
         self.axe_net.unregister_callback(self.on_mnlistdiff)
+        # MNList
+        self.unregister_callback(self.on_network_error)
 
     def get_random_mn(self):
         valid = [sml_entry for sml_entry in self.protx_mns.values()
@@ -527,6 +546,7 @@ class MNList(Logger):
         error = value['error']
         if error:
             self.logger.info(f'on_mnlistdiff: {error}')
+            self.notify('network-error')
             return
         diff = value['result']
 
@@ -668,6 +688,7 @@ class MNList(Logger):
         error = value.get('error')
         if error:
             self.logger.info(f'on_protx_diff: {error}')
+            self.notify('network-error')
             return
         diff = value.get('result')
 

@@ -51,6 +51,10 @@ class ExchangeBase(Logger):
         url = ''.join(['https://', site, get_string])
         network = Network.get_instance()
         proxy = network.proxy if network else None
+        if proxy:
+            fiat_bypass_tor = network.config.get('fiat_bypass_tor', False)
+            if fiat_bypass_tor and network.proxy_is_tor(proxy):
+                proxy = None
         async with make_aiohttp_session(proxy) as session:
             async with session.get(url) as response:
                 response.raise_for_status()
@@ -61,6 +65,10 @@ class ExchangeBase(Logger):
         url = ''.join(['https://', site, get_string])
         network = Network.get_instance()
         proxy = network.proxy if network else None
+        if proxy:
+            fiat_bypass_tor = network.config.get('fiat_bypass_tor', False)
+            if fiat_bypass_tor and network.proxy_is_tor(proxy):
+                proxy = None
         async with make_aiohttp_session(proxy) as session:
             async with session.get(url) as response:
                 response.raise_for_status()

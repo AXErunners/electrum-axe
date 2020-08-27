@@ -403,7 +403,8 @@ class PS_BIP32_KeyStore(BIP32_KeyStore):
 
     def dump(self):
         d = BIP32_KeyStore.dump(self)
-        d['addr_deriv_offset'] = self.addr_deriv_offset
+        if self.addr_deriv_offset != 1:
+            d['addr_deriv_offset'] = self.addr_deriv_offset
         return d
 
     def derive_pubkey(self, for_change, n):
@@ -415,8 +416,8 @@ class PS_BIP32_KeyStore(BIP32_KeyStore):
         return super().get_xpubkey(derivation, i)
 
     def get_private_key(self, sequence, password):
-        derivation = self.addr_deriv_offset*2 + int(sequence[0])
-        _sequence = (derivation, *sequence[1:])
+        derivation = self.addr_deriv_offset*2 + int(sequence[0] % 2)
+        _sequence = [derivation, *sequence[1:]]
         return super().get_private_key(_sequence, password)
 
 

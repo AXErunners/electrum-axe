@@ -94,7 +94,8 @@ from .update_checker import UpdateCheck, UpdateCheckThread
 from .masternode_dialog import MasternodeDialog
 from .axe_qt import ExtraPayloadWidget
 from .privatesend_dialog import (find_ps_dialog, show_ps_dialog,
-                                 hide_ps_dialog, protected_with_parent)
+                                 hide_ps_dialog, protected_with_parent,
+                                 show_ps_dialog_or_wizard)
 from .protx_qt import create_dip3_tab
 
 
@@ -430,6 +431,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
     def on_ps_signal(self, event, args):
         psman = self.wallet.psman
         is_mixing = (psman.state in psman.mixing_running_states)
+        is_waiting = psman.is_waiting if is_mixing else False
         if event == 'ps-data-changes':
             wallet = args[0]
             if wallet == self.wallet:
@@ -438,10 +440,11 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             wallet = args[0]
             if wallet == self.wallet:
                 self.need_update.set()
-        elif event == 'ps-state-changes':
-            wallet, msg, msg_type = args
+        elif event in ['ps-state-changes', 'ps-wfl-changes',
+                       'ps-keypairs-changes']:
+            wallet, msg, msg_type = (*args, None, None)[:3]
             if wallet == self.wallet:
-                self.update_ps_status_btn(is_mixing)
+                self.update_ps_status_btn(is_mixing, is_waiting)
                 if msg:
                     parent = self
                     d = find_ps_dialog(self)
@@ -484,11 +487,18 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         icon = (net.axe_net.status_icon() if net else 'axe_net_off.png')
         self.axe_net_button.setIcon(read_QIcon(icon))
 
-    def update_ps_status_btn(self, is_mixing):
-        icon = 'privatesend_active.png' if is_mixing else 'privatesend.png'
+    def update_ps_status_btn(self, is_mixing, is_waiting):
+        if not is_mixing:
+            icon = 'privatesend.png'
+            status = _('Is Idle')
+        elif not is_waiting:
+            icon = 'privatesend_active.png'
+            status = _('Is Mixing')
+        else:
+            icon = 'privatesend_waiting.png'
+            status = _('Is Waiting')
         self.ps_button.setIcon(read_QIcon(icon))
         ps = _('PrivateSend')
-        status = _('Is Mixing') if is_mixing else _('Is Idle')
         tooltip = f'{ps} {status}'
         self.ps_button.setToolTip(tooltip)
 
@@ -592,13 +602,19 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         self.export_menu.setEnabled(self.wallet.can_export())
 
     def warn_if_watching_only(self):
-        if self.wallet.is_watching_only():
+        watch_only_warn = self.config.get('watch_only_warn', True)
+        if self.wallet.is_watching_only() and watch_only_warn:
             msg = ' '.join([
                 _("This wallet is watching-only."),
                 _("This means you will not be able to spend Axe coins with it."),
                 _("Make sure you own the seed phrase or the private keys, before you request Axe coins to be sent to this wallet.")
             ])
-            self.show_warning(msg, title=_('Watch-only wallet'))
+            cb = QCheckBox(_("Don't show this again."))
+            def on_cb(x):
+                self.config.set_key('watch_only_warn', x != Qt.Checked,
+                                    save=True)
+            cb.stateChanged.connect(on_cb)
+            self.show_warning(msg, title=_('Watch-only wallet'), checkbox=cb)
 
     def warn_if_testnet(self):
         if not constants.net.TESTNET:
@@ -704,7 +720,11 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         self.private_keys_menu = wallet_menu.addMenu(_("&Private keys"))
         self.private_keys_menu.addAction(_("&Sweep"), self.sweep_key_dialog)
         self.import_privkey_menu = self.private_keys_menu.addAction(_("&Import"), self.do_import_privkey)
-        self.export_menu = self.private_keys_menu.addAction(_("&Export"), self.export_privkeys_dialog)
+
+        def export_privk_dlg():
+            self.export_privkeys_dialog(mwin=self, parent=self)
+        self.export_menu = self.private_keys_menu.addAction(_("&Export"),
+                                                            export_privk_dlg)
         self.import_address_menu = wallet_menu.addAction(_("Import addresses"), self.import_addresses)
         wallet_menu.addSeparator()
 
@@ -744,7 +764,9 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         add_toggle_action(view_menu, self.console_tab)
 
         wallet_menu.addSeparator()
-        wallet_menu.addAction(_('PrivateSend'), lambda: show_ps_dialog(self))
+
+        wallet_menu.addAction(_('PrivateSend'),
+                              lambda: show_ps_dialog_or_wizard(self))
 
         tools_menu = menubar.addMenu(_("&Tools"))
 
@@ -1630,11 +1652,14 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             _type, addr = self.get_payto_or_dummy()
             outputs = [TxOutput(_type, addr, amount)]
         is_sweep = bool(self.tx_external_keypairs)
+        psman = self.wallet.psman
+        no_ps_data = psman.is_hw_ks and not psman.enabled
         make_tx = lambda fee_est: \
             self.wallet.make_unsigned_transaction(
                 coins, outputs, self.config,
                 fixed_fee=fee_est, is_sweep=is_sweep,
                 min_rounds=min_rounds,
+                no_ps_data=no_ps_data,
                 tx_type=tx_type, extra_payload=extra_payload)
         try:
             tx = make_tx(fee_estimator)
@@ -1798,6 +1823,49 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             return func(self, *args, **kwargs)
         return request_password
 
+    def ps_ks_protected(func):
+        def request_ps_ks_password(self, *args, **kwargs):
+            psman = self.wallet.psman
+            if not psman.is_hw_ks:
+                return func(self, *args, **kwargs)
+            if not psman.is_ps_ks_encrypted():
+                return func(self, *args, **kwargs)
+            fname = func.__name__
+            if fname == 'do_sign':
+                addr_edit = args[0]
+                addr = addr_edit.text().strip()
+                if not psman.is_ps_ks(addr):
+                    return func(self, *args, **kwargs)
+            elif fname == 'do_decrypt':
+                pubkey_edit = args[1]
+                pubkey = pubkey_edit.text().strip()
+                addr = psman.pubkeys_to_address(pubkey)
+                if not psman.is_ps_ks(addr):
+                    return func(self, *args, **kwargs)
+            elif fname == 'sign_tx':
+                tx = args[0]
+                if not psman.is_ps_ks_inputs_in_tx(tx):
+                    return func(self, *args, **kwargs)
+            elif fname not in ['_delete_wallet', 'show_private_key']:
+                return func(self, *args, **kwargs)
+
+            parent = self.top_level_window()
+            password = None
+            while psman.is_ps_ks_encrypted():
+                password = self.password_dialog(parent=parent)
+                if password is None:
+                    # User cancelled password input
+                    return
+                try:
+                    psman.ps_keystore.check_password(password)
+                    break
+                except Exception as e:
+                    self.show_error(str(e), parent=parent)
+                    continue
+            kwargs['password'] = password
+            return func(self, *args, **kwargs)
+        return request_ps_ks_password
+
     def is_send_fee_frozen(self):
         return self.fee_e.isVisible() and self.fee_e.isModified() \
                and (self.fee_e.text() or self.fee_e.hasFocus())
@@ -1885,10 +1953,13 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             return
         try:
             is_sweep = bool(self.tx_external_keypairs)
+            psman = self.wallet.psman
+            no_ps_data = psman.is_hw_ks and not psman.enabled
             tx = self.wallet.make_unsigned_transaction(
                 coins, outputs, self.config, fixed_fee=fee_estimator,
                 is_sweep=is_sweep,
                 min_rounds=min_rounds,
+                no_ps_data=no_ps_data,
                 tx_type=tx_type, extra_payload=extra_payload)
         except (NotEnoughFunds, NoDynamicFeeEstimates) as e:
             self.show_message(str(e))
@@ -1940,7 +2011,11 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         if fee > feerate_warning * tx.estimated_size() / 1000:
             msg.append(_('Warning') + ': ' + _("The fee for this transaction seems unusually high."))
 
-        if self.wallet.has_keystore_encryption():
+        psman = self.wallet.psman
+        if (self.wallet.has_keystore_encryption()
+                or (psman.is_hw_ks
+                and psman.is_ps_ks_inputs_in_tx(tx)
+                and psman.is_ps_ks_encrypted())):
             msg.append("")
             msg.append(_("Enter your password to proceed"))
             password = self.password_dialog('\n'.join(msg))
@@ -1962,6 +2037,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         self.sign_tx_with_password(tx, sign_done, password)
 
     @protected
+    @ps_ks_protected
     def sign_tx(self, tx, callback, password):
         self.sign_tx_with_password(tx, callback, password)
 
@@ -1994,7 +2070,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
                                         f' txids: {", ".join(wfl.tx_order)}')
 
     @protected_with_parent
-    def create_new_denoms_wfl_from_gui(self, coins, password):
+    def create_new_denoms_wfl_from_gui(self, coins, parent, password):
         psman = self.wallet.psman
         return psman.create_new_denoms_wfl_from_gui(coins, password)
 
@@ -2014,9 +2090,19 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
                                         f' txids: {", ".join(wfl.tx_order)}')
 
     @protected_with_parent
-    def create_new_collateral_wfl_from_gui(self, coins, password):
+    def create_new_collateral_wfl_from_gui(self, coins, parent, password):
         psman = self.wallet.psman
         return psman.create_new_collateral_wfl_from_gui(coins, password)
+
+    @protected_with_parent
+    def send_funds_to_main_ks(self, parent, password):
+        psman = self.wallet.psman
+        try:
+            tx_list = psman.prepare_funds_from_ps_keystore(password)
+            for tx in tx_list:
+                show_transaction(tx, self)
+        except Exception as e:
+            self.show_error(f'{str(e)}')
 
     def sign_tx_with_password(self, tx, callback, password):
         '''Sign the transaction in a separate thread.  When done, calls
@@ -2278,9 +2364,14 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             return self.pay_from
         else:
             include_ps = (min_rounds is None)
+            psman = self.wallet.psman
+            main_ks = psman.ps_keystore and psman.is_hw_ks
+            no_ps_data = psman.is_hw_ks and not psman.enabled
             return self.wallet.get_spendable_coins(None, self.config,
                                                    include_ps=include_ps,
-                                                   min_rounds=min_rounds)
+                                                   min_rounds=min_rounds,
+                                                   no_ps_data=no_ps_data,
+                                                   main_ks=main_ks)
 
     def hide_extra_payload(self):
         self.extra_payload.hide()
@@ -2296,6 +2387,11 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         if is_ps:
             w = self.wallet
             psman = w.psman
+            if not psman.enabled and psman.is_hw_ks:
+                self.show_warning(_('It is not reccomended to send PrivateSend'
+                                    ' transaction without PS Keystore,'
+                                    ' as there is no means to verify'
+                                    ' input coins'))
             denoms_by_vals = psman.calc_denoms_by_values()
             if denoms_by_vals:
                 if not psman.check_enough_sm_denoms(denoms_by_vals):
@@ -2310,18 +2406,24 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         if run_hook('abort_send', self):  # This and extra fee hooks added for
             return                        # code consistency (trustedcoin only)
         wallet = self.wallet
+        psman = wallet.psman
         is_ps = self.ps_cb.isChecked()
-        min_rounds = None if not is_ps else wallet.psman.mix_rounds
+        min_rounds = None if not is_ps else psman.mix_rounds
         include_ps = (min_rounds is None)
+        main_ks = psman.ps_keystore and psman.is_hw_ks
+        no_ps_data = psman.is_hw_ks and not psman.enabled
         inputs = wallet.get_spendable_coins(None, self.config,
                                             include_ps=include_ps,
-                                            min_rounds=min_rounds)
+                                            min_rounds=min_rounds,
+                                            no_ps_data=no_ps_data,
+                                            main_ks=main_ks)
         if inputs:
             addr = self.wallet.dummy_address()
             outputs = [TxOutput(TYPE_ADDRESS, addr, '!')]
             try:
                 tx = wallet.make_unsigned_transaction(inputs, outputs,
                                                       self.config,
+                                                      no_ps_data=no_ps_data,
                                                       min_rounds=min_rounds)
                 amount = tx.output_value()
                 extra_fee = run_hook('get_tx_extra_fee', wallet, tx)
@@ -2515,8 +2617,9 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         sb.addPermanentWidget(self.axe_net_button)
 
         self.ps_button = StatusBarButton(read_QIcon('privatesend.png'),
-                                         '', lambda: show_ps_dialog(self))
-        self.update_ps_status_btn(False)
+                                         '',
+                                         lambda: show_ps_dialog_or_wizard(self))
+        self.update_ps_status_btn(False, False)
         sb.addPermanentWidget(self.ps_button)
 
         run_hook('create_status_bar', sb)
@@ -2664,6 +2767,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             self._delete_wallet()
 
     @protected
+    @ps_ks_protected
     def _delete_wallet(self, password):
         wallet_path = self.wallet.storage.path
         basename = os.path.basename(wallet_path)
@@ -2697,6 +2801,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         d.exec_()
 
     @protected
+    @ps_ks_protected
     def show_private_key(self, address, password):
         if not address:
             return
@@ -2732,6 +2837,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
                _('The operation is undefined. Not just in Axe Electrum, but in general.')
 
     @protected
+    @ps_ks_protected
     def do_sign(self, address, message, signature, password):
         address  = address.text().strip()
         message = message.toPlainText().strip()
@@ -2820,6 +2926,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         d.exec_()
 
     @protected
+    @ps_ks_protected
     def do_decrypt(self, message_e, pubkey_e, encrypted_e, password):
         if self.wallet.is_watching_only():
             self.show_message(_('This is a watching-only wallet.'))
@@ -2917,7 +3024,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         if not data:
             return
         # if the user scanned a axe URI
-        if str(data).startswith("axe:"):
+        if str(data).startswith("axe:") or str(data).startswith("pay:"):
             self.pay_to_URI(data)
             return
         # else if the user scanned an offline signed tx
@@ -2970,8 +3077,8 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             tx = transaction.Transaction(raw_tx)
             self.show_transaction(tx)
 
-    @protected
-    def export_privkeys_dialog(self, password):
+    @protected_with_parent
+    def export_privkeys_dialog(self, parent, password, ps_ks_only=False):
         if self.wallet.is_watching_only():
             self.show_message(_("This is a watching-only wallet"))
             return
@@ -2980,7 +3087,7 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
             self.show_message(_('WARNING: This is a multi-signature wallet.') + '\n' +
                               _('It cannot be "backed up" by simply exporting these private keys.'))
 
-        d = WindowModalDialog(self, _('Private keys'))
+        d = WindowModalDialog(parent, _('Private keys'))
         d.setMinimumSize(980, 300)
         vbox = QVBoxLayout(d)
 
@@ -3004,7 +3111,10 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
 
         private_keys = {}
         w = self.wallet
-        addresses = w.get_addresses() + w.psman.get_addresses()
+        if ps_ks_only:
+            addresses = w.psman.get_addresses()
+        else:
+            addresses = w.get_addresses() + w.psman.get_addresses()
         done = False
         cancelled = False
         def privkeys_thread():
@@ -3421,6 +3531,13 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
         updatecheck_cb.stateChanged.connect(on_set_updatecheck)
         gui_widgets.append((updatecheck_cb, None))
 
+        watchonly_w_cb = QCheckBox(_('Show warning for watching only wallets'))
+        watchonly_w_cb.setChecked(self.config.get('watch_only_warn', True))
+        def on_set_watch_only_warn(v):
+            self.config.set_key('watch_only_warn', v == Qt.Checked, save=True)
+        watchonly_w_cb.stateChanged.connect(on_set_watch_only_warn)
+        gui_widgets.append((watchonly_w_cb, None))
+
         filelogging_cb = QCheckBox(_("Write logs to file"))
         filelogging_cb.setChecked(bool(self.config.get('log_to_file', False)))
         def on_set_filelogging(v):
@@ -3646,14 +3763,30 @@ class ElectrumWindow(QMainWindow, MessageBoxMixin, Logger):
 
     def closeEvent(self, event):
         # It seems in some rare cases this closeEvent() is called twice
-        self.history_list.hm.get_data_thread.stop()
-        self.address_list.am.get_data_thread.stop()
-        self.utxo_list.cm.get_data_thread.stop()
         psman = self.wallet.psman
-        if psman.state in psman.mixing_running_states:
+        if psman.state in psman.mixing_running_states and not psman.is_waiting:
             if not self.question(psman.WAIT_MIXING_STOP_MSG):
                 event.ignore()
                 return
+        if (psman.is_hw_ks
+                and psman.ps_keystore
+                and psman.show_warn_ps_ks
+                and psman.check_funds_on_ps_keystore()):
+            warn = _('There are funds left on PrivateSend keystore')
+            q = _('Send all coins to hardware wallet')
+            msg = f'{warn}\n\n{q}?'
+            cb = QCheckBox(_("Don't show this again."))
+            cb.setChecked(psman.show_warn_ps_ks)
+            def on_cb(x):
+                psman.show_warn_ps_ks = (x == Qt.Checked)
+            cb.stateChanged.connect(on_cb)
+            if self.question(msg, checkbox=cb):
+                self.send_funds_to_main_ks(mwin=self, parent=self)
+                event.ignore()
+                return
+        self.history_list.hm.get_data_thread.stop()
+        self.address_list.am.get_data_thread.stop()
+        self.utxo_list.cm.get_data_thread.stop()
         if not self.cleaned_up:
             self.cleaned_up = True
             self.clean_up()

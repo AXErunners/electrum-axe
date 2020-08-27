@@ -936,7 +936,7 @@ class HistoryList(MyTreeView, AcceptFileDragDrop):
             column_data = tx_item['txid']
         else:
             column_title = self.hm.headerData(column, Qt.Horizontal, Qt.DisplayRole)
-            column_data = self.hm.data(idx, Qt.DisplayRole).value()
+            column_data = self.hm.data(idx, Qt.DisplayRole).value() or ''
         tx_hash = tx_item['txid']
         group_txid = tx_item.get('group_txid')
         is_parent = ('group_label' in tx_item)

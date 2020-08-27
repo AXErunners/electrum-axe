@@ -496,4 +496,4 @@ class AxePeer(Logger):
             self.logger.info('unasked mnlistdiff msg')
             self.mnlistdiffs.get_nowait()
         await self.send_msg('getmnlistd', msg.serialize())
-        return await self.mnlistdiffs.get()
+        return await asyncio.wait_for(self.mnlistdiffs.get(), timeout=30)

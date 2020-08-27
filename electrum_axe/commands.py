@@ -814,7 +814,6 @@ param_descriptions = {
 }
 
 command_options = {
-    'broadcast':   (None, "Broadcast the transaction to the Axe network"),
     'password':    ("-W", "Password"),
     'new_password':(None, "New Password"),
     'encrypt_file':(None, "Whether the file on disk should be encrypted with the provided password"),
@@ -859,10 +858,8 @@ command_options = {
 from .transaction import tx_from_str
 json_loads = lambda x: json.loads(x, parse_float=lambda x: str(Decimal(x)))
 arg_types = {
-    'block_start': int,
     'num': int,
     'nbits': int,
-    'payments_count': int,
     'imax': int,
     'year': int,
     'from_height': int,
