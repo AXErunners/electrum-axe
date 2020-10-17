@@ -101,6 +101,34 @@ class AxeSporks:
         SporkID.SPORK_19_CHAINLOCKS_ENABLED.value: 0,               # ON
         SporkID.SPORK_20_INSTANTSEND_LLMQ_BASED.value: 0,           # ON
     }
+    
+    SPORKS_DEFAULTS_TESTNET = {
+        SporkID.SPORK_2_INSTANTSEND_ENABLED.value: 0,               # ON
+        SporkID.SPORK_3_INSTANTSEND_BLOCK_FILTERING.value: 0,       # ON
+        SporkID.SPORK_5_INSTANTSEND_MAX_VALUE.value: 1000,          # 1000 Axe
+        SporkID.SPORK_6_NEW_SIGS.value: Y2099,                      # OFF
+        SporkID.SPORK_9_SUPERBLOCKS_ENABLED.value: 0,               # ON
+        SporkID.SPORK_12_RECONSIDER_BLOCKS.value: 0,                # 0 Blocks
+        SporkID.SPORK_15_DETERMINISTIC_MNS_ENABLED.value: 0,        # ON
+        SporkID.SPORK_16_INSTANTSEND_AUTOLOCKS.value: 0,            # ON
+        SporkID.SPORK_17_QUORUM_DKG_ENABLED.value: 0,               # ON
+        SporkID.SPORK_19_CHAINLOCKS_ENABLED.value: 0,               # ON
+        SporkID.SPORK_20_INSTANTSEND_LLMQ_BASED.value: 0,           # ON
+    }
+    
+    SPORKS_DEFAULTS_REGTEST = {
+        SporkID.SPORK_2_INSTANTSEND_ENABLED.value: Y2099,           # OFF
+        SporkID.SPORK_3_INSTANTSEND_BLOCK_FILTERING.value: Y2099,   # OFF
+        SporkID.SPORK_5_INSTANTSEND_MAX_VALUE.value: 1000,          # 1000 Axe
+        SporkID.SPORK_6_NEW_SIGS.value: Y2099,                      # OFF
+        SporkID.SPORK_9_SUPERBLOCKS_ENABLED.value: Y2099,           # OFF
+        SporkID.SPORK_12_RECONSIDER_BLOCKS.value: 0,                # 0 Blocks
+        SporkID.SPORK_15_DETERMINISTIC_MNS_ENABLED.value: Y2099,    # OFF
+        SporkID.SPORK_16_INSTANTSEND_AUTOLOCKS.value: Y2099,        # OFF
+        SporkID.SPORK_17_QUORUM_DKG_ENABLED.value: Y2099,           # OFF
+        SporkID.SPORK_19_CHAINLOCKS_ENABLED.value: Y2099,           # OFF
+        SporkID.SPORK_20_INSTANTSEND_LLMQ_BASED.value: Y2099,       # OFF
+    }
 
     def __init__(self):
         self.from_peers = set()
@@ -120,7 +148,12 @@ class AxeSporks:
             self.logger.info(f'unknown spork id: {spork_id}')
         value = self.gathered_sporks.get(spork_id)
         if value is None:
-            value = self.SPORKS_DEFAULTS.get(spork_id)
+            if constants.net.MAINNET:
+                value = self.SPORKS_DEFAULTS.get(spork_id)
+            if constants.net.TESTNET:
+                value = self.SPORKS_DEFAULTS_TESTNET.get(spork_id)
+            if constants.net.REGTEST:
+                value = self.SPORKS_DEFAULTS_REGTEST.get(spork_id)
         if value is None:
             return False
         return value < time.time()
@@ -132,7 +165,12 @@ class AxeSporks:
         value = self.gathered_sporks.get(spork_id)
         if value is not None:
             return False
-        value = self.SPORKS_DEFAULTS.get(spork_id)
+        if constants.net.MAINNET:
+            value = self.SPORKS_DEFAULTS.get(spork_id)
+        if constants.net.TESTNET:
+            value = self.SPORKS_DEFAULTS_TESTNET.get(spork_id)
+        if constants.net.REGTEST:
+            value = self.SPORKS_DEFAULTS_REGTEST.get(spork_id)
         if value is None:
             return False
         return True
@@ -143,7 +181,12 @@ class AxeSporks:
             self.logger.info(f'unknown spork id: {spork_id}')
         value = self.gathered_sporks.get(spork_id)
         if value is None:
-            value = self.SPORKS_DEFAULTS.get(spork_id)
+            if constants.net.MAINNET:
+                value = self.SPORKS_DEFAULTS.get(spork_id)
+            if constants.net.TESTNET:
+                value = self.SPORKS_DEFAULTS_TESTNET.get(spork_id)
+            if constants.net.REGTEST:
+                value = self.SPORKS_DEFAULTS_REGTEST.get(spork_id)
         return value
 
     def is_new_sigs(self):
@@ -152,6 +195,14 @@ class AxeSporks:
     def as_dict(self):
         res = {}
         for k, v in self.SPORKS_DEFAULTS.items():
+            name = f'{SporkID(k).name}' if SporkID.has_value(k) else str(k)
+            res[k] = {'name': name, 'value': v,
+                      'default': True, 'active': v < time.time()}
+        for k, v in self.SPORKS_DEFAULTS_TESTNET.items():
+            name = f'{SporkID(k).name}' if SporkID.has_value(k) else str(k)
+            res[k] = {'name': name, 'value': v,
+                      'default': True, 'active': v < time.time()}
+        for k, v in self.SPORKS_DEFAULTS_REGTEST.items():
             name = f'{SporkID(k).name}' if SporkID.has_value(k) else str(k)
             res[k] = {'name': name, 'value': v,
                       'default': True, 'active': v < time.time()}
